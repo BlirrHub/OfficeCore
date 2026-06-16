@@ -10,11 +10,16 @@ public class AuthController : ControllerBase
 {
     private readonly SignInManager<Employee> _signInManager;
     private readonly UserManager<Employee> _userManager;
+    private readonly RoleManager<AppRole> _roleManager;
 
-    public AuthController(SignInManager<Employee> signInManager, UserManager<Employee> userManager)
+    public AuthController(
+        SignInManager<Employee> signInManager,
+        UserManager<Employee> userManager,
+        RoleManager<AppRole> roleManager)
     {
         _signInManager = signInManager;
         _userManager = userManager;
+        _roleManager = roleManager;
     }
 
     [HttpPost("login")]
@@ -37,6 +42,42 @@ public class AuthController : ControllerBase
     {
         await _signInManager.SignOutAsync();
         return Ok(new { message = "Logout successful" });
+    }
+
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        if (!User.Identity?.IsAuthenticated ?? true)
+            return Unauthorized();
+
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+            return Unauthorized();
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var claims = await _userManager.GetClaimsAsync(user);
+
+        // Gather role claims (module access)
+        var moduleClaims = new List<string>();
+        foreach (var role in roles)
+        {
+            var appRole = await _roleManager.FindByNameAsync(role);
+            if (appRole != null)
+            {
+                var roleClaims = await _roleManager.GetClaimsAsync(appRole);
+                moduleClaims.AddRange(roleClaims.Where(c => c.Type == "ModuleAccess").Select(c => c.Value));
+            }
+        }
+
+        return Ok(new
+        {
+            id = user.Id,
+            email = user.Email,
+            firstName = user.FirstName,
+            lastName = user.LastName,
+            roles = roles,
+            modules = moduleClaims.Distinct()
+        });
     }
 }
 
