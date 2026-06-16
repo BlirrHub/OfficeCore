@@ -4,6 +4,5 @@
   </Folder>
   <Folder Name="/src/OfficeCore.Web/">
     <Project Path="src/OfficeCore.Web/OfficeCore.Web.Client/OfficeCore.Web.Client.csproj" />
-    <Project Path="src/OfficeCore.Web/OfficeCore.Web/OfficeCore.Web.csproj" />
   </Folder>
 </Solution>
