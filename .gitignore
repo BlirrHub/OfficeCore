@@ -1,0 +1,21 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+
+# Node / Tailwind
+node_modules/
+npm-debug.log*
+
+# Build artifacts (compiled Tailwind CSS is committed)
+# wwwroot/app.css — committed so cold builds work
+
+# Rider / JetBrains
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

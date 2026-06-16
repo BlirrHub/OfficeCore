@@ -1,0 +1,48 @@
+<!-- Brand / logo -->
+<div class="flex items-center gap-3 px-5 h-16 border-b border-gray-800">
+    <div class="size-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+        OC
+    </div>
+    <span class="font-semibold text-white tracking-wide">OfficeCore</span>
+</div>
+
+<!-- Nav links -->
+<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+    <NavLink href="" Match="NavLinkMatch.All"
+             class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400
+                    hover:bg-gray-800 hover:text-white transition-colors"
+             ActiveClass="bg-indigo-600/20 text-indigo-400 font-medium">
+        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M3 9.75L12 3l9 6.75V21a.75.75 0 01-.75.75H15.75a.75.75 0 01-.75-.75v-5.25H9V21a.75.75 0 01-.75.75H3.75A.75.75 0 013 21V9.75z" />
+        </svg>
+        Home
+    </NavLink>
+
+    <NavLink href="counter"
+             class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400
+                    hover:bg-gray-800 hover:text-white transition-colors"
+             ActiveClass="bg-indigo-600/20 text-indigo-400 font-medium">
+        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Counter
+    </NavLink>
+
+    <NavLink href="weather"
+             class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400
+                    hover:bg-gray-800 hover:text-white transition-colors"
+             ActiveClass="bg-indigo-600/20 text-indigo-400 font-medium">
+        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
+        </svg>
+        Weather
+    </NavLink>
+</nav>
+
+<!-- Footer -->
+<div class="px-5 py-4 border-t border-gray-800">
+    <p class="text-xs text-gray-600">OfficeCore &copy; @DateTime.Now.Year</p>
+</div>

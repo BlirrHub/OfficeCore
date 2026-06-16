@@ -1,0 +1,6 @@
+@OfficeCore.Api_HostAddress = http://localhost:5026
+
+GET {{OfficeCore.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
