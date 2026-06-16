@@ -1,5 +1,5 @@
 @page "/tasks"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequireTasks")]
 
 <PageTitle>Tasks - OfficeCore</PageTitle>
 

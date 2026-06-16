@@ -1,5 +1,5 @@
 @page "/payroll"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequirePayroll")]
 
 <PageTitle>Payroll - OfficeCore</PageTitle>
 

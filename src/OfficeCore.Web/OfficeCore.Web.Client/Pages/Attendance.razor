@@ -1,5 +1,5 @@
 @page "/attendance"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequireAttendance")]
 
 <PageTitle>Attendance - OfficeCore</PageTitle>
 

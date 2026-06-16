@@ -1,5 +1,5 @@
 @page "/ledger"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequireLedger")]
 
 <PageTitle>Ledger - OfficeCore</PageTitle>
 

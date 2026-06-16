@@ -18,7 +18,14 @@ builder.Services.AddHttpClient("Default", client =>
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));
 
 // Auth services
-builder.Services.AddAuthorizationCore();
+builder.Services.AddAuthorizationCore(options =>
+{
+    var modules = new[] { "Dashboard", "Clients", "Attendance", "Tasks", "Payroll", "Invoices", "Ledger", "WorkSchedule", "TimeOff", "Locations" };
+    foreach (var module in modules)
+    {
+        options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));
+    }
+});
 builder.Services.AddScoped<CookieAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<CookieAuthStateProvider>());

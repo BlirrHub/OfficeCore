@@ -1,5 +1,5 @@
 @page "/clients"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequireClients")]
 
 <PageTitle>Clients - OfficeCore</PageTitle>
 

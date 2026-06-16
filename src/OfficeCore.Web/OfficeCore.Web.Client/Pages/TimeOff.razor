@@ -1,5 +1,5 @@
 @page "/time-off"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequireTimeOff")]
 
 <PageTitle>Time Off & Holidays - OfficeCore</PageTitle>
 

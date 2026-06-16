@@ -1,5 +1,5 @@
 @page "/work-schedule"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequireWorkSchedule")]
 
 <PageTitle>Work Schedule - OfficeCore</PageTitle>
 
