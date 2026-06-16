@@ -322,6 +322,38 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("WorkSchedules");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleBreak", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<TimeSpan>("EndTime")
+                        .HasColumnType("interval");
+
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<TimeSpan>("StartTime")
+                        .HasColumnType("interval");
+
+                    b.Property<Guid>("WorkScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkScheduleId");
+
+                    b.ToTable("WorkScheduleBreaks");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleDay", b =>
                 {
                     b.Property<int>("Id")
@@ -437,6 +469,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleBreak", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
+                        .WithMany("Breaks")
+                        .HasForeignKey("WorkScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkSchedule");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleDay", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
@@ -450,6 +493,8 @@ namespace OfficeCore.Api.Migrations
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
                 {
+                    b.Navigation("Breaks");
+
                     b.Navigation("Days");
                 });
 #pragma warning restore 612, 618

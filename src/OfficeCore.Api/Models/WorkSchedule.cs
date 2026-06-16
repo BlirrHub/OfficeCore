@@ -27,4 +27,6 @@ public class WorkSchedule
     public double? TotalWeeklyHours { get; set; }
     
     public ICollection<WorkScheduleDay> Days { get; set; } = new List<WorkScheduleDay>();
+    
+    public ICollection<WorkScheduleBreak> Breaks { get; set; } = new List<WorkScheduleBreak>();
 }

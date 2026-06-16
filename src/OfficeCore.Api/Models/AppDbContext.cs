@@ -11,6 +11,7 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
 
     public DbSet<WorkSchedule> WorkSchedules { get; set; }
     public DbSet<WorkScheduleDay> WorkScheduleDays { get; set; }
+    public DbSet<WorkScheduleBreak> WorkScheduleBreaks { get; set; }
     
     public DbSet<EmployeeFingerprint> EmployeeFingerprints { get; set; }
     public DbSet<AttendanceRecord> AttendanceRecords { get; set; }

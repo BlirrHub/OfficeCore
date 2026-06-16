@@ -153,6 +153,51 @@
                             <span class="text-sm text-zinc-300">Include time tracked before scheduled start time</span>
                         </label>
                     </div>
+
+                    <!-- Breaks Section -->
+                    <div class="border-t border-zinc-800 pt-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-medium text-white">Scheduled Breaks</h3>
+                            <button type="button" @onclick="AddBreak" class="flex items-center gap-2 text-fuchsia-400 text-xs font-medium hover:text-fuchsia-300 transition-colors">
+                                <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                Add break
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            @if (_editModel.Breaks == null || !_editModel.Breaks.Any())
+                            {
+                                <p class="text-xs text-zinc-500 italic">No breaks scheduled.</p>
+                            }
+                            else
+                            {
+                                @foreach (var b in _editModel.Breaks)
+                                {
+                                    <div class="flex items-center gap-3 bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                        <input type="text" @bind="b.Name" placeholder="Break name (e.g. Lunch)" class="flex-1 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                        
+                                        <div class="flex items-center gap-2">
+                                            <input type="time" @bind:get="TimeOnly.FromTimeSpan(b.StartTime)" @bind:set="(value) => b.StartTime = value.ToTimeSpan()" class="w-28 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                            <span class="text-zinc-500 text-xs">to</span>
+                                            <input type="time" @bind:get="TimeOnly.FromTimeSpan(b.EndTime)" @bind:set="(value) => b.EndTime = value.ToTimeSpan()" class="w-28 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                        </div>
+
+                                        <label class="flex items-center gap-2 cursor-pointer ml-2">
+                                            <input type="checkbox" @bind="b.IsPaid" class="sr-only peer" />
+                                            <div class="w-4 h-4 rounded border border-zinc-700 bg-zinc-900 peer-checked:bg-fuchsia-600 peer-checked:border-fuchsia-600 flex items-center justify-center text-white transition-colors">
+                                                <svg class="size-2.5 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                            </div>
+                                            <span class="text-xs text-zinc-300">Paid</span>
+                                        </label>
+
+                                        <button type="button" @onclick="() => RemoveBreak(b)" class="ml-2 text-zinc-500 hover:text-red-400 transition-colors p-1 rounded hover:bg-zinc-900">
+                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
                 </div>
             </div>
         }
@@ -222,6 +267,28 @@
                             <p class="text-sm text-zinc-500">Employees with this schedule can track time freely without any fixed hours or constraints.</p>
                         </div>
                     }
+
+                    <!-- View Breaks -->
+                    @if (_selectedSchedule.Breaks != null && _selectedSchedule.Breaks.Any())
+                    {
+                        <div class="border-t border-zinc-800 pt-6">
+                            <label class="block text-sm font-medium text-zinc-500 mb-4">Scheduled Breaks</label>
+                            <div class="space-y-2">
+                                @foreach (var b in _selectedSchedule.Breaks.OrderBy(br => br.StartTime))
+                                {
+                                    <div class="flex items-center gap-4 bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                        <div class="w-40 text-sm text-white font-medium">@b.Name</div>
+                                        <div class="flex-1 text-sm text-zinc-400">
+                                            @b.StartTime.ToString(@"hh\:mm") - @b.EndTime.ToString(@"hh\:mm")
+                                        </div>
+                                        <div class="text-xs font-medium px-2 py-1 rounded @(b.IsPaid ? "bg-emerald-900/30 text-emerald-400" : "bg-zinc-800 text-zinc-400")">
+                                            @(b.IsPaid ? "Paid" : "Unpaid")
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                 </div>
             </div>
         }
@@ -274,7 +341,8 @@
                 IsRestDay = d == DayOfWeek.Saturday || d == DayOfWeek.Sunday,
                 StartTime = d == DayOfWeek.Saturday || d == DayOfWeek.Sunday ? null : new TimeSpan(9, 0, 0),
                 EndTime = d == DayOfWeek.Saturday || d == DayOfWeek.Sunday ? null : new TimeSpan(17, 0, 0)
-            }).ToList()
+            }).ToList(),
+            Breaks = new List<WorkScheduleBreakDto>()
         };
     }
 
@@ -305,7 +373,14 @@
                 StartTime = d.StartTime,
                 EndTime = d.EndTime,
                 WorkingHours = d.WorkingHours
-            }).ToList()
+            }).ToList(),
+            Breaks = _selectedSchedule.Breaks?.Select(b => new WorkScheduleBreakDto
+            {
+                Name = b.Name,
+                IsPaid = b.IsPaid,
+                StartTime = b.StartTime,
+                EndTime = b.EndTime
+            }).ToList() ?? new List<WorkScheduleBreakDto>()
         };
     }
 
@@ -323,6 +398,22 @@
             day.StartTime = new TimeSpan(9, 0, 0);
             day.EndTime = new TimeSpan(17, 0, 0);
         }
+    }
+
+    private void AddBreak()
+    {
+        _editModel.Breaks.Add(new WorkScheduleBreakDto
+        {
+            Name = "Lunch Break",
+            IsPaid = false,
+            StartTime = new TimeSpan(12, 0, 0),
+            EndTime = new TimeSpan(13, 0, 0)
+        });
+    }
+
+    private void RemoveBreak(WorkScheduleBreakDto b)
+    {
+        _editModel.Breaks.Remove(b);
     }
 
     private async Task SaveSchedule()
@@ -370,6 +461,7 @@
         public TimeSpan SplitTimesheetsAt { get; set; }
         public double? TotalWeeklyHours { get; set; }
         public List<WorkScheduleDayDto> Days { get; set; } = new();
+        public List<WorkScheduleBreakDto> Breaks { get; set; } = new();
     }
 
     public class WorkScheduleDayDto
@@ -379,5 +471,13 @@
         public TimeSpan? StartTime { get; set; }
         public TimeSpan? EndTime { get; set; }
         public double? WorkingHours { get; set; }
+    }
+
+    public class WorkScheduleBreakDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool IsPaid { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
     }
 }

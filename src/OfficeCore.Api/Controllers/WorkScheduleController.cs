@@ -22,6 +22,7 @@ public class WorkScheduleController : ControllerBase
     {
         var schedules = await _context.WorkSchedules
             .Include(ws => ws.Days)
+            .Include(ws => ws.Breaks)
             .ToListAsync();
             
         return Ok(schedules);
@@ -32,6 +33,7 @@ public class WorkScheduleController : ControllerBase
     {
         var schedule = await _context.WorkSchedules
             .Include(ws => ws.Days)
+            .Include(ws => ws.Breaks)
             .FirstOrDefaultAsync(ws => ws.Id == id);
 
         if (schedule == null)
@@ -55,6 +57,15 @@ public class WorkScheduleController : ControllerBase
                 day.Id = 0; // Let DB generate ID
             }
         }
+        
+        if (schedule.Breaks != null)
+        {
+            foreach (var b in schedule.Breaks)
+            {
+                b.WorkScheduleId = schedule.Id;
+                b.Id = 0; // Let DB generate ID
+            }
+        }
 
         _context.WorkSchedules.Add(schedule);
         await _context.SaveChangesAsync();
@@ -71,6 +82,7 @@ public class WorkScheduleController : ControllerBase
 
         var existingSchedule = await _context.WorkSchedules
             .Include(ws => ws.Days)
+            .Include(ws => ws.Breaks)
             .FirstOrDefaultAsync(ws => ws.Id == id);
 
         if (existingSchedule == null)
@@ -92,6 +104,19 @@ public class WorkScheduleController : ControllerBase
                 day.Id = 0;
                 day.WorkScheduleId = id;
                 existingSchedule.Days.Add(day);
+            }
+        }
+
+        // Update breaks: remove old ones and add new ones
+        _context.WorkScheduleBreaks.RemoveRange(existingSchedule.Breaks);
+        
+        if (updatedSchedule.Breaks != null)
+        {
+            foreach (var b in updatedSchedule.Breaks)
+            {
+                b.Id = 0;
+                b.WorkScheduleId = id;
+                existingSchedule.Breaks.Add(b);
             }
         }
 
