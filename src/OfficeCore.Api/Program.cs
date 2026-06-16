@@ -40,7 +40,14 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
         options.Cookie.SameSite = SameSiteMode.Strict;
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    var modules = new[] { "Dashboard", "Clients", "Attendance", "Tasks", "Payroll", "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", "Users", "Roles", "Organization" };
+    foreach (var module in modules)
+    {
+        options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));
+    }
+});
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

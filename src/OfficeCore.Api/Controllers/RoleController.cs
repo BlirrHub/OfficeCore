@@ -9,7 +9,7 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "RequireRoles")]
 public class RoleController : ControllerBase
 {
     private readonly RoleManager<AppRole> _roleManager;
@@ -88,6 +88,23 @@ public class RoleController : ControllerBase
         }
 
         return Ok(new { message = "Role modules updated successfully" });
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteRole(string id)
+    {
+        var role = await _roleManager.FindByIdAsync(id);
+        if (role == null)
+            return NotFound();
+
+        if (role.Name == "Admin")
+            return BadRequest(new { message = "Cannot delete the system Admin role." });
+
+        var result = await _roleManager.DeleteAsync(role);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return Ok(new { message = "Role deleted successfully" });
     }
 }
 

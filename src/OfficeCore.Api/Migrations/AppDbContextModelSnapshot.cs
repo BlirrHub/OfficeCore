@@ -260,6 +260,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<TimeSpan>("SplitTimesheetsAt")
                         .HasColumnType("interval");
 
+                    b.Property<double?>("TotalWeeklyHours")
+                        .HasColumnType("double precision");
+
                     b.Property<int>("WorkArrangement")
                         .HasColumnType("integer");
 
@@ -290,6 +293,9 @@ namespace OfficeCore.Api.Migrations
 
                     b.Property<Guid>("WorkScheduleId")
                         .HasColumnType("uuid");
+
+                    b.Property<double?>("WorkingHours")
+                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 

@@ -4,7 +4,7 @@
 
 <PageTitle>Work Schedules - OfficeCore</PageTitle>
 
-<div class="flex h-[calc(100vh-4rem)]">
+<div class="flex h-full">
     <!-- Sidebar for list of schedules -->
     <div class="w-72 border-r border-zinc-800 bg-zinc-950 overflow-y-auto flex flex-col">
         <div class="p-4 border-b border-zinc-800">
@@ -73,45 +73,76 @@
                             <button class="@($"px-6 py-2 text-sm font-medium transition-colors {(_editModel.WorkArrangement == 0 ? "bg-zinc-800 text-fuchsia-400" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-900")}")" @onclick="() => _editModel.WorkArrangement = 0">Fixed</button>
                             <button class="@($"px-6 py-2 text-sm font-medium transition-colors border-l border-zinc-800 {(_editModel.WorkArrangement == 1 ? "bg-zinc-800 text-fuchsia-400" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-900")}")" @onclick="() => _editModel.WorkArrangement = 1">Flexible</button>
                             <button class="@($"px-6 py-2 text-sm font-medium transition-colors border-l border-zinc-800 {(_editModel.WorkArrangement == 2 ? "bg-zinc-800 text-fuchsia-400" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-900")}")" @onclick="() => _editModel.WorkArrangement = 2">Weekly</button>
+                            <button class="@($"px-6 py-2 text-sm font-medium transition-colors border-l border-zinc-800 {(_editModel.WorkArrangement == 3 ? "bg-zinc-800 text-fuchsia-400" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-900")}")" @onclick="() => _editModel.WorkArrangement = 3">No Schedule</button>
                         </div>
                     </div>
 
-                    <!-- Days of the week selection -->
-                    <div class="flex gap-8 items-start">
-                        <label class="w-40 text-sm font-medium text-zinc-400 mt-2">Days of the week</label>
-                        <div class="flex gap-1 border border-zinc-800 rounded-lg p-1 bg-zinc-950">
-                            @foreach (var day in _editModel.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
-                            {
-                                var initial = day.DayOfWeek.ToString().Substring(0, 1);
-                                <button class="@($"size-10 rounded-md flex items-center justify-center text-sm font-medium transition-colors {(!day.IsRestDay ? "text-fuchsia-400 bg-fuchsia-900/20" : "text-zinc-400 hover:bg-zinc-900")}")" 
-                                        @onclick="() => ToggleRestDay(day)">
-                                    @initial
-                                </button>
-                            }
-                        </div>
-                    </div>
-
-                    <!-- Daily Times -->
-                    <div class="space-y-4 pl-[12.5rem]">
-                        @foreach (var day in _editModel.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
-                        {
-                            <div class="flex items-center gap-4">
-                                <span class="w-24 text-sm text-zinc-400 font-medium">@day.DayOfWeek.ToString()</span>
-                                @if (day.IsRestDay)
+                    @if (_editModel.WorkArrangement == 0 || _editModel.WorkArrangement == 1)
+                    {
+                        <!-- Days of the week selection -->
+                        <div class="flex gap-8 items-start">
+                            <label class="w-40 text-sm font-medium text-zinc-400 mt-2">Days of the week</label>
+                            <div class="flex gap-1 border border-zinc-800 rounded-lg p-1 bg-zinc-950">
+                                @foreach (var day in _editModel.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
                                 {
-                                    <span class="text-sm text-zinc-600 italic">Rest day</span>
-                                }
-                                else
-                                {
-                                    <div class="flex items-center gap-2">
-                                        <input type="time" @bind:get="day.StartTime.HasValue ? TimeOnly.FromTimeSpan(day.StartTime.Value) : (TimeOnly?)null" @bind:set="(value) => day.StartTime = value?.ToTimeSpan()" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                        <span class="text-zinc-500 text-sm">to</span>
-                                        <input type="time" @bind:get="day.EndTime.HasValue ? TimeOnly.FromTimeSpan(day.EndTime.Value) : (TimeOnly?)null" @bind:set="(value) => day.EndTime = value?.ToTimeSpan()" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                    </div>
+                                    var initial = day.DayOfWeek.ToString().Substring(0, 1);
+                                    <button class="@($"size-10 rounded-md flex items-center justify-center text-sm font-medium transition-colors {(!day.IsRestDay ? "text-fuchsia-400 bg-fuchsia-900/20" : "text-zinc-400 hover:bg-zinc-900")}")" 
+                                            @onclick="() => ToggleRestDay(day)">
+                                        @initial
+                                    </button>
                                 }
                             </div>
-                        }
-                    </div>
+                        </div>
+
+                        <!-- Daily Times -->
+                        <div class="space-y-4 pl-[12.5rem]">
+                            @foreach (var day in _editModel.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
+                            {
+                                <div class="flex items-center gap-4">
+                                    <span class="w-24 text-sm text-zinc-400 font-medium">@day.DayOfWeek.ToString()</span>
+                                    @if (day.IsRestDay)
+                                    {
+                                        <span class="text-sm text-zinc-600 italic">Rest day</span>
+                                    }
+                                    else
+                                    {
+                                        @if (_editModel.WorkArrangement == 0) // Fixed
+                                        {
+                                            <div class="flex items-center gap-2">
+                                                <input type="time" @bind:get="day.StartTime.HasValue ? TimeOnly.FromTimeSpan(day.StartTime.Value) : (TimeOnly?)null" @bind:set="(value) => day.StartTime = value?.ToTimeSpan()" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                                <span class="text-zinc-500 text-sm">to</span>
+                                                <input type="time" @bind:get="day.EndTime.HasValue ? TimeOnly.FromTimeSpan(day.EndTime.Value) : (TimeOnly?)null" @bind:set="(value) => day.EndTime = value?.ToTimeSpan()" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                            </div>
+                                        }
+                                        else // Flexible
+                                        {
+                                            <div class="flex items-center gap-2">
+                                                <input type="number" step="0.5" min="0" max="24" @bind="day.WorkingHours" class="w-24 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                                <span class="text-zinc-500 text-sm">hours</span>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (_editModel.WorkArrangement == 2) // Weekly
+                    {
+                        <div class="flex gap-8 items-center">
+                            <label class="w-40 text-sm font-medium text-zinc-400">Total weekly hours</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" step="0.5" min="0" max="168" @bind="_editModel.TotalWeeklyHours" class="w-32 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                <span class="text-zinc-500 text-sm">hours</span>
+                            </div>
+                        </div>
+                    }
+                    else if (_editModel.WorkArrangement == 3) // No Schedule
+                    {
+                        <div class="flex gap-8 items-center">
+                            <label class="w-40 text-sm font-medium text-zinc-400"></label>
+                            <p class="text-sm text-zinc-500">Employees with this schedule can track time freely without any fixed hours or constraints.</p>
+                        </div>
+                    }
 
                     <div class="border-t border-zinc-800 pt-6">
                         <label class="flex items-center gap-3 cursor-pointer">
@@ -144,28 +175,53 @@
                     </div>
                      <div class="flex gap-8 items-center">
                         <label class="w-40 text-sm font-medium text-zinc-500">Work arrangement</label>
-                        <div class="text-sm text-white">@(_selectedSchedule.WorkArrangement == 0 ? "Fixed" : _selectedSchedule.WorkArrangement == 1 ? "Flexible" : "Weekly")</div>
+                        <div class="text-sm text-white">@(_selectedSchedule.WorkArrangement == 0 ? "Fixed" : _selectedSchedule.WorkArrangement == 1 ? "Flexible" : _selectedSchedule.WorkArrangement == 2 ? "Weekly" : "No Schedule")</div>
                     </div>
-                    <div class="space-y-4 pl-[12.5rem]">
-                        @foreach (var day in _selectedSchedule.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
-                        {
-                            <div class="flex items-center gap-4">
-                                <span class="w-24 text-sm text-zinc-400 font-medium">@day.DayOfWeek.ToString()</span>
-                                @if (day.IsRestDay)
-                                {
-                                    <span class="text-sm text-zinc-600 italic">Rest day</span>
-                                }
-                                else
-                                {
-                                    <div class="flex items-center gap-2 text-sm text-white">
-                                        <span>@(day.StartTime?.ToString(@"hh\:mm") ?? "00:00")</span>
-                                        <span class="text-zinc-500 mx-1">to</span>
-                                        <span>@(day.EndTime?.ToString(@"hh\:mm") ?? "00:00")</span>
-                                    </div>
-                                }
-                            </div>
-                        }
-                    </div>
+                    
+                    @if (_selectedSchedule.WorkArrangement == 0 || _selectedSchedule.WorkArrangement == 1)
+                    {
+                        <div class="space-y-4 pl-[12.5rem]">
+                            @foreach (var day in _selectedSchedule.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
+                            {
+                                <div class="flex items-center gap-4">
+                                    <span class="w-24 text-sm text-zinc-400 font-medium">@day.DayOfWeek.ToString()</span>
+                                    @if (day.IsRestDay)
+                                    {
+                                        <span class="text-sm text-zinc-600 italic">Rest day</span>
+                                    }
+                                    else
+                                    {
+                                        <div class="flex items-center gap-2 text-sm text-white">
+                                            @if (_selectedSchedule.WorkArrangement == 0)
+                                            {
+                                                <span>@(day.StartTime?.ToString(@"hh\:mm") ?? "00:00")</span>
+                                                <span class="text-zinc-500 mx-1">to</span>
+                                                <span>@(day.EndTime?.ToString(@"hh\:mm") ?? "00:00")</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@(day.WorkingHours?.ToString("0.##") ?? "0") hours</span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (_selectedSchedule.WorkArrangement == 2)
+                    {
+                        <div class="flex gap-8 items-center">
+                            <label class="w-40 text-sm font-medium text-zinc-500">Total weekly hours</label>
+                            <div class="text-sm text-white">@(_selectedSchedule.TotalWeeklyHours?.ToString("0.##") ?? "0") hours</div>
+                        </div>
+                    }
+                    else if (_selectedSchedule.WorkArrangement == 3)
+                    {
+                        <div class="flex gap-8 items-center">
+                            <label class="w-40 text-sm font-medium text-zinc-500"></label>
+                            <p class="text-sm text-zinc-500">Employees with this schedule can track time freely without any fixed hours or constraints.</p>
+                        </div>
+                    }
                 </div>
             </div>
         }
@@ -241,12 +297,14 @@
             WorkArrangement = _selectedSchedule.WorkArrangement,
             IncludeTimeTrackedBeforeScheduledStartTime = _selectedSchedule.IncludeTimeTrackedBeforeScheduledStartTime,
             SplitTimesheetsAt = _selectedSchedule.SplitTimesheetsAt,
+            TotalWeeklyHours = _selectedSchedule.TotalWeeklyHours,
             Days = _selectedSchedule.Days.Select(d => new WorkScheduleDayDto
             {
                 DayOfWeek = d.DayOfWeek,
                 IsRestDay = d.IsRestDay,
                 StartTime = d.StartTime,
-                EndTime = d.EndTime
+                EndTime = d.EndTime,
+                WorkingHours = d.WorkingHours
             }).ToList()
         };
     }
@@ -310,6 +368,7 @@
         public int WorkArrangement { get; set; }
         public bool IncludeTimeTrackedBeforeScheduledStartTime { get; set; }
         public TimeSpan SplitTimesheetsAt { get; set; }
+        public double? TotalWeeklyHours { get; set; }
         public List<WorkScheduleDayDto> Days { get; set; } = new();
     }
 
@@ -319,5 +378,6 @@
         public bool IsRestDay { get; set; }
         public TimeSpan? StartTime { get; set; }
         public TimeSpan? EndTime { get; set; }
+        public double? WorkingHours { get; set; }
     }
 }

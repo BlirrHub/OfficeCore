@@ -20,19 +20,26 @@ public static class DbSeeder
 
         // 1. Seed Roles
         string adminRoleName = "Admin";
-        if (!await roleManager.RoleExistsAsync(adminRoleName))
+        var adminRole = await roleManager.FindByNameAsync(adminRoleName);
+        if (adminRole == null)
         {
-            var adminRole = new AppRole(adminRoleName) { Description = "Super Administrator with full access" };
+            adminRole = new AppRole(adminRoleName) { Description = "Super Administrator with full access" };
             await roleManager.CreateAsync(adminRole);
+        }
 
-            // Assign all module claims to Admin
-            var modules = new[]
-            {
-                "Dashboard", "Clients", "Attendance", "Tasks",
-                "Payroll", "Invoices", "Ledger",
-                "WorkSchedule", "TimeOff", "Locations"
-            };
-            foreach (var module in modules)
+        // Ensure Admin has all module claims
+        var existingClaims = await roleManager.GetClaimsAsync(adminRole);
+        var modules = new[]
+        {
+            "Dashboard", "Clients", "Attendance", "Tasks",
+            "Payroll", "Invoices", "Ledger",
+            "WorkSchedules", "TimeOff", "Locations",
+            "Users", "Roles", "Organization"
+        };
+
+        foreach (var module in modules)
+        {
+            if (!existingClaims.Any(c => c.Type == "ModuleAccess" && c.Value == module))
             {
                 await roleManager.AddClaimAsync(adminRole, new Claim("ModuleAccess", module));
             }

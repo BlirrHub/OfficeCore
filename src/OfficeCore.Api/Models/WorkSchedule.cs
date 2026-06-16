@@ -6,7 +6,8 @@ public enum WorkArrangement
 {
     Fixed,
     Flexible,
-    Weekly
+    Weekly,
+    NoSchedule
 }
 
 public class WorkSchedule
@@ -22,6 +23,8 @@ public class WorkSchedule
     public bool IncludeTimeTrackedBeforeScheduledStartTime { get; set; }
     
     public TimeSpan SplitTimesheetsAt { get; set; } = TimeSpan.Zero;
+    
+    public double? TotalWeeklyHours { get; set; }
     
     public ICollection<WorkScheduleDay> Days { get; set; } = new List<WorkScheduleDay>();
 }

@@ -8,7 +8,7 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "RequireUsers")]
 public class UserController : ControllerBase
 {
     private readonly UserManager<Employee> _userManager;

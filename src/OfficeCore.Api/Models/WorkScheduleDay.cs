@@ -9,6 +9,7 @@ public class WorkScheduleDay
     public Guid WorkScheduleId { get; set; }
     
     [ForeignKey(nameof(WorkScheduleId))]
+    [System.Text.Json.Serialization.JsonIgnore]
     public WorkSchedule? WorkSchedule { get; set; }
     
     public DayOfWeek DayOfWeek { get; set; }
@@ -18,4 +19,6 @@ public class WorkScheduleDay
     public TimeSpan? StartTime { get; set; }
     
     public TimeSpan? EndTime { get; set; }
+    
+    public double? WorkingHours { get; set; }
 }

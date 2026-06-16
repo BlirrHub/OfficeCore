@@ -41,7 +41,7 @@ public class WorkScheduleController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "RequireAdmin")] // Adjust this if you have a specific policy for creating schedules
+    [Authorize(Policy = "RequireWorkSchedules")]
     public async Task<IActionResult> CreateWorkSchedule(WorkSchedule schedule)
     {
         // WorkScheduleDay will be passed along with WorkSchedule
@@ -63,7 +63,7 @@ public class WorkScheduleController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = "RequireAdmin")]
+    [Authorize(Policy = "RequireWorkSchedules")]
     public async Task<IActionResult> UpdateWorkSchedule(Guid id, WorkSchedule updatedSchedule)
     {
         if (id != updatedSchedule.Id)
@@ -80,6 +80,7 @@ public class WorkScheduleController : ControllerBase
         existingSchedule.WorkArrangement = updatedSchedule.WorkArrangement;
         existingSchedule.IncludeTimeTrackedBeforeScheduledStartTime = updatedSchedule.IncludeTimeTrackedBeforeScheduledStartTime;
         existingSchedule.SplitTimesheetsAt = updatedSchedule.SplitTimesheetsAt;
+        existingSchedule.TotalWeeklyHours = updatedSchedule.TotalWeeklyHours;
 
         // Update days: remove old ones and add new ones (simple approach)
         _context.WorkScheduleDays.RemoveRange(existingSchedule.Days);
@@ -100,7 +101,7 @@ public class WorkScheduleController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = "RequireAdmin")]
+    [Authorize(Policy = "RequireWorkSchedules")]
     public async Task<IActionResult> DeleteWorkSchedule(Guid id)
     {
         var schedule = await _context.WorkSchedules.FindAsync(id);
