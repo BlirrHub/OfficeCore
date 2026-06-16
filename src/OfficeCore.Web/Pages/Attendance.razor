@@ -1,14 +1,129 @@
 @page "/attendance"
 @attribute [Authorize(Policy = "RequireAttendance")]
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+@inject HttpClient Http
+@inject NavigationManager Nav
 
 <PageTitle>Attendance - OfficeCore</PageTitle>
 
 <div class="space-y-6">
-    <div>
-        <h1 class="text-3xl font-bold tracking-tight text-white">Attendance</h1>
-        <p class="mt-2 text-zinc-400">Manage employee attendance and time tracking.</p>
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-white">Attendance Log</h1>
+            <p class="mt-1 text-zinc-400 text-sm">Real-time clock-in and clock-out records from the fingerprint scanner.</p>
+        </div>
     </div>
-    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 flex items-center justify-center">
-        <p class="text-zinc-500 italic">This module is under construction.</p>
+
+    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
+        @if (_records == null)
+        {
+            <div class="p-12 flex justify-center">
+                <div class="flex items-center gap-3 text-zinc-500 text-sm">
+                    <svg class="animate-spin size-5" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Loading records...
+                </div>
+            </div>
+        }
+        else if (!_records.Any())
+        {
+            <div class="p-12 text-center text-zinc-500 italic text-sm">No attendance records found.</div>
+        }
+        else
+        {
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-800 text-zinc-400 text-left">
+                        <th class="px-6 py-4 font-medium">Employee Name</th>
+                        <th class="px-6 py-4 font-medium">Date & Time</th>
+                        <th class="px-6 py-4 font-medium">Action</th>
+                        <th class="px-6 py-4 font-medium">Source</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800/50">
+                    @foreach (var record in _records)
+                    {
+                        <tr class="hover:bg-zinc-900/50 transition-colors">
+                            <td class="px-6 py-4 text-white font-medium">@record.EmployeeName</td>
+                            <td class="px-6 py-4 text-zinc-400">@record.Timestamp.ToLocalTime().ToString("MMM dd, yyyy - hh:mm tt")</td>
+                            <td class="px-6 py-4">
+                                @if (record.Type == "ClockIn")
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-900/40 px-2.5 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/30">
+                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                                        Clock In
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-900/40 px-2.5 py-0.5 text-xs font-medium text-orange-400 ring-1 ring-orange-500/30">
+                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                        Clock Out
+                                    </span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-zinc-500 text-xs">@record.Source</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
     </div>
 </div>
+
+@code {
+    private List<AttendanceRecordDto>? _records;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On("ReceiveAttendanceUpdate", async () =>
+        {
+            await LoadData();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _records = await Http.GetFromJsonAsync<List<AttendanceRecordDto>>("/api/attendance");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading attendance: {ex.Message}");
+            _records = new List<AttendanceRecordDto>();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private class AttendanceRecordDto
+    {
+        public Guid Id { get; set; }
+        public string EmployeeName { get; set; } = string.Empty;
+        public string EmployeeId { get; set; } = string.Empty;
+        public DateTimeOffset Timestamp { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
+    }
+}

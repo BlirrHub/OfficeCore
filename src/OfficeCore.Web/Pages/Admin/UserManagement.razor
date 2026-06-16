@@ -1,5 +1,7 @@
 @page "/admin/users"
 @attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 @inject HttpClient Http
 @inject NavigationManager Nav
 
@@ -247,6 +249,52 @@
                         </div>
                     }
                 </div>
+
+                <div class="pt-4 border-t border-zinc-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-medium text-zinc-400">Enrolled Fingerprints</label>
+                        <div class="flex gap-2">
+                            <button type="button" @onclick="() => LoadFingerprints(_edit.Id)"
+                                    class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                                <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Refresh
+                            </button>
+                            <button type="button" @onclick="EnrollFingerprint"
+                                    class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded transition-colors">
+                                Enroll New Fingerprint
+                            </button>
+                        </div>
+                    </div>
+                    @if (_enrollmentMessage != null)
+                    {
+                        <p class="text-xs text-emerald-400 mb-2">@_enrollmentMessage</p>
+                    }
+                    @if (_fingerprints == null)
+                    {
+                        <p class="text-xs text-zinc-500">Loading...</p>
+                    }
+                    else if (!_fingerprints.Any())
+                    {
+                        <p class="text-xs text-zinc-500">No fingerprints enrolled for this user.</p>
+                    }
+                    else
+                    {
+                        <ul class="space-y-2">
+                            @foreach (var fp in _fingerprints)
+                            {
+                                <li class="flex items-center justify-between bg-zinc-900 px-3 py-2 rounded-lg border border-zinc-800 text-sm">
+                                    <span class="text-white">ID: <span class="font-mono text-fuchsia-400">@fp.FingerprintId</span></span>
+                                    <button type="button" @onclick="() => DeleteFingerprint(fp.Id)"
+                                            class="text-red-400 hover:text-red-300 text-xs transition-colors">
+                                        Delete
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
             </div>
 
             @if (!string.IsNullOrEmpty(_modalError))
@@ -273,12 +321,54 @@
     private bool _showCreate;
     private bool _showEdit;
     private string? _modalError;
+    private string? _enrollmentMessage;
     private CreateForm _create = new();
     private UpdateForm _edit = new();
+    private List<FingerprintDto>? _fingerprints;
+    private HubConnection? _hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
+        
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<string, string>("ReceiveEnrollmentStatus", (employeeId, status) =>
+        {
+            if (_showEdit && _edit.Id == employeeId)
+            {
+                // Format the status string slightly for better UI display
+                if (status.StartsWith("MODE:")) status = "Device is in enrollment mode. Please scan finger on the sensor.";
+                else if (status.StartsWith("INFO:")) status = status.Substring(5).Trim();
+                else if (status.StartsWith("ERROR:")) status = status.Substring(6).Trim();
+
+                _enrollmentMessage = status;
+                InvokeAsync(StateHasChanged);
+            }
+        });
+
+        _hubConnection.On<string>("ReceiveEnrollmentSuccess", async (employeeId) =>
+        {
+            if (_showEdit && _edit.Id == employeeId)
+            {
+                _enrollmentMessage = "Enrollment Successful!";
+                await LoadFingerprints(employeeId);
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 
     private async Task LoadData()
@@ -319,7 +409,60 @@
             Console.WriteLine($"Error loading roles: {ex.Message}");
         }
 
+        await LoadFingerprints(user.Id);
+
         _showEdit = true;
+    }
+
+    private async Task LoadFingerprints(string employeeId)
+    {
+        _fingerprints = null;
+        try
+        {
+            _fingerprints = await Http.GetFromJsonAsync<List<FingerprintDto>>($"/api/attendance/fingerprints/{employeeId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading fingerprints: {ex.Message}");
+            _fingerprints = new List<FingerprintDto>();
+        }
+    }
+
+    private async Task EnrollFingerprint()
+    {
+        _enrollmentMessage = null;
+        _modalError = null;
+        try
+        {
+            var response = await Http.PostAsync($"/api/attendance/enroll/{_edit.Id}", null);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<EnrollmentResponse>();
+                _enrollmentMessage = result?.Message;
+            }
+            else
+            {
+                var error = await response.Content.ReadFromJsonAsync<EnrollmentResponse>();
+                _modalError = error?.Message ?? "Failed to start enrollment.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _modalError = "Error communicating with the API.";
+        }
+    }
+
+    private async Task DeleteFingerprint(int id)
+    {
+        try
+        {
+            await Http.DeleteAsync($"/api/attendance/fingerprints/{id}");
+            await LoadFingerprints(_edit.Id);
+        }
+        catch
+        {
+            _modalError = "Failed to delete fingerprint.";
+        }
     }
 
     private void ToggleRole(HashSet<string> set, string role)
@@ -445,4 +588,6 @@
     private record UserDto(string Id, string Email, string FirstName, string LastName, string? EmployeeId, bool IsActive, decimal? DailyRate, Guid? WorkScheduleId);
     private record RoleDto(string Id, string? Name, string? Description);
     private record WorkScheduleDto(Guid Id, string Name);
+    private record FingerprintDto(int Id, int FingerprintId, DateTimeOffset EnrolledAt);
+    private class EnrollmentResponse { public string? Message { get; set; } }
 }

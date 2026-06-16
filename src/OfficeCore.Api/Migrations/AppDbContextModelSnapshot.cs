@@ -157,6 +157,32 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("AspNetRoles", (string)null);
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.AttendanceRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("AttendanceRecords");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.Employee", b =>
                 {
                     b.Property<string>("Id")
@@ -241,6 +267,31 @@ namespace OfficeCore.Api.Migrations
                     b.HasIndex("WorkScheduleId");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.EmployeeFingerprint", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("EnrolledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FingerprintId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("EmployeeFingerprints");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
@@ -355,6 +406,17 @@ namespace OfficeCore.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.AttendanceRecord", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.Employee", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
@@ -362,6 +424,17 @@ namespace OfficeCore.Api.Migrations
                         .HasForeignKey("WorkScheduleId");
 
                     b.Navigation("WorkSchedule");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.EmployeeFingerprint", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleDay", b =>

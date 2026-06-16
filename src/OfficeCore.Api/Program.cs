@@ -52,6 +52,11 @@ builder.Services.AddAuthorization(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
+
+// Register Background Services
+builder.Services.AddSingleton<OfficeCore.Api.Services.FingerprintDeviceService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<OfficeCore.Api.Services.FingerprintDeviceService>());
 
 var app = builder.Build();
 
@@ -70,5 +75,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<OfficeCore.Api.Hubs.AttendanceHub>("/attendanceHub");
 
 app.Run();
