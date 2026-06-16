@@ -26,7 +26,12 @@ public static class DbSeeder
             await roleManager.CreateAsync(adminRole);
 
             // Assign all module claims to Admin
-            var modules = new[] { "Dashboard", "Clients", "Attendance", "Tasks", "Payroll", "Invoices", "Ledger" };
+            var modules = new[]
+            {
+                "Dashboard", "Clients", "Attendance", "Tasks",
+                "Payroll", "Invoices", "Ledger",
+                "WorkSchedule", "TimeOff", "Locations"
+            };
             foreach (var module in modules)
             {
                 await roleManager.AddClaimAsync(adminRole, new Claim("ModuleAccess", module));
