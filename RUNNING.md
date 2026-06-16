@@ -200,14 +200,15 @@ dotnet run --project src/OfficeCore.Api
 ```
 
 **Terminal 2 — CSS Watcher**
-```powershell
-cd src/OfficeCore.Web/OfficeCore.Web
+```bash
+cd src/OfficeCore.Web
 npm run css:watch
 ```
 
 **Terminal 3 — Blazor Frontend**
-```powershell
-dotnet watch --project src/OfficeCore.Web/OfficeCore.Web
+```bash
+cd src/OfficeCore.Web
+dotnet watch
 ```
 
 > **Tip**: Use Windows Terminal with multiple tabs for a clean experience.

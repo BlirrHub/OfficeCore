@@ -9,6 +9,9 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     {
     }
 
+    public DbSet<WorkSchedule> WorkSchedules { get; set; }
+    public DbSet<WorkScheduleDay> WorkScheduleDays { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

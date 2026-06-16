@@ -123,6 +123,23 @@
                     <input @bind="_create.EmployeeId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate</label>
+                    <input @bind="_create.DailyRate" type="number" step="0.01" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
+                    <select @bind="_create.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
+                        <option value="">-- No Schedule Assigned --</option>
+                        @if (_workSchedules != null)
+                        {
+                            @foreach (var schedule in _workSchedules)
+                            {
+                                <option value="@schedule.Id">@schedule.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-zinc-400 mb-2">Assign Roles</label>
                     @if (_roles != null)
                     {
@@ -188,6 +205,23 @@
                     <label class="block text-xs font-medium text-zinc-400 mb-1">Employee ID</label>
                     <input @bind="_edit.EmployeeId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate</label>
+                    <input @bind="_edit.DailyRate" type="number" step="0.01" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
+                    <select @bind="_edit.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
+                        <option value="">-- No Schedule Assigned --</option>
+                        @if (_workSchedules != null)
+                        {
+                            @foreach (var schedule in _workSchedules)
+                            {
+                                <option value="@schedule.Id">@schedule.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
                 
                 <label class="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" @bind="_edit.IsActive" class="sr-only peer" />
@@ -235,6 +269,7 @@
 @code {
     private List<UserDto>? _users;
     private List<RoleDto>? _roles;
+    private List<WorkScheduleDto>? _workSchedules;
     private bool _showCreate;
     private bool _showEdit;
     private string? _modalError;
@@ -250,6 +285,7 @@
     {
         _users = await Http.GetFromJsonAsync<List<UserDto>>("/api/user");
         _roles = await Http.GetFromJsonAsync<List<RoleDto>>("/api/role");
+        _workSchedules = await Http.GetFromJsonAsync<List<WorkScheduleDto>>("/api/workschedule");
     }
 
     private async Task EditUser(UserDto user)
@@ -261,6 +297,8 @@
             FirstName = user.FirstName,
             LastName = user.LastName,
             EmployeeId = user.EmployeeId ?? string.Empty,
+            DailyRate = user.DailyRate,
+            WorkScheduleId = user.WorkScheduleId,
             IsActive = user.IsActive,
             SelectedRoles = new HashSet<string>()
         };
@@ -305,6 +343,8 @@
             FirstName = _create.FirstName,
             LastName = _create.LastName,
             EmployeeId = _create.EmployeeId,
+            DailyRate = _create.DailyRate,
+            WorkScheduleId = _create.WorkScheduleId,
             Roles = _create.SelectedRoles.ToList()
         };
 
@@ -329,6 +369,8 @@
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? EmployeeId { get; set; }
+        public decimal? DailyRate { get; set; }
+        public Guid? WorkScheduleId { get; set; }
         public List<string>? Roles { get; set; }
     }
 
@@ -346,6 +388,8 @@
             FirstName = _edit.FirstName,
             LastName = _edit.LastName,
             EmployeeId = _edit.EmployeeId,
+            DailyRate = _edit.DailyRate,
+            WorkScheduleId = _edit.WorkScheduleId,
             IsActive = _edit.IsActive,
             Roles = _edit.SelectedRoles.ToList()
         };
@@ -369,6 +413,8 @@
         public string LastName { get; set; } = string.Empty;
         public string? EmployeeId { get; set; }
         public bool IsActive { get; set; }
+        public decimal? DailyRate { get; set; }
+        public Guid? WorkScheduleId { get; set; }
         public List<string>? Roles { get; set; }
     }
 
@@ -379,6 +425,8 @@
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string EmployeeId { get; set; } = string.Empty;
+        public decimal? DailyRate { get; set; }
+        public Guid? WorkScheduleId { get; set; }
         public HashSet<string> SelectedRoles { get; set; } = new();
     }
 
@@ -388,10 +436,13 @@
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string EmployeeId { get; set; } = string.Empty;
+        public decimal? DailyRate { get; set; }
+        public Guid? WorkScheduleId { get; set; }
         public bool IsActive { get; set; }
         public HashSet<string> SelectedRoles { get; set; } = new();
     }
 
-    private record UserDto(string Id, string Email, string FirstName, string LastName, string? EmployeeId, bool IsActive);
+    private record UserDto(string Id, string Email, string FirstName, string LastName, string? EmployeeId, bool IsActive, decimal? DailyRate, Guid? WorkScheduleId);
     private record RoleDto(string Id, string? Name, string? Description);
+    private record WorkScheduleDto(Guid Id, string Name);
 }

@@ -12,4 +12,11 @@ public class Employee : IdentityUser
     
     // To soft-disable users
     public bool IsActive { get; set; } = true;
+
+    // Optional daily rate for the employee
+    public decimal? DailyRate { get; set; }
+
+    // Work schedule assignment
+    public Guid? WorkScheduleId { get; set; }
+    public WorkSchedule? WorkSchedule { get; set; }
 }

@@ -1,0 +1,323 @@
+@page "/admin/workschedules"
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+
+<PageTitle>Work Schedules - OfficeCore</PageTitle>
+
+<div class="flex h-[calc(100vh-4rem)]">
+    <!-- Sidebar for list of schedules -->
+    <div class="w-72 border-r border-zinc-800 bg-zinc-950 overflow-y-auto flex flex-col">
+        <div class="p-4 border-b border-zinc-800">
+            <h2 class="text-xl font-bold text-white mb-4">Work Schedules</h2>
+            
+            <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text" placeholder="Search schedules" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+            </div>
+            
+            <button @onclick="CreateNewSchedule" class="mt-4 flex items-center gap-2 text-fuchsia-400 text-sm font-medium hover:text-fuchsia-300 transition-colors w-full">
+                <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add new schedule
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 space-y-2">
+            @if (_schedules == null)
+            {
+                <div class="text-sm text-zinc-500">Loading...</div>
+            }
+            else if (!_schedules.Any())
+            {
+                <div class="text-sm text-zinc-500">No schedules added yet.</div>
+            }
+            else
+            {
+                foreach (var schedule in _schedules)
+                {
+                    <button @onclick="() => SelectSchedule(schedule)" class="@($"w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors {(_selectedSchedule?.Id == schedule.Id ? "bg-zinc-800 text-white" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300")}")">
+                        @schedule.Name
+                    </button>
+                }
+            }
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 bg-zinc-950 overflow-y-auto p-8 relative">
+        @if (_isEditing || _isCreating)
+        {
+            <div class="max-w-3xl mx-auto space-y-8">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-white uppercase tracking-wider">Schedule</h2>
+                    <div class="flex gap-3">
+                        <button @onclick="CancelEdit" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                        <button @onclick="SaveSchedule" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">Save Schedule</button>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-8">
+                    <!-- Schedule Name -->
+                    <div class="flex gap-8 items-center">
+                        <label class="w-40 text-sm font-medium text-zinc-400">Schedule name</label>
+                        <input type="text" @bind="_editModel.Name" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" placeholder="e.g. Regular Hours" />
+                    </div>
+
+                    <!-- Work Arrangement -->
+                    <div class="flex gap-8 items-center">
+                        <label class="w-40 text-sm font-medium text-zinc-400">Work arrangement</label>
+                        <div class="flex bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden">
+                            <button class="@($"px-6 py-2 text-sm font-medium transition-colors {(_editModel.WorkArrangement == 0 ? "bg-zinc-800 text-fuchsia-400" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-900")}")" @onclick="() => _editModel.WorkArrangement = 0">Fixed</button>
+                            <button class="@($"px-6 py-2 text-sm font-medium transition-colors border-l border-zinc-800 {(_editModel.WorkArrangement == 1 ? "bg-zinc-800 text-fuchsia-400" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-900")}")" @onclick="() => _editModel.WorkArrangement = 1">Flexible</button>
+                            <button class="@($"px-6 py-2 text-sm font-medium transition-colors border-l border-zinc-800 {(_editModel.WorkArrangement == 2 ? "bg-zinc-800 text-fuchsia-400" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-900")}")" @onclick="() => _editModel.WorkArrangement = 2">Weekly</button>
+                        </div>
+                    </div>
+
+                    <!-- Days of the week selection -->
+                    <div class="flex gap-8 items-start">
+                        <label class="w-40 text-sm font-medium text-zinc-400 mt-2">Days of the week</label>
+                        <div class="flex gap-1 border border-zinc-800 rounded-lg p-1 bg-zinc-950">
+                            @foreach (var day in _editModel.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
+                            {
+                                var initial = day.DayOfWeek.ToString().Substring(0, 1);
+                                <button class="@($"size-10 rounded-md flex items-center justify-center text-sm font-medium transition-colors {(!day.IsRestDay ? "text-fuchsia-400 bg-fuchsia-900/20" : "text-zinc-400 hover:bg-zinc-900")}")" 
+                                        @onclick="() => ToggleRestDay(day)">
+                                    @initial
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Daily Times -->
+                    <div class="space-y-4 pl-[12.5rem]">
+                        @foreach (var day in _editModel.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
+                        {
+                            <div class="flex items-center gap-4">
+                                <span class="w-24 text-sm text-zinc-400 font-medium">@day.DayOfWeek.ToString()</span>
+                                @if (day.IsRestDay)
+                                {
+                                    <span class="text-sm text-zinc-600 italic">Rest day</span>
+                                }
+                                else
+                                {
+                                    <div class="flex items-center gap-2">
+                                        <input type="time" @bind:get="day.StartTime.HasValue ? TimeOnly.FromTimeSpan(day.StartTime.Value) : (TimeOnly?)null" @bind:set="(value) => day.StartTime = value?.ToTimeSpan()" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                        <span class="text-zinc-500 text-sm">to</span>
+                                        <input type="time" @bind:get="day.EndTime.HasValue ? TimeOnly.FromTimeSpan(day.EndTime.Value) : (TimeOnly?)null" @bind:set="(value) => day.EndTime = value?.ToTimeSpan()" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="border-t border-zinc-800 pt-6">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" @bind="_editModel.IncludeTimeTrackedBeforeScheduledStartTime" class="sr-only peer" />
+                            <div class="w-5 h-5 rounded border border-zinc-700 bg-zinc-900 peer-checked:bg-fuchsia-600 peer-checked:border-fuchsia-600 flex items-center justify-center text-white transition-colors">
+                                <svg class="size-3.5 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <span class="text-sm text-zinc-300">Include time tracked before scheduled start time</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (_selectedSchedule != null)
+        {
+            <!-- View Mode -->
+             <div class="max-w-3xl mx-auto space-y-8">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-white uppercase tracking-wider">Schedule</h2>
+                    <div class="flex gap-3">
+                        <button @onclick="DeleteSchedule" class="px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-950 hover:text-red-300 rounded-lg transition-colors">Delete</button>
+                        <button @onclick="EditSchedule" class="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors">Edit</button>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-8">
+                     <div class="flex gap-8 items-center">
+                        <label class="w-40 text-sm font-medium text-zinc-500">Schedule name</label>
+                        <div class="text-sm text-white font-medium">@_selectedSchedule.Name</div>
+                    </div>
+                     <div class="flex gap-8 items-center">
+                        <label class="w-40 text-sm font-medium text-zinc-500">Work arrangement</label>
+                        <div class="text-sm text-white">@(_selectedSchedule.WorkArrangement == 0 ? "Fixed" : _selectedSchedule.WorkArrangement == 1 ? "Flexible" : "Weekly")</div>
+                    </div>
+                    <div class="space-y-4 pl-[12.5rem]">
+                        @foreach (var day in _selectedSchedule.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
+                        {
+                            <div class="flex items-center gap-4">
+                                <span class="w-24 text-sm text-zinc-400 font-medium">@day.DayOfWeek.ToString()</span>
+                                @if (day.IsRestDay)
+                                {
+                                    <span class="text-sm text-zinc-600 italic">Rest day</span>
+                                }
+                                else
+                                {
+                                    <div class="flex items-center gap-2 text-sm text-white">
+                                        <span>@(day.StartTime?.ToString(@"hh\:mm") ?? "00:00")</span>
+                                        <span class="text-zinc-500 mx-1">to</span>
+                                        <span>@(day.EndTime?.ToString(@"hh\:mm") ?? "00:00")</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <div class="text-center space-y-4">
+                    <div class="mx-auto size-24 bg-zinc-900 rounded-full flex items-center justify-center">
+                        <svg class="size-10 text-zinc-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-white">No schedule selected</h3>
+                    <p class="text-sm text-zinc-500 max-w-sm">Select a schedule from the sidebar or create a new one to manage work arrangements and daily hours.</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<WorkScheduleDto>? _schedules;
+    private WorkScheduleDto? _selectedSchedule;
+    private WorkScheduleDto _editModel = new();
+    private bool _isCreating = false;
+    private bool _isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _schedules = await Http.GetFromJsonAsync<List<WorkScheduleDto>>("/api/workschedule");
+    }
+
+    private void CreateNewSchedule()
+    {
+        _selectedSchedule = null;
+        _isEditing = false;
+        _isCreating = true;
+        _editModel = new WorkScheduleDto
+        {
+            Name = "",
+            WorkArrangement = 0,
+            Days = Enum.GetValues<DayOfWeek>().Select(d => new WorkScheduleDayDto
+            {
+                DayOfWeek = d,
+                IsRestDay = d == DayOfWeek.Saturday || d == DayOfWeek.Sunday,
+                StartTime = d == DayOfWeek.Saturday || d == DayOfWeek.Sunday ? null : new TimeSpan(9, 0, 0),
+                EndTime = d == DayOfWeek.Saturday || d == DayOfWeek.Sunday ? null : new TimeSpan(17, 0, 0)
+            }).ToList()
+        };
+    }
+
+    private void SelectSchedule(WorkScheduleDto schedule)
+    {
+        _selectedSchedule = schedule;
+        _isCreating = false;
+        _isEditing = false;
+    }
+
+    private void EditSchedule()
+    {
+        if (_selectedSchedule == null) return;
+        
+        _isEditing = true;
+        _editModel = new WorkScheduleDto
+        {
+            Id = _selectedSchedule.Id,
+            Name = _selectedSchedule.Name,
+            WorkArrangement = _selectedSchedule.WorkArrangement,
+            IncludeTimeTrackedBeforeScheduledStartTime = _selectedSchedule.IncludeTimeTrackedBeforeScheduledStartTime,
+            SplitTimesheetsAt = _selectedSchedule.SplitTimesheetsAt,
+            Days = _selectedSchedule.Days.Select(d => new WorkScheduleDayDto
+            {
+                DayOfWeek = d.DayOfWeek,
+                IsRestDay = d.IsRestDay,
+                StartTime = d.StartTime,
+                EndTime = d.EndTime
+            }).ToList()
+        };
+    }
+
+    private void CancelEdit()
+    {
+        _isCreating = false;
+        _isEditing = false;
+    }
+
+    private void ToggleRestDay(WorkScheduleDayDto day)
+    {
+        day.IsRestDay = !day.IsRestDay;
+        if (!day.IsRestDay && day.StartTime == null)
+        {
+            day.StartTime = new TimeSpan(9, 0, 0);
+            day.EndTime = new TimeSpan(17, 0, 0);
+        }
+    }
+
+    private async Task SaveSchedule()
+    {
+        if (string.IsNullOrWhiteSpace(_editModel.Name)) return;
+
+        if (_isCreating)
+        {
+            var response = await Http.PostAsJsonAsync("/api/workschedule", _editModel);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+                _isCreating = false;
+            }
+        }
+        else if (_isEditing)
+        {
+            var response = await Http.PutAsJsonAsync($"/api/workschedule/{_editModel.Id}", _editModel);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+                _isEditing = false;
+                _selectedSchedule = _schedules?.FirstOrDefault(s => s.Id == _editModel.Id);
+            }
+        }
+    }
+
+    private async Task DeleteSchedule()
+    {
+        if (_selectedSchedule == null) return;
+        var response = await Http.DeleteAsync($"/api/workschedule/{_selectedSchedule.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            _selectedSchedule = null;
+            await LoadData();
+        }
+    }
+
+    public class WorkScheduleDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int WorkArrangement { get; set; }
+        public bool IncludeTimeTrackedBeforeScheduledStartTime { get; set; }
+        public TimeSpan SplitTimesheetsAt { get; set; }
+        public List<WorkScheduleDayDto> Days { get; set; } = new();
+    }
+
+    public class WorkScheduleDayDto
+    {
+        public DayOfWeek DayOfWeek { get; set; }
+        public bool IsRestDay { get; set; }
+        public TimeSpan? StartTime { get; set; }
+        public TimeSpan? EndTime { get; set; }
+    }
+}

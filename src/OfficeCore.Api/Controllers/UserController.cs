@@ -28,7 +28,9 @@ public class UserController : ControllerBase
             u.FirstName,
             u.LastName,
             u.EmployeeId,
-            u.IsActive
+            u.IsActive,
+            u.DailyRate,
+            u.WorkScheduleId
         }).ToListAsync();
 
         return Ok(users);
@@ -45,7 +47,9 @@ public class UserController : ControllerBase
             LastName = request.LastName,
             EmployeeId = request.EmployeeId,
             IsActive = true,
-            EmailConfirmed = true
+            EmailConfirmed = true,
+            DailyRate = request.DailyRate,
+            WorkScheduleId = request.WorkScheduleId
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -71,6 +75,8 @@ public class UserController : ControllerBase
         user.LastName = request.LastName;
         user.EmployeeId = request.EmployeeId;
         user.IsActive = request.IsActive;
+        user.DailyRate = request.DailyRate;
+        user.WorkScheduleId = request.WorkScheduleId;
 
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
@@ -106,6 +112,8 @@ public class CreateUserRequest
     public required string FirstName { get; set; }
     public required string LastName { get; set; }
     public string? EmployeeId { get; set; }
+    public decimal? DailyRate { get; set; }
+    public Guid? WorkScheduleId { get; set; }
     public List<string>? Roles { get; set; }
 }
 
@@ -115,5 +123,7 @@ public class UpdateUserRequest
     public required string LastName { get; set; }
     public string? EmployeeId { get; set; }
     public bool IsActive { get; set; }
+    public decimal? DailyRate { get; set; }
+    public Guid? WorkScheduleId { get; set; }
     public List<string>? Roles { get; set; }
 }
