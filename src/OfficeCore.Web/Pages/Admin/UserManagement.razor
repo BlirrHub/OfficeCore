@@ -286,8 +286,7 @@
                             {
                                 <li class="flex items-center justify-between bg-zinc-900 px-3 py-2 rounded-lg border border-zinc-800 text-sm">
                                     <span class="text-white">ID: <span class="font-mono text-fuchsia-400">@fp.FingerprintId</span></span>
-                                    <button type="button" @onclick="() => DeleteFingerprint(fp.Id)"
-                                            class="text-red-400 hover:text-red-300 text-xs transition-colors">
+                                    <button type="button" @onclick="() => ShowDeleteFingerprintConfirmation(fp)" class="text-zinc-500 hover:text-red-400 p-1.5 rounded bg-zinc-950/50 hover:bg-zinc-900 border border-zinc-800 transition-colors" title="Delete Fingerprint">
                                         Delete
                                     </button>
                                 </li>
@@ -314,6 +313,25 @@
     </div>
 }
 
+<!-- Fingerprint Delete Confirmation Modal -->
+@if (_showDeleteFpModal && _fpToDelete != null)
+{
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center">
+            <div class="size-16 rounded-full bg-red-900/20 text-red-500 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <svg class="size-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Delete Fingerprint?</h3>
+            <p class="text-zinc-400 text-sm mb-8">Are you sure you want to delete fingerprint <strong class="text-fuchsia-400">@_fpToDelete.FingerprintId</strong>? The employee will need to enroll their fingerprint again.</p>
+            
+            <div class="flex gap-3">
+                <button @onclick="CloseFpDeleteModal" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
+                <button @onclick="ConfirmDeleteFingerprint" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<UserDto>? _users;
     private List<RoleDto>? _roles;
@@ -324,7 +342,11 @@
     private string? _enrollmentMessage;
     private CreateForm _create = new();
     private UpdateForm _edit = new();
+    
+    // Fingerprints State
     private List<FingerprintDto>? _fingerprints;
+    private bool _showDeleteFpModal = false;
+    private FingerprintDto? _fpToDelete;
     private HubConnection? _hubConnection;
 
     protected override async Task OnInitializedAsync()
@@ -452,16 +474,38 @@
         }
     }
 
-    private async Task DeleteFingerprint(int id)
+    private void ShowDeleteFingerprintConfirmation(FingerprintDto fp)
     {
+        _fpToDelete = fp;
+        _showDeleteFpModal = true;
+    }
+
+    private void CloseFpDeleteModal()
+    {
+        _showDeleteFpModal = false;
+        _fpToDelete = null;
+    }
+
+    private async Task ConfirmDeleteFingerprint()
+    {
+        if (_edit == null || _fpToDelete == null) return;
+        
         try
         {
-            await Http.DeleteAsync($"/api/attendance/fingerprints/{id}");
-            await LoadFingerprints(_edit.Id);
+            var response = await Http.DeleteAsync($"/api/attendance/fingerprints/{_fpToDelete.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadFingerprints(_edit.Id);
+                CloseFpDeleteModal();
+            }
+            else
+            {
+                _modalError = "Failed to delete fingerprint.";
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            _modalError = "Failed to delete fingerprint.";
+            _modalError = "An error occurred.";
         }
     }
 
