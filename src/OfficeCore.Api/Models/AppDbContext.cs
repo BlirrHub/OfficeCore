@@ -18,6 +18,8 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     
     public DbSet<HolidayCalendar> HolidayCalendars { get; set; }
     public DbSet<Holiday> Holidays { get; set; }
+    public DbSet<AdvanceRequest> AdvanceRequests { get; set; }
+    public DbSet<CompanyExpense> CompanyExpenses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
