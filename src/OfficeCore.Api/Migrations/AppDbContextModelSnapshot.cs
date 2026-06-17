@@ -530,6 +530,45 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("HolidayCalendars");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.LeaveRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AttachmentPath")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("LeaveRequests");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -806,6 +845,17 @@ namespace OfficeCore.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("HolidayCalendar");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.LeaveRequest", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleAutoDeduction", b =>

@@ -1,0 +1,286 @@
+@page "/myleaves"
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>My Leaves - OfficeCore</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-white">My Leaves</h1>
+            <p class="mt-2 text-zinc-400">Request and manage your sick and vacation leaves.</p>
+        </div>
+        <button @onclick="() => _isCreating = true" class="px-4 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-fuchsia-900/20 transition-colors flex items-center gap-2">
+            <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+            Request Leave
+        </button>
+    </div>
+
+    @if (_isCreating)
+    {
+        <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl relative my-8">
+                <button @onclick="() => _isCreating = false" class="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
+                    <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+                <h3 class="text-xl font-bold text-white mb-6">Request Leave</h3>
+
+                <EditForm Model="_newRequest" OnValidSubmit="SubmitRequest">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-zinc-400 mb-1">Leave Type</label>
+                            <select @bind="_newRequest.Type" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
+                                <option value="Vacation">Vacation Leave</option>
+                                <option value="Sick">Sick Leave</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-zinc-400 mb-1">Start Date</label>
+                                <input type="date" @bind="_newRequest.StartDate" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-zinc-400 mb-1">End Date</label>
+                                <input type="date" @bind="_newRequest.EndDate" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-zinc-400 mb-1">Reason</label>
+                            <textarea @bind="_newRequest.Reason" rows="3" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none placeholder-zinc-600" placeholder="Please provide details..."></textarea>
+                        </div>
+                        
+                        @if (_newRequest.Type == "Sick")
+                        {
+                            <div>
+                                <label class="block text-sm font-medium text-zinc-400 mb-1">Medical Certificate / Attachment (Image)</label>
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-800 border-dashed rounded-xl bg-zinc-950 hover:bg-zinc-900/50 transition-colors">
+                                    <div class="space-y-1 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-zinc-500" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <div class="flex text-sm text-zinc-400 justify-center">
+                                            <label class="relative cursor-pointer bg-transparent rounded-md font-medium text-fuchsia-400 hover:text-fuchsia-300 focus-within:outline-none">
+                                                <span>Upload a file</span>
+                                                <InputFile OnChange="HandleFileSelected" class="sr-only" accept="image/*" />
+                                            </label>
+                                            <p class="pl-1">or drag and drop</p>
+                                        </div>
+                                        <p class="text-xs text-zinc-500">PNG, JPG, GIF up to 10MB</p>
+                                    </div>
+                                </div>
+                                @if (_selectedFile != null)
+                                {
+                                    <p class="mt-2 text-sm text-fuchsia-400">Selected file: @_selectedFile.Name</p>
+                                }
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_modalError))
+                        {
+                            <div class="p-3 bg-red-950/50 border border-red-900/50 rounded-lg">
+                                <p class="text-sm text-red-400">@_modalError</p>
+                            </div>
+                        }
+
+                        <div class="pt-4 flex justify-end gap-3">
+                            <button type="button" @onclick="() => _isCreating = false" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                            <button type="submit" disabled="@_isSubmitting" class="px-6 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow-lg shadow-fuchsia-900/20 transition-colors flex items-center gap-2">
+                                @if (_isSubmitting)
+                                {
+                                    <svg class="animate-spin size-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                    <span>Submitting...</span>
+                                }
+                                else
+                                {
+                                    <span>Submit Request</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+        @if (_requests == null)
+        {
+            <div class="p-12 text-center text-zinc-500">
+                <svg class="animate-spin size-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                Loading requests...
+            </div>
+        }
+        else if (!_requests.Any())
+        {
+            <div class="p-12 text-center">
+                <div class="mx-auto size-16 bg-zinc-800/50 rounded-full flex items-center justify-center mb-4">
+                    <svg class="size-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </div>
+                <h3 class="text-lg font-medium text-white mb-1">No Leave Requests</h3>
+                <p class="text-sm text-zinc-500">You haven't submitted any leave requests yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-zinc-950/50 text-zinc-400 font-medium">
+                        <tr>
+                            <th class="px-6 py-4">Type</th>
+                            <th class="px-6 py-4">Dates</th>
+                            <th class="px-6 py-4">Reason</th>
+                            <th class="px-6 py-4">Requested On</th>
+                            <th class="px-6 py-4 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800/50">
+                        @foreach (var request in _requests)
+                        {
+                            <tr class="hover:bg-zinc-800/30 transition-colors">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-2">
+                                        @if (request.Type == 0) // Sick
+                                        {
+                                            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                                            <span class="text-white font-medium">Sick Leave</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                            <span class="text-white font-medium">Vacation Leave</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-zinc-300">
+                                    @request.StartDate.ToString("MMM dd, yyyy") - @request.EndDate.ToString("MMM dd, yyyy")
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="max-w-xs truncate text-zinc-400" title="@request.Reason">
+                                        @request.Reason
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-zinc-500">
+                                    @request.CreatedAt.ToString("MMM dd, yyyy")
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    @if (request.Status == 0) // Pending
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">Pending</span>
+                                    }
+                                    else if (request.Status == 1) // Approved
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Approved</span>
+                                    }
+                                    else // Rejected
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<LeaveRequestDto>? _requests;
+    private bool _isCreating = false;
+    private bool _isSubmitting = false;
+    private string? _modalError;
+    
+    private CreateForm _newRequest = new() { StartDate = DateTime.Now, EndDate = DateTime.Now };
+    private IBrowserFile? _selectedFile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequests();
+    }
+
+    private async Task LoadRequests()
+    {
+        _requests = await Http.GetFromJsonAsync<List<LeaveRequestDto>>("/api/leaverequest/my");
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        _selectedFile = e.File;
+    }
+
+    private async Task SubmitRequest()
+    {
+        if (string.IsNullOrWhiteSpace(_newRequest.Reason))
+        {
+            _modalError = "Please provide a reason for your leave.";
+            return;
+        }
+
+        if (_newRequest.Type == "Sick" && _selectedFile == null)
+        {
+            _modalError = "A medical certificate or attachment is required for Sick Leave.";
+            return;
+        }
+
+        _isSubmitting = true;
+        _modalError = null;
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(_newRequest.Type == "Sick" ? "0" : "1"), "Type");
+            content.Add(new StringContent(_newRequest.StartDate.ToString("o")), "StartDate");
+            content.Add(new StringContent(_newRequest.EndDate.ToString("o")), "EndDate");
+            content.Add(new StringContent(_newRequest.Reason), "Reason");
+
+            if (_newRequest.Type == "Sick" && _selectedFile != null)
+            {
+                var fileContent = new StreamContent(_selectedFile.OpenReadStream(maxAllowedSize: 10485760)); // 10MB max
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_selectedFile.ContentType);
+                content.Add(fileContent, "Attachment", _selectedFile.Name);
+            }
+
+            var response = await Http.PostAsync("/api/leaverequest", content);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadRequests();
+                _isCreating = false;
+                _newRequest = new CreateForm { StartDate = DateTime.Now, EndDate = DateTime.Now };
+                _selectedFile = null;
+            }
+            else
+            {
+                _modalError = "Failed to submit request. Please try again.";
+            }
+        }
+        catch (Exception)
+        {
+            _modalError = "An error occurred while submitting your request.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private class CreateForm
+    {
+        public string Type { get; set; } = "Vacation";
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private class LeaveRequestDto
+    {
+        public Guid Id { get; set; }
+        public int Type { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string Reason { get; set; } = string.Empty;
+        public string? AttachmentPath { get; set; }
+        public int Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}

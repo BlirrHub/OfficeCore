@@ -70,6 +70,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("BlazorPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
