@@ -1536,6 +1536,9 @@
   .pt-6 {
     padding-top: calc(var(--spacing) * 6);
   }
+  .pr-2 {
+    padding-right: calc(var(--spacing) * 2);
+  }
   .pr-3 {
     padding-right: calc(var(--spacing) * 3);
   }
@@ -1701,6 +1704,9 @@
     @supports (color: color-mix(in lab, red, red)) {
       color: color-mix(in oklab, var(--color-fuchsia-500) 80%, transparent);
     }
+  }
+  .text-fuchsia-600 {
+    color: var(--color-fuchsia-600);
   }
   .text-gray-100 {
     color: var(--color-gray-100);
@@ -2488,6 +2494,11 @@
       }
     }
   }
+  .focus\:ring-fuchsia-600 {
+    &:focus {
+      --tw-ring-color: var(--color-fuchsia-600);
+    }
+  }
   .focus\:ring-orange-500 {
     &:focus {
       --tw-ring-color: var(--color-orange-500);
@@ -2501,6 +2512,11 @@
   .focus\:ring-offset-zinc-900 {
     &:focus {
       --tw-ring-offset-color: var(--color-zinc-900);
+    }
+  }
+  .focus\:ring-offset-zinc-950 {
+    &:focus {
+      --tw-ring-offset-color: var(--color-zinc-950);
     }
   }
   .focus\:outline-none {

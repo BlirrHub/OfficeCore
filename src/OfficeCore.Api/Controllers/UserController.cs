@@ -33,6 +33,7 @@ public class UserController : ControllerBase
                 u.LastName,
                 u.EmployeeId,
                 u.IsActive,
+                u.IsEmployee,
                 u.DailyRate,
                 u.UseCustomDailyRate,
                 u.DateHired,
@@ -63,6 +64,7 @@ public class UserController : ControllerBase
             LastName = request.LastName,
             EmployeeId = request.EmployeeId,
             IsActive = true,
+            IsEmployee = request.IsEmployee,
             EmailConfirmed = true,
             DailyRate = request.DailyRate,
             UseCustomDailyRate = request.UseCustomDailyRate,
@@ -103,6 +105,7 @@ public class UserController : ControllerBase
         user.LastName = request.LastName;
         user.EmployeeId = request.EmployeeId;
         user.IsActive = request.IsActive;
+        user.IsEmployee = request.IsEmployee;
         user.DailyRate = request.DailyRate;
         user.UseCustomDailyRate = request.UseCustomDailyRate;
         user.DateHired = request.DateHired;
@@ -172,6 +175,7 @@ public class CreateUserRequest
     public required string FirstName { get; set; }
     public required string LastName { get; set; }
     public string? EmployeeId { get; set; }
+    public bool IsEmployee { get; set; } = true;
     public decimal? DailyRate { get; set; }
     public bool UseCustomDailyRate { get; set; } = false;
     public DateTime? DateHired { get; set; }
@@ -187,6 +191,7 @@ public class UpdateUserRequest
     public required string LastName { get; set; }
     public string? EmployeeId { get; set; }
     public bool IsActive { get; set; }
+    public bool IsEmployee { get; set; } = true;
     public decimal? DailyRate { get; set; }
     public bool UseCustomDailyRate { get; set; } = false;
     public DateTime? DateHired { get; set; }

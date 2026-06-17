@@ -20,6 +20,8 @@ public class WorkSchedule
     
     public WorkArrangement WorkArrangement { get; set; } = WorkArrangement.Fixed;
     
+    public bool IsFixedWeeklyRate { get; set; } = false;
+    
     public bool IncludeTimeTrackedBeforeScheduledStartTime { get; set; }
     
     public bool AutoClockOut { get; set; }

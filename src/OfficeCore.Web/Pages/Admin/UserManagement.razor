@@ -108,8 +108,8 @@
 @if (_showCreate)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-6">
-            <div class="flex items-center justify-between">
+        <div class="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-6 max-h-[90vh]">
+            <div class="flex items-center justify-between shrink-0">
                 <h2 class="text-xl font-bold text-white">Add Employee</h2>
                 <button @onclick="() => _showCreate = false" class="text-zinc-500 hover:text-white transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -118,7 +118,7 @@
                 </button>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-zinc-400 mb-1">First Name</label>
@@ -147,50 +147,63 @@
                         <input @bind="_create.DateHired" type="date" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate (&#8369;)</label>
-                    <input @bind="_create.DailyRate" type="number" step="0.01" min="0" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
-                    <select @bind="_create.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
-                        <option value="">-- No Schedule Assigned --</option>
-                        @if (_workSchedules != null)
-                        {
-                            @foreach (var schedule in _workSchedules)
-                            {
-                                <option value="@schedule.Id">@schedule.Name</option>
-                            }
-                        }
-                    </select>
-                </div>
-
-                <!-- Sick Leave Pay Rate -->
-                <div class="pt-3 border-t border-zinc-800/60">
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" @bind="_create.UseCustomDailyRate" class="sr-only peer" />
-                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                        <div>
-                            <span class="text-sm font-medium text-zinc-300">Use own daily rate for sick leave pay</span>
-                            <p class="text-xs text-zinc-500 mt-0.5">
-                                @(_create.UseCustomDailyRate
-                                    ? "Employee's personal daily rate will be used when a sick leave is approved."
-                                    : "Global minimum daily rate from Payroll Settings will be used for sick leave pay.")
-                            </p>
-                        </div>
-                    </label>
-                </div>
-
-                <!-- Vacation Leave Eligibility -->
                 <label class="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" @bind="_create.IsEligibleForLeave" class="sr-only peer" />
+                    <input type="checkbox" @bind="_create.IsEmployee" class="sr-only peer" />
                     <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
                     <div>
-                        <span class="text-sm font-medium text-zinc-300">Eligible for Vacation Leave</span>
-                        <p class="text-xs text-zinc-500 mt-0.5">Sick leave is always available regardless of this setting.</p>
+                        <span class="text-sm font-medium text-zinc-300">Is Employee</span>
+                        <p class="text-xs text-zinc-500 mt-0.5">When checked, this user will be included in payroll and leave processing.</p>
                     </div>
                 </label>
+
+                @if (_create.IsEmployee)
+                {
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate (&#8369;)</label>
+                            <input @bind="_create.DailyRate" type="number" step="0.01" min="0" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
+                            <select @bind="_create.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
+                                <option value="">-- No Schedule Assigned --</option>
+                                @if (_workSchedules != null)
+                                {
+                                    @foreach (var schedule in _workSchedules)
+                                    {
+                                        <option value="@schedule.Id">@schedule.Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Sick Leave Pay Rate -->
+                    <div class="pt-3 border-t border-zinc-800/60">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" @bind="_create.UseCustomDailyRate" class="sr-only peer" />
+                            <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
+                            <div>
+                                <span class="text-sm font-medium text-zinc-300">Use own daily rate for sick leave pay</span>
+                                <p class="text-xs text-zinc-500 mt-0.5">
+                                    @(_create.UseCustomDailyRate
+                                        ? "Employee's personal daily rate will be used when a sick leave is approved."
+                                        : "Global minimum daily rate from Payroll Settings will be used for sick leave pay.")
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Vacation Leave Eligibility -->
+                    <label class="flex items-center gap-3 cursor-pointer mb-2">
+                        <input type="checkbox" @bind="_create.IsEligibleForLeave" class="sr-only peer" />
+                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
+                        <div>
+                            <span class="text-sm font-medium text-zinc-300">Eligible for Vacation Leave</span>
+                            <p class="text-xs text-zinc-500 mt-0.5">Sick leave is always available regardless of this setting.</p>
+                        </div>
+                    </label>
+                }
 
                 <!-- Assign Roles -->
                 <div>
@@ -250,7 +263,7 @@
                 <p class="text-xs text-red-400">@_modalError</p>
             }
 
-            <div class="flex justify-end gap-3 pt-2 border-t border-zinc-800">
+            <div class="flex justify-end gap-3 pt-4 border-t border-zinc-800 shrink-0">
                 <button @onclick="() => _showCreate = false"
                         class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
                 <button @onclick="CreateUser"
@@ -266,8 +279,8 @@
 @if (_showEdit)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-6">
-            <div class="flex items-center justify-between">
+        <div class="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-6 max-h-[90vh]">
+            <div class="flex items-center justify-between shrink-0">
                 <h2 class="text-xl font-bold text-white">Edit Employee</h2>
                 <button @onclick="() => _showEdit = false" class="text-zinc-500 hover:text-white transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -276,7 +289,7 @@
                 </button>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-zinc-400 mb-1">First Name</label>
@@ -297,50 +310,63 @@
                         <input @bind="_edit.DateHired" type="date" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate (&#8369;)</label>
-                    <input @bind="_edit.DailyRate" type="number" step="0.01" min="0" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
-                    <select @bind="_edit.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
-                        <option value="">-- No Schedule Assigned --</option>
-                        @if (_workSchedules != null)
-                        {
-                            @foreach (var schedule in _workSchedules)
-                            {
-                                <option value="@schedule.Id">@schedule.Name</option>
-                            }
-                        }
-                    </select>
-                </div>
-
-                <!-- Sick Leave Pay Rate -->
-                <div class="pt-3 border-t border-zinc-800/60">
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" @bind="_edit.UseCustomDailyRate" class="sr-only peer" />
-                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                        <div>
-                            <span class="text-sm font-medium text-zinc-300">Use own daily rate for sick leave pay</span>
-                            <p class="text-xs text-zinc-500 mt-0.5">
-                                @(_edit.UseCustomDailyRate
-                                    ? "Employee's personal daily rate will be used when a sick leave is approved."
-                                    : "Global minimum daily rate from Payroll Settings will be used for sick leave pay.")
-                            </p>
-                        </div>
-                    </label>
-                </div>
-
-                <!-- Vacation Leave Eligibility -->
                 <label class="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" @bind="_edit.IsEligibleForLeave" class="sr-only peer" />
+                    <input type="checkbox" @bind="_edit.IsEmployee" class="sr-only peer" />
                     <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
                     <div>
-                        <span class="text-sm font-medium text-zinc-300">Eligible for Vacation Leave</span>
-                        <p class="text-xs text-zinc-500 mt-0.5">Sick leave is always available regardless of this setting.</p>
+                        <span class="text-sm font-medium text-zinc-300">Is Employee</span>
+                        <p class="text-xs text-zinc-500 mt-0.5">When checked, this user will be included in payroll and leave processing.</p>
                     </div>
                 </label>
+
+                @if (_edit.IsEmployee)
+                {
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate (&#8369;)</label>
+                            <input @bind="_edit.DailyRate" type="number" step="0.01" min="0" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
+                            <select @bind="_edit.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
+                                <option value="">-- No Schedule Assigned --</option>
+                                @if (_workSchedules != null)
+                                {
+                                    @foreach (var schedule in _workSchedules)
+                                    {
+                                        <option value="@schedule.Id">@schedule.Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Sick Leave Pay Rate -->
+                    <div class="pt-3 border-t border-zinc-800/60">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" @bind="_edit.UseCustomDailyRate" class="sr-only peer" />
+                            <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
+                            <div>
+                                <span class="text-sm font-medium text-zinc-300">Use own daily rate for sick leave pay</span>
+                                <p class="text-xs text-zinc-500 mt-0.5">
+                                    @(_edit.UseCustomDailyRate
+                                        ? "Employee's personal daily rate will be used when a sick leave is approved."
+                                        : "Global minimum daily rate from Payroll Settings will be used for sick leave pay.")
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Vacation Leave Eligibility -->
+                    <label class="flex items-center gap-3 cursor-pointer mb-2">
+                        <input type="checkbox" @bind="_edit.IsEligibleForLeave" class="sr-only peer" />
+                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
+                        <div>
+                            <span class="text-sm font-medium text-zinc-300">Eligible for Vacation Leave</span>
+                            <p class="text-xs text-zinc-500 mt-0.5">Sick leave is always available regardless of this setting.</p>
+                        </div>
+                    </label>
+                }
 
                 <label class="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" @bind="_edit.IsActive" class="sr-only peer" />
@@ -450,7 +476,7 @@
                 <p class="text-xs text-red-400">@_modalError</p>
             }
 
-            <div class="flex justify-end gap-3 pt-2 border-t border-zinc-800">
+            <div class="flex justify-end gap-3 pt-4 border-t border-zinc-800 shrink-0">
                 <button @onclick="() => _showEdit = false"
                         class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
                 <button @onclick="UpdateUser"
@@ -596,11 +622,12 @@
             Id = user.Id,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            EmployeeId = user.EmployeeId ?? string.Empty,
+            EmployeeId = user.EmployeeId ?? "",
             DailyRate = user.DailyRate,
             UseCustomDailyRate = user.UseCustomDailyRate,
             DateHired = user.DateHired,
             IsEligibleForLeave = user.IsEligibleForLeave,
+            IsEmployee = user.IsEmployee,
             WorkScheduleId = user.WorkScheduleId,
             IsActive = user.IsActive,
             SelectedRoles = new HashSet<string>(),
@@ -776,6 +803,7 @@
             UseCustomDailyRate = _create.UseCustomDailyRate,
             DateHired = _create.DateHired,
             IsEligibleForLeave = _create.IsEligibleForLeave,
+            IsEmployee = _create.IsEmployee,
             WorkScheduleId = _create.WorkScheduleId,
             Roles = _create.SelectedRoles.ToList(),
             GovernmentRecord = _create.GovernmentRecord
@@ -806,6 +834,7 @@
         public bool UseCustomDailyRate { get; set; }
         public DateTime? DateHired { get; set; }
         public bool IsEligibleForLeave { get; set; }
+        public bool IsEmployee { get; set; } = true;
         public Guid? WorkScheduleId { get; set; }
         public List<string>? Roles { get; set; }
         public GovernmentRecordDto? GovernmentRecord { get; set; }
@@ -829,6 +858,7 @@
             UseCustomDailyRate = _edit.UseCustomDailyRate,
             DateHired = _edit.DateHired,
             IsEligibleForLeave = _edit.IsEligibleForLeave,
+            IsEmployee = _edit.IsEmployee,
             WorkScheduleId = _edit.WorkScheduleId,
             IsActive = _edit.IsActive,
             Roles = _edit.SelectedRoles.ToList(),
@@ -858,6 +888,7 @@
         public bool UseCustomDailyRate { get; set; }
         public DateTime? DateHired { get; set; }
         public bool IsEligibleForLeave { get; set; }
+        public bool IsEmployee { get; set; } = true;
         public Guid? WorkScheduleId { get; set; }
         public List<string>? Roles { get; set; }
         public GovernmentRecordDto? GovernmentRecord { get; set; }
@@ -874,6 +905,7 @@
         public bool UseCustomDailyRate { get; set; } = false;
         public DateTime? DateHired { get; set; }
         public bool IsEligibleForLeave { get; set; } = true;
+        public bool IsEmployee { get; set; } = true;
         public Guid? WorkScheduleId { get; set; }
         public HashSet<string> SelectedRoles { get; set; } = new();
         public GovernmentRecordDto GovernmentRecord { get; set; } = new() { IsEligibleForDeductions = true };
@@ -889,13 +921,14 @@
         public bool UseCustomDailyRate { get; set; } = false;
         public DateTime? DateHired { get; set; }
         public bool IsEligibleForLeave { get; set; } = true;
+        public bool IsEmployee { get; set; } = true;
         public Guid? WorkScheduleId { get; set; }
         public bool IsActive { get; set; }
         public HashSet<string> SelectedRoles { get; set; } = new();
         public GovernmentRecordDto GovernmentRecord { get; set; } = new() { IsEligibleForDeductions = true };
     }
 
-    private record UserDto(string Id, string Email, string FirstName, string LastName, string? EmployeeId, bool IsActive, decimal? DailyRate, bool UseCustomDailyRate, DateTime? DateHired, DateTime? ResignedDate, bool IsEligibleForLeave, Guid? WorkScheduleId, GovernmentRecordDto? GovernmentRecord);
+    private record UserDto(string Id, string Email, string FirstName, string LastName, string? EmployeeId, bool IsActive, bool IsEmployee, decimal? DailyRate, bool UseCustomDailyRate, DateTime? DateHired, DateTime? ResignedDate, bool IsEligibleForLeave, Guid? WorkScheduleId, GovernmentRecordDto? GovernmentRecord);
     private record RoleDto(string Id, string? Name, string? Description);
     private record WorkScheduleDto(Guid Id, string Name);
     private record FingerprintDto(int Id, int FingerprintId, DateTimeOffset EnrolledAt);

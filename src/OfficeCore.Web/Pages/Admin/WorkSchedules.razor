@@ -77,6 +77,23 @@
                         </div>
                     </div>
 
+                    @if (_editModel.WorkArrangement == 0)
+                    {
+                        <div class="flex gap-8 items-center pt-2">
+                            <label class="w-40 text-sm font-medium text-zinc-400">Pay mode</label>
+                            <div class="flex items-center gap-6">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="paymode" checked="@(!_editModel.IsFixedWeeklyRate)" @onchange="() => _editModel.IsFixedWeeklyRate = false" class="text-fuchsia-600 bg-zinc-900 border-zinc-700 focus:ring-fuchsia-600 focus:ring-offset-zinc-950" />
+                                    <span class="text-sm text-zinc-300">Tracked Hours (Requires Attendance)</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="paymode" checked="@(_editModel.IsFixedWeeklyRate)" @onchange="() => _editModel.IsFixedWeeklyRate = true" class="text-fuchsia-600 bg-zinc-900 border-zinc-700 focus:ring-fuchsia-600 focus:ring-offset-zinc-950" />
+                                    <span class="text-sm text-zinc-300">Weekly Rate (No Attendance)</span>
+                                </label>
+                            </div>
+                        </div>
+                    }
+
                     @if (_editModel.WorkArrangement == 0 || _editModel.WorkArrangement == 1)
                     {
                         <!-- Days of the week selection -->
@@ -94,19 +111,19 @@
                             </div>
                         </div>
 
-                        <!-- Daily Times -->
-                        <div class="space-y-4 pl-[12.5rem]">
-                            @foreach (var day in _editModel.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
-                            {
-                                <div class="flex items-center gap-4">
-                                    <span class="w-24 text-sm text-zinc-400 font-medium">@day.DayOfWeek.ToString()</span>
-                                    @if (day.IsRestDay)
-                                    {
-                                        <span class="text-sm text-zinc-600 italic">Rest day</span>
-                                    }
-                                    else
-                                    {
-                                        @if (_editModel.WorkArrangement == 0) // Fixed
+                        @if (!(_editModel.WorkArrangement == 0 && _editModel.IsFixedWeeklyRate))
+                        {
+                            <!-- Daily Times -->
+                            <div class="space-y-4 pl-[12.5rem]">
+                                @foreach (var day in _editModel.Days.OrderBy(d => (int)d.DayOfWeek == 0 ? 7 : (int)d.DayOfWeek))
+                                {
+                                    <div class="flex items-center gap-4">
+                                        <span class="w-24 text-sm text-zinc-400 font-medium">@day.DayOfWeek.ToString()</span>
+                                        @if (day.IsRestDay)
+                                        {
+                                            <span class="text-sm text-zinc-600 italic">Rest day</span>
+                                        }
+                                        else if (_editModel.WorkArrangement == 0) // Fixed
                                         {
                                             <div class="flex items-center gap-2">
                                                 <input type="time" @bind:get="day.StartTime.HasValue ? TimeOnly.FromTimeSpan(day.StartTime.Value) : (TimeOnly?)null" @bind:set="(value) => day.StartTime = value?.ToTimeSpan()" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
@@ -121,10 +138,10 @@
                                                 <span class="text-zinc-500 text-sm">hours</span>
                                             </div>
                                         }
-                                    }
-                                </div>
+                                    </div>
                             }
-                        </div>
+                            </div>
+                        }
                     }
                     else if (_editModel.WorkArrangement == 2) // Weekly
                     {
@@ -705,6 +722,7 @@
         public bool AutoClockOut { get; set; }
         public TimeSpan SplitTimesheetsAt { get; set; }
         public double? TotalWeeklyHours { get; set; }
+        public bool IsFixedWeeklyRate { get; set; }
         public List<WorkScheduleDayDto> Days { get; set; } = new();
         public List<WorkScheduleBreakDto> Breaks { get; set; } = new();
         

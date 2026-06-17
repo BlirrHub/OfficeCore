@@ -358,6 +358,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<bool>("IsEligibleForLeave")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsEmployee")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -711,6 +714,9 @@ namespace OfficeCore.Api.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IncludeTimeTrackedBeforeScheduledStartTime")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsFixedWeeklyRate")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Name")

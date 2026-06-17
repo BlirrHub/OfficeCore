@@ -24,7 +24,7 @@ public class PayrollComputationService : IPayrollComputationService
         }
 
         var employees = await _context.Users
-            .Where(e => e.IsActive)
+            .Where(e => e.IsActive && e.IsEmployee)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Days)
             .Include(e => e.WorkSchedule)
@@ -65,51 +65,70 @@ public class PayrollComputationService : IPayrollComputationService
             double totalNetHours = 0;
             int daysWithAttendance = 0;
 
-            // Group by day to find pairs
-            var attendanceByDay = empAttendance.GroupBy(a => a.Timestamp.ToLocalTime().Date);
-
-            foreach (var dayGroup in attendanceByDay)
+            if (emp.WorkSchedule?.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate)
             {
-                var records = dayGroup.OrderBy(a => a.Timestamp).ToList();
-                var clockIn = records.FirstOrDefault(r => r.Type == AttendanceType.ClockIn);
-                var clockOut = records.LastOrDefault(r => r.Type == AttendanceType.ClockOut);
-
-                if (clockIn != null && clockOut != null && clockOut.Timestamp > clockIn.Timestamp)
+                for (var date = periodStartDt; date <= periodEndDt; date = date.AddDays(1))
                 {
-                    // Check if it's a rest day and skip unless we support OT on rest days (currently ignored per requirements)
                     bool isRestDay = false;
-                    if (emp.WorkSchedule != null)
-                    {
-                        var schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == clockIn.Timestamp.ToLocalTime().DayOfWeek);
-                        if (schedDay != null && schedDay.IsRestDay) isRestDay = true;
-                    }
-
+                    var schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == date.DayOfWeek);
+                    if (schedDay != null && schedDay.IsRestDay) isRestDay = true;
+                    else if (schedDay == null && (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)) isRestDay = true;
+                    
                     if (!isRestDay)
                     {
                         daysWithAttendance++;
-                        var timeIn = clockIn.Timestamp.ToLocalTime().TimeOfDay;
-                        var timeOut = clockOut.Timestamp.ToLocalTime().TimeOfDay;
+                        totalNetHours += 8; // Calculate standard 8 hours to yield full daily rate
+                    }
+                }
+            }
+            else
+            {
+                // Group by day to find pairs
+                var attendanceByDay = empAttendance.GroupBy(a => a.Timestamp.ToLocalTime().Date);
 
-                        double dailyHours = (timeOut - timeIn).TotalHours;
+                foreach (var dayGroup in attendanceByDay)
+                {
+                    var records = dayGroup.OrderBy(a => a.Timestamp).ToList();
+                    var clockIn = records.FirstOrDefault(r => r.Type == AttendanceType.ClockIn);
+                    var clockOut = records.LastOrDefault(r => r.Type == AttendanceType.ClockOut);
 
-                        // Deduct unpaid breaks
-                        if (emp.WorkSchedule != null && emp.WorkSchedule.Breaks != null)
+                    if (clockIn != null && clockOut != null && clockOut.Timestamp > clockIn.Timestamp)
+                    {
+                        // Check if it's a rest day and skip unless we support OT on rest days (currently ignored per requirements)
+                        bool isRestDay = false;
+                        if (emp.WorkSchedule != null)
                         {
-                            foreach (var b in emp.WorkSchedule.Breaks.Where(br => !br.IsPaid))
-                            {
-                                // Overlap logic: max(0, min(timeOut, breakEnd) - max(timeIn, breakStart))
-                                var overlapStart = timeIn > b.StartTime ? timeIn : b.StartTime;
-                                var overlapEnd = timeOut < b.EndTime ? timeOut : b.EndTime;
-                                if (overlapEnd > overlapStart)
-                                {
-                                    dailyHours -= (overlapEnd - overlapStart).TotalHours;
-                                }
-                            }
+                            var schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == clockIn.Timestamp.ToLocalTime().DayOfWeek);
+                            if (schedDay != null && schedDay.IsRestDay) isRestDay = true;
                         }
 
-                        if (dailyHours > 0)
+                        if (!isRestDay)
                         {
-                            totalNetHours += dailyHours;
+                            daysWithAttendance++;
+                            var timeIn = clockIn.Timestamp.ToLocalTime().TimeOfDay;
+                            var timeOut = clockOut.Timestamp.ToLocalTime().TimeOfDay;
+
+                            double dailyHours = (timeOut - timeIn).TotalHours;
+
+                            // Deduct unpaid breaks
+                            if (emp.WorkSchedule != null && emp.WorkSchedule.Breaks != null)
+                            {
+                                foreach (var b in emp.WorkSchedule.Breaks.Where(br => !br.IsPaid))
+                                {
+                                    // Overlap logic: max(0, min(timeOut, breakEnd) - max(timeIn, breakStart))
+                                    var overlapStart = timeIn > b.StartTime ? timeIn : b.StartTime;
+                                    var overlapEnd = timeOut < b.EndTime ? timeOut : b.EndTime;
+                                    if (overlapEnd > overlapStart)
+                                    {
+                                        dailyHours -= (overlapEnd - overlapStart).TotalHours;
+                                    }
+                                }
+                            }
+
+                            if (dailyHours > 0)
+                            {
+                                totalNetHours += dailyHours;
+                            }
                         }
                     }
                 }

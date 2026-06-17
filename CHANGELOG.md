@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- **Is Employee Toggle**: Added an `IsEmployee` toggle to User Management. Users with this disabled (like administrative accounts) are safely excluded from the payroll computation engine, and payroll-related form fields are dynamically hidden.
+- **Weekly Rate (No Attendance)**: Added a "Pay Mode" toggle for Fixed Work Schedules. Selecting "Weekly Rate" hides the required start/end time inputs and instructs the payroll engine to automatically calculate basic pay based solely on the number of scheduled work days for the period, completely ignoring any required attendance logs.
 - **Auto Clock Out**: Added an "Auto clock out at end of shift" toggle to Work Schedules.
 - **Time-Tracked Payroll Engine**: Radically overhauled the payroll computation logic. The system now parses raw `ClockIn` and `ClockOut` pairs for the payroll period, correctly deducts overlapping unpaid breaks from the employee's `WorkSchedule`, and derives standard `BasicPay` strictly from these tracked hours using the computed `HourlyRate` (DailyRate / 8). Hours logged on rest days are cleanly ignored.
 
@@ -33,6 +35,7 @@ All notable changes to this project will be documented in this file.
 - Refined collapsed sidebar UI: replaced category headers with horizontal dividers and hid link texts.
 
 ### Fixed
+- Fixed User Management Add/Edit modals overflowing vertically by implementing scrollable inner containers and `max-h-[90vh]` constraints.
 - Fixed layout mismatch issue in User Management modals
 - Ensured sick leave logic uses correctly scoped Daily Rate
 - Fixed profile button alignment and overflow issues when sidebar is collapsed

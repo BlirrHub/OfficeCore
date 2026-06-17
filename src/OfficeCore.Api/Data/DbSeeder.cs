@@ -56,7 +56,8 @@ public static class DbSeeder
                 FirstName = "System",
                 LastName = "Administrator",
                 EmailConfirmed = true,
-                IsActive = true
+                IsActive = true,
+                IsEmployee = false // Admins are not part of payroll by default
             };
 
             var result = await userManager.CreateAsync(adminUser, "Admin123!");
