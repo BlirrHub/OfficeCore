@@ -15,6 +15,9 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     
     public DbSet<EmployeeFingerprint> EmployeeFingerprints { get; set; }
     public DbSet<AttendanceRecord> AttendanceRecords { get; set; }
+    
+    public DbSet<HolidayCalendar> HolidayCalendars { get; set; }
+    public DbSet<Holiday> Holidays { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

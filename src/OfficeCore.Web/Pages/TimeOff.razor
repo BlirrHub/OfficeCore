@@ -1,14 +1,472 @@
 @page "/time-off"
 @attribute [Authorize(Policy = "RequireTimeOff")]
+@inject HttpClient Http
 
 <PageTitle>Time Off & Holidays - OfficeCore</PageTitle>
 
-<div class="space-y-6">
-    <div>
-        <h1 class="text-3xl font-bold tracking-tight text-white">Time Off & Holidays</h1>
-        <p class="mt-2 text-zinc-400">Manage employee time-off requests and company holiday schedules.</p>
+<div class="flex flex-col h-full bg-zinc-950">
+    <!-- Top Tabs Header -->
+    @{
+        var policiesClass = _activeTab == "Policies" ? "border-fuchsia-500 text-fuchsia-400" : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-700";
+        var holidaysClass = _activeTab == "Holidays" ? "border-fuchsia-500 text-fuchsia-400" : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-700";
+    }
+    <div class="border-b border-zinc-800 px-6 pt-4 flex gap-6">
+        <button class="pb-3 text-sm font-medium border-b-2 transition-colors @policiesClass" 
+                @onclick='() => SetActiveTab("Policies")'>
+            Time Off Policies
+        </button>
+        <button class="pb-3 text-sm font-medium border-b-2 transition-colors @holidaysClass" 
+                @onclick='() => SetActiveTab("Holidays")'>
+            Holidays
+        </button>
     </div>
-    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 flex items-center justify-center">
-        <p class="text-zinc-500 italic">This module is under construction.</p>
-    </div>
+
+    @if (_activeTab == "Policies")
+    {
+        <div class="flex-1 p-8 flex items-center justify-center">
+            <div class="text-center space-y-4">
+                <div class="mx-auto size-24 bg-zinc-900 rounded-full flex items-center justify-center">
+                    <svg class="size-10 text-zinc-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-white">Time Off Policies</h3>
+                <p class="text-sm text-zinc-500 max-w-sm">This feature is not yet available. You'll be able to configure leave policies like Sick Leave, Vacation, and custom time off soon.</p>
+            </div>
+        </div>
+    }
+    else if (_activeTab == "Holidays")
+    {
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Sidebar for Calendars -->
+            <div class="w-72 border-r border-zinc-800 bg-zinc-950 flex flex-col">
+                <div class="p-4 border-b border-zinc-800">
+                    <div class="relative mb-4">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="text" placeholder="Search calendars" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                    </div>
+                    
+                    <button @onclick="CreateNewCalendar" class="flex items-center gap-2 text-fuchsia-400 text-sm font-medium hover:text-fuchsia-300 transition-colors w-full">
+                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        Add new calendar
+                    </button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-4 space-y-2">
+                    @if (_calendars == null)
+                    {
+                        <div class="text-sm text-zinc-500">Loading...</div>
+                    }
+                    else if (!_calendars.Any())
+                    {
+                        <div class="text-sm text-zinc-500">No calendars added yet.</div>
+                    }
+                    else
+                    {
+                        foreach (var cal in _calendars)
+                        {
+                            var calClass = _selectedCalendar?.Id == cal.Id ? "bg-fuchsia-950/20 text-white" : "hover:bg-zinc-900 text-zinc-300";
+                            <button @onclick="() => SelectCalendar(cal)" class="w-full text-left px-3 py-3 rounded-lg transition-colors flex flex-col gap-1 @calClass">
+                                <span class="text-sm font-medium">@cal.Name</span>
+                                @if (cal.IsDefault)
+                                {
+                                    <span class="text-[10px] font-bold text-fuchsia-400 uppercase tracking-wider">Default</span>
+                                }
+                            </button>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 bg-zinc-950 overflow-y-auto p-8 relative">
+                @if (_isCreating)
+                {
+                    <div class="max-w-3xl mx-auto bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-xl">
+                        <div class="space-y-8">
+                            <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
+                                <h2 class="text-xl font-bold text-white uppercase tracking-wider">Create Calendar</h2>
+                                <div class="flex gap-3">
+                                    <button @onclick="CancelEdit" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                                    <button @onclick="SaveCalendar" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">Save</button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-6">
+                                <!-- Calendar Name -->
+                                <div class="flex gap-8 items-center">
+                                    <label class="w-40 text-sm font-medium text-zinc-400">Calendar name</label>
+                                    <input type="text" @bind="_editModel.Name" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" placeholder="Calendar name" />
+                                </div>
+
+                                <!-- Make Default -->
+                                <div class="flex gap-8 items-center">
+                                    <label class="w-40 text-sm font-medium text-zinc-400"></label>
+                                    <label class="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" @bind="_editModel.IsDefault" class="sr-only peer" />
+                                        <div class="w-5 h-5 rounded border border-zinc-700 bg-zinc-900 peer-checked:bg-fuchsia-600 peer-checked:border-fuchsia-600 flex items-center justify-center text-white transition-colors">
+                                            <svg class="size-3.5 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                        </div>
+                                        <span class="text-sm text-zinc-300">Make default</span>
+                                    </label>
+                                </div>
+                                <div class="flex gap-8 items-start">
+                                    <div class="w-40"></div>
+                                    <p class="text-xs text-zinc-500">Auto-assign this calendar to all users in the organization by default.</p>
+                                </div>
+
+                                <!-- Holidays Options -->
+                                <div class="flex gap-8 items-start pt-4 border-t border-zinc-800">
+                                    <label class="w-40 text-sm font-medium text-zinc-400 mt-2">Holidays</label>
+                                    <div class="flex-1 space-y-4">
+                                        <label class="flex items-center gap-3 cursor-pointer group">
+                                            <input type="radio" name="importType" checked="@(_importMode == ImportMode.Import)" @onchange="() => SetImportMode(ImportMode.Import)" class="sr-only peer" />
+                                            <div class="w-5 h-5 rounded-full border-2 border-zinc-600 peer-checked:border-fuchsia-500 flex items-center justify-center transition-colors">
+                                                <div class="w-2.5 h-2.5 rounded-full bg-fuchsia-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                                            </div>
+                                            <span class="text-sm font-medium text-zinc-300 group-hover:text-white transition-colors">Import from a calendar</span>
+                                        </label>
+
+                                        @if (_importMode == ImportMode.Import)
+                                        {
+                                            <div class="pl-8 flex gap-3">
+                                                <select @bind="_selectedCountry" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none w-64">
+                                                    <option value="">Select country or region</option>
+                                                    @foreach (var c in _countries)
+                                                    {
+                                                        <option value="@c.Id">@c.Name</option>
+                                                    }
+                                                </select>
+                                                <select @bind="_selectedYear" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
+                                                    @for (int year = DateTime.Now.Year; year <= DateTime.Now.Year + 3; year++)
+                                                    {
+                                                        <option value="@year">@year</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        }
+
+                                        <label class="flex items-center gap-3 cursor-pointer group mt-4">
+                                            <input type="radio" name="importType" checked="@(_importMode == ImportMode.Manual)" @onchange="() => SetImportMode(ImportMode.Manual)" class="sr-only peer" />
+                                            <div class="w-5 h-5 rounded-full border-2 border-zinc-600 peer-checked:border-fuchsia-500 flex items-center justify-center transition-colors">
+                                                <div class="w-2.5 h-2.5 rounded-full bg-fuchsia-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                                            </div>
+                                            <span class="text-sm font-medium text-zinc-300 group-hover:text-white transition-colors">Add manually</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (_selectedCalendar != null)
+                {
+                    <div class="max-w-4xl mx-auto space-y-6">
+                        <!-- Header -->
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-md flex items-center justify-between">
+                            <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                                @_selectedCalendar.Name
+                                @if (_selectedCalendar.IsDefault)
+                                {
+                                    <span class="text-[10px] font-bold text-fuchsia-400 bg-fuchsia-900/20 px-2 py-1 rounded uppercase tracking-wider">Default</span>
+                                }
+                            </h2>
+                            <div class="flex gap-2">
+                                <button @onclick="DeleteCalendar" class="p-2 text-zinc-500 hover:text-red-400 bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors" title="Delete Calendar">
+                                    <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                                <button @onclick="() => _isEditing = !_isEditing" class="p-2 text-zinc-500 hover:text-fuchsia-400 bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors" title="Edit Calendar Settings">
+                                    <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.89 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.89l10.685-10.686z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 7.125L16.875 4.5" /></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Edit Settings Dropdown -->
+                        @if (_isEditing)
+                        {
+                            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-md flex items-center justify-between">
+                                <div class="flex items-center gap-6">
+                                    <input type="text" @bind="_selectedCalendar.Name" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none w-64" />
+                                    <label class="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" @bind="_selectedCalendar.IsDefault" class="sr-only peer" />
+                                        <div class="w-5 h-5 rounded border border-zinc-700 bg-zinc-900 peer-checked:bg-fuchsia-600 peer-checked:border-fuchsia-600 flex items-center justify-center text-white transition-colors">
+                                            <svg class="size-3.5 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                        </div>
+                                        <span class="text-sm text-zinc-300">Make default</span>
+                                    </label>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button @onclick="() => _isEditing = false" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                                    <button @onclick="UpdateCalendarSettings" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">Save Changes</button>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Holidays List -->
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+                            <div class="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
+                                <div class="flex gap-2">
+                                    @for (int y = DateTime.Now.Year; y <= DateTime.Now.Year + 2; y++)
+                                    {
+                                        int year = y;
+                                        var btnClass = _selectedViewYear == year ? "bg-fuchsia-950/20 text-fuchsia-400 border border-fuchsia-900/50" : "text-zinc-500 hover:text-zinc-300 border border-transparent";
+                                        <button class="px-4 py-1.5 rounded-md text-sm font-medium transition-colors @btnClass"
+                                                @onclick="() => _selectedViewYear = year">
+                                            @year
+                                        </button>
+                                    }
+                                </div>
+                                
+                                <button @onclick="() => _isAddingHoliday = true" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
+                                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                    Add Holiday
+                                </button>
+                            </div>
+
+                            @if (_isAddingHoliday)
+                            {
+                                <div class="p-6 bg-zinc-950/50 border-b border-zinc-800 flex items-center gap-4">
+                                    <input type="text" @bind="_newHoliday.Name" placeholder="Holiday name" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                    <input type="date" @bind="_newHoliday.Date" class="w-48 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                    <button @onclick="SaveNewHoliday" class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 transition-colors">Save</button>
+                                    <button @onclick="() => _isAddingHoliday = false" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                                </div>
+                            }
+
+                            @{
+                                var holidaysToDisplay = _selectedCalendar.Holidays
+                                    .Where(h => h.Date.Year == _selectedViewYear)
+                                    .OrderBy(h => h.Date)
+                                    .ToList();
+                            }
+
+                            @if (!holidaysToDisplay.Any() && !_isAddingHoliday)
+                            {
+                                <div class="py-16 flex flex-col items-center justify-center text-center">
+                                    <div class="relative w-24 h-24 mb-4 opacity-50">
+                                        <svg class="w-full h-full text-zinc-700" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-white mb-2">No holidays</h3>
+                                    <p class="text-sm text-zinc-500 max-w-sm mb-6">There are no holidays scheduled for this calendar in @_selectedViewYear. Remember to take some time off!</p>
+                                    <button @onclick="() => _isAddingHoliday = true" class="px-5 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">
+                                        Add Holiday
+                                    </button>
+                                </div>
+                            }
+                            else if (holidaysToDisplay.Any())
+                            {
+                                <table class="w-full text-left text-sm whitespace-nowrap">
+                                    <thead class="bg-zinc-950/50 text-zinc-500 uppercase tracking-wider text-xs font-semibold">
+                                        <tr>
+                                            <th class="px-6 py-4 border-b border-zinc-800">Holiday Name</th>
+                                            <th class="px-6 py-4 border-b border-zinc-800">Date</th>
+                                            <th class="px-6 py-4 border-b border-zinc-800">Day</th>
+                                            <th class="px-6 py-4 border-b border-zinc-800 w-16 text-right"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-zinc-800/50">
+                                        @foreach (var h in holidaysToDisplay)
+                                        {
+                                            <tr class="hover:bg-zinc-800/50 transition-colors group">
+                                                <td class="px-6 py-4 text-white font-medium">@h.Name</td>
+                                                <td class="px-6 py-4 text-zinc-300">@h.Date.ToString("MMM dd, yyyy")</td>
+                                                <td class="px-6 py-4 text-zinc-500">@h.Date.ToString("dddd")</td>
+                                                <td class="px-6 py-4 text-right">
+                                                    <button @onclick="() => DeleteHoliday(h)" class="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1">
+                                                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <div class="text-center space-y-4">
+                            <div class="mx-auto size-24 bg-zinc-900 rounded-full flex items-center justify-center">
+                                <svg class="size-10 text-zinc-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-white">No calendar selected</h3>
+                            <p class="text-sm text-zinc-500 max-w-sm">Select a calendar from the sidebar or create a new one to manage company holidays.</p>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 </div>
+
+@code {
+    private string _activeTab = "Holidays"; // Start on holidays for this implementation
+    
+    private void SetActiveTab(string tab) => _activeTab = tab;
+    private void SetImportMode(ImportMode mode) => _importMode = mode;
+    
+    private List<HolidayCalendarDto>? _calendars;
+    private HolidayCalendarDto? _selectedCalendar;
+    
+    private bool _isCreating = false;
+    private bool _isEditing = false;
+    private HolidayCalendarDto _editModel = new();
+    
+    // Import state
+    private enum ImportMode { Import, Manual }
+    private ImportMode _importMode = ImportMode.Import;
+    private List<CountryDto> _countries = new();
+    private string _selectedCountry = "";
+    private int _selectedYear = DateTime.Now.Year;
+    
+    // View state
+    private int _selectedViewYear = DateTime.Now.Year;
+    private bool _isAddingHoliday = false;
+    private HolidayDto _newHoliday = new() { Date = DateTime.Now };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        _countries = await Http.GetFromJsonAsync<List<CountryDto>>("/api/holidaycalendar/import/countries") ?? new();
+    }
+
+    private async Task LoadData()
+    {
+        _calendars = await Http.GetFromJsonAsync<List<HolidayCalendarDto>>("/api/holidaycalendar");
+    }
+
+    private void CreateNewCalendar()
+    {
+        _selectedCalendar = null;
+        _isCreating = true;
+        _editModel = new HolidayCalendarDto { Name = "", IsDefault = false };
+        _importMode = ImportMode.Import;
+        _selectedCountry = "";
+    }
+
+    private void SelectCalendar(HolidayCalendarDto cal)
+    {
+        _selectedCalendar = cal;
+        _isCreating = false;
+        _isEditing = false;
+        _isAddingHoliday = false;
+    }
+
+    private void CancelEdit()
+    {
+        _isCreating = false;
+    }
+
+    private async Task SaveCalendar()
+    {
+        if (string.IsNullOrWhiteSpace(_editModel.Name)) return;
+
+        // Fetch imported holidays if selected
+        if (_importMode == ImportMode.Import && !string.IsNullOrEmpty(_selectedCountry))
+        {
+            var imported = await Http.GetFromJsonAsync<List<HolidayDto>>($"/api/holidaycalendar/import/{_selectedCountry}?year={_selectedYear}");
+            if (imported != null)
+            {
+                _editModel.Holidays.AddRange(imported);
+            }
+        }
+
+        var response = await Http.PostAsJsonAsync("/api/holidaycalendar", _editModel);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+            _isCreating = false;
+            // auto-select the newly created one
+            var saved = await response.Content.ReadFromJsonAsync<HolidayCalendarDto>();
+            if (saved != null)
+            {
+                _selectedCalendar = _calendars?.FirstOrDefault(c => c.Id == saved.Id);
+            }
+        }
+    }
+
+    private async Task UpdateCalendarSettings()
+    {
+        if (_selectedCalendar == null || string.IsNullOrWhiteSpace(_selectedCalendar.Name)) return;
+
+        var response = await Http.PutAsJsonAsync($"/api/holidaycalendar/{_selectedCalendar.Id}", _selectedCalendar);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+            _isEditing = false;
+        }
+    }
+
+    private async Task DeleteCalendar()
+    {
+        if (_selectedCalendar == null) return;
+        var response = await Http.DeleteAsync($"/api/holidaycalendar/{_selectedCalendar.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            _selectedCalendar = null;
+            await LoadData();
+        }
+    }
+
+    private async Task SaveNewHoliday()
+    {
+        if (_selectedCalendar == null || string.IsNullOrWhiteSpace(_newHoliday.Name)) return;
+
+        _selectedCalendar.Holidays.Add(new HolidayDto 
+        { 
+            Name = _newHoliday.Name, 
+            Date = _newHoliday.Date 
+        });
+
+        var response = await Http.PutAsJsonAsync($"/api/holidaycalendar/{_selectedCalendar.Id}", _selectedCalendar);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+            _selectedCalendar = _calendars?.FirstOrDefault(c => c.Id == _selectedCalendar.Id);
+            _isAddingHoliday = false;
+            _newHoliday = new HolidayDto { Date = new DateTime(_selectedViewYear, DateTime.Now.Month, DateTime.Now.Day) };
+        }
+    }
+
+    private async Task DeleteHoliday(HolidayDto holiday)
+    {
+        if (_selectedCalendar == null) return;
+        
+        var itemToRemove = _selectedCalendar.Holidays.FirstOrDefault(h => h.Name == holiday.Name && h.Date == holiday.Date);
+        if (itemToRemove != null)
+        {
+            _selectedCalendar.Holidays.Remove(itemToRemove);
+            await Http.PutAsJsonAsync($"/api/holidaycalendar/{_selectedCalendar.Id}", _selectedCalendar);
+            await LoadData();
+            _selectedCalendar = _calendars?.FirstOrDefault(c => c.Id == _selectedCalendar.Id);
+        }
+    }
+
+    public class HolidayCalendarDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public bool IsDefault { get; set; }
+        public List<HolidayDto> Holidays { get; set; } = new();
+    }
+
+    public class HolidayDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public DateTime Date { get; set; }
+    }
+
+    public class CountryDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+    }
+}

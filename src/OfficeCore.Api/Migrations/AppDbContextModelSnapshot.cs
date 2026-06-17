@@ -294,6 +294,51 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("EmployeeFingerprints");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.Holiday", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("HolidayCalendarId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HolidayCalendarId");
+
+                    b.ToTable("Holidays");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.HolidayCalendar", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HolidayCalendars");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -469,6 +514,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.Holiday", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.HolidayCalendar", "HolidayCalendar")
+                        .WithMany("Holidays")
+                        .HasForeignKey("HolidayCalendarId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("HolidayCalendar");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleBreak", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
@@ -489,6 +545,11 @@ namespace OfficeCore.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("WorkSchedule");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.HolidayCalendar", b =>
+                {
+                    b.Navigation("Holidays");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
