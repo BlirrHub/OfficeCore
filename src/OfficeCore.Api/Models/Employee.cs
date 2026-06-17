@@ -19,4 +19,7 @@ public class Employee : IdentityUser
     // Work schedule assignment
     public Guid? WorkScheduleId { get; set; }
     public WorkSchedule? WorkSchedule { get; set; }
+
+    // Government Records
+    public EmployeeGovernmentRecord? GovernmentRecord { get; set; }
 }

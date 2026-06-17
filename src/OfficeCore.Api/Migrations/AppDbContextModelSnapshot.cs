@@ -431,6 +431,60 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("EmployeeFingerprints");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.EmployeeGovernmentRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsEligibleForDeductions")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PagIbigNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhilHealthNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SssNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TinNumber")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeGovernmentRecords");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.GovernmentDeductionSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AgencyName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("EmployeeShare")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("EmployerShare")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GovernmentDeductionSettings");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.Holiday", b =>
                 {
                     b.Property<int>("Id")
@@ -732,6 +786,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.EmployeeGovernmentRecord", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
+                        .WithOne("GovernmentRecord")
+                        .HasForeignKey("OfficeCore.Api.Models.EmployeeGovernmentRecord", "EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.Holiday", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.HolidayCalendar", "HolidayCalendar")
@@ -790,6 +855,11 @@ namespace OfficeCore.Api.Migrations
             modelBuilder.Entity("OfficeCore.Api.Models.Client", b =>
                 {
                     b.Navigation("Businesses");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.Employee", b =>
+                {
+                    b.Navigation("GovernmentRecord");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.HolidayCalendar", b =>

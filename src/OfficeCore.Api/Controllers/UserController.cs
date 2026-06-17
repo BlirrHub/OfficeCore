@@ -21,17 +21,27 @@ public class UserController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetUsers()
     {
-        var users = await _userManager.Users.Select(u => new
-        {
-            u.Id,
-            u.Email,
-            u.FirstName,
-            u.LastName,
-            u.EmployeeId,
-            u.IsActive,
-            u.DailyRate,
-            u.WorkScheduleId
-        }).ToListAsync();
+        var users = await _userManager.Users
+            .Include(u => u.GovernmentRecord)
+            .Select(u => new
+            {
+                u.Id,
+                u.Email,
+                u.FirstName,
+                u.LastName,
+                u.EmployeeId,
+                u.IsActive,
+                u.DailyRate,
+                u.WorkScheduleId,
+                GovernmentRecord = u.GovernmentRecord != null ? new
+                {
+                    u.GovernmentRecord.IsEligibleForDeductions,
+                    u.GovernmentRecord.SssNumber,
+                    u.GovernmentRecord.PagIbigNumber,
+                    u.GovernmentRecord.PhilHealthNumber,
+                    u.GovernmentRecord.TinNumber
+                } : null
+            }).ToListAsync();
 
         return Ok(users);
     }
@@ -49,7 +59,16 @@ public class UserController : ControllerBase
             IsActive = true,
             EmailConfirmed = true,
             DailyRate = request.DailyRate,
-            WorkScheduleId = request.WorkScheduleId
+            WorkScheduleId = request.WorkScheduleId,
+            GovernmentRecord = request.GovernmentRecord != null ? new EmployeeGovernmentRecord
+            {
+                EmployeeId = "", // Set below via EF navigation
+                IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions,
+                SssNumber = request.GovernmentRecord.SssNumber,
+                PagIbigNumber = request.GovernmentRecord.PagIbigNumber,
+                PhilHealthNumber = request.GovernmentRecord.PhilHealthNumber,
+                TinNumber = request.GovernmentRecord.TinNumber
+            } : null
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -67,7 +86,7 @@ public class UserController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserRequest request)
     {
-        var user = await _userManager.FindByIdAsync(id);
+        var user = await _userManager.Users.Include(u => u.GovernmentRecord).FirstOrDefaultAsync(u => u.Id == id);
         if (user == null)
             return NotFound();
 
@@ -77,6 +96,19 @@ public class UserController : ControllerBase
         user.IsActive = request.IsActive;
         user.DailyRate = request.DailyRate;
         user.WorkScheduleId = request.WorkScheduleId;
+
+        if (request.GovernmentRecord != null)
+        {
+            if (user.GovernmentRecord == null)
+            {
+                user.GovernmentRecord = new EmployeeGovernmentRecord { EmployeeId = user.Id };
+            }
+            user.GovernmentRecord.IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions;
+            user.GovernmentRecord.SssNumber = request.GovernmentRecord.SssNumber;
+            user.GovernmentRecord.PagIbigNumber = request.GovernmentRecord.PagIbigNumber;
+            user.GovernmentRecord.PhilHealthNumber = request.GovernmentRecord.PhilHealthNumber;
+            user.GovernmentRecord.TinNumber = request.GovernmentRecord.TinNumber;
+        }
 
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
@@ -115,6 +147,7 @@ public class CreateUserRequest
     public decimal? DailyRate { get; set; }
     public Guid? WorkScheduleId { get; set; }
     public List<string>? Roles { get; set; }
+    public GovernmentRecordDto? GovernmentRecord { get; set; }
 }
 
 public class UpdateUserRequest
@@ -126,4 +159,14 @@ public class UpdateUserRequest
     public decimal? DailyRate { get; set; }
     public Guid? WorkScheduleId { get; set; }
     public List<string>? Roles { get; set; }
+    public GovernmentRecordDto? GovernmentRecord { get; set; }
+}
+
+public class GovernmentRecordDto
+{
+    public bool IsEligibleForDeductions { get; set; }
+    public string? SssNumber { get; set; }
+    public string? PagIbigNumber { get; set; }
+    public string? PhilHealthNumber { get; set; }
+    public string? TinNumber { get; set; }
 }
