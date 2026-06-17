@@ -86,8 +86,8 @@
                                 </thead>
                                 <tbody class="divide-y divide-zinc-800/50">
                                     @foreach (var req in filteredRequests)
-                                {
-                                    <tr class="hover:bg-zinc-800/50 transition-colors">
+                                    {
+                                        <tr class="hover:bg-zinc-800/50 transition-colors">
                                         <td class="px-6 py-4 text-zinc-300">
                                             <div class="font-medium text-white">@req.RequestDate.ToLocalTime().ToString("MMM dd, yyyy")</div>
                                         </td>
