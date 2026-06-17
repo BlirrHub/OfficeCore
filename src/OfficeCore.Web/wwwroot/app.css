@@ -1186,6 +1186,12 @@
   .p-12 {
     padding: calc(var(--spacing) * 12);
   }
+  .px-1 {
+    padding-inline: var(--spacing);
+  }
+  .px-1\.5 {
+    padding-inline: calc(var(--spacing) * 1.5);
+  }
   .px-2 {
     padding-inline: calc(var(--spacing) * 2);
   }
@@ -1401,6 +1407,9 @@
   }
   .text-purple-400 {
     color: var(--color-purple-400);
+  }
+  .text-purple-600 {
+    color: var(--color-purple-600);
   }
   .text-red-200 {
     color: var(--color-red-200);
@@ -1992,6 +2001,16 @@
   .focus\:ring-fuchsia-500 {
     &:focus {
       --tw-ring-color: var(--color-fuchsia-500);
+    }
+  }
+  .focus\:ring-purple-600 {
+    &:focus {
+      --tw-ring-color: var(--color-purple-600);
+    }
+  }
+  .focus\:ring-offset-zinc-900 {
+    &:focus {
+      --tw-ring-offset-color: var(--color-zinc-900);
     }
   }
   .focus\:outline-none {

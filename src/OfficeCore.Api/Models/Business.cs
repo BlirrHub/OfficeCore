@@ -20,6 +20,8 @@ public class Business
     [MaxLength(50)]
     public string? PhoneNumber { get; set; }
     
+    public bool IsVatRegistered { get; set; }
+    
     // Navigation property
     [JsonIgnore]
     public Client? Client { get; set; }

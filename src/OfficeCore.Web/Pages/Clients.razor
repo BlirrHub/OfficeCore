@@ -94,7 +94,17 @@
                                             <button @onclick="() => RemoveBusiness(client, biz)" class="absolute top-3 right-3 text-zinc-600 hover:text-red-400 opacity-0 group-hover/biz:opacity-100 transition-all">
                                                 <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
-                                            <div class="font-medium text-zinc-200 mb-1">@biz.Name</div>
+                                            <div class="font-medium text-zinc-200 mb-1 flex items-center gap-2">
+                                                @biz.Name
+                                                @if (biz.IsVatRegistered)
+                                                {
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-fuchsia-900/30 text-fuchsia-400 border border-fuchsia-900/50">VAT</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">NON-VAT</span>
+                                                }
+                                            </div>
                                             <div class="text-xs text-zinc-500 flex flex-col gap-1">
                                                 @if (!string.IsNullOrEmpty(biz.Address))
                                                 {
@@ -184,6 +194,11 @@
                     <label class="block text-sm font-medium text-zinc-400 mb-2">Business Phone Number</label>
                     <input type="text" @bind="_businessModel.PhoneNumber" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:outline-none" placeholder="+1 (555) 123-4567" />
                 </div>
+                
+                <div class="flex items-center gap-3 p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                    <input type="checkbox" id="isVat" @bind="_businessModel.IsVatRegistered" class="size-4 rounded border-zinc-700 bg-zinc-900 text-purple-600 focus:ring-purple-600 focus:ring-offset-zinc-900" />
+                    <label for="isVat" class="text-sm font-medium text-zinc-300 select-none">This business is VAT Registered</label>
+                </div>
 
                 <div class="mt-8 pt-4 flex gap-3">
                     <button @onclick="CloseModals" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
@@ -259,7 +274,8 @@
                 Id = b.Id, 
                 Name = b.Name, 
                 Address = b.Address, 
-                PhoneNumber = b.PhoneNumber 
+                PhoneNumber = b.PhoneNumber,
+                IsVatRegistered = b.IsVatRegistered
             }).ToList() ?? new List<BusinessDto>()
         };
         _editingClient = true;
@@ -386,5 +402,6 @@
         public string Name { get; set; } = string.Empty;
         public string? Address { get; set; }
         public string? PhoneNumber { get; set; }
+        public bool IsVatRegistered { get; set; }
     }
 }
