@@ -46,6 +46,7 @@ public class CookieAuthStateProvider : AuthenticationStateProvider
                 new(ClaimTypes.Email,          userInfo.Email),
                 new("FirstName",               userInfo.FirstName),
                 new("LastName",                userInfo.LastName),
+                new("MustChangePassword",      userInfo.MustChangePassword.ToString())
             };
 
             foreach (var role in userInfo.Roles)

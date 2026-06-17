@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Is Employee Toggle**: Added an `IsEmployee` toggle to User Management. Users with this disabled (like administrative accounts) are safely excluded from the payroll computation engine, and payroll-related form fields are dynamically hidden.
 - **Weekly Rate (No Attendance)**: Added a "Pay Mode" toggle for Fixed Work Schedules. Selecting "Weekly Rate" hides the required start/end time inputs and instructs the payroll engine to automatically calculate basic pay based solely on the number of scheduled work days for the period, completely ignoring any required attendance logs.
+- **Default Passwords**: Removed the password input field when creating an employee. New accounts now default to the password `"password"` and global identity complexity requirements have been relaxed to allow this.
+- **Forced Password Update**: Added a `MustChangePassword` security flag for newly created accounts. When logging in for the first time, users are now automatically trapped in the Profile page and blocked from accessing any other system tabs until they successfully change their default password.
+- **Change Password Form**: Added a functional "Change Password" interface directly into the user Profile page.
+- **Detailed Registration Errors**: Updated the User Management modal to catch and explicitly display detailed API validation errors (e.g. "Invalid Email") instead of generic failure messages.
 - **Auto Clock Out**: Added an "Auto clock out at end of shift" toggle to Work Schedules.
 - **Time-Tracked Payroll Engine**: Radically overhauled the payroll computation logic. The system now parses raw `ClockIn` and `ClockOut` pairs for the payroll period, correctly deducts overlapping unpaid breaks from the employee's `WorkSchedule`, and derives standard `BasicPay` strictly from these tracked hours using the computed `HourlyRate` (DailyRate / 8). Hours logged on rest days are cleanly ignored.
 

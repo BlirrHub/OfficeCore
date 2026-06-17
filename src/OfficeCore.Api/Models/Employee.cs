@@ -12,6 +12,7 @@ public class Employee : IdentityUser
     
     // To soft-disable users
     public bool IsActive { get; set; } = true;
+    public bool MustChangePassword { get; set; } = true;
 
     /// <summary>When true, this user is included in payroll processing and requires payroll settings.</summary>
     public bool IsEmployee { get; set; } = true;

@@ -12,6 +12,7 @@ public class UserInfo
     public string LastName { get; set; } = string.Empty;
     public IEnumerable<string> Roles { get; set; } = [];
     public IEnumerable<string> Modules { get; set; } = [];
+    public bool MustChangePassword { get; set; }
 
     public string FullName => $"{FirstName} {LastName}".Trim();
 

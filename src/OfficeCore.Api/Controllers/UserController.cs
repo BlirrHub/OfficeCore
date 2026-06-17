@@ -68,7 +68,7 @@ public class UserController : ControllerBase
             EmailConfirmed = true,
             DailyRate = request.DailyRate,
             UseCustomDailyRate = request.UseCustomDailyRate,
-            DateHired = request.DateHired,
+            DateHired = request.DateHired.HasValue ? DateTime.SpecifyKind(request.DateHired.Value, DateTimeKind.Utc) : null,
             IsEligibleForLeave = request.IsEligibleForLeave,
             WorkScheduleId = request.WorkScheduleId,
             GovernmentRecord = request.GovernmentRecord != null ? new EmployeeGovernmentRecord
@@ -82,7 +82,7 @@ public class UserController : ControllerBase
             } : null
         };
 
-        var result = await _userManager.CreateAsync(user, request.Password);
+        var result = await _userManager.CreateAsync(user, "password");
         if (!result.Succeeded)
             return BadRequest(result.Errors);
 
@@ -108,7 +108,7 @@ public class UserController : ControllerBase
         user.IsEmployee = request.IsEmployee;
         user.DailyRate = request.DailyRate;
         user.UseCustomDailyRate = request.UseCustomDailyRate;
-        user.DateHired = request.DateHired;
+        user.DateHired = request.DateHired.HasValue ? DateTime.SpecifyKind(request.DateHired.Value, DateTimeKind.Utc) : null;
         user.IsEligibleForLeave = request.IsEligibleForLeave;
         user.WorkScheduleId = request.WorkScheduleId;
 
@@ -147,7 +147,7 @@ public class UserController : ControllerBase
             return NotFound();
 
         user.IsActive = false;
-        user.ResignedDate = request.ResignedDate;
+        user.ResignedDate = DateTime.SpecifyKind(request.ResignedDate, DateTimeKind.Utc);
 
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
@@ -171,7 +171,6 @@ public class UserController : ControllerBase
 public class CreateUserRequest
 {
     public required string Email { get; set; }
-    public required string Password { get; set; }
     public required string FirstName { get; set; }
     public required string LastName { get; set; }
     public string? EmployeeId { get; set; }

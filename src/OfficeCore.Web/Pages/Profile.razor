@@ -1,5 +1,8 @@
 @page "/profile"
 @attribute [Authorize]
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Nav
 
 <PageTitle>My Profile - OfficeCore</PageTitle>
 
@@ -9,6 +12,25 @@
         <p class="mt-2 text-zinc-400">Manage your personal information and preferences.</p>
     </div>
 
+    @if (_mustChangePassword)
+    {
+        <div class="rounded-xl bg-orange-950/50 border border-orange-900/50 p-4">
+            <div class="flex">
+                <div class="shrink-0">
+                    <svg class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-orange-400">Action Required</h3>
+                    <div class="mt-2 text-sm text-orange-300">
+                        <p>You must change your default password before you can access the rest of the application.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-8">
         <div>
             <h2 class="text-lg font-medium text-white">Personal Information</h2>
@@ -16,28 +38,173 @@
                 <div>
                     <label class="block text-sm font-medium text-zinc-400">First name</label>
                     <div class="mt-1">
-                        <input type="text" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" placeholder="John">
+                        <input type="text" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" placeholder="First Name" value="@_firstName" disabled>
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-zinc-400">Last name</label>
                     <div class="mt-1">
-                        <input type="text" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" placeholder="Doe">
+                        <input type="text" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" placeholder="Last Name" value="@_lastName" disabled>
                     </div>
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-zinc-400">Email address</label>
                     <div class="mt-1">
-                        <input type="email" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-zinc-500 sm:text-sm cursor-not-allowed" value="john.doe@company.com" disabled>
+                        <input type="email" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-zinc-500 sm:text-sm cursor-not-allowed" value="@_email" disabled>
                     </div>
                 </div>
             </div>
         </div>
         
         <div class="flex justify-end pt-4 border-t border-zinc-800">
-            <button type="button" class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-fuchsia-500 transition-colors">
+            <button type="button" class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
                 Save changes
             </button>
         </div>
     </div>
+
+    <!-- Change Password Section -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-8">
+        <div>
+            <h2 class="text-lg font-medium text-white">Change Password</h2>
+            <p class="mt-1 text-sm text-zinc-400">Update your password to keep your account secure.</p>
+
+            @if (!string.IsNullOrEmpty(_passwordError))
+            {
+                <div class="mt-4 rounded-xl bg-red-950/60 border border-red-800 px-4 py-3 text-sm text-red-400">
+                    @_passwordError
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(_passwordSuccess))
+            {
+                <div class="mt-4 rounded-xl bg-emerald-950/60 border border-emerald-800 px-4 py-3 text-sm text-emerald-400">
+                    @_passwordSuccess
+                </div>
+            }
+
+            <EditForm Model="_pwdModel" OnValidSubmit="HandleChangePassword" FormName="changePassword">
+                <DataAnnotationsValidator />
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-400 mb-1">Current password</label>
+                        <InputText @bind-Value="_pwdModel.CurrentPassword" type="password" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" />
+                        <ValidationMessage For="() => _pwdModel.CurrentPassword" class="mt-1 text-xs text-red-400" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-400 mb-1">New password</label>
+                        <InputText @bind-Value="_pwdModel.NewPassword" type="password" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" />
+                        <ValidationMessage For="() => _pwdModel.NewPassword" class="mt-1 text-xs text-red-400" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-400 mb-1">Confirm new password</label>
+                        <InputText @bind-Value="_pwdModel.ConfirmPassword" type="password" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" />
+                        <ValidationMessage For="() => _pwdModel.ConfirmPassword" class="mt-1 text-xs text-red-400" />
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <button type="submit" disabled="@_isChangingPassword" class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
+                        @if (_isChangingPassword)
+                        {
+                            <span>Updating...</span>
+                        }
+                        else
+                        {
+                            <span>Update password</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
 </div>
+
+@code {
+    private bool _mustChangePassword = false;
+    private string _firstName = "";
+    private string _lastName = "";
+    private string _email = "";
+
+    private PasswordForm _pwdModel = new();
+    private bool _isChangingPassword;
+    private string? _passwordError;
+    private string? _passwordSuccess;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        _firstName = user.FindFirst("FirstName")?.Value ?? "";
+        _lastName = user.FindFirst("LastName")?.Value ?? "";
+        _email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+        _mustChangePassword = user.FindFirst("MustChangePassword")?.Value == "True";
+    }
+
+    private async Task HandleChangePassword()
+    {
+        _passwordError = null;
+        _passwordSuccess = null;
+        
+        if (_pwdModel.NewPassword != _pwdModel.ConfirmPassword)
+        {
+            _passwordError = "New passwords do not match.";
+            return;
+        }
+
+        _isChangingPassword = true;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/auth/change-password", new
+            {
+                currentPassword = _pwdModel.CurrentPassword,
+                newPassword = _pwdModel.NewPassword
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                _passwordSuccess = "Password updated successfully!";
+                _pwdModel = new();
+                
+                // If they were forced to change it, they are now free!
+                if (_mustChangePassword)
+                {
+                    _mustChangePassword = false;
+                    // Re-fetch claims and auth state so the guard is lifted
+                    if (AuthProvider is OfficeCore.Web.Client.Auth.CookieAuthStateProvider cookieAuth)
+                    {
+                        cookieAuth.NotifyAuthStateChanged();
+                    }
+                    Nav.NavigateTo("/");
+                }
+            }
+            else
+            {
+                // In a real app we'd parse the Identity errors
+                _passwordError = "Failed to update password. Make sure your current password is correct.";
+            }
+        }
+        catch
+        {
+            _passwordError = "An error occurred while connecting to the server.";
+        }
+        finally
+        {
+            _isChangingPassword = false;
+        }
+    }
+
+    private class PasswordForm
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Password must be at least 6 characters")]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

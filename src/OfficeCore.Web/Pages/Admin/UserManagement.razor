@@ -133,10 +133,6 @@
                     <label class="block text-xs font-medium text-zinc-400 mb-1">Email</label>
                     <input @bind="_create.Email" type="email" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-1">Password</label>
-                    <input @bind="_create.Password" type="password" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-zinc-400 mb-1">Employee ID (optional)</label>
@@ -786,16 +782,15 @@
     private async Task CreateUser()
     {
         _modalError = null;
-        if (string.IsNullOrWhiteSpace(_create.Email) || string.IsNullOrWhiteSpace(_create.Password))
+        if (string.IsNullOrWhiteSpace(_create.Email))
         {
-            _modalError = "Email and password are required.";
+            _modalError = "Email is required.";
             return;
         }
 
         var createPayload = new CreateUserRequestDto
         {
             Email = _create.Email,
-            Password = _create.Password,
             FirstName = _create.FirstName,
             LastName = _create.LastName,
             EmployeeId = _create.EmployeeId,
@@ -819,14 +814,28 @@
         }
         else
         {
-            _modalError = "Failed to create user. Check the details and try again.";
+            try 
+            {
+                var errors = await response.Content.ReadFromJsonAsync<List<IdentityErrorDto>>();
+                if (errors != null && errors.Any())
+                {
+                    _modalError = string.Join(" ", errors.Select(e => e.Description));
+                }
+                else 
+                {
+                    _modalError = "Failed to create user. Check the details and try again.";
+                }
+            }
+            catch 
+            {
+                _modalError = "Failed to create user. Check the details and try again.";
+            }
         }
     }
 
     private class CreateUserRequestDto
     {
         public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? EmployeeId { get; set; }
@@ -874,7 +883,22 @@
         }
         else
         {
-            _modalError = "Failed to update user. Check the details and try again.";
+            try 
+            {
+                var errors = await response.Content.ReadFromJsonAsync<List<IdentityErrorDto>>();
+                if (errors != null && errors.Any())
+                {
+                    _modalError = string.Join(" ", errors.Select(e => e.Description));
+                }
+                else 
+                {
+                    _modalError = "Failed to update user. Check the details and try again.";
+                }
+            }
+            catch 
+            {
+                _modalError = "Failed to update user. Check the details and try again.";
+            }
         }
     }
 
@@ -894,13 +918,18 @@
         public GovernmentRecordDto? GovernmentRecord { get; set; }
     }
 
+    private class IdentityErrorDto
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+
     private class CreateForm
     {
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string EmployeeId { get; set; } = string.Empty;
+        public string? EmployeeId { get; set; } = string.Empty;
         public decimal? DailyRate { get; set; }
         public bool UseCustomDailyRate { get; set; } = false;
         public DateTime? DateHired { get; set; }

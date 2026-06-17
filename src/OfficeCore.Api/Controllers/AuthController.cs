@@ -75,9 +75,30 @@ public class AuthController : ControllerBase
             email = user.Email,
             firstName = user.FirstName,
             lastName = user.LastName,
+            mustChangePassword = user.MustChangePassword,
             roles = roles,
             modules = moduleClaims.Distinct()
         });
+    }
+
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+            return Unauthorized();
+
+        var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        user.MustChangePassword = false;
+        await _userManager.UpdateAsync(user);
+
+        // Re-sign in to refresh the security stamp/cookie
+        await _signInManager.RefreshSignInAsync(user);
+
+        return Ok(new { message = "Password changed successfully" });
     }
 }
 
@@ -86,4 +107,10 @@ public class LoginRequest
     public required string Email { get; set; }
     public required string Password { get; set; }
     public bool RememberMe { get; set; }
+}
+
+public class ChangePasswordRequest
+{
+    public required string CurrentPassword { get; set; }
+    public required string NewPassword { get; set; }
 }
