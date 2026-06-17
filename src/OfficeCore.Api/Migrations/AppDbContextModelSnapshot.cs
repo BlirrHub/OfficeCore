@@ -602,11 +602,110 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("LeaveRequests");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.PayrollPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("FinalizedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PayrollPeriods");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.Payslip", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AdvancesDeduction")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("BasicPay")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("CalculationDetailsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("GrossPay")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("LateUndertimeDeduction")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("NetPay")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("OtherAllowances")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("OtherDeductions")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("PagIbigDeduction")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("PayrollPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("PhilHealthDeduction")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("SssDeduction")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("TaxDeduction")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("TotalHolidayPay")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("TotalLeavePay")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("TotalOvertimePay")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("PayrollPeriodId");
+
+                    b.ToTable("Payslips");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("AutoClockOut")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IncludeTimeTrackedBeforeScheduledStartTime")
                         .HasColumnType("boolean");
@@ -889,6 +988,25 @@ namespace OfficeCore.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.Payslip", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.PayrollPeriod", "PayrollPeriod")
+                        .WithMany()
+                        .HasForeignKey("PayrollPeriodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("PayrollPeriod");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleAutoDeduction", b =>

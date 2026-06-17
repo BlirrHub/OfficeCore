@@ -1,0 +1,248 @@
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div class="p-6 border-b border-zinc-800 flex items-center justify-between">
+            <div>
+                <h2 class="text-xl font-bold text-white">@Payslip.EmployeeName</h2>
+                <p class="text-sm text-zinc-400 mt-1">Payslip Details</p>
+            </div>
+            <button @onclick="OnClose" class="p-2 hover:bg-zinc-900 rounded-xl text-zinc-500 hover:text-white transition-colors">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        
+        <EditForm Model="updateRequest" OnValidSubmit="SavePayslip">
+            <div class="p-6 grid gap-6 md:grid-cols-2 max-h-[70vh] overflow-y-auto">
+                
+                <!-- Earnings Section -->
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-2">Earnings</h3>
+                    
+                    @if (calcDetails != null)
+                    {
+                        <div class="flex justify-between items-center text-sm mb-2 text-zinc-400 bg-zinc-900/50 p-3 rounded-xl">
+                            <div>
+                                <span class="block text-xs uppercase tracking-wider mb-1 text-zinc-500">Time Tracked</span>
+                                <span class="font-medium text-zinc-300">@calcDetails.TotalTrackedHours.ToString("N2") hrs</span>
+                                <span class="text-xs text-zinc-500 ml-2">(@calcDetails.DaysWithAttendance days)</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="block text-xs uppercase tracking-wider mb-1 text-zinc-500">Hourly Rate</span>
+                                <span class="font-medium text-zinc-300">@calcDetails.HourlyRate.ToString("C") / hr</span>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-zinc-400">Basic Pay</span>
+                        <span class="text-white font-medium">@Payslip.BasicPay.ToString("C")</span>
+                    </div>
+                    
+                    @if (Payslip.TotalLeavePay > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-zinc-400">Leave Pay</span>
+                            <span class="text-emerald-400 font-medium">+@Payslip.TotalLeavePay.ToString("C")</span>
+                        </div>
+                    }
+                    
+                    @if (Payslip.TotalOvertimePay > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-zinc-400">Overtime Pay</span>
+                            <span class="text-emerald-400 font-medium">+@Payslip.TotalOvertimePay.ToString("C")</span>
+                        </div>
+                    }
+                    
+                    <div class="flex justify-between items-center text-sm pt-2 border-t border-zinc-800/50">
+                        <span class="text-zinc-300 font-medium">Gross Pay</span>
+                        <span class="text-white font-bold">@Payslip.GrossPay.ToString("C")</span>
+                    </div>
+
+                    @if (!IsReadOnly)
+                    {
+                        <div class="pt-4 space-y-3">
+                            <label class="block text-sm font-medium text-zinc-300">Other Allowances</label>
+                            <InputNumber @bind-Value="updateRequest.OtherAllowances" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-all" />
+                        </div>
+                    }
+                    else if (Payslip.OtherAllowances > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm pt-2">
+                            <span class="text-zinc-400">Other Allowances</span>
+                            <span class="text-emerald-400 font-medium">+@Payslip.OtherAllowances.ToString("C")</span>
+                        </div>
+                    }
+                </div>
+                
+                <!-- Deductions Section -->
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-2">Deductions</h3>
+                    
+                    @if (Payslip.SssDeduction > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-zinc-400">SSS Contribution</span>
+                            <span class="text-rose-400 font-medium">-@Payslip.SssDeduction.ToString("C")</span>
+                        </div>
+                    }
+                    
+                    @if (Payslip.PhilHealthDeduction > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-zinc-400">PhilHealth</span>
+                            <span class="text-rose-400 font-medium">-@Payslip.PhilHealthDeduction.ToString("C")</span>
+                        </div>
+                    }
+                    
+                    @if (Payslip.PagIbigDeduction > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-zinc-400">Pag-IBIG</span>
+                            <span class="text-rose-400 font-medium">-@Payslip.PagIbigDeduction.ToString("C")</span>
+                        </div>
+                    }
+                    
+                    @if (Payslip.TaxDeduction > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-zinc-400">Withholding Tax</span>
+                            <span class="text-rose-400 font-medium">-@Payslip.TaxDeduction.ToString("C")</span>
+                        </div>
+                    }
+                    
+                    @if (Payslip.AdvancesDeduction > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-zinc-400">Advances / Loans</span>
+                            <span class="text-rose-400 font-medium">-@Payslip.AdvancesDeduction.ToString("C")</span>
+                        </div>
+                    }
+
+                    @if (!IsReadOnly)
+                    {
+                        <div class="pt-4 space-y-3">
+                            <label class="block text-sm font-medium text-zinc-300">Other Deductions</label>
+                            <InputNumber @bind-Value="updateRequest.OtherDeductions" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-all" />
+                        </div>
+                    }
+                    else if (Payslip.OtherDeductions > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm pt-2">
+                            <span class="text-zinc-400">Other Deductions</span>
+                            <span class="text-rose-400 font-medium">-@Payslip.OtherDeductions.ToString("C")</span>
+                        </div>
+                    }
+                </div>
+
+                <!-- Final Net Pay -->
+                <div class="md:col-span-2 mt-4 pt-6 border-t border-zinc-800 flex justify-between items-center">
+                    <span class="text-lg font-bold text-zinc-300">Net Take Home Pay</span>
+                    <span class="text-3xl font-black text-fuchsia-400">@CurrentNetPay.ToString("C")</span>
+                </div>
+            </div>
+            
+            <div class="p-6 border-t border-zinc-800 bg-zinc-900/30 flex justify-end gap-3">
+                <button type="button" @onclick="OnClose" class="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors">
+                    @(IsReadOnly ? "Close" : "Cancel")
+                </button>
+                @if (!IsReadOnly)
+                {
+                    <button type="submit" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-6 py-2 rounded-xl text-sm font-medium transition-all shadow-lg shadow-fuchsia-900/20" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="flex items-center gap-2">
+                                <svg class="animate-spin size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Saving...
+                            </span>
+                        }
+                        else
+                        {
+                            <span>Save Adjustments</span>
+                        }
+                    </button>
+                }
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public OfficeCore.Web.Client.Pages.Payroll.PayrollDetails.PayslipDto Payslip { get; set; } = default!;
+    [Parameter] public bool IsReadOnly { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private UpdateRequest updateRequest = new();
+    private bool isSaving = false;
+
+    protected override void OnInitialized()
+    {
+        updateRequest.OtherAllowances = Payslip.OtherAllowances;
+        updateRequest.OtherDeductions = Payslip.OtherDeductions;
+        
+        if (!string.IsNullOrEmpty(Payslip.CalculationDetailsJson))
+        {
+            try
+            {
+                calcDetails = System.Text.Json.JsonSerializer.Deserialize<CalculationDetailsDto>(Payslip.CalculationDetailsJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch {}
+        }
+    }
+
+    private decimal CurrentNetPay
+    {
+        get
+        {
+            var totalDeductions = Payslip.SssDeduction + Payslip.PhilHealthDeduction + Payslip.PagIbigDeduction + Payslip.TaxDeduction + Payslip.AdvancesDeduction;
+            if (IsReadOnly)
+            {
+                return Payslip.NetPay;
+            }
+            return Payslip.GrossPay - totalDeductions + updateRequest.OtherAllowances - updateRequest.OtherDeductions;
+        }
+    }
+
+    private async Task SavePayslip()
+    {
+        isSaving = true;
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/payroll/payslips/{Payslip.Id}", updateRequest);
+            if (response.IsSuccessStatusCode)
+            {
+                await OnSaved.InvokeAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving payslip: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    public class UpdateRequest
+    {
+        public decimal OtherAllowances { get; set; }
+        public decimal OtherDeductions { get; set; }
+    }
+
+    private CalculationDetailsDto? calcDetails;
+
+    public class CalculationDetailsDto
+    {
+        public decimal DailyRate { get; set; }
+        public decimal HourlyRate { get; set; }
+        public double TotalTrackedHours { get; set; }
+        public int DaysWithAttendance { get; set; }
+        public decimal BasicPay { get; set; }
+        public int LeaveDays { get; set; }
+        public decimal TotalLeavePay { get; set; }
+    }
+}

@@ -22,6 +22,8 @@ public class WorkSchedule
     
     public bool IncludeTimeTrackedBeforeScheduledStartTime { get; set; }
     
+    public bool AutoClockOut { get; set; }
+    
     public TimeSpan SplitTimesheetsAt { get; set; } = TimeSpan.Zero;
     
     public double? TotalWeeklyHours { get; set; }

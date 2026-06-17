@@ -115,6 +115,7 @@ public class WorkScheduleController : ControllerBase
         existingSchedule.Name = updatedSchedule.Name;
         existingSchedule.WorkArrangement = updatedSchedule.WorkArrangement;
         existingSchedule.IncludeTimeTrackedBeforeScheduledStartTime = updatedSchedule.IncludeTimeTrackedBeforeScheduledStartTime;
+        existingSchedule.AutoClockOut = updatedSchedule.AutoClockOut;
         existingSchedule.SplitTimesheetsAt = updatedSchedule.SplitTimesheetsAt;
         existingSchedule.TotalWeeklyHours = updatedSchedule.TotalWeeklyHours;
 

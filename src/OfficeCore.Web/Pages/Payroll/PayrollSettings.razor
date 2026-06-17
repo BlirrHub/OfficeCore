@@ -1,38 +1,16 @@
-@page "/payroll"
+@page "/payroll/settings"
 @attribute [Authorize(Policy = "RequirePayroll")]
 @inject HttpClient Http
 
-<PageTitle>Payroll - OfficeCore</PageTitle>
+<PageTitle>Payroll Settings - OfficeCore</PageTitle>
 
 <div class="space-y-6">
     <div>
-        <h1 class="text-3xl font-bold tracking-tight text-white">Payroll</h1>
-        <p class="mt-2 text-zinc-400">Process employee payroll, salaries, and manage deduction settings.</p>
+        <h1 class="text-3xl font-bold tracking-tight text-white">Payroll Settings</h1>
+        <p class="mt-2 text-zinc-400">Configure default rates and government deductions used for payroll calculations.</p>
     </div>
 
-    <!-- Tabs -->
-    <div class="flex border-b border-zinc-800">
-        <button @onclick="() => _activeTab = Tab.Generation"
-                class="@(_activeTab == Tab.Generation ? "border-fuchsia-500 text-fuchsia-400" : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-700") px-4 py-3 border-b-2 font-medium text-sm transition-colors">
-            Payroll Generation
-        </button>
-        <AuthorizeView Roles="Admin">
-            <button @onclick="() => { _activeTab = Tab.Settings; _ = LoadSettings(); }"
-                    class="@(_activeTab == Tab.Settings ? "border-fuchsia-500 text-fuchsia-400" : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-700") px-4 py-3 border-b-2 font-medium text-sm transition-colors">
-                Payroll Settings
-            </button>
-        </AuthorizeView>
-    </div>
-
-    @if (_activeTab == Tab.Generation)
-    {
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 flex items-center justify-center">
-            <p class="text-zinc-500 italic">This module is under construction.</p>
-        </div>
-    }
-    else if (_activeTab == Tab.Settings)
-    {
-        <div class="space-y-6 max-w-4xl">
+    <div class="space-y-6 max-w-4xl">
             <!-- General Settings -->
             <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6">
                 <h2 class="text-xl font-semibold text-white mb-1">General Settings</h2>
@@ -145,12 +123,9 @@
                 }
             </div>
         </div>
-    }
 </div>
 
 @code {
-    private enum Tab { Generation, Settings }
-    private Tab _activeTab = Tab.Generation;
 
     // Government deductions state
     private List<GovernmentDeductionSettingDto>? _settings;

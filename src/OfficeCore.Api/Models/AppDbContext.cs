@@ -29,6 +29,9 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     public DbSet<Client> Clients { get; set; }
     public DbSet<Business> Businesses { get; set; }
 
+    public DbSet<PayrollPeriod> PayrollPeriods { get; set; }
+    public DbSet<Payslip> Payslips { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

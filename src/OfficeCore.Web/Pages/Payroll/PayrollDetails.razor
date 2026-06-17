@@ -1,0 +1,380 @@
+@page "/payroll/{Id:guid}"
+@using System.Net.Http.Json
+@using OfficeCore.Web.Client.Pages.Payroll.Components
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <button @onclick="NavigateBack" class="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            </button>
+            <div>
+                <h1 class="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+                    Payroll Details
+                    @if (period != null)
+                    {
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider @GetStatusBadgeClass(period.Status)">
+                            @period.StatusText
+                        </span>
+                    }
+                </h1>
+                @if (period != null)
+                {
+                    <p class="text-sm text-zinc-400 mt-1">@period.StartDate.ToString("MMM dd") - @period.EndDate.ToString("MMM dd, yyyy")</p>
+                }
+            </div>
+        </div>
+        
+        @if (period != null)
+        {
+            <div class="flex items-center gap-3">
+                @if (period.Status == 0) // Draft
+                {
+                    <button @onclick="ComputePayroll" disabled="@isComputing" class="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">
+                        @if (isComputing)
+                        {
+                            <svg class="animate-spin size-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>Computing...</span>
+                        }
+                        else
+                        {
+                            <svg class="size-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            <span>Compute Payroll</span>
+                        }
+                    </button>
+                }
+                
+                @if (period.Status == 1) // Computed
+                {
+                    <button @onclick="ComputePayroll" disabled="@isComputing" class="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all" title="Recompute">
+                        <svg class="size-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </button>
+                    
+                    <button @onclick="FinalizePayroll" disabled="@isFinalizing" class="flex items-center gap-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all shadow-lg shadow-fuchsia-900/20">
+                        @if (isFinalizing)
+                        {
+                            <svg class="animate-spin size-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>Finalizing...</span>
+                        }
+                        else
+                        {
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span>Finalize Payroll</span>
+                        }
+                    </button>
+                }
+            </div>
+        }
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="animate-pulse space-y-4">
+            <div class="h-32 bg-zinc-900 rounded-2xl"></div>
+            <div class="h-64 bg-zinc-900 rounded-2xl"></div>
+        </div>
+    }
+    else if (period != null)
+    {
+        @if (payslips == null || !payslips.Any())
+        {
+            <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-12 text-center backdrop-blur-xl">
+                <div class="size-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                    <svg class="size-8 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-medium text-white mb-2">No Payslips Generated</h3>
+                <p class="text-zinc-400 mb-6 max-w-md mx-auto">This payroll period is currently in draft. Click "Compute Payroll" to generate payslips for all active employees based on their schedule and attendance.</p>
+                <button @onclick="ComputePayroll" disabled="@isComputing" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all shadow-lg shadow-fuchsia-900/20 inline-flex items-center gap-2">
+                    @if (isComputing)
+                    {
+                        <svg class="animate-spin size-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span>Computing...</span>
+                    }
+                    else
+                    {
+                        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        <span>Compute Payroll</span>
+                    }
+                </button>
+            </div>
+        }
+        else
+        {
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-5">
+                    <div class="text-sm font-medium text-zinc-400 mb-1">Total Employees</div>
+                    <div class="text-2xl font-bold text-white">@payslips.Count</div>
+                </div>
+                <div class="bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-5">
+                    <div class="text-sm font-medium text-zinc-400 mb-1">Total Gross Pay</div>
+                    <div class="text-2xl font-bold text-emerald-400">@payslips.Sum(p => p.GrossPay).ToString("C")</div>
+                </div>
+                <div class="bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-5">
+                    <div class="text-sm font-medium text-zinc-400 mb-1">Total Deductions</div>
+                    <div class="text-2xl font-bold text-rose-400">@payslips.Sum(p => p.SssDeduction + p.PhilHealthDeduction + p.PagIbigDeduction + p.TaxDeduction + p.AdvancesDeduction + p.OtherDeductions).ToString("C")</div>
+                </div>
+                <div class="bg-zinc-900/80 border border-fuchsia-900/30 rounded-2xl p-5 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-fuchsia-600/10 to-transparent"></div>
+                    <div class="relative z-10">
+                        <div class="text-sm font-medium text-fuchsia-300 mb-1">Total Net Pay</div>
+                        <div class="text-2xl font-bold text-white">@payslips.Sum(p => p.NetPay).ToString("C")</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payslips Table -->
+            <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden backdrop-blur-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 uppercase tracking-wider text-[11px] font-semibold">
+                            <tr>
+                                <th class="px-6 py-4">Employee</th>
+                                <th class="px-6 py-4 text-right">Basic Pay</th>
+                                <th class="px-6 py-4 text-right">Leave Pay</th>
+                                <th class="px-6 py-4 text-right">Gross Pay</th>
+                                <th class="px-6 py-4 text-right">Deductions</th>
+                                <th class="px-6 py-4 text-right">Adjustments</th>
+                                <th class="px-6 py-4 text-right text-fuchsia-400">Net Pay</th>
+                                <th class="px-6 py-4 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-800/50">
+                            @foreach (var p in payslips)
+                            {
+                                var totalDeductions = p.SssDeduction + p.PhilHealthDeduction + p.PagIbigDeduction + p.TaxDeduction + p.AdvancesDeduction;
+                                var adjustments = p.OtherAllowances - p.OtherDeductions;
+                                
+                                <tr class="hover:bg-zinc-800/30 transition-colors group">
+                                    <td class="px-6 py-4">
+                                        <div class="font-medium text-white">@p.EmployeeName</div>
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-zinc-300">@p.BasicPay.ToString("N2")</td>
+                                    <td class="px-6 py-4 text-right text-zinc-300">
+                                        @if (p.TotalLeavePay > 0)
+                                        {
+                                            <span class="text-emerald-400">@p.TotalLeavePay.ToString("N2")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-zinc-600">-</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4 text-right font-medium text-zinc-200">@p.GrossPay.ToString("N2")</td>
+                                    <td class="px-6 py-4 text-right text-rose-400">
+                                        @(totalDeductions > 0 ? totalDeductions.ToString("N2") : "-")
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        @if (adjustments > 0)
+                                        {
+                                            <span class="text-emerald-400">+@adjustments.ToString("N2")</span>
+                                        }
+                                        else if (adjustments < 0)
+                                        {
+                                            <span class="text-rose-400">@adjustments.ToString("N2")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-zinc-600">-</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4 text-right font-bold text-white">@p.NetPay.ToString("N2")</td>
+                                    <td class="px-6 py-4 text-center">
+                                        <button @onclick="() => OpenPayslipModal(p)" class="text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+                                            View Details
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@if (selectedPayslip != null)
+{
+    <PayslipModal Payslip="selectedPayslip" 
+                  IsReadOnly="period?.Status != 0 && period?.Status != 1" 
+                  OnClose="ClosePayslipModal" 
+                  OnSaved="HandlePayslipSaved" />
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private PayrollPeriodDto? period;
+    private List<PayslipDto>? payslips;
+    private bool isLoading = true;
+    private bool isComputing = false;
+    private bool isFinalizing = false;
+
+    private PayslipDto? selectedPayslip;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            period = await Http.GetFromJsonAsync<PayrollPeriodDto>($"api/payroll/periods/{Id}");
+            if (period != null && period.Status > 0) // If computed or beyond
+            {
+                await LoadPayslips();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading payroll period: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadPayslips()
+    {
+        try
+        {
+            payslips = await Http.GetFromJsonAsync<List<PayslipDto>>($"api/payroll/periods/{Id}/payslips");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading payslips: {ex.Message}");
+        }
+    }
+
+    private async Task ComputePayroll()
+    {
+        isComputing = true;
+        try
+        {
+            var response = await Http.PostAsync($"api/payroll/periods/{Id}/compute", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData(); // Reload everything
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Compute failed: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error computing payroll: {ex.Message}");
+        }
+        finally
+        {
+            isComputing = false;
+        }
+    }
+
+    private async Task FinalizePayroll()
+    {
+        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to finalize this payroll period? This will lock all payslips and deduct balances from active advances. This action cannot be undone.");
+        if (!confirm) return;
+
+        isFinalizing = true;
+        try
+        {
+            var response = await Http.PostAsync($"api/payroll/periods/{Id}/finalize", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Finalize failed: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error finalizing payroll: {ex.Message}");
+        }
+        finally
+        {
+            isFinalizing = false;
+        }
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/payroll");
+    }
+
+    private void OpenPayslipModal(PayslipDto payslip)
+    {
+        selectedPayslip = payslip;
+    }
+
+    private void ClosePayslipModal()
+    {
+        selectedPayslip = null;
+    }
+
+    private async Task HandlePayslipSaved()
+    {
+        selectedPayslip = null;
+        await LoadPayslips(); // Refresh the table
+    }
+
+    private string GetStatusBadgeClass(int status) => status switch
+    {
+        0 => "bg-zinc-800 text-zinc-300", // Draft
+        1 => "bg-blue-500/20 text-blue-400", // Computed
+        2 => "bg-fuchsia-500/20 text-fuchsia-400", // Finalized
+        3 => "bg-emerald-500/20 text-emerald-400", // Paid
+        _ => "bg-zinc-800 text-zinc-300"
+    };
+
+    public class PayrollPeriodDto
+    {
+        public Guid Id { get; set; }
+        public DateOnly StartDate { get; set; }
+        public DateOnly EndDate { get; set; }
+
+        public int Status { get; set; }
+        public string StatusText => Status switch {
+            0 => "Draft",
+            1 => "Computed",
+            2 => "Finalized",
+            3 => "Paid",
+            _ => "Unknown"
+        };
+        public string? Remarks { get; set; }
+    }
+
+    public class PayslipDto
+    {
+        public Guid Id { get; set; }
+        public string EmployeeId { get; set; } = string.Empty;
+        public string EmployeeName { get; set; } = string.Empty;
+        public decimal BasicPay { get; set; }
+        public decimal TotalLeavePay { get; set; }
+        public decimal TotalOvertimePay { get; set; }
+        public decimal GrossPay { get; set; }
+        public decimal SssDeduction { get; set; }
+        public decimal PhilHealthDeduction { get; set; }
+        public decimal PagIbigDeduction { get; set; }
+        public decimal TaxDeduction { get; set; }
+        public decimal AdvancesDeduction { get; set; }
+        public decimal OtherAllowances { get; set; }
+        public decimal OtherDeductions { get; set; }
+        public decimal NetPay { get; set; }
+        public string? CalculationDetailsJson { get; set; }
+    }
+}

@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Added
+- **Auto Clock Out**: Added an "Auto clock out at end of shift" toggle to Work Schedules.
+- **Time-Tracked Payroll Engine**: Radically overhauled the payroll computation logic. The system now parses raw `ClockIn` and `ClockOut` pairs for the payroll period, correctly deducts overlapping unpaid breaks from the employee's `WorkSchedule`, and derives standard `BasicPay` strictly from these tracked hours using the computed `HourlyRate` (DailyRate / 8). Hours logged on rest days are cleanly ignored.
+
+### Removed
+- **Cutoff Date**: Dropped the `CutoffDate` property from the database and UI, since standard Start/End Dates represent the period naturally.
+- **Undertime/Late Deductions**: Deprecated these separate fields from Payslips since the raw time-tracking calculation implicitly accounts for undertime.
+
+
 
 ### Added
 - Added Sick Leave / Vacation Leave eligibility and Work Schedule assignment to User Management

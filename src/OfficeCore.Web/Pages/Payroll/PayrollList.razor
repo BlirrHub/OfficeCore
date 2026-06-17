@@ -1,0 +1,222 @@
+@page "/payroll"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Payroll</h1>
+            <p class="text-sm text-zinc-400 mt-1">Manage payroll periods and process employee payslips</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button @onclick='() => Navigation.NavigateTo("/payroll/settings")' class="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white px-4 py-2 rounded-xl text-sm font-medium transition-all border border-zinc-700/50">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Settings
+            </button>
+            <button @onclick="OpenCreateModal" class="flex items-center gap-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all shadow-lg shadow-fuchsia-900/20">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                New Payroll Period
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="animate-pulse space-y-4">
+            <div class="h-12 bg-zinc-900 rounded-xl"></div>
+            <div class="h-12 bg-zinc-900 rounded-xl"></div>
+        </div>
+    }
+    else if (periods == null || !periods.Any())
+    {
+        <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-8 text-center backdrop-blur-xl">
+            <div class="size-12 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                <svg class="size-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-white mb-1">No Payroll Periods</h3>
+            <p class="text-zinc-400 mb-6">You haven't created any payroll periods yet.</p>
+            <button @onclick="OpenCreateModal" class="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all">
+                Create First Period
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            @foreach (var p in periods)
+            {
+                <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-5 hover:bg-zinc-900 transition-colors group cursor-pointer" @onclick="() => NavigateToPeriod(p.Id)">
+                    <div class="flex items-start justify-between mb-4">
+                        <div>
+
+                            <h3 class="text-lg font-semibold text-white">@p.StartDate.ToString("MMM dd") - @p.EndDate.ToString("MMM dd, yyyy")</h3>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider @GetStatusBadgeClass(p.Status)">
+                            @p.Status.ToString()
+                        </span>
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(p.Remarks))
+                    {
+                        <p class="text-sm text-zinc-500 mb-4 line-clamp-2">@p.Remarks</p>
+                    }
+                    
+                    <div class="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800">
+                        <div class="text-xs text-zinc-500">Created @p.CreatedAt.ToString("MMM dd")</div>
+                        <div class="text-sm text-fuchsia-400 font-medium group-hover:text-fuchsia-300 transition-colors flex items-center gap-1">
+                            View Details
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (isCreateModalOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="p-6 border-b border-zinc-800">
+                <h2 class="text-lg font-semibold text-white">Create Payroll Period</h2>
+                <p class="text-sm text-zinc-400 mt-1">Define the date range for this cutoff.</p>
+            </div>
+            
+            <EditForm Model="newPeriod" OnValidSubmit="CreatePeriod">
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-300 mb-1.5">Start Date</label>
+                        <InputDate @bind-Value="newPeriod.StartDate" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-all" />
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-300 mb-1.5">End Date</label>
+                        <InputDate @bind-Value="newPeriod.EndDate" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-all" />
+                    </div>
+                    
+
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-300 mb-1.5">Remarks (Optional)</label>
+                        <InputTextArea @bind-Value="newPeriod.Remarks" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-all resize-none" rows="2" />
+                    </div>
+                </div>
+                
+                <div class="p-6 border-t border-zinc-800 bg-zinc-900/30 flex justify-end gap-3">
+                    <button type="button" @onclick="CloseCreateModal" class="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors">Cancel</button>
+                    <button type="submit" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-6 py-2 rounded-xl text-sm font-medium transition-all shadow-lg shadow-fuchsia-900/20" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="flex items-center gap-2">
+                                <svg class="animate-spin size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Creating...
+                            </span>
+                        }
+                        else
+                        {
+                            <span>Create Period</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<PayrollPeriodDto>? periods;
+    private bool isLoading = true;
+    private bool isCreateModalOpen = false;
+    private bool isSubmitting = false;
+    
+    private PayrollPeriodDto newPeriod = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPeriods();
+    }
+
+    private async Task LoadPeriods()
+    {
+        isLoading = true;
+        try
+        {
+            periods = await Http.GetFromJsonAsync<List<PayrollPeriodDto>>("api/payroll/periods");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading payroll periods: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        newPeriod = new PayrollPeriodDto 
+        { 
+            StartDate = new DateOnly(today.Year, today.Month, 1),
+            EndDate = new DateOnly(today.Year, today.Month, 15)
+        };
+        isCreateModalOpen = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        isCreateModalOpen = false;
+    }
+
+    private async Task CreatePeriod()
+    {
+        isSubmitting = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/payroll/periods", newPeriod);
+            if (response.IsSuccessStatusCode)
+            {
+                CloseCreateModal();
+                await LoadPeriods();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating period: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void NavigateToPeriod(Guid id)
+    {
+        Navigation.NavigateTo($"/payroll/{id}");
+    }
+
+    private string GetStatusBadgeClass(int status) => status switch
+    {
+        0 => "bg-zinc-800 text-zinc-300", // Draft
+        1 => "bg-blue-500/20 text-blue-400", // Computed
+        2 => "bg-fuchsia-500/20 text-fuchsia-400", // Finalized
+        3 => "bg-emerald-500/20 text-emerald-400", // Paid
+        _ => "bg-zinc-800 text-zinc-300"
+    };
+
+    public class PayrollPeriodDto
+    {
+        public Guid Id { get; set; }
+        public DateOnly StartDate { get; set; }
+        public DateOnly EndDate { get; set; }
+
+        public int Status { get; set; }
+        public string? Remarks { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}
