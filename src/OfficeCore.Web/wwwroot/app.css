@@ -1033,6 +1033,9 @@
       background-color: color-mix(in oklab, var(--color-red-950) 90%, transparent);
     }
   }
+  .bg-transparent {
+    background-color: transparent;
+  }
   .bg-yellow-900 {
     background-color: var(--color-yellow-900);
   }

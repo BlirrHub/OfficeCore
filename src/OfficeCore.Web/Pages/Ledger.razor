@@ -5,7 +5,7 @@
 <PageTitle>Ledger - OfficeCore</PageTitle>
 
 <div class="flex flex-col h-full bg-zinc-950">
-    <div class="border-b border-zinc-800 px-6 pt-4 flex items-center justify-between">
+    <div class="border-b border-zinc-800 px-6 pt-4 flex flex-wrap items-center justify-between gap-4">
         <div class="flex gap-6">
             <button @onclick='() => _activeTab = "approvals"' class='pb-3 text-sm font-medium border-b-2 transition-colors @(_activeTab == "approvals" ? "border-purple-500 text-purple-400" : "border-transparent text-zinc-500 hover:text-zinc-300")'>
                 Advance & Loan Approvals
@@ -15,7 +15,28 @@
             </button>
         </div>
         
-        @if (_activeTab == "expenses")
+        @if (_activeTab == "approvals")
+        {
+            <div class="flex flex-wrap gap-2 pb-3 items-center">
+                <input type="text" @bind="_filterEmployee" @bind:event="oninput" placeholder="Search employee..." class="w-40 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white focus:border-purple-500 focus:outline-none" />
+                <select @bind="_filterStatus" class="bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white focus:border-purple-500 focus:outline-none w-28">
+                    <option value="All">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
+                <div class="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1">
+                    <input type="date" @bind="_filterStartDate" class="bg-transparent text-xs text-zinc-300 focus:outline-none" />
+                    <span class="text-zinc-600 text-xs">to</span>
+                    <input type="date" @bind="_filterEndDate" class="bg-transparent text-xs text-zinc-300 focus:outline-none" />
+                </div>
+                <button @onclick="ClearFilters" class="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-white bg-zinc-800 rounded-md transition-colors">
+                    Clear
+                </button>
+            </div>
+        }
+        else if (_activeTab == "expenses")
         {
             <button @onclick="() => _isAddingExpense = true" class="px-4 py-2 mb-3 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-500 transition-colors shadow-lg shadow-purple-900/30 flex items-center gap-2">
                 <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -34,35 +55,6 @@
             else
             {
                 var filteredRequests = GetFilteredRequests();
-                
-                <!-- Filters -->
-                <div class="max-w-6xl mx-auto mb-6 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap gap-4 items-end">
-                    <div class="flex-1 min-w-[200px]">
-                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Employee</label>
-                        <input type="text" @bind="_filterEmployee" @bind:event="oninput" placeholder="Search by name..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Status</label>
-                        <select @bind="_filterStatus" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none min-w-[140px]">
-                            <option value="All">All</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Approved">Approved</option>
-                            <option value="Rejected">Rejected</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Start Date</label>
-                        <input type="date" @bind="_filterStartDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">End Date</label>
-                        <input type="date" @bind="_filterEndDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                    </div>
-                    <button @onclick="ClearFilters" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 rounded-lg transition-colors">
-                        Clear
-                    </button>
-                </div>
                 
                 @if (!filteredRequests.Any())
                 {
