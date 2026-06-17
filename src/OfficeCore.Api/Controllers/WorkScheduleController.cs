@@ -23,6 +23,8 @@ public class WorkScheduleController : ControllerBase
         var schedules = await _context.WorkSchedules
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
+            .Include(ws => ws.AutoDeductions)
+            .Include(ws => ws.OvertimeRules)
             .ToListAsync();
             
         return Ok(schedules);
@@ -34,6 +36,8 @@ public class WorkScheduleController : ControllerBase
         var schedule = await _context.WorkSchedules
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
+            .Include(ws => ws.AutoDeductions)
+            .Include(ws => ws.OvertimeRules)
             .FirstOrDefaultAsync(ws => ws.Id == id);
 
         if (schedule == null)
@@ -66,6 +70,24 @@ public class WorkScheduleController : ControllerBase
                 b.Id = 0; // Let DB generate ID
             }
         }
+        
+        if (schedule.AutoDeductions != null)
+        {
+            foreach (var ad in schedule.AutoDeductions)
+            {
+                ad.WorkScheduleId = schedule.Id;
+                ad.Id = 0;
+            }
+        }
+        
+        if (schedule.OvertimeRules != null)
+        {
+            foreach (var or in schedule.OvertimeRules)
+            {
+                or.WorkScheduleId = schedule.Id;
+                or.Id = 0;
+            }
+        }
 
         _context.WorkSchedules.Add(schedule);
         await _context.SaveChangesAsync();
@@ -83,6 +105,8 @@ public class WorkScheduleController : ControllerBase
         var existingSchedule = await _context.WorkSchedules
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
+            .Include(ws => ws.AutoDeductions)
+            .Include(ws => ws.OvertimeRules)
             .FirstOrDefaultAsync(ws => ws.Id == id);
 
         if (existingSchedule == null)
@@ -117,6 +141,30 @@ public class WorkScheduleController : ControllerBase
                 b.Id = 0;
                 b.WorkScheduleId = id;
                 existingSchedule.Breaks.Add(b);
+            }
+        }
+        
+        // Update auto deductions
+        _context.WorkScheduleAutoDeductions.RemoveRange(existingSchedule.AutoDeductions);
+        if (updatedSchedule.AutoDeductions != null)
+        {
+            foreach (var ad in updatedSchedule.AutoDeductions)
+            {
+                ad.Id = 0;
+                ad.WorkScheduleId = id;
+                existingSchedule.AutoDeductions.Add(ad);
+            }
+        }
+        
+        // Update overtime rules
+        _context.WorkScheduleOvertimeRules.RemoveRange(existingSchedule.OvertimeRules);
+        if (updatedSchedule.OvertimeRules != null)
+        {
+            foreach (var or in updatedSchedule.OvertimeRules)
+            {
+                or.Id = 0;
+                or.WorkScheduleId = id;
+                existingSchedule.OvertimeRules.Add(or);
             }
         }
 

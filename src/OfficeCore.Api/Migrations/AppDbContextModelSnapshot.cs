@@ -504,6 +504,35 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("WorkSchedules");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleAutoDeduction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("AfterWorkHours")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("DeductHours")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("WorkScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkScheduleId");
+
+                    b.ToTable("WorkScheduleAutoDeductions");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleBreak", b =>
                 {
                     b.Property<int>("Id")
@@ -567,6 +596,36 @@ namespace OfficeCore.Api.Migrations
                     b.HasIndex("WorkScheduleId");
 
                     b.ToTable("WorkScheduleDays");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleOvertimeRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double?>("AfterHours")
+                        .HasColumnType("double precision");
+
+                    b.Property<TimeSpan?>("AfterTime")
+                        .HasColumnType("interval");
+
+                    b.Property<double>("Multiplier")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("TriggerMode")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WorkScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkScheduleId");
+
+                    b.ToTable("WorkScheduleOvertimeRules");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -684,6 +743,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("HolidayCalendar");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleAutoDeduction", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
+                        .WithMany("AutoDeductions")
+                        .HasForeignKey("WorkScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkSchedule");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleBreak", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
@@ -706,6 +776,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("WorkSchedule");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleOvertimeRule", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
+                        .WithMany("OvertimeRules")
+                        .HasForeignKey("WorkScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkSchedule");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.Client", b =>
                 {
                     b.Navigation("Businesses");
@@ -718,9 +799,13 @@ namespace OfficeCore.Api.Migrations
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
                 {
+                    b.Navigation("AutoDeductions");
+
                     b.Navigation("Breaks");
 
                     b.Navigation("Days");
+
+                    b.Navigation("OvertimeRules");
                 });
 #pragma warning restore 612, 618
         }

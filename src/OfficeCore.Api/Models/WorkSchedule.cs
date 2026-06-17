@@ -29,4 +29,8 @@ public class WorkSchedule
     public ICollection<WorkScheduleDay> Days { get; set; } = new List<WorkScheduleDay>();
     
     public ICollection<WorkScheduleBreak> Breaks { get; set; } = new List<WorkScheduleBreak>();
+    
+    public ICollection<WorkScheduleAutoDeduction> AutoDeductions { get; set; } = new List<WorkScheduleAutoDeduction>();
+    
+    public ICollection<WorkScheduleOvertimeRule> OvertimeRules { get; set; } = new List<WorkScheduleOvertimeRule>();
 }
