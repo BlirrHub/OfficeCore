@@ -25,8 +25,8 @@ public class AttendanceController : ControllerBase
     {
         var records = await _context.AttendanceRecords
             .Include(a => a.Employee)
-                .ThenInclude(e => e.WorkSchedule)
-                    .ThenInclude(ws => ws.Days)
+                .ThenInclude(e => e!.WorkSchedule)
+                    .ThenInclude(ws => ws!.Days)
             .OrderByDescending(a => a.Timestamp)
             .Take(100)
             .ToListAsync();
