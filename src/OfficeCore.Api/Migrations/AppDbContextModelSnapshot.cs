@@ -226,6 +226,65 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("AttendanceRecords");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.Business", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.ToTable("Businesses");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.Client", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DateAdded")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Clients");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.CompanyExpense", b =>
                 {
                     b.Property<Guid>("Id")
@@ -580,6 +639,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.Business", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Client", "Client")
+                        .WithMany("Businesses")
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.Employee", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
@@ -631,6 +701,11 @@ namespace OfficeCore.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("WorkSchedule");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.Client", b =>
+                {
+                    b.Navigation("Businesses");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.HolidayCalendar", b =>

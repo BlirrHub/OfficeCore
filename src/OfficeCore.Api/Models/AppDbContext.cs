@@ -20,6 +20,8 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     public DbSet<Holiday> Holidays { get; set; }
     public DbSet<AdvanceRequest> AdvanceRequests { get; set; }
     public DbSet<CompanyExpense> CompanyExpenses { get; set; }
+    public DbSet<Client> Clients { get; set; }
+    public DbSet<Business> Businesses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -28,5 +30,14 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
         // Customize the ASP.NET Identity model and override the defaults if needed.
         // For example, you can rename the ASP.NET Identity table names and more.
         // Add your customizations after calling base.OnModelCreating(builder);
+
+
+
+        // Configure Client-Business relationship
+        builder.Entity<Client>()
+            .HasMany(c => c.Businesses)
+            .WithOne(b => b.Client)
+            .HasForeignKey(b => b.ClientId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
