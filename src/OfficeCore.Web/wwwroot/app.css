@@ -1415,6 +1415,15 @@
   .text-fuchsia-400 {
     color: var(--color-fuchsia-400);
   }
+  .text-fuchsia-500 {
+    color: var(--color-fuchsia-500);
+  }
+  .text-fuchsia-500\/80 {
+    color: color-mix(in srgb, oklch(66.7% 0.295 322.15) 80%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      color: color-mix(in oklab, var(--color-fuchsia-500) 80%, transparent);
+    }
+  }
   .text-gray-100 {
     color: var(--color-gray-100);
   }

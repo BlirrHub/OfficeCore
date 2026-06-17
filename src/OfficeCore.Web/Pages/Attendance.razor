@@ -74,7 +74,21 @@
                         {
                             <tr class="hover:bg-zinc-900/50 transition-colors">
                                 <td class="px-6 py-4 text-white font-medium">@record.EmployeeName</td>
-                                <td class="px-6 py-4 text-zinc-400">@record.Timestamp.ToLocalTime().ToString("MMM dd, yyyy - hh:mm tt")</td>
+                                <td class="px-6 py-4">
+                                    <div class="flex flex-col">
+                                        <span class="text-zinc-400">@record.Timestamp.ToLocalTime().ToString("MMM dd, yyyy - hh:mm tt")</span>
+                                        @if (record.Type == "ClockIn" && record.IncludeTimeTrackedBeforeScheduledStartTime && record.ScheduledStartTime.HasValue)
+                                        {
+                                            var scheduledTime = record.Timestamp.ToLocalTime().Date.Add(record.ScheduledStartTime.Value);
+                                            if (record.Timestamp.ToLocalTime() < scheduledTime)
+                                            {
+                                                <span class="text-xs text-fuchsia-500/80 mt-0.5 font-medium">
+                                                    Scheduled: @scheduledTime.ToString("hh:mm tt")
+                                                </span>
+                                            }
+                                        }
+                                    </div>
+                                </td>
                                 <td class="px-6 py-4">
                                     @if (record.Type == "ClockIn")
                                     {
@@ -180,5 +194,7 @@
         public DateTimeOffset Timestamp { get; set; }
         public string Type { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty;
+        public bool IncludeTimeTrackedBeforeScheduledStartTime { get; set; }
+        public TimeSpan? ScheduledStartTime { get; set; }
     }
 }

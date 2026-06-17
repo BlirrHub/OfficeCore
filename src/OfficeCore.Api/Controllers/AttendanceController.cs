@@ -25,20 +25,44 @@ public class AttendanceController : ControllerBase
     {
         var records = await _context.AttendanceRecords
             .Include(a => a.Employee)
+                .ThenInclude(e => e.WorkSchedule)
+                    .ThenInclude(ws => ws.Days)
             .OrderByDescending(a => a.Timestamp)
             .Take(100)
-            .Select(a => new
+            .ToListAsync();
+
+        var dtos = records.Select(a => {
+            // Find schedule for this day
+            var localTime = a.Timestamp.ToLocalTime();
+            var dayOfWeek = localTime.DayOfWeek;
+            
+            bool includeTimeTracked = false;
+            TimeSpan? scheduledStartTime = null;
+
+            if (a.Employee?.WorkSchedule != null)
+            {
+                includeTimeTracked = a.Employee.WorkSchedule.IncludeTimeTrackedBeforeScheduledStartTime;
+                var scheduleDay = a.Employee.WorkSchedule.Days?.FirstOrDefault(d => d.DayOfWeek == dayOfWeek && !d.IsRestDay);
+                if (scheduleDay != null)
+                {
+                    scheduledStartTime = scheduleDay.StartTime;
+                }
+            }
+
+            return new
             {
                 a.Id,
                 EmployeeName = a.Employee != null ? $"{a.Employee.FirstName} {a.Employee.LastName}" : "Unknown",
                 a.EmployeeId,
                 a.Timestamp,
                 Type = a.Type.ToString(),
-                Source = a.Source.ToString()
-            })
-            .ToListAsync();
+                Source = a.Source.ToString(),
+                IncludeTimeTrackedBeforeScheduledStartTime = includeTimeTracked,
+                ScheduledStartTime = scheduledStartTime
+            };
+        }).ToList();
 
-        return Ok(records);
+        return Ok(dtos);
     }
 
     [HttpPost("enroll/{employeeId}")]
