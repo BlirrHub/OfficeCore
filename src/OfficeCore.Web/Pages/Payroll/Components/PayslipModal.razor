@@ -40,7 +40,14 @@
                         <span class="text-white font-medium">@Payslip.BasicPay.ToString("C")</span>
                     </div>
                     
-                    @if (Payslip.TotalLeavePay > 0)
+                    @if (Payslip.TotalLeavePay > 0 && calcDetails != null && calcDetails.LeaveHours > 0)
+                    {
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-zinc-400">Leave (@calcDetails.LeaveHours hrs)</span>
+                            <span class="text-emerald-400 font-medium">+@Payslip.TotalLeavePay.ToString("C")</span>
+                        </div>
+                    }
+                    else if (Payslip.TotalLeavePay > 0)
                     {
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-zinc-400">Leave Pay</span>
@@ -244,5 +251,6 @@
         public decimal BasicPay { get; set; }
         public int LeaveDays { get; set; }
         public decimal TotalLeavePay { get; set; }
+        public int LeaveHours { get; set; }
     }
 }

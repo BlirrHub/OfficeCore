@@ -617,6 +617,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<DateTime?>("FinalizedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
 

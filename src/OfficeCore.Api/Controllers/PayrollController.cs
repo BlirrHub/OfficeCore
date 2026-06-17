@@ -24,9 +24,27 @@ public class PayrollController : ControllerBase
     public async Task<IActionResult> GetPayrollPeriods()
     {
         var periods = await _context.PayrollPeriods
+            .Where(p => !p.IsArchived)
             .OrderByDescending(p => p.StartDate)
             .ToListAsync();
         return Ok(periods);
+    }
+
+    [HttpDelete("periods/{id}")]
+    public async Task<IActionResult> DeletePayrollPeriod(Guid id)
+    {
+        var period = await _context.PayrollPeriods.FindAsync(id);
+        if (period == null) return NotFound();
+
+        if (period.Status == PayrollStatus.Finalized || period.Status == PayrollStatus.Paid)
+        {
+            return BadRequest("Cannot delete a finalized or paid payroll period.");
+        }
+
+        period.IsArchived = true;
+        await _context.SaveChangesAsync();
+        
+        return Ok();
     }
 
     [HttpPost("periods")]

@@ -57,8 +57,8 @@ public class PayrollComputationService : IPayrollComputationService
 
         foreach (var emp in employees)
         {
-            var dailyRate = emp.UseCustomDailyRate ? (emp.DailyRate ?? defaultRate) : defaultRate;
-            var hourlyRate = dailyRate / 8m; // Standard assumption of 8 working hours per day for hourly computation
+            var trackedDailyRate = emp.DailyRate ?? defaultRate;
+            var hourlyRate = trackedDailyRate / 8m; // Standard assumption of 8 working hours per day for hourly computation
 
             // 1. Calculate Tracked Hours
             var empAttendance = allAttendance.Where(a => a.EmployeeId == emp.Id).ToList();
@@ -117,10 +117,12 @@ public class PayrollComputationService : IPayrollComputationService
 
             var basicPay = (decimal)totalNetHours * hourlyRate;
 
-            // 2. Calculate Leave Pay
+            // 2. Calculate Leave Pay using default/minimum rate
+            var leaveDailyRate = defaultRate;
             var empLeaves = approvedLeaves.Where(l => l.EmployeeId == emp.Id).ToList();
             decimal totalLeavePay = 0;
             int totalLeaveDays = 0;
+            int totalLeaveHours = 0;
 
             foreach (var leave in empLeaves)
             {
@@ -146,7 +148,8 @@ public class PayrollComputationService : IPayrollComputationService
                 }
                 
                 totalLeaveDays += leaveDays;
-                totalLeavePay += leaveDays * dailyRate;
+                totalLeaveHours += leaveDays * 8;
+                totalLeavePay += leaveDays * leaveDailyRate;
             }
 
             // 3. Deductions & Advances
@@ -169,12 +172,13 @@ public class PayrollComputationService : IPayrollComputationService
 
             var calculationDetails = new
             {
-                DailyRate = dailyRate,
+                DailyRate = trackedDailyRate,
                 HourlyRate = hourlyRate,
                 TotalTrackedHours = totalNetHours,
                 DaysWithAttendance = daysWithAttendance,
                 BasicPay = basicPay,
                 LeaveDays = totalLeaveDays,
+                LeaveHours = totalLeaveHours,
                 TotalLeavePay = totalLeavePay
             };
 

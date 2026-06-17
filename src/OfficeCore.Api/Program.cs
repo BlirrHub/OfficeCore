@@ -3,6 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Data;
 using OfficeCore.Api.Models;
 
+using System.Globalization;
+
+var cultureInfo = new CultureInfo("en-PH");
+CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // CORS – allow the Blazor frontend

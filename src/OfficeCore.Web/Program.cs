@@ -5,6 +5,12 @@ using System.Net.Http;
 using Microsoft.AspNetCore.Components.Web;
 using OfficeCore.Web.Client.Auth;
 
+using System.Globalization;
+
+var cultureInfo = new CultureInfo("en-PH");
+CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<OfficeCore.Web.Client.App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");

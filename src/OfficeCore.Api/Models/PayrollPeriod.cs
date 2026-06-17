@@ -23,6 +23,8 @@ public class PayrollPeriod
     
 
     public PayrollStatus Status { get; set; } = PayrollStatus.Draft;
+    
+    public bool IsArchived { get; set; }
 
     public string? Remarks { get; set; }
 
