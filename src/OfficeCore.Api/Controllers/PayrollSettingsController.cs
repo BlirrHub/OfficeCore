@@ -17,12 +17,13 @@ public class PayrollSettingsController : ControllerBase
         _context = context;
     }
 
+    // ─── Government Deductions ────────────────────────────────────────────────
+
     [HttpGet("deductions")]
     public async Task<IActionResult> GetGovernmentDeductionSettings()
     {
         var settings = await _context.GovernmentDeductionSettings.ToListAsync();
-        
-        // If settings are empty, we can create the default ones (SSS, PhilHealth, Pag-IBIG)
+
         if (!settings.Any())
         {
             settings = new List<GovernmentDeductionSetting>
@@ -54,6 +55,54 @@ public class PayrollSettingsController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok(new { message = "Settings updated successfully" });
     }
+
+    // ─── General Settings (e.g. Minimum Daily Rate) ───────────────────────────
+
+    private const string MinDailyRateKey = "MinimumDailyRate";
+
+    [HttpGet("general")]
+    [Authorize] // All authenticated users can read
+    public async Task<IActionResult> GetGeneralSettings()
+    {
+        var setting = await _context.GeneralPayrollSettings
+            .FirstOrDefaultAsync(s => s.Key == MinDailyRateKey);
+
+        if (setting == null)
+        {
+            setting = new GeneralPayrollSetting
+            {
+                Key = MinDailyRateKey,
+                Value = 0m,
+                Description = "Default minimum daily rate used when employee has no custom rate."
+            };
+            _context.GeneralPayrollSettings.Add(setting);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new GeneralSettingsDto { MinimumDailyRate = setting.Value });
+    }
+
+    [HttpPut("general")]
+    public async Task<IActionResult> UpdateGeneralSettings([FromBody] GeneralSettingsDto dto)
+    {
+        var setting = await _context.GeneralPayrollSettings
+            .FirstOrDefaultAsync(s => s.Key == MinDailyRateKey);
+
+        if (setting == null)
+        {
+            setting = new GeneralPayrollSetting
+            {
+                Key = MinDailyRateKey,
+                Description = "Default minimum daily rate used when employee has no custom rate."
+            };
+            _context.GeneralPayrollSettings.Add(setting);
+        }
+
+        setting.Value = dto.MinimumDailyRate;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "General settings updated successfully" });
+    }
 }
 
 public class GovernmentDeductionSettingDto
@@ -62,4 +111,9 @@ public class GovernmentDeductionSettingDto
     public string AgencyName { get; set; } = string.Empty;
     public decimal EmployeeShare { get; set; }
     public decimal EmployerShare { get; set; }
+}
+
+public class GeneralSettingsDto
+{
+    public decimal MinimumDailyRate { get; set; }
 }

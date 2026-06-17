@@ -335,6 +335,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<decimal?>("DailyRate")
                         .HasColumnType("numeric");
 
+                    b.Property<DateTime?>("DateHired")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -350,6 +353,9 @@ namespace OfficeCore.Api.Migrations
                         .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsEligibleForLeave")
                         .HasColumnType("boolean");
 
                     b.Property<string>("LastName")
@@ -379,10 +385,16 @@ namespace OfficeCore.Api.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime?>("ResignedDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
                     b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseCustomDailyRate")
                         .HasColumnType("boolean");
 
                     b.Property<string>("UserName")
@@ -462,6 +474,27 @@ namespace OfficeCore.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("EmployeeGovernmentRecords");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.GeneralPayrollSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GeneralPayrollSettings");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.GovernmentDeductionSetting", b =>

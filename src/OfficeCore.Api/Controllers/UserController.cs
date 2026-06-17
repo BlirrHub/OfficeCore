@@ -12,10 +12,12 @@ namespace OfficeCore.Api.Controllers;
 public class UserController : ControllerBase
 {
     private readonly UserManager<Employee> _userManager;
+    private readonly AppDbContext _context;
 
-    public UserController(UserManager<Employee> userManager)
+    public UserController(UserManager<Employee> userManager, AppDbContext context)
     {
         _userManager = userManager;
+        _context = context;
     }
 
     [HttpGet]
@@ -32,6 +34,10 @@ public class UserController : ControllerBase
                 u.EmployeeId,
                 u.IsActive,
                 u.DailyRate,
+                u.UseCustomDailyRate,
+                u.DateHired,
+                u.ResignedDate,
+                u.IsEligibleForLeave,
                 u.WorkScheduleId,
                 GovernmentRecord = u.GovernmentRecord != null ? new
                 {
@@ -59,10 +65,13 @@ public class UserController : ControllerBase
             IsActive = true,
             EmailConfirmed = true,
             DailyRate = request.DailyRate,
+            UseCustomDailyRate = request.UseCustomDailyRate,
+            DateHired = request.DateHired,
+            IsEligibleForLeave = request.IsEligibleForLeave,
             WorkScheduleId = request.WorkScheduleId,
             GovernmentRecord = request.GovernmentRecord != null ? new EmployeeGovernmentRecord
             {
-                EmployeeId = "", // Set below via EF navigation
+                EmployeeId = "",
                 IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions,
                 SssNumber = request.GovernmentRecord.SssNumber,
                 PagIbigNumber = request.GovernmentRecord.PagIbigNumber,
@@ -95,6 +104,9 @@ public class UserController : ControllerBase
         user.EmployeeId = request.EmployeeId;
         user.IsActive = request.IsActive;
         user.DailyRate = request.DailyRate;
+        user.UseCustomDailyRate = request.UseCustomDailyRate;
+        user.DateHired = request.DateHired;
+        user.IsEligibleForLeave = request.IsEligibleForLeave;
         user.WorkScheduleId = request.WorkScheduleId;
 
         if (request.GovernmentRecord != null)
@@ -114,7 +126,6 @@ public class UserController : ControllerBase
         if (!result.Succeeded)
             return BadRequest(result.Errors);
 
-        // Update Roles
         if (request.Roles != null)
         {
             var currentRoles = await _userManager.GetRolesAsync(user);
@@ -123,6 +134,23 @@ public class UserController : ControllerBase
         }
 
         return Ok(new { message = "User updated successfully" });
+    }
+
+    [HttpPost("{id}/resign")]
+    public async Task<IActionResult> ResignUser(string id, [FromBody] ResignRequest request)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null)
+            return NotFound();
+
+        user.IsActive = false;
+        user.ResignedDate = request.ResignedDate;
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return Ok(new { message = "Employee resigned and archived successfully" });
     }
 
     [HttpGet("{id}/roles")]
@@ -145,6 +173,9 @@ public class CreateUserRequest
     public required string LastName { get; set; }
     public string? EmployeeId { get; set; }
     public decimal? DailyRate { get; set; }
+    public bool UseCustomDailyRate { get; set; } = false;
+    public DateTime? DateHired { get; set; }
+    public bool IsEligibleForLeave { get; set; } = true;
     public Guid? WorkScheduleId { get; set; }
     public List<string>? Roles { get; set; }
     public GovernmentRecordDto? GovernmentRecord { get; set; }
@@ -157,9 +188,17 @@ public class UpdateUserRequest
     public string? EmployeeId { get; set; }
     public bool IsActive { get; set; }
     public decimal? DailyRate { get; set; }
+    public bool UseCustomDailyRate { get; set; } = false;
+    public DateTime? DateHired { get; set; }
+    public bool IsEligibleForLeave { get; set; } = true;
     public Guid? WorkScheduleId { get; set; }
     public List<string>? Roles { get; set; }
     public GovernmentRecordDto? GovernmentRecord { get; set; }
+}
+
+public class ResignRequest
+{
+    public DateTime ResignedDate { get; set; }
 }
 
 public class GovernmentRecordDto

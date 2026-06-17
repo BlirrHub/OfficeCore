@@ -17,6 +17,7 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     public DbSet<EmployeeGovernmentRecord> EmployeeGovernmentRecords { get; set; }
     public DbSet<GovernmentDeductionSetting> GovernmentDeductionSettings { get; set; }
     public DbSet<LeaveRequest> LeaveRequests { get; set; }
+    public DbSet<GeneralPayrollSetting> GeneralPayrollSettings { get; set; }
     
     public DbSet<EmployeeFingerprint> EmployeeFingerprints { get; set; }
     public DbSet<AttendanceRecord> AttendanceRecords { get; set; }

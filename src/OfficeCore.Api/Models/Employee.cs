@@ -13,8 +13,18 @@ public class Employee : IdentityUser
     // To soft-disable users
     public bool IsActive { get; set; } = true;
 
-    // Optional daily rate for the employee
+    // Daily rate — used when UseCustomDailyRate is true; otherwise global minimum rate applies
     public decimal? DailyRate { get; set; }
+    
+    /// <summary>When true, DailyRate is used for payroll. When false, the global minimum rate is used.</summary>
+    public bool UseCustomDailyRate { get; set; } = false;
+
+    // Employment dates
+    public DateTime? DateHired { get; set; }
+    public DateTime? ResignedDate { get; set; }
+
+    // Leave eligibility
+    public bool IsEligibleForLeave { get; set; } = true;
 
     // Work schedule assignment
     public Guid? WorkScheduleId { get; set; }
