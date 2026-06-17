@@ -34,7 +34,7 @@ public static class DbSeeder
             "Dashboard", "Clients", "Attendance", "Tasks",
             "Payroll", "Invoices", "Ledger",
             "WorkSchedules", "TimeOff", "Locations",
-            "Users", "Roles", "Organization"
+            "Users", "Roles", "Organization", "Advances"
         };
 
         foreach (var module in modules)

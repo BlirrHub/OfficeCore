@@ -1,5 +1,5 @@
 @page "/advances"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequireAdvances")]
 @inject HttpClient Http
 
 <PageTitle>Advances & Loans - OfficeCore</PageTitle>

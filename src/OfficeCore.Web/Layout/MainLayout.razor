@@ -2,8 +2,8 @@
 
 <div class="flex h-screen bg-black text-gray-100 font-sans">
     <!-- Sidebar -->
-    <aside class="w-64 shrink-0 bg-zinc-950 border-r border-zinc-900 flex flex-col">
-        <NavMenu />
+    <aside class="shrink-0 bg-zinc-950 border-r border-zinc-900 flex flex-col transition-all duration-300 @(_isSidebarCollapsed ? "w-20" : "w-64")">
+        <NavMenu IsCollapsed="@_isSidebarCollapsed" OnToggleCollapse="ToggleSidebar" />
     </aside>
 
     <!-- Main content -->
@@ -11,9 +11,10 @@
         <!-- Top bar -->
         <header class="flex items-center justify-end h-14 px-6 bg-zinc-950 border-b border-zinc-900 shrink-0">
             <div class="flex items-center gap-4">
-                <a href="/profile" class="text-sm font-medium text-fuchsia-400 hover:text-fuchsia-300 transition-colors">
-                    Profile
-                </a>
+                <button class="relative text-zinc-400 hover:text-fuchsia-400 transition-colors p-2 rounded-full hover:bg-zinc-900">
+                    <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
+                    <!-- Notification dot (empty for now) -->
+                </button>
             </div>
         </header>
 
@@ -23,6 +24,15 @@
         </main>
     </div>
 </div>
+
+@code {
+    private bool _isSidebarCollapsed = false;
+
+    private void ToggleSidebar()
+    {
+        _isSidebarCollapsed = !_isSidebarCollapsed;
+    }
+}
 
 <!-- Blazor error UI -->
 <div id="blazor-error-ui" data-nosnippet

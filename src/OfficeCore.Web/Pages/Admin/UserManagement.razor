@@ -147,27 +147,11 @@
                         <input @bind="_create.DateHired" type="date" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                     </div>
                 </div>
-
-                <!-- Rate Settings -->
-                <div class="pt-3 border-t border-zinc-800/60">
-                    <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Sick Leave Pay Rate</h3>
-                    <label class="flex items-center gap-3 cursor-pointer mb-2">
-                        <input type="checkbox" @bind="_create.UseCustomDailyRate" class="sr-only peer" />
-                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                        <span class="text-sm font-medium text-zinc-300">Use employee's own daily rate</span>
-                    </label>
-                    @if (_create.UseCustomDailyRate)
-                    {
-                        <div>
-                            <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate for Sick Leave (₱)</label>
-                            <input @bind="_create.DailyRate" type="number" step="0.01" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                        </div>
-                    }
-                    else
-                    {
-                        <p class="text-xs text-zinc-500 italic">When a sick leave is approved, the global minimum daily rate from Payroll Settings will be used.</p>
-                    }
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate (&#8369;)</label>
+                    <input @bind="_create.DailyRate" type="number" step="0.01" min="0" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                 </div>
+
                 <div>
                     <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
                     <select @bind="_create.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
@@ -182,12 +166,34 @@
                     </select>
                 </div>
 
-                <!-- Leave Eligibility -->
+                <!-- Sick Leave Pay Rate -->
+                <div class="pt-3 border-t border-zinc-800/60">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" @bind="_create.UseCustomDailyRate" class="sr-only peer" />
+                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
+                        <div>
+                            <span class="text-sm font-medium text-zinc-300">Use own daily rate for sick leave pay</span>
+                            <p class="text-xs text-zinc-500 mt-0.5">
+                                @(_create.UseCustomDailyRate
+                                    ? "Employee's personal daily rate will be used when a sick leave is approved."
+                                    : "Global minimum daily rate from Payroll Settings will be used for sick leave pay.")
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Vacation Leave Eligibility -->
                 <label class="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" @bind="_create.IsEligibleForLeave" class="sr-only peer" />
                     <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                    <span class="text-sm font-medium text-zinc-300">Eligible for Leave (Vacation/Sick)</span>
+                    <div>
+                        <span class="text-sm font-medium text-zinc-300">Eligible for Vacation Leave</span>
+                        <p class="text-xs text-zinc-500 mt-0.5">Sick leave is always available regardless of this setting.</p>
+                    </div>
                 </label>
+
+                <!-- Assign Roles -->
+                <div>
                     <label class="block text-xs font-medium text-zinc-400 mb-2">Assign Roles</label>
                     @if (_roles != null)
                     {
@@ -291,27 +297,11 @@
                         <input @bind="_edit.DateHired" type="date" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                     </div>
                 </div>
-
-                <!-- Rate Settings -->
-                <div class="pt-3 border-t border-zinc-800/60">
-                    <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Sick Leave Pay Rate</h3>
-                    <label class="flex items-center gap-3 cursor-pointer mb-2">
-                        <input type="checkbox" @bind="_edit.UseCustomDailyRate" class="sr-only peer" />
-                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                        <span class="text-sm font-medium text-zinc-300">Use employee's own daily rate</span>
-                    </label>
-                    @if (_edit.UseCustomDailyRate)
-                    {
-                        <div>
-                            <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate for Sick Leave (₱)</label>
-                            <input @bind="_edit.DailyRate" type="number" step="0.01" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                        </div>
-                    }
-                    else
-                    {
-                        <p class="text-xs text-zinc-500 italic">When a sick leave is approved, the global minimum daily rate from Payroll Settings will be used.</p>
-                    }
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate (&#8369;)</label>
+                    <input @bind="_edit.DailyRate" type="number" step="0.01" min="0" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                 </div>
+
                 <div>
                     <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
                     <select @bind="_edit.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
@@ -325,12 +315,31 @@
                         }
                     </select>
                 </div>
-                
-                <!-- Leave Eligibility -->
+
+                <!-- Sick Leave Pay Rate -->
+                <div class="pt-3 border-t border-zinc-800/60">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" @bind="_edit.UseCustomDailyRate" class="sr-only peer" />
+                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
+                        <div>
+                            <span class="text-sm font-medium text-zinc-300">Use own daily rate for sick leave pay</span>
+                            <p class="text-xs text-zinc-500 mt-0.5">
+                                @(_edit.UseCustomDailyRate
+                                    ? "Employee's personal daily rate will be used when a sick leave is approved."
+                                    : "Global minimum daily rate from Payroll Settings will be used for sick leave pay.")
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Vacation Leave Eligibility -->
                 <label class="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" @bind="_edit.IsEligibleForLeave" class="sr-only peer" />
                     <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                    <span class="text-sm font-medium text-zinc-300">Eligible for Leave (Vacation/Sick)</span>
+                    <div>
+                        <span class="text-sm font-medium text-zinc-300">Eligible for Vacation Leave</span>
+                        <p class="text-xs text-zinc-500 mt-0.5">Sick leave is always available regardless of this setting.</p>
+                    </div>
                 </label>
 
                 <label class="flex items-center gap-3 cursor-pointer">

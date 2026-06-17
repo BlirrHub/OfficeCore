@@ -1,0 +1,19 @@
+@page "/organization"
+@attribute [Authorize(Policy = "RequireOrganization")]
+
+<PageTitle>Company Profile - OfficeCore</PageTitle>
+
+<div class="flex flex-col h-full bg-zinc-950">
+    <div class="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+        <div>
+            <h1 class="text-xl font-bold text-white tracking-wide">Company Profile</h1>
+            <p class="text-sm text-zinc-500 mt-1">Manage organization details and corporate identity</p>
+        </div>
+    </div>
+    <div class="flex-1 overflow-y-auto p-6">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl text-center">
+            <h3 class="text-lg font-medium text-white mb-2">Company Profile Module</h3>
+            <p class="text-zinc-400">This module is currently empty and will be implemented soon.</p>
+        </div>
+    </div>
+</div>
