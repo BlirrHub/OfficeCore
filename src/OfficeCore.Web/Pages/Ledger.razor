@@ -33,22 +33,59 @@
             }
             else
             {
-                <div class="w-full">
-                    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
-                        <table class="w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-zinc-950/50 text-zinc-500 uppercase tracking-wider text-xs font-semibold">
-                                <tr>
-                                    <th class="px-6 py-4 border-b border-zinc-800">Date Requested</th>
-                                    <th class="px-6 py-4 border-b border-zinc-800">Employee</th>
-                                    <th class="px-6 py-4 border-b border-zinc-800">Type</th>
-                                    <th class="px-6 py-4 border-b border-zinc-800 text-right">Amount</th>
-                                    <th class="px-6 py-4 border-b border-zinc-800 text-right">Installments</th>
-                                    <th class="px-6 py-4 border-b border-zinc-800 text-center">Status</th>
-                                    <th class="px-6 py-4 border-b border-zinc-800 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-zinc-800/50">
-                                @foreach (var req in _requests)
+                var filteredRequests = GetFilteredRequests();
+                
+                <!-- Filters -->
+                <div class="max-w-6xl mx-auto mb-6 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap gap-4 items-end">
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Employee</label>
+                        <input type="text" @bind="_filterEmployee" @bind:event="oninput" placeholder="Search by name..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Status</label>
+                        <select @bind="_filterStatus" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none min-w-[140px]">
+                            <option value="All">All</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Start Date</label>
+                        <input type="date" @bind="_filterStartDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">End Date</label>
+                        <input type="date" @bind="_filterEndDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                    </div>
+                    <button @onclick="ClearFilters" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 rounded-lg transition-colors">
+                        Clear
+                    </button>
+                </div>
+                
+                @if (!filteredRequests.Any())
+                {
+                    <div class="p-12 text-center text-zinc-500 italic text-sm">No requests match the current filters.</div>
+                }
+                else
+                {
+                    <div class="w-full">
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="bg-zinc-950/50 text-zinc-500 uppercase tracking-wider text-xs font-semibold">
+                                    <tr>
+                                        <th class="px-6 py-4 border-b border-zinc-800">Date Requested</th>
+                                        <th class="px-6 py-4 border-b border-zinc-800">Employee</th>
+                                        <th class="px-6 py-4 border-b border-zinc-800">Type</th>
+                                        <th class="px-6 py-4 border-b border-zinc-800 text-right">Amount</th>
+                                        <th class="px-6 py-4 border-b border-zinc-800 text-right">Installments</th>
+                                        <th class="px-6 py-4 border-b border-zinc-800 text-center">Status</th>
+                                        <th class="px-6 py-4 border-b border-zinc-800 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-zinc-800/50">
+                                    @foreach (var req in filteredRequests)
                                 {
                                     <tr class="hover:bg-zinc-800/50 transition-colors">
                                         <td class="px-6 py-4 text-zinc-300">
@@ -275,6 +312,43 @@
     private List<AdminAdvanceRequestDto>? _requests;
     private AdminAdvanceRequestDto? _approvingRequest;
     private decimal _approvalInstallment = 0;
+    
+    // Filters for Approvals
+    private string _filterStatus = "All";
+    private DateTime? _filterStartDate;
+    private DateTime? _filterEndDate;
+    private string _filterEmployee = "";
+
+    private IEnumerable<AdminAdvanceRequestDto> GetFilteredRequests()
+    {
+        if (_requests == null) return Array.Empty<AdminAdvanceRequestDto>();
+        var query = _requests.AsEnumerable();
+        
+        if (_filterStatus != "All")
+        {
+            if (Enum.TryParse<AdvanceStatus>(_filterStatus, out var status))
+                query = query.Where(r => r.Status == status);
+        }
+        
+        if (_filterStartDate.HasValue)
+            query = query.Where(r => r.RequestDate.Date >= _filterStartDate.Value.Date);
+            
+        if (_filterEndDate.HasValue)
+            query = query.Where(r => r.RequestDate.Date <= _filterEndDate.Value.Date);
+            
+        if (!string.IsNullOrWhiteSpace(_filterEmployee))
+            query = query.Where(r => r.EmployeeName.Contains(_filterEmployee, StringComparison.OrdinalIgnoreCase));
+            
+        return query;
+    }
+
+    private void ClearFilters()
+    {
+        _filterStatus = "All";
+        _filterStartDate = null;
+        _filterEndDate = null;
+        _filterEmployee = "";
+    }
 
     // Expenses State
     private List<CompanyExpenseDto>? _expenses;
