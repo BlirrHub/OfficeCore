@@ -18,52 +18,9 @@ public static class DbSeeder
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-        // 1. Seed Roles
-        string adminRoleName = "Admin";
-        var adminRole = await roleManager.FindByNameAsync(adminRoleName);
-        if (adminRole == null)
-        {
-            adminRole = new AppRole(adminRoleName) { Description = "Super Administrator with full access" };
-            await roleManager.CreateAsync(adminRole);
-        }
+        // 1. Seed Roles (REMOVED - Roles are now per-organization)
+        
+        // 2. Seed Default Admin User (REMOVED - Users register and create orgs directly)
 
-        // Ensure Admin has all module claims
-        var existingClaims = await roleManager.GetClaimsAsync(adminRole);
-        var modules = new[]
-        {
-            "Dashboard", "Clients", "Attendance", "Boards",
-            "Payroll", "Invoices", "Ledger",
-            "WorkSchedules", "TimeOff", "Locations",
-            "Users", "Roles", "Organization", "Advances"
-        };
-
-        foreach (var module in modules)
-        {
-            if (!existingClaims.Any(c => c.Type == "ModuleAccess" && c.Value == module))
-            {
-                await roleManager.AddClaimAsync(adminRole, new Claim("ModuleAccess", module));
-            }
-        }
-
-        // 2. Seed Default Admin User
-        string adminEmail = "admin@company.com";
-        if (await userManager.FindByEmailAsync(adminEmail) == null)
-        {
-            var adminUser = new ApplicationUser
-            {
-                UserName = adminEmail,
-                Email = adminEmail,
-                FirstName = "System",
-                LastName = "Administrator",
-                EmailConfirmed = true,
-                MustChangePassword = false
-            };
-
-            var result = await userManager.CreateAsync(adminUser, "Admin123!");
-            if (result.Succeeded)
-            {
-                await userManager.AddToRoleAsync(adminUser, adminRoleName);
-            }
-        }
     }
 }

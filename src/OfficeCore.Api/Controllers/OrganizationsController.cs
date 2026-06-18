@@ -83,6 +83,65 @@ public class OrganizationsController : ControllerBase
         };
         _context.Employees.Add(employee);
 
+        // Create default roles for the organization
+        var adminRole = new OrganizationRole
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = org.Id,
+            Name = "Admin",
+            Description = "Administrator with full access",
+            ShowAsTitle = true
+        };
+        var memberRole = new OrganizationRole
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = org.Id,
+            Name = "Member",
+            Description = "Standard organization member",
+            ShowAsTitle = false
+        };
+
+        var modules = new[]
+        {
+            "Dashboard", "Clients", "Attendance", "Boards",
+            "Payroll", "Invoices", "Ledger",
+            "WorkSchedules", "TimeOff", "Locations",
+            "Users", "Roles", "Organization", "Advances", "MyLeaves"
+        };
+
+        foreach (var module in modules)
+        {
+            adminRole.Claims.Add(new OrganizationRoleClaim
+            {
+                Id = Guid.NewGuid(),
+                OrganizationRoleId = adminRole.Id,
+                ClaimType = "ModuleAccess",
+                ClaimValue = module
+            });
+            
+            // Give members basic access
+            if (module == "Dashboard" || module == "Attendance" || module == "Boards" || module == "MyLeaves")
+            {
+                memberRole.Claims.Add(new OrganizationRoleClaim
+                {
+                    Id = Guid.NewGuid(),
+                    OrganizationRoleId = memberRole.Id,
+                    ClaimType = "ModuleAccess",
+                    ClaimValue = module
+                });
+            }
+        }
+
+        _context.OrganizationRoles.AddRange(adminRole, memberRole);
+
+        // Assign Admin role to the creator
+        var employeeRole = new EmployeeRole
+        {
+            EmployeeId = employee.Id,
+            OrganizationRoleId = adminRole.Id
+        };
+        _context.EmployeeRoles.Add(employeeRole);
+
         await _context.SaveChangesAsync();
 
         return Ok(new
@@ -183,6 +242,19 @@ public class OrganizationsController : ControllerBase
         };
 
         _context.Employees.Add(employee);
+
+        // Assign default 'Member' role
+        var memberRole = await _context.OrganizationRoles
+            .FirstOrDefaultAsync(r => r.OrganizationId == invitation.OrganizationId && r.Name == "Member");
+
+        if (memberRole != null)
+        {
+            _context.EmployeeRoles.Add(new EmployeeRole
+            {
+                EmployeeId = employee.Id,
+                OrganizationRoleId = memberRole.Id
+            });
+        }
         
         // Mark invitation as accepted
         invitation.IsAccepted = true;

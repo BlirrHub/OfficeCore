@@ -30,4 +30,7 @@ public class Employee : ITenantEntity
 
     // Government Records
     public EmployeeGovernmentRecord? GovernmentRecord { get; set; }
+
+    // Roles
+    public ICollection<EmployeeRole> EmployeeRoles { get; set; } = new List<EmployeeRole>();
 }

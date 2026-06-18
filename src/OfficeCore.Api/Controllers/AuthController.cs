@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 
 namespace OfficeCore.Api.Controllers;
@@ -11,15 +12,21 @@ public class AuthController : ControllerBase
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<AppRole> _roleManager;
+    private readonly AppDbContext _context;
+    private readonly Services.TenantService _tenant;
 
     public AuthController(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
-        RoleManager<AppRole> roleManager)
+        RoleManager<AppRole> roleManager,
+        AppDbContext context,
+        Services.TenantService tenant)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _roleManager = roleManager;
+        _context = context;
+        _tenant = tenant;
     }
 
     [HttpPost("login")]
@@ -80,34 +87,43 @@ public class AuthController : ControllerBase
         if (user == null)
             return Unauthorized();
 
-        var roles = await _userManager.GetRolesAsync(user);
-        var claims = await _userManager.GetClaimsAsync(user);
-
-        // Gather role claims (module access) and find TitleRoles
+        // Gather role claims (module access) and find TitleRoles from Organization roles
         var moduleClaims = new List<string>();
         var titleRoles = new List<string>();
-        foreach (var role in roles)
-        {
-            var appRole = await _roleManager.FindByNameAsync(role);
-            if (appRole != null)
-            {
-                if (appRole.ShowAsTitle && !string.IsNullOrEmpty(appRole.Name))
-                    titleRoles.Add(appRole.Name);
+        var roles = new List<string>();
 
-                var roleClaims = await _roleManager.GetClaimsAsync(appRole);
-                moduleClaims.AddRange(roleClaims.Where(c => c.Type == "ModuleAccess").Select(c => c.Value));
+        var orgId = _tenant.GetActiveOrganizationId();
+
+        if (orgId.HasValue)
+        {
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.UserId == user.Id && e.OrganizationId == orgId.Value);
+
+            if (employee != null)
+            {
+                var employeeRoles = await _context.EmployeeRoles
+                    .Include(er => er.Role)
+                        .ThenInclude(r => r!.Claims)
+                    .Where(er => er.EmployeeId == employee.Id)
+                    .ToListAsync();
+
+                foreach (var er in employeeRoles)
+                {
+                    if (er.Role == null) continue;
+                    
+                    roles.Add(er.Role.Name);
+
+                    if (er.Role.ShowAsTitle && !string.IsNullOrEmpty(er.Role.Name))
+                    {
+                        titleRoles.Add(er.Role.Name);
+                    }
+
+                    moduleClaims.AddRange(er.Role.Claims
+                        .Where(c => c.ClaimType == "ModuleAccess")
+                        .Select(c => c.ClaimValue));
+                }
             }
         }
-
-        // TEMPORARY: Since we transitioned to multi-tenant and haven't built per-org roles yet,
-        // give all authenticated users access to the core modules so they don't get 403s.
-        var defaultModules = new[] 
-        { 
-            "Dashboard", "Clients", "Attendance", "Boards", "Payroll", 
-            "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", 
-            "Users", "Roles", "Organization", "Advances" 
-        };
-        moduleClaims.AddRange(defaultModules);
 
         var titleRole = titleRoles.Any() ? string.Join(" / ", titleRoles) : "Employee";
 

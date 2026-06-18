@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Phase 6: Member Roles (Multi-Tenant RBAC) - [2026-06-18]
+- **Isolated Roles:** Migrated Role-Based Access Control (RBAC) to be fully multi-tenant, replacing global `AppRole` with `OrganizationRole` and `OrganizationRoleClaim`.
+- **Employee Mapping:** Roles are now assigned to `EmployeeRole` mapping table, correctly connecting the tenant-specific user (`Employee`) to their tenant-specific roles.
+- **Dynamic Provisioning:** Automatically provisions baseline `Admin` and `Member` roles upon organization creation, assigning the creator the `Admin` role.
+- **Invitations Default Role:** New users accepting invitations are automatically placed in the `Member` role.
+- **Authorization Context:** Rewrote `/api/auth/me` to dynamically resolve module claims based on the user's roles within their active organization, removing the temporary "grant all" hack.
+- **UI Refactoring:** Updated Role Management and User Management admin pages to seamlessly interact with tenant-scoped roles.
+
 ### Added — Phase 4: Multi-Tenant Feature Isolation
 - **TenantService** (`Services/TenantService.cs`): New scoped DI service that centralizes org-context resolution by reading the `ActiveOrganizationId` cookie and resolving the current user's `Employee` record for that org.
 - **`IHttpContextAccessor`** registered in `Program.cs` to support `TenantService`.

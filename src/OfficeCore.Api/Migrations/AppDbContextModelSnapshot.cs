@@ -971,6 +971,21 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("EmployeeGovernmentRecords");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.EmployeeRole", b =>
+                {
+                    b.Property<string>("EmployeeId")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationRoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("EmployeeId", "OrganizationRoleId");
+
+                    b.HasIndex("OrganizationRoleId");
+
+                    b.ToTable("EmployeeRoles");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.GeneralPayrollSetting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1196,6 +1211,56 @@ namespace OfficeCore.Api.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("OrganizationInvitations");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ShowAsTitle")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("OrganizationRoles");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationRoleClaim", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ClaimType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationRoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationRoleId");
+
+                    b.ToTable("OrganizationRoleClaims");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.PayrollPeriod", b =>
@@ -1980,6 +2045,25 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.EmployeeRole", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
+                        .WithMany("EmployeeRoles")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.OrganizationRole", "Role")
+                        .WithMany("EmployeeRoles")
+                        .HasForeignKey("OrganizationRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.GeneralPayrollSetting", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
@@ -2075,6 +2159,28 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("InvitedBy");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationRole", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationRoleClaim", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.OrganizationRole", "Role")
+                        .WithMany("Claims")
+                        .HasForeignKey("OrganizationRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.PayrollPeriod", b =>
@@ -2251,6 +2357,8 @@ namespace OfficeCore.Api.Migrations
 
             modelBuilder.Entity("OfficeCore.Api.Models.Employee", b =>
                 {
+                    b.Navigation("EmployeeRoles");
+
                     b.Navigation("GovernmentRecord");
                 });
 
@@ -2262,6 +2370,13 @@ namespace OfficeCore.Api.Migrations
             modelBuilder.Entity("OfficeCore.Api.Models.Organization", b =>
                 {
                     b.Navigation("Employees");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationRole", b =>
+                {
+                    b.Navigation("Claims");
+
+                    b.Navigation("EmployeeRoles");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>

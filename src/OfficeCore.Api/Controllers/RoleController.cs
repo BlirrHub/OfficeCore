@@ -1,9 +1,8 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -12,23 +11,31 @@ namespace OfficeCore.Api.Controllers;
 [Authorize(Policy = "RequireRoles")]
 public class RoleController : ControllerBase
 {
-    private readonly RoleManager<AppRole> _roleManager;
+    private readonly AppDbContext _context;
+    private readonly TenantService _tenant;
 
-    public RoleController(RoleManager<AppRole> roleManager)
+    public RoleController(AppDbContext context, TenantService tenant)
     {
-        _roleManager = roleManager;
+        _context = context;
+        _tenant = tenant;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetRoles()
     {
-        var roles = await _roleManager.Roles.Select(r => new
-        {
-            r.Id,
-            r.Name,
-            r.Description,
-            r.ShowAsTitle
-        }).ToListAsync();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var roles = await _context.OrganizationRoles
+            .Where(r => r.OrganizationId == orgId)
+            .Select(r => new
+            {
+                r.Id,
+                r.Name,
+                r.Description,
+                r.ShowAsTitle
+            })
+            .ToListAsync();
 
         return Ok(roles);
     }
@@ -36,31 +43,47 @@ public class RoleController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
     {
-        var role = new AppRole(request.Name) 
-        { 
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var role = new OrganizationRole
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId.Value,
+            Name = request.Name,
             Description = request.Description,
             ShowAsTitle = request.ShowAsTitle
         };
-        var result = await _roleManager.CreateAsync(role);
-        
-        if (!result.Succeeded)
-            return BadRequest(result.Errors);
 
         if (request.Modules != null)
         {
             foreach (var module in request.Modules)
             {
-                await _roleManager.AddClaimAsync(role, new Claim("ModuleAccess", module));
+                role.Claims.Add(new OrganizationRoleClaim
+                {
+                    Id = Guid.NewGuid(),
+                    OrganizationRoleId = role.Id,
+                    ClaimType = "ModuleAccess",
+                    ClaimValue = module
+                });
             }
         }
+
+        _context.OrganizationRoles.Add(role);
+        await _context.SaveChangesAsync();
 
         return Ok(new { message = "Role created successfully", roleId = role.Id });
     }
 
     [HttpPut("{id}/details")]
-    public async Task<IActionResult> UpdateRoleDetails(string id, [FromBody] UpdateRoleRequest request)
+    public async Task<IActionResult> UpdateRoleDetails(Guid id, [FromBody] UpdateRoleRequest request)
     {
-        var role = await _roleManager.FindByIdAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var role = await _context.OrganizationRoles
+            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
+
         if (role == null) return NotFound();
 
         if (role.Name != "Admin" && !string.IsNullOrWhiteSpace(request.Name))
@@ -70,63 +93,83 @@ public class RoleController : ControllerBase
         role.Description = request.Description;
         role.ShowAsTitle = request.ShowAsTitle;
 
-        var result = await _roleManager.UpdateAsync(role);
-        if (!result.Succeeded) return BadRequest(result.Errors);
+        await _context.SaveChangesAsync();
 
         return Ok(new { message = "Role updated successfully" });
     }
 
     [HttpGet("{id}/modules")]
-    public async Task<IActionResult> GetRoleModules(string id)
+    public async Task<IActionResult> GetRoleModules(Guid id)
     {
-        var role = await _roleManager.FindByIdAsync(id);
-        if (role == null)
-            return NotFound();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
 
-        var claims = await _roleManager.GetClaimsAsync(role);
-        var modules = claims.Where(c => c.Type == "ModuleAccess").Select(c => c.Value).ToList();
+        var role = await _context.OrganizationRoles
+            .Include(r => r.Claims)
+            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
+
+        if (role == null) return NotFound();
+
+        var modules = role.Claims
+            .Where(c => c.ClaimType == "ModuleAccess")
+            .Select(c => c.ClaimValue)
+            .ToList();
         
         return Ok(modules);
     }
 
     [HttpPut("{id}/modules")]
-    public async Task<IActionResult> UpdateRoleModules(string id, [FromBody] List<string> modules)
+    public async Task<IActionResult> UpdateRoleModules(Guid id, [FromBody] List<string> modules)
     {
-        var role = await _roleManager.FindByIdAsync(id);
-        if (role == null)
-            return NotFound();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var role = await _context.OrganizationRoles
+            .Include(r => r.Claims)
+            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
+
+        if (role == null) return NotFound();
 
         // Remove existing module claims
-        var existingClaims = await _roleManager.GetClaimsAsync(role);
-        var moduleClaims = existingClaims.Where(c => c.Type == "ModuleAccess").ToList();
-        
-        foreach (var claim in moduleClaims)
+        var existingModuleClaims = role.Claims.Where(c => c.ClaimType == "ModuleAccess").ToList();
+        foreach (var claim in existingModuleClaims)
         {
-            await _roleManager.RemoveClaimAsync(role, claim);
+            _context.OrganizationRoleClaims.Remove(claim);
         }
 
         // Add new module claims
         foreach (var module in modules)
         {
-            await _roleManager.AddClaimAsync(role, new Claim("ModuleAccess", module));
+            role.Claims.Add(new OrganizationRoleClaim
+            {
+                Id = Guid.NewGuid(),
+                OrganizationRoleId = role.Id,
+                ClaimType = "ModuleAccess",
+                ClaimValue = module
+            });
         }
+
+        await _context.SaveChangesAsync();
 
         return Ok(new { message = "Role modules updated successfully" });
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteRole(string id)
+    public async Task<IActionResult> DeleteRole(Guid id)
     {
-        var role = await _roleManager.FindByIdAsync(id);
-        if (role == null)
-            return NotFound();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var role = await _context.OrganizationRoles
+            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
+
+        if (role == null) return NotFound();
 
         if (role.Name == "Admin")
-            return BadRequest(new { message = "Cannot delete the system Admin role." });
+            return BadRequest(new { message = "Cannot delete the Admin role." });
 
-        var result = await _roleManager.DeleteAsync(role);
-        if (!result.Succeeded)
-            return BadRequest(result.Errors);
+        _context.OrganizationRoles.Remove(role);
+        await _context.SaveChangesAsync();
 
         return Ok(new { message = "Role deleted successfully" });
     }

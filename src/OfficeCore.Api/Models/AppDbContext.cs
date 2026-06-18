@@ -51,6 +51,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
     public DbSet<ChatRoomMember> ChatRoomMembers { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
 
+    // Multi-Tenant RBAC
+    public DbSet<OrganizationRole> OrganizationRoles { get; set; }
+    public DbSet<OrganizationRoleClaim> OrganizationRoleClaims { get; set; }
+    public DbSet<EmployeeRole> EmployeeRoles { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -66,6 +71,28 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .HasMany(c => c.Businesses)
             .WithOne(b => b.Client)
             .HasForeignKey(b => b.ClientId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Configure RBAC
+        builder.Entity<OrganizationRole>()
+            .HasMany(r => r.Claims)
+            .WithOne(c => c.Role)
+            .HasForeignKey(c => c.OrganizationRoleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<EmployeeRole>()
+            .HasKey(er => new { er.EmployeeId, er.OrganizationRoleId });
+
+        builder.Entity<EmployeeRole>()
+            .HasOne(er => er.Employee)
+            .WithMany(e => e.EmployeeRoles)
+            .HasForeignKey(er => er.EmployeeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<EmployeeRole>()
+            .HasOne(er => er.Role)
+            .WithMany(r => r.EmployeeRoles)
+            .HasForeignKey(er => er.OrganizationRoleId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // Configure Boards

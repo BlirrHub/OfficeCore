@@ -80,13 +80,16 @@ public class UserController : ControllerBase
 
         if (request.Roles != null && request.Roles.Any())
         {
-            await _userManager.AddToRolesAsync(user, request.Roles);
+            // Employee roles will be handled below after creating Employee
         }
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
 
         var employee = new Employee
         {
             UserId = user.Id,
-            OrganizationId = Guid.Empty, // Will be set to context organization ID in future phases
+            OrganizationId = orgId.Value,
             EmployeeId = request.EmployeeId,
             IsActive = true,
             IsEmployee = request.IsEmployee,
@@ -111,6 +114,23 @@ public class UserController : ControllerBase
         if (employee.GovernmentRecord != null)
         {
             employee.GovernmentRecord.EmployeeId = employee.Id;
+            await _context.SaveChangesAsync();
+        }
+
+        if (request.Roles != null && request.Roles.Any())
+        {
+            var orgRoles = await _context.OrganizationRoles
+                .Where(r => r.OrganizationId == orgId.Value && request.Roles.Contains(r.Name))
+                .ToListAsync();
+
+            foreach (var r in orgRoles)
+            {
+                _context.EmployeeRoles.Add(new EmployeeRole
+                {
+                    EmployeeId = employee.Id,
+                    OrganizationRoleId = r.Id
+                });
+            }
             await _context.SaveChangesAsync();
         }
 
@@ -156,9 +176,28 @@ public class UserController : ControllerBase
 
         if (request.Roles != null)
         {
-            var currentRoles = await _userManager.GetRolesAsync(employee.User);
-            await _userManager.RemoveFromRolesAsync(employee.User, currentRoles);
-            await _userManager.AddToRolesAsync(employee.User, request.Roles);
+            var orgId = _tenant.GetActiveOrganizationId();
+            if (orgId == null) return Forbid();
+
+            var currentEmployeeRoles = await _context.EmployeeRoles
+                .Where(er => er.EmployeeId == employee.Id)
+                .ToListAsync();
+
+            _context.EmployeeRoles.RemoveRange(currentEmployeeRoles);
+
+            var newOrgRoles = await _context.OrganizationRoles
+                .Where(r => r.OrganizationId == orgId.Value && request.Roles.Contains(r.Name))
+                .ToListAsync();
+
+            foreach (var r in newOrgRoles)
+            {
+                _context.EmployeeRoles.Add(new EmployeeRole
+                {
+                    EmployeeId = employee.Id,
+                    OrganizationRoleId = r.Id
+                });
+            }
+            await _context.SaveChangesAsync();
         }
 
         return Ok(new { message = "User updated successfully" });
@@ -183,12 +222,21 @@ public class UserController : ControllerBase
     [HttpGet("{id}/roles")]
     public async Task<IActionResult> GetUserRoles(string id)
     {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user == null)
-            return NotFound();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
 
-        var roles = await _userManager.GetRolesAsync(user);
-        return Ok(roles);
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
+
+        if (employee == null) return NotFound();
+
+        var roleNames = await _context.EmployeeRoles
+            .Where(er => er.EmployeeId == employee.Id)
+            .Include(er => er.Role)
+            .Select(er => er.Role!.Name)
+            .ToListAsync();
+
+        return Ok(roleNames);
     }
 
     [HttpDelete("{id}")]
