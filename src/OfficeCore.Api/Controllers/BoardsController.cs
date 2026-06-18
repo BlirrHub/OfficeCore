@@ -15,10 +15,10 @@ namespace OfficeCore.Api.Controllers;
 public class BoardsController : ControllerBase
 {
     private readonly AppDbContext _context;
-    private readonly UserManager<Employee> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<BoardHub> _hubContext;
 
-    public BoardsController(AppDbContext context, UserManager<Employee> userManager, IHubContext<BoardHub> hubContext)
+    public BoardsController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<BoardHub> hubContext)
     {
         _context = context;
         _userManager = userManager;
@@ -76,10 +76,10 @@ public class BoardsController : ControllerBase
                 b.Description,
                 b.CreatedAt,
                 b.CreatedById,
-                CreatorName = b.CreatedBy.FirstName + " " + b.CreatedBy.LastName,
+                CreatorName = b.CreatedBy.User.FirstName + " " + b.CreatedBy.User.LastName,
                 MembersCount = b.Members.Count,
                 IsStarred = b.Members.FirstOrDefault(m => m.UserId == userId)!.IsStarred,
-                MemberAvatars = b.Members.OrderByDescending(m => m.Role).Take(3).Select(m => m.User.ProfilePictureUrl).ToList()
+                MemberAvatars = b.Members.OrderByDescending(m => m.Role).Take(3).Select(m => m.User.User.ProfilePictureUrl).ToList()
             })
             .ToListAsync();
 

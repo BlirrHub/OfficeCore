@@ -4,8 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class ChatMessage
-{
+public class ChatMessage : ITenantEntity{
     [Key]
     public Guid Id { get; set; }
 
@@ -24,4 +23,7 @@ public class ChatMessage
     public string Content { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

@@ -10,8 +10,7 @@ public enum BoardRole
     Owner = 2
 }
 
-public class BoardMember
-{
+public class BoardMember : ITenantEntity{
     [Key]
     public Guid Id { get; set; }
 
@@ -29,4 +28,7 @@ public class BoardMember
     public BoardRole Role { get; set; }
 
     public bool IsStarred { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

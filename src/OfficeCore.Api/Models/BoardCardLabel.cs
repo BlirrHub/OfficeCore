@@ -2,8 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class BoardCardLabel
-{
+public class BoardCardLabel : ITenantEntity{
     public Guid CardId { get; set; }
     
     [ForeignKey("CardId")]
@@ -13,4 +12,7 @@ public class BoardCardLabel
     
     [ForeignKey("LabelId")]
     public BoardLabel Label { get; set; } = null!;
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class BoardLabel
-{
+public class BoardLabel : ITenantEntity{
     [Key]
     public Guid Id { get; set; }
 
@@ -20,4 +19,7 @@ public class BoardLabel
     [Required]
     [MaxLength(20)]
     public string ColorHex { get; set; } = "#71717a"; // Default zinc-500
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

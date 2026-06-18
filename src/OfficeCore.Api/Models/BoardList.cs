@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class BoardList
-{
+public class BoardList : ITenantEntity{
     [Key]
     public Guid Id { get; set; }
 
@@ -20,4 +19,7 @@ public class BoardList
     public int OrderIndex { get; set; }
 
     public List<BoardCard> Cards { get; set; } = new();
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

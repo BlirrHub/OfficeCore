@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class Board
-{
+public class Board : ITenantEntity{
     [Key]
     public Guid Id { get; set; }
 
@@ -25,4 +24,7 @@ public class Board
     public List<BoardMember> Members { get; set; } = new();
     public List<BoardList> Lists { get; set; } = new();
     public List<BoardLabel> Labels { get; set; } = new();
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

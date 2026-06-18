@@ -1,7 +1,6 @@
 namespace OfficeCore.Api.Models;
 
-public class LeaveRequest
-{
+public class LeaveRequest : ITenantEntity{
     public Guid Id { get; set; }
     
     public required string EmployeeId { get; set; }
@@ -18,6 +17,8 @@ public class LeaveRequest
     public LeaveRequestStatus Status { get; set; } = LeaveRequestStatus.Pending;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }
 
 public enum LeaveType

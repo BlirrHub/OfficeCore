@@ -16,7 +16,7 @@ public static class DbSeeder
         await context.Database.MigrateAsync();
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Employee>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
         // 1. Seed Roles
         string adminRoleName = "Admin";
@@ -49,15 +49,14 @@ public static class DbSeeder
         string adminEmail = "admin@company.com";
         if (await userManager.FindByEmailAsync(adminEmail) == null)
         {
-            var adminUser = new Employee
+            var adminUser = new ApplicationUser
             {
                 UserName = adminEmail,
                 Email = adminEmail,
                 FirstName = "System",
                 LastName = "Administrator",
                 EmailConfirmed = true,
-                IsActive = true,
-                IsEmployee = false // Admins are not part of payroll by default
+                MustChangePassword = false
             };
 
             var result = await userManager.CreateAsync(adminUser, "Admin123!");

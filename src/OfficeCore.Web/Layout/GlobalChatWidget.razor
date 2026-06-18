@@ -291,7 +291,10 @@
         _allUsers.RemoveAll(u => u.Id == _currentUserId);
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(Http.BaseAddress!, "hubs/chat"))
+            .WithUrl(new Uri(Http.BaseAddress!, "hubs/chat"), options =>
+            {
+                options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler };
+            })
             .WithAutomaticReconnect()
             .Build();
 

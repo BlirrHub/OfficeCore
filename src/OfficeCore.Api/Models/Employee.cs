@@ -1,35 +1,27 @@
-using Microsoft.AspNetCore.Identity;
+using System;
 
 namespace OfficeCore.Api.Models;
 
-public class Employee : IdentityUser
+public class Employee : ITenantEntity
 {
-    public required string FirstName { get; set; }
-    public required string LastName { get; set; }
+    public string Id { get; set; } = Guid.NewGuid().ToString();
     
-    // Optional internal company ID
+    // Links to the global ApplicationUser
+    public required string UserId { get; set; }
+    public ApplicationUser? User { get; set; }
+    
+    // Links to the Organization
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
+    
+    // Tenant-specific properties
     public string? EmployeeId { get; set; }
-    // Profile image
-    public string? ProfilePictureUrl { get; set; }
-    
-    // To soft-disable users
     public bool IsActive { get; set; } = true;
-    public bool MustChangePassword { get; set; } = true;
-
-    /// <summary>When true, this user is included in payroll processing and requires payroll settings.</summary>
     public bool IsEmployee { get; set; } = true;
-
-    // Daily rate — used when UseCustomDailyRate is true; otherwise global minimum rate applies
     public decimal? DailyRate { get; set; }
-    
-    /// <summary>When true, DailyRate is used for payroll. When false, the global minimum rate is used.</summary>
     public bool UseCustomDailyRate { get; set; } = false;
-
-    // Employment dates
     public DateTime? DateHired { get; set; }
     public DateTime? ResignedDate { get; set; }
-
-    // Leave eligibility
     public bool IsEligibleForLeave { get; set; } = true;
 
     // Work schedule assignment

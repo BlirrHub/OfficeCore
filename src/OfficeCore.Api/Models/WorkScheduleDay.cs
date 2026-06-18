@@ -2,8 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class WorkScheduleDay
-{
+public class WorkScheduleDay : ITenantEntity{
     public int Id { get; set; }
     
     public Guid WorkScheduleId { get; set; }
@@ -21,4 +20,7 @@ public class WorkScheduleDay
     public TimeSpan? EndTime { get; set; }
     
     public double? WorkingHours { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

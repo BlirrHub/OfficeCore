@@ -8,8 +8,7 @@ public enum OvertimeTriggerMode
     AfterTime
 }
 
-public class WorkScheduleOvertimeRule
-{
+public class WorkScheduleOvertimeRule : ITenantEntity{
     public int Id { get; set; }
     
     public Guid WorkScheduleId { get; set; }
@@ -33,4 +32,7 @@ public class WorkScheduleOvertimeRule
     
     [JsonIgnore]
     public WorkSchedule? WorkSchedule { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

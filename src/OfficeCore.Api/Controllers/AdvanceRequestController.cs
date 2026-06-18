@@ -12,9 +12,9 @@ namespace OfficeCore.Api.Controllers;
 public class AdvanceRequestController : ControllerBase
 {
     private readonly AppDbContext _context;
-    private readonly UserManager<Employee> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public AdvanceRequestController(AppDbContext context, UserManager<Employee> userManager)
+    public AdvanceRequestController(AppDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _userManager = userManager;
@@ -50,7 +50,7 @@ public class AdvanceRequestController : ControllerBase
                 r.RequestDate,
                 r.RemainingBalance,
                 r.InstallmentAmount,
-                EmployeeName = r.Employee!.FirstName + " " + r.Employee.LastName
+                EmployeeName = r.Employee!.User.FirstName + " " + r.Employee.User.LastName
             })
             .ToListAsync();
 
@@ -197,7 +197,7 @@ public class AdvanceRequestController : ControllerBase
     {
         var adminAdvances = await _context.AdvanceRequests
             .Include(ar => ar.Employee)
-            .Where(ar => ar.Employee != null && ar.Employee.Email == "admin@officecore.com")
+            .Where(ar => ar.Employee != null && ar.Employee.User.Email == "admin@officecore.com")
             .ToListAsync();
             
         _context.AdvanceRequests.RemoveRange(adminAdvances);

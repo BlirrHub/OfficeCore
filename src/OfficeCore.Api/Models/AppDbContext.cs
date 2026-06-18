@@ -3,12 +3,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace OfficeCore.Api.Models;
 
-public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
+public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
 
+    public DbSet<Organization> Organizations { get; set; }
+    public DbSet<Employee> Employees { get; set; }
     public DbSet<WorkSchedule> WorkSchedules { get; set; }
     public DbSet<WorkScheduleDay> WorkScheduleDays { get; set; }
     public DbSet<WorkScheduleBreak> WorkScheduleBreaks { get; set; }

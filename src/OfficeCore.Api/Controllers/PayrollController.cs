@@ -93,7 +93,7 @@ public class PayrollController : ControllerBase
         return Ok(payslips.Select(p => new {
             p.Id,
             p.EmployeeId,
-            EmployeeName = $"{p.Employee?.FirstName} {p.Employee?.LastName}",
+            EmployeeName = $"{p.Employee?.User?.FirstName} {p.Employee?.User?.LastName}",
             p.BasicPay,
             p.TotalLeavePay,
             p.TotalOvertimePay,

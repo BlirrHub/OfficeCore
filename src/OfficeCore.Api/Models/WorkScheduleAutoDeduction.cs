@@ -3,8 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace OfficeCore.Api.Models;
 
-public class WorkScheduleAutoDeduction
-{
+public class WorkScheduleAutoDeduction : ITenantEntity{
     public int Id { get; set; }
     
     public Guid WorkScheduleId { get; set; }
@@ -25,4 +24,7 @@ public class WorkScheduleAutoDeduction
     
     [JsonIgnore]
     public WorkSchedule? WorkSchedule { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class EmployeeFingerprint
-{
+public class EmployeeFingerprint : ITenantEntity{
     public int Id { get; set; }
     
     [Required]
@@ -17,4 +16,7 @@ public class EmployeeFingerprint
     public int FingerprintId { get; set; }
     
     public DateTimeOffset EnrolledAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

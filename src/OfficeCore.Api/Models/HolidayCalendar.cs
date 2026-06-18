@@ -2,8 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OfficeCore.Api.Models;
 
-public class HolidayCalendar
-{
+public class HolidayCalendar : ITenantEntity{
     public Guid Id { get; set; }
     
     [Required]
@@ -13,4 +12,7 @@ public class HolidayCalendar
     public bool IsDefault { get; set; }
     
     public ICollection<Holiday> Holidays { get; set; } = new List<Holiday>();
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

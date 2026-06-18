@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class BoardCardAttachment
-{
+public class BoardCardAttachment : ITenantEntity{
     [Key]
     public Guid Id { get; set; }
 
@@ -30,4 +29,7 @@ public class BoardCardAttachment
     public long FileSize { get; set; }
 
     public DateTime UploadedAt { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

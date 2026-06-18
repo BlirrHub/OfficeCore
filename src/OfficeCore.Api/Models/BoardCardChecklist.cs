@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class BoardCardChecklist
-{
+public class BoardCardChecklist : ITenantEntity{
     [Key]
     public Guid Id { get; set; }
 
@@ -18,4 +17,7 @@ public class BoardCardChecklist
     public string Title { get; set; } = string.Empty;
 
     public List<BoardCardChecklistItem> Items { get; set; } = new();
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

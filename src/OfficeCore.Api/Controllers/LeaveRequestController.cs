@@ -13,10 +13,10 @@ namespace OfficeCore.Api.Controllers;
 public class LeaveRequestController : ControllerBase
 {
     private readonly AppDbContext _context;
-    private readonly UserManager<Employee> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _env;
 
-    public LeaveRequestController(AppDbContext context, UserManager<Employee> userManager, IWebHostEnvironment env)
+    public LeaveRequestController(AppDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env)
     {
         _context = context;
         _userManager = userManager;
@@ -48,7 +48,7 @@ public class LeaveRequestController : ControllerBase
             {
                 r.Id,
                 r.EmployeeId,
-                EmployeeName = r.Employee != null ? r.Employee.FirstName + " " + r.Employee.LastName : "Unknown",
+                EmployeeName = r.Employee != null ? r.Employee.User.FirstName + " " + r.Employee.User.LastName : "Unknown",
                 r.Type,
                 r.StartDate,
                 r.EndDate,

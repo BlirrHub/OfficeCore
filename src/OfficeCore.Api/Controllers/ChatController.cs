@@ -15,10 +15,10 @@ namespace OfficeCore.Api.Controllers;
 public class ChatController : ControllerBase
 {
     private readonly AppDbContext _context;
-    private readonly UserManager<Employee> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<ChatHub> _chatHub;
 
-    public ChatController(AppDbContext context, UserManager<Employee> userManager, IHubContext<ChatHub> chatHub)
+    public ChatController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<ChatHub> chatHub)
     {
         _context = context;
         _userManager = userManager;
@@ -43,9 +43,9 @@ public class ChatController : ControllerBase
                 Members = r.Members.Select(m => new
                 {
                     m.UserId,
-                    m.User.FirstName,
-                    m.User.LastName,
-                    m.User.ProfilePictureUrl,
+                    m.User.User.FirstName,
+                    m.User.User.LastName,
+                    m.User.User.ProfilePictureUrl,
                     m.LastReadAt
                 }),
                 LastMessage = _context.ChatMessages
@@ -88,8 +88,8 @@ public class ChatController : ControllerBase
                 m.Id,
                 m.ChatRoomId,
                 m.SenderId,
-                SenderName = m.Sender.FirstName + " " + m.Sender.LastName,
-                m.Sender.ProfilePictureUrl,
+                SenderName = m.Sender.User.FirstName + " " + m.Sender.User.LastName,
+                m.Sender.User.ProfilePictureUrl,
                 m.Content,
                 m.CreatedAt
             })

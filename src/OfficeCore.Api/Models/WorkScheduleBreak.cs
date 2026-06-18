@@ -4,8 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace OfficeCore.Api.Models;
 
-public class WorkScheduleBreak
-{
+public class WorkScheduleBreak : ITenantEntity{
     public int Id { get; set; }
     
     public Guid WorkScheduleId { get; set; }
@@ -23,4 +22,7 @@ public class WorkScheduleBreak
     public TimeSpan StartTime { get; set; }
     
     public TimeSpan EndTime { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

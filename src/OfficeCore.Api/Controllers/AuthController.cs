@@ -8,13 +8,13 @@ namespace OfficeCore.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly SignInManager<Employee> _signInManager;
-    private readonly UserManager<Employee> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<AppRole> _roleManager;
 
     public AuthController(
-        SignInManager<Employee> signInManager,
-        UserManager<Employee> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager,
         RoleManager<AppRole> roleManager)
     {
         _signInManager = signInManager;

@@ -4,8 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace OfficeCore.Api.Models;
 
-public class Holiday
-{
+public class Holiday : ITenantEntity{
     public int Id { get; set; }
     
     public Guid HolidayCalendarId { get; set; }
@@ -19,4 +18,7 @@ public class Holiday
     public required string Name { get; set; }
     
     public DateTime Date { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

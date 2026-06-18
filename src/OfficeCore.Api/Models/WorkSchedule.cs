@@ -10,8 +10,7 @@ public enum WorkArrangement
     NoSchedule
 }
 
-public class WorkSchedule
-{
+public class WorkSchedule : ITenantEntity{
     public Guid Id { get; set; }
     
     [Required]
@@ -37,4 +36,7 @@ public class WorkSchedule
     public ICollection<WorkScheduleAutoDeduction> AutoDeductions { get; set; } = new List<WorkScheduleAutoDeduction>();
     
     public ICollection<WorkScheduleOvertimeRule> OvertimeRules { get; set; } = new List<WorkScheduleOvertimeRule>();
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

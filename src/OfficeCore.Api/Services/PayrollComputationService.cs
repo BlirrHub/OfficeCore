@@ -23,7 +23,8 @@ public class PayrollComputationService : IPayrollComputationService
             throw new Exception("Cannot recompute a finalized or paid payroll period");
         }
 
-        var employees = await _context.Users
+        var employees = await _context.Employees
+            .Include(e => e.User)
             .Where(e => e.IsActive && e.IsEmployee)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Days)

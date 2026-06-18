@@ -11,10 +11,10 @@ namespace OfficeCore.Api.Controllers;
 [Authorize(Policy = "RequireUsers")]
 public class UserController : ControllerBase
 {
-    private readonly UserManager<Employee> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppDbContext _context;
 
-    public UserController(UserManager<Employee> userManager, AppDbContext context)
+    public UserController(UserManager<ApplicationUser> userManager, AppDbContext context)
     {
         _userManager = userManager;
         _context = context;
@@ -23,63 +23,48 @@ public class UserController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetUsers()
     {
-        var users = await _userManager.Users
-            .Include(u => u.GovernmentRecord)
-            .Select(u => new
+        var employees = await _context.Employees
+            .Include(e => e.User)
+            .Include(e => e.GovernmentRecord)
+            .Select(e => new
             {
-                u.Id,
-                u.Email,
-                u.FirstName,
-                u.LastName,
-                u.EmployeeId,
-                u.IsActive,
-                u.IsEmployee,
-                u.DailyRate,
-                u.UseCustomDailyRate,
-                u.DateHired,
-                u.ResignedDate,
-                u.IsEligibleForLeave,
-                u.WorkScheduleId,
-                GovernmentRecord = u.GovernmentRecord != null ? new
+                e.User.Id,
+                e.User.Email,
+                e.User.FirstName,
+                e.User.LastName,
+                e.EmployeeId,
+                e.IsActive,
+                e.IsEmployee,
+                e.DailyRate,
+                e.UseCustomDailyRate,
+                e.DateHired,
+                e.ResignedDate,
+                e.IsEligibleForLeave,
+                e.WorkScheduleId,
+                GovernmentRecord = e.GovernmentRecord != null ? new
                 {
-                    u.GovernmentRecord.IsEligibleForDeductions,
-                    u.GovernmentRecord.SssNumber,
-                    u.GovernmentRecord.PagIbigNumber,
-                    u.GovernmentRecord.PhilHealthNumber,
-                    u.GovernmentRecord.TinNumber
+                    e.GovernmentRecord.IsEligibleForDeductions,
+                    e.GovernmentRecord.SssNumber,
+                    e.GovernmentRecord.PagIbigNumber,
+                    e.GovernmentRecord.PhilHealthNumber,
+                    e.GovernmentRecord.TinNumber
                 } : null
             }).ToListAsync();
 
-        return Ok(users);
+        return Ok(employees);
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
-        var user = new Employee
+        var user = new ApplicationUser
         {
             UserName = request.Email,
             Email = request.Email,
             FirstName = request.FirstName,
             LastName = request.LastName,
-            EmployeeId = request.EmployeeId,
-            IsActive = true,
-            IsEmployee = request.IsEmployee,
             EmailConfirmed = true,
-            DailyRate = request.DailyRate,
-            UseCustomDailyRate = request.UseCustomDailyRate,
-            DateHired = request.DateHired.HasValue ? DateTime.SpecifyKind(request.DateHired.Value, DateTimeKind.Utc) : null,
-            IsEligibleForLeave = request.IsEligibleForLeave,
-            WorkScheduleId = request.WorkScheduleId,
-            GovernmentRecord = request.GovernmentRecord != null ? new EmployeeGovernmentRecord
-            {
-                EmployeeId = "",
-                IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions,
-                SssNumber = request.GovernmentRecord.SssNumber,
-                PagIbigNumber = request.GovernmentRecord.PagIbigNumber,
-                PhilHealthNumber = request.GovernmentRecord.PhilHealthNumber,
-                TinNumber = request.GovernmentRecord.TinNumber
-            } : null
+            IsActive = true
         };
 
         var result = await _userManager.CreateAsync(user, "password");
@@ -91,49 +76,84 @@ public class UserController : ControllerBase
             await _userManager.AddToRolesAsync(user, request.Roles);
         }
 
+        var employee = new Employee
+        {
+            UserId = user.Id,
+            OrganizationId = Guid.Empty, // Will be set to context organization ID in future phases
+            EmployeeId = request.EmployeeId,
+            IsActive = true,
+            IsEmployee = request.IsEmployee,
+            DailyRate = request.DailyRate,
+            UseCustomDailyRate = request.UseCustomDailyRate,
+            DateHired = request.DateHired.HasValue ? DateTime.SpecifyKind(request.DateHired.Value, DateTimeKind.Utc) : null,
+            IsEligibleForLeave = request.IsEligibleForLeave,
+            WorkScheduleId = request.WorkScheduleId,
+            GovernmentRecord = request.GovernmentRecord != null ? new EmployeeGovernmentRecord
+            {
+                EmployeeId = "", // Updated after save or handled by EF
+                IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions,
+                SssNumber = request.GovernmentRecord.SssNumber,
+                PagIbigNumber = request.GovernmentRecord.PagIbigNumber,
+                PhilHealthNumber = request.GovernmentRecord.PhilHealthNumber,
+                TinNumber = request.GovernmentRecord.TinNumber
+            } : null
+        };
+        _context.Employees.Add(employee);
+        await _context.SaveChangesAsync();
+
+        if (employee.GovernmentRecord != null)
+        {
+            employee.GovernmentRecord.EmployeeId = employee.Id;
+            await _context.SaveChangesAsync();
+        }
+
         return Ok(new { message = "User created successfully", userId = user.Id });
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserRequest request)
     {
-        var user = await _userManager.Users.Include(u => u.GovernmentRecord).FirstOrDefaultAsync(u => u.Id == id);
-        if (user == null)
+        var employee = await _context.Employees
+            .Include(e => e.User)
+            .Include(e => e.GovernmentRecord)
+            .FirstOrDefaultAsync(e => e.UserId == id);
+
+        if (employee == null || employee.User == null)
             return NotFound();
 
-        user.FirstName = request.FirstName;
-        user.LastName = request.LastName;
-        user.EmployeeId = request.EmployeeId;
-        user.IsActive = request.IsActive;
-        user.IsEmployee = request.IsEmployee;
-        user.DailyRate = request.DailyRate;
-        user.UseCustomDailyRate = request.UseCustomDailyRate;
-        user.DateHired = request.DateHired.HasValue ? DateTime.SpecifyKind(request.DateHired.Value, DateTimeKind.Utc) : null;
-        user.IsEligibleForLeave = request.IsEligibleForLeave;
-        user.WorkScheduleId = request.WorkScheduleId;
+        employee.User.FirstName = request.FirstName;
+        employee.User.LastName = request.LastName;
+        employee.EmployeeId = request.EmployeeId;
+        employee.IsActive = request.IsActive;
+        employee.IsEmployee = request.IsEmployee;
+        employee.DailyRate = request.DailyRate;
+        employee.UseCustomDailyRate = request.UseCustomDailyRate;
+        employee.DateHired = request.DateHired.HasValue ? DateTime.SpecifyKind(request.DateHired.Value, DateTimeKind.Utc) : null;
+        employee.IsEligibleForLeave = request.IsEligibleForLeave;
+        employee.WorkScheduleId = request.WorkScheduleId;
 
         if (request.GovernmentRecord != null)
         {
-            if (user.GovernmentRecord == null)
+            if (employee.GovernmentRecord == null)
             {
-                user.GovernmentRecord = new EmployeeGovernmentRecord { EmployeeId = user.Id };
+                employee.GovernmentRecord = new EmployeeGovernmentRecord { EmployeeId = employee.Id };
             }
-            user.GovernmentRecord.IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions;
-            user.GovernmentRecord.SssNumber = request.GovernmentRecord.SssNumber;
-            user.GovernmentRecord.PagIbigNumber = request.GovernmentRecord.PagIbigNumber;
-            user.GovernmentRecord.PhilHealthNumber = request.GovernmentRecord.PhilHealthNumber;
-            user.GovernmentRecord.TinNumber = request.GovernmentRecord.TinNumber;
+            employee.GovernmentRecord.IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions;
+            employee.GovernmentRecord.SssNumber = request.GovernmentRecord.SssNumber;
+            employee.GovernmentRecord.PagIbigNumber = request.GovernmentRecord.PagIbigNumber;
+            employee.GovernmentRecord.PhilHealthNumber = request.GovernmentRecord.PhilHealthNumber;
+            employee.GovernmentRecord.TinNumber = request.GovernmentRecord.TinNumber;
         }
 
-        var result = await _userManager.UpdateAsync(user);
-        if (!result.Succeeded)
-            return BadRequest(result.Errors);
+        await _userManager.UpdateAsync(employee.User);
+        _context.Employees.Update(employee);
+        await _context.SaveChangesAsync();
 
         if (request.Roles != null)
         {
-            var currentRoles = await _userManager.GetRolesAsync(user);
-            await _userManager.RemoveFromRolesAsync(user, currentRoles);
-            await _userManager.AddToRolesAsync(user, request.Roles);
+            var currentRoles = await _userManager.GetRolesAsync(employee.User);
+            await _userManager.RemoveFromRolesAsync(employee.User, currentRoles);
+            await _userManager.AddToRolesAsync(employee.User, request.Roles);
         }
 
         return Ok(new { message = "User updated successfully" });
@@ -142,16 +162,15 @@ public class UserController : ControllerBase
     [HttpPost("{id}/resign")]
     public async Task<IActionResult> ResignUser(string id, [FromBody] ResignRequest request)
     {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user == null)
+        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == id);
+        if (employee == null)
             return NotFound();
 
-        user.IsActive = false;
-        user.ResignedDate = DateTime.SpecifyKind(request.ResignedDate, DateTimeKind.Utc);
+        employee.IsActive = false;
+        employee.ResignedDate = DateTime.SpecifyKind(request.ResignedDate, DateTimeKind.Utc);
 
-        var result = await _userManager.UpdateAsync(user);
-        if (!result.Succeeded)
-            return BadRequest(result.Errors);
+        _context.Employees.Update(employee);
+        await _context.SaveChangesAsync();
 
         return Ok(new { message = "Employee resigned and archived successfully" });
     }
@@ -173,6 +192,12 @@ public class UserController : ControllerBase
         var user = await _userManager.FindByIdAsync(id);
         if (user == null)
             return NotFound();
+
+        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == id);
+        if (employee != null)
+        {
+            _context.Employees.Remove(employee);
+        }
 
         var result = await _userManager.DeleteAsync(user);
         if (!result.Succeeded)

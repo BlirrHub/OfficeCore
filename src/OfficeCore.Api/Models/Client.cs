@@ -2,8 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OfficeCore.Api.Models;
 
-public class Client
-{
+public class Client : ITenantEntity{
     public Guid Id { get; set; }
     
     [Required]
@@ -24,4 +23,7 @@ public class Client
     
     // Navigation property
     public ICollection<Business> Businesses { get; set; } = new List<Business>();
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

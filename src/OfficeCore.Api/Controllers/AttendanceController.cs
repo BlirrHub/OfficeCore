@@ -52,7 +52,7 @@ public class AttendanceController : ControllerBase
             return new
             {
                 a.Id,
-                EmployeeName = a.Employee != null ? $"{a.Employee.FirstName} {a.Employee.LastName}" : "Unknown",
+                EmployeeName = a.Employee != null ? $"{a.Employee.User.FirstName} {a.Employee.User.LastName}" : "Unknown",
                 a.EmployeeId,
                 a.Timestamp,
                 Type = a.Type.ToString(),

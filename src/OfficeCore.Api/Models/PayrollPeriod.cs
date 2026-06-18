@@ -12,8 +12,7 @@ public enum PayrollStatus
     Paid
 }
 
-public class PayrollPeriod
-{
+public class PayrollPeriod : ITenantEntity{
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -31,4 +30,7 @@ public class PayrollPeriod
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     public DateTime? FinalizedAt { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

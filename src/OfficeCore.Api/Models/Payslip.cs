@@ -4,8 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class Payslip
-{
+public class Payslip : ITenantEntity{
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -43,4 +42,7 @@ public class Payslip
 
     // JSON blob to store the exact mathematical breakdown for historical auditing
     public string? CalculationDetailsJson { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

@@ -3,8 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace OfficeCore.Api.Models;
 
-public class Business
-{
+public class Business : ITenantEntity{
     public Guid Id { get; set; }
     
     public Guid ClientId { get; set; }
@@ -25,4 +24,7 @@ public class Business
     // Navigation property
     [JsonIgnore]
     public Client? Client { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

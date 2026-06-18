@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- **Multi-Tenant Architecture Refactoring**: Refactored the core database schema to support Organizations/Companies. Transitioned `IdentityUser` to a global `ApplicationUser` and created a new junction `Employee` model. All entities in the system now implement `ITenantEntity` and include `OrganizationId` to isolate data between tenants.
+- **Global Chat System**: Added a real-time Chat System with a global floating Chat Bubble, supporting direct 1-on-1 messaging, unread badges, typing indicators, and instant real-time message delivery via SignalR.
+- **Member Avatars**: Kanban boards now display the profile pictures of the top members inside the board summary cards.
+- **Board Profile Pictures**: The individual Kanban board view now properly displays profile pictures for members instead of placeholder initials.
 - **Profile Avatars**: Users can now upload and display a custom profile picture. The profile image integrates seamlessly into the global sidebar and the overhauled profile page.
 - **Profile Redesign**: Upgraded the "My Profile" page with a refined layout that includes a dynamic avatar upload dropzone and better visual hierarchy.
 - **Board Pinning**: Users can now star/pin specific boards on their dashboard to keep them locked at the very top of their project list.

@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OfficeCore.Api.Models;
 
-public class BoardCardComment
-{
+public class BoardCardComment : ITenantEntity{
     [Key]
     public Guid Id { get; set; }
 
@@ -24,4 +23,7 @@ public class BoardCardComment
     public string Text { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

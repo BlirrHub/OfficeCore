@@ -9,8 +9,7 @@ public enum ExpenseCategory
     EquipmentPurchase
 }
 
-public class CompanyExpense
-{
+public class CompanyExpense : ITenantEntity{
     public Guid Id { get; set; }
 
     [Required]
@@ -28,4 +27,7 @@ public class CompanyExpense
     public string? ReceiptUrl { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

@@ -1,7 +1,6 @@
 namespace OfficeCore.Api.Models;
 
-public class EmployeeGovernmentRecord
-{
+public class EmployeeGovernmentRecord : ITenantEntity{
     public Guid Id { get; set; }
     
     // Foreign key to Employee
@@ -16,4 +15,7 @@ public class EmployeeGovernmentRecord
     public string? PagIbigNumber { get; set; }
     public string? PhilHealthNumber { get; set; }
     public string? TinNumber { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

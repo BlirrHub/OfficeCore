@@ -17,8 +17,7 @@ public enum AdvanceStatus
     Cancelled
 }
 
-public class AdvanceRequest
-{
+public class AdvanceRequest : ITenantEntity{
     public Guid Id { get; set; }
 
     [Required]
@@ -47,4 +46,7 @@ public class AdvanceRequest
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal? InstallmentAmount { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }

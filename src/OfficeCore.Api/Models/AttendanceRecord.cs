@@ -15,8 +15,7 @@ public enum AttendanceSource
     ManualAdjustment
 }
 
-public class AttendanceRecord
-{
+public class AttendanceRecord : ITenantEntity{
     public Guid Id { get; set; }
     
     [Required]
@@ -30,4 +29,7 @@ public class AttendanceRecord
     public AttendanceType Type { get; set; }
     
     public AttendanceSource Source { get; set; }
+
+    public Guid OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 }
