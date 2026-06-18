@@ -99,7 +99,17 @@ public class AuthController : ControllerBase
             }
         }
 
-        var titleRole = titleRoles.Any() ? string.Join(" / ", titleRoles) : null;
+        // TEMPORARY: Since we transitioned to multi-tenant and haven't built per-org roles yet,
+        // give all authenticated users access to the core modules so they don't get 403s.
+        var defaultModules = new[] 
+        { 
+            "Dashboard", "Clients", "Attendance", "Boards", "Payroll", 
+            "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", 
+            "Users", "Roles", "Organization", "Advances" 
+        };
+        moduleClaims.AddRange(defaultModules);
+
+        var titleRole = titleRoles.Any() ? string.Join(" / ", titleRoles) : "Employee";
 
         return Ok(new
         {
