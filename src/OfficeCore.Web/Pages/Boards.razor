@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "RequireBoards")]
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
 
 <PageTitle>Boards - OfficeCore</PageTitle>
 
@@ -73,12 +74,18 @@
                     <div class="relative pt-4 flex items-center justify-between border-t border-zinc-800/50">
                         <div class="flex items-center gap-2">
                             <div class="flex -space-x-2">
-                                <!-- Dummy avatars for member count representation -->
-                                @for (int i = 0; i < Math.Min(3, board.MembersCount); i++)
+                                @foreach (var avatar in board.MemberAvatars.Take(3))
                                 {
-                                    <div class="size-7 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
-                                        <svg class="size-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                    </div>
+                                    if (!string.IsNullOrEmpty(avatar))
+                                    {
+                                        <img src="@(Configuration["ApiBaseUrl"] + avatar)" class="size-7 rounded-full object-cover border-2 border-zinc-950" />
+                                    }
+                                    else
+                                    {
+                                        <div class="size-7 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                                            <svg class="size-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                        </div>
+                                    }
                                 }
                             </div>
                             @if (board.MembersCount > 3)
@@ -187,6 +194,7 @@
         public int MembersCount { get; set; }
         public bool IsStarred { get; set; }
         public DateTime CreatedAt { get; set; }
+        public List<string?> MemberAvatars { get; set; } = new();
     }
 
     public class CreateBoardRequest

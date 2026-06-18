@@ -50,8 +50,15 @@ else
                 <div class="flex -space-x-2 mr-2">
                     @foreach (var member in _board.Members.Take(5))
                     {
-                        <div class="size-8 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center group relative cursor-pointer">
-                            <span class="text-xs font-bold text-zinc-300">@(member.User.FirstName[0])</span>
+                        <div class="size-8 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center group relative cursor-pointer overflow-hidden">
+                            @if (!string.IsNullOrEmpty(member.User.ProfilePictureUrl))
+                            {
+                                <img src="@(Configuration["ApiBaseUrl"] + member.User.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                            }
+                            else
+                            {
+                                <span class="text-xs font-bold text-zinc-300">@(member.User.FirstName[0])</span>
+                            }
                             <div class="absolute bottom-full mb-2 hidden group-hover:block whitespace-nowrap bg-zinc-800 text-white text-xs px-2 py-1 rounded shadow-lg z-50">
                                 @member.User.FirstName @member.User.LastName
                             </div>
@@ -207,8 +214,15 @@ else
                                         
                                         @if (card.AssignedToUser != null)
                                         {
-                                            <div class="size-6 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center" title="@card.AssignedToUser.FirstName @card.AssignedToUser.LastName">
-                                                <span class="text-[9px] font-bold text-zinc-300">@(card.AssignedToUser.FirstName[0])</span>
+                                            <div class="size-6 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden" title="@card.AssignedToUser.FirstName @card.AssignedToUser.LastName">
+                                                @if (!string.IsNullOrEmpty(card.AssignedToUser.ProfilePictureUrl))
+                                                {
+                                                    <img src="@(Configuration["ApiBaseUrl"] + card.AssignedToUser.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-[9px] font-bold text-zinc-300">@(card.AssignedToUser.FirstName[0])</span>
+                                                }
                                             </div>
                                         }
                                     </div>
@@ -408,8 +422,15 @@ else
                                     @foreach (var comment in _editingCard.Comments)
                                     {
                                         <div class="flex gap-3">
-                                            <div class="size-8 rounded-full bg-zinc-800 border border-zinc-800 flex items-center justify-center shrink-0 mt-1">
-                                                <span class="text-xs font-bold text-zinc-300">@(comment.User.FirstName[0])</span>
+                                            <div class="size-8 rounded-full bg-zinc-800 border border-zinc-800 flex items-center justify-center shrink-0 mt-1 overflow-hidden">
+                                                @if (!string.IsNullOrEmpty(comment.User.ProfilePictureUrl))
+                                                {
+                                                    <img src="@(Configuration["ApiBaseUrl"] + comment.User.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-xs font-bold text-zinc-300">@(comment.User.FirstName[0])</span>
+                                                }
                                             </div>
                                             <div class="flex-1">
                                                 <div class="flex items-center gap-2 mb-1">
@@ -541,8 +562,15 @@ else
                         {
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="size-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                                        <span class="text-xs font-bold text-zinc-300">@(member.User.FirstName[0])</span>
+                                    <div class="size-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
+                                        @if (!string.IsNullOrEmpty(member.User.ProfilePictureUrl))
+                                        {
+                                            <img src="@(Configuration["ApiBaseUrl"] + member.User.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                        }
+                                        else
+                                        {
+                                            <span class="text-xs font-bold text-zinc-300">@(member.User.FirstName[0])</span>
+                                        }
                                     </div>
                                     <div>
                                         <p class="text-sm font-medium text-white">@member.User.FirstName @member.User.LastName</p>
@@ -1220,6 +1248,7 @@ else
         public string Id { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
+        public string? ProfilePictureUrl { get; set; }
     }
 
     public class BoardListDto

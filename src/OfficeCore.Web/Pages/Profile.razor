@@ -3,10 +3,12 @@
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager Nav
+@inject IConfiguration Configuration
+@inject IJSRuntime JS
 
 <PageTitle>My Profile - OfficeCore</PageTitle>
 
-<div class="max-w-3xl space-y-6">
+<div class="max-w-5xl space-y-6">
     <div>
         <h1 class="text-3xl font-bold tracking-tight text-white">My Profile</h1>
         <p class="mt-2 text-zinc-400">Manage your personal information and preferences.</p>
@@ -31,6 +33,7 @@
         </div>
     }
 
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
     <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-8">
         <div>
             <h2 class="text-lg font-medium text-white">Personal Information</h2>
@@ -41,7 +44,7 @@
                     <div class="relative group size-32 rounded-full overflow-hidden border-2 border-zinc-800 bg-zinc-950 flex items-center justify-center text-zinc-700">
                         @if (!string.IsNullOrEmpty(_profilePictureUrl))
                         {
-                            <img src="@_profilePictureUrl" alt="Profile" class="w-full h-full object-cover" />
+                            <img src="@(Configuration["ApiBaseUrl"] + _profilePictureUrl)" alt="Profile" class="w-full h-full object-cover" />
                         }
                         else
                         {
@@ -50,7 +53,7 @@
                         
                         <label class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                             <svg class="size-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-                            <InputFile class="hidden" OnChange="HandleProfilePictureUpload" accept="image/*" />
+                            <InputFile class="hidden" OnChange="HandleProfilePictureSelected" accept="image/*" />
                         </label>
                     </div>
                     
@@ -151,7 +154,45 @@
             </EditForm>
         </div>
     </div>
+    </div>
 </div>
+
+@if (_showCropModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white">Crop Image</h3>
+                <button @onclick="CancelCrop" class="text-zinc-400 hover:text-white transition-colors">
+                    <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="p-4 flex-1 overflow-hidden flex items-center justify-center bg-black min-h-[300px]">
+                @if (!string.IsNullOrEmpty(_unzoomedImageUrl))
+                {
+                    <img @ref="_cropImageRef" src="@_unzoomedImageUrl" class="max-w-full max-h-full block" />
+                }
+            </div>
+
+            <div class="p-4 border-t border-zinc-800 flex justify-end gap-3 bg-zinc-950">
+                <button type="button" @onclick="CancelCrop" class="px-4 py-2 text-sm font-semibold text-zinc-300 hover:text-white transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="SaveCrop" disabled="@_isUploadingImage" class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
+                    @if (_isUploadingImage)
+                    {
+                        <span>Uploading...</span>
+                    }
+                    else
+                    {
+                        <span>Save & Upload</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private bool _mustChangePassword = false;
@@ -166,6 +207,10 @@
     private string? _passwordError;
     private string? _passwordSuccess;
 
+    private bool _showCropModal = false;
+    private string? _unzoomedImageUrl;
+    private ElementReference _cropImageRef;
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthProvider.GetAuthenticationStateAsync();
@@ -178,18 +223,55 @@
         _profilePictureUrl = user.FindFirst("ProfilePictureUrl")?.Value;
     }
 
-    private async Task HandleProfilePictureUpload(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)
+    private async Task HandleProfilePictureSelected(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)
     {
         if (e.File == null) return;
         
+        try
+        {
+            var format = e.File.ContentType;
+            var resizedImageFile = await e.File.RequestImageFileAsync(format, 800, 800);
+            var buffer = new byte[resizedImageFile.Size];
+            await resizedImageFile.OpenReadStream(10 * 1024 * 1024).ReadAsync(buffer);
+            var base64 = Convert.ToBase64String(buffer);
+            _unzoomedImageUrl = $"data:{format};base64,{base64}";
+            _showCropModal = true;
+            StateHasChanged();
+            
+            // Give the DOM a moment to render the img tag, then init cropper
+            await Task.Delay(100);
+            await JS.InvokeVoidAsync("cropperInterop.init", _cropImageRef);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reading image: {ex.Message}");
+        }
+    }
+
+    private async Task CancelCrop()
+    {
+        _showCropModal = false;
+        _unzoomedImageUrl = null;
+        await JS.InvokeVoidAsync("cropperInterop.destroy");
+    }
+
+    private async Task SaveCrop()
+    {
         _isUploadingImage = true;
         
         try
         {
+            var croppedDataUrl = await JS.InvokeAsync<string>("cropperInterop.getCroppedCanvasData");
+            if (string.IsNullOrEmpty(croppedDataUrl)) return;
+            
+            // Extract base64
+            var base64Data = croppedDataUrl.Substring(croppedDataUrl.IndexOf(",") + 1);
+            var bytes = Convert.FromBase64String(base64Data);
+
             using var content = new MultipartFormDataContent();
-            var fileContent = new StreamContent(e.File.OpenReadStream(10 * 1024 * 1024)); // max 10mb
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(e.File.ContentType);
-            content.Add(fileContent, "file", e.File.Name);
+            var fileContent = new ByteArrayContent(bytes);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+            content.Add(fileContent, "file", "profile.jpg");
             
             var response = await Http.PostAsync("/api/auth/profile-picture", content);
             if (response.IsSuccessStatusCode)
@@ -203,6 +285,8 @@
                     {
                         cookieAuth.NotifyAuthStateChanged();
                     }
+                    
+                    await CancelCrop();
                 }
             }
         }

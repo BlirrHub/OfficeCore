@@ -206,7 +206,7 @@
             <a href="/profile" class="@($"mb-4 bg-zinc-900/40 rounded-xl border border-zinc-800/80 flex items-center shadow-inner hover:bg-zinc-900 transition-colors {(IsCollapsed ? "justify-center p-2" : "gap-3 p-3")}")">
                 @if (!string.IsNullOrEmpty(profilePictureUrl))
                 {
-                    <img src="@profilePictureUrl" alt="Profile" class="size-9 rounded-full object-cover border border-fuchsia-900/50 shrink-0" />
+                    <img src="@(Configuration["ApiBaseUrl"] + profilePictureUrl)" alt="Profile" class="size-9 rounded-full object-cover border border-fuchsia-900/50 shrink-0" />
                 }
                 else
                 {
@@ -232,6 +232,7 @@
 
 @inject HttpClient Http
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 @inject AuthenticationStateProvider AuthProvider
 
 @code {
