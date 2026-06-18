@@ -146,13 +146,25 @@ else
                                     }
                                     
                                     <div class="flex items-center justify-between mt-3">
-                                        <div class="flex gap-2">
+                                        <div class="flex flex-wrap items-center gap-2">
                                             @if (card.DueDate.HasValue)
                                             {
-                                                var isOverdue = card.DueDate.Value < DateTime.UtcNow && list.Name.ToLower() != "done";
-                                                <div class="flex items-center gap-1 @(isOverdue ? "text-red-400 bg-red-400/10" : "text-zinc-500 bg-zinc-900") px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                                var isOverdue = card.DueDate.Value.Date < DateTime.UtcNow.Date && list.Name.ToLower() != "done";
+                                                var isDueSoon = card.DueDate.Value.Date == DateTime.UtcNow.Date && list.Name.ToLower() != "done";
+                                                var dueColor = isOverdue ? "text-red-400 bg-red-400/10 border border-red-500/20" : 
+                                                               isDueSoon ? "text-amber-400 bg-amber-400/10 border border-amber-500/20" : 
+                                                               "text-zinc-400 bg-zinc-800/50 border border-zinc-700/50";
+                                                
+                                                <div class="flex items-center gap-1 @dueColor px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide">
                                                     <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                     @card.DueDate.Value.ToString("MMM dd")
+                                                </div>
+                                            }
+
+                                            @if (!string.IsNullOrEmpty(card.Description))
+                                            {
+                                                <div class="flex items-center gap-1 text-zinc-500 text-[10px] font-medium" title="This card has a description">
+                                                    <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>
                                                 </div>
                                             }
                                             
@@ -245,8 +257,11 @@ else
                 </button>
             </div>
             
-            <div class="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4">
-                <div>
+            <div class="p-6 overflow-y-auto custom-scrollbar flex flex-col md:flex-row gap-8">
+                
+                <!-- Main Content (Left) -->
+                <div class="flex-1 space-y-6">
+                    <div>
                     <label class="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Title</label>
                     <input type="text" @bind="_cardModel.Title" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" autofocus />
                 </div>
@@ -256,32 +271,9 @@ else
                     <textarea @bind="_cardModel.Description" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none resize-none"></textarea>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Assign To</label>
-                        <select @bind="_cardModel.AssignedToUserId" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none appearance-none">
-                            <option value="">Unassigned</option>
-                            @if (_board != null)
-                            {
-                                @foreach (var member in _board.Members)
-                                {
-                                    <option value="@member.User.Id">@member.User.FirstName @member.User.LastName</option>
-                                }
-                            }
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Due Date</label>
-                        <input type="date" @bind="_cardModel.DueDate" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none [color-scheme:dark]" />
-                    </div>
-                </div>
-
                 @if (_editingCard != null)
                 {
-                    <div class="border-t border-zinc-800/50 pt-6 mt-2 grid grid-cols-1 md:grid-cols-3 gap-8">
-                        
-                        <!-- Left Column (Checklists, Attachments, Comments) -->
-                        <div class="md:col-span-2 space-y-8">
+                    <div class="border-t border-zinc-800/50 pt-6 mt-2 space-y-8">
                             
                             <!-- Checklists -->
                             <div class="space-y-4">
@@ -414,12 +406,36 @@ else
                                     }
                                 </div>
                             </div>
-                            
                         </div>
+                    }
+                </div>
 
-                        <!-- Right Column (Labels) -->
-                        <div class="space-y-4 md:border-l border-zinc-800/50 md:pl-8 pt-6 md:pt-0 border-t md:border-t-0">
-                            <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Card Labels</h4>
+                <!-- Sidebar (Right) -->
+                <div class="w-full md:w-64 shrink-0 space-y-6">
+                    <div class="bg-zinc-950/50 border border-zinc-800/80 p-4 rounded-xl space-y-4 shadow-sm">
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Assign To</label>
+                            <select @bind="_cardModel.AssignedToUserId" class="w-full bg-zinc-900 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none appearance-none cursor-pointer transition-colors">
+                                <option value="">Unassigned</option>
+                                @if (_board != null)
+                                {
+                                    @foreach (var member in _board.Members)
+                                    {
+                                        <option value="@member.User.Id">@member.User.FirstName @member.User.LastName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Due Date</label>
+                            <input type="date" @bind="_cardModel.DueDate" class="w-full bg-zinc-900 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none cursor-pointer transition-colors [color-scheme:dark]" />
+                        </div>
+                    </div>
+
+                    @if (_editingCard != null)
+                    {
+                        <div class="bg-zinc-950/50 border border-zinc-800/80 p-4 rounded-xl space-y-4 shadow-sm">
+                            <h4 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Card Labels</h4>
                             
                             @if (_board != null && _board.Labels.Any())
                             {
@@ -451,8 +467,8 @@ else
                                 <p class="text-[10px] text-zinc-600 mt-2">Board owners can add labels via API or later versions of this UI.</p>
                             }
                         </div>
-                    </div>
-                }
+                    }
+                </div>
             </div>
             
             <div class="px-6 py-4 border-t border-zinc-800 flex justify-end gap-2 bg-zinc-900 shrink-0">
