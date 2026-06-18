@@ -109,9 +109,10 @@ else
                         <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
                             @foreach (var card in list.Cards.OrderBy(c => c.OrderIndex))
                             {
-                                <div @key="card.Id" class="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 cursor-grab hover:border-fuchsia-500/50 hover:shadow-lg hover:shadow-fuchsia-900/10 transition-all group active:cursor-grabbing"
-                                     draggable="true"
+                                <div @key="card.Id" class="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 @(_isViewer ? "cursor-pointer" : "cursor-grab active:cursor-grabbing") hover:border-fuchsia-500/50 hover:shadow-lg hover:shadow-fuchsia-900/10 transition-all group"
+                                     draggable="@(_isViewer ? "false" : "true")"
                                      @ondragstart="() => HandleDragStart(card)"
+                                     @ondragstart:stopPropagation="true"
                                      @onclick="() => EditCard(card)">
                                     
                                     @if (card.Labels.Any())
@@ -192,11 +193,14 @@ else
                                 </div>
                             }
 
-                            <!-- Add Card Button inside List -->
-                            <button @onclick="() => ShowAddCardModal(list.Id)" class="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors border border-dashed border-zinc-700 hover:border-zinc-600">
-                                <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                Add Card
-                            </button>
+                            @if (!_isViewer)
+                            {
+                                <!-- Add Card Button inside List -->
+                                <button @onclick="() => ShowAddCardModal(list.Id)" class="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors border border-dashed border-zinc-700 hover:border-zinc-600">
+                                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                    Add Card
+                                </button>
+                            }
                         </div>
                     </div>
                 }

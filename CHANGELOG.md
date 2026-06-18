@@ -4,12 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- **Board Manual Refresh**: Added a manual "Refresh" button to the Boards index page to load newly assigned boards without requiring a full browser tab reload.
 - **Boards Module (Kanban)**: Implemented a robust Trello-style Kanban board system featuring native HTML5 drag-and-drop for sorting lists and moving cards across lists.
 - **Role-Based Board Access**: Introduced Board-level roles (Owner, Member, Viewer). Owners can fully manage lists, cards, and members; Members can add/edit cards; Viewers have read-only access.
 - **Board Deletion**: Board Owners can permanently delete entire project boards directly from the UI.
 - **Add Card / Add List**: Fully functional interface to quickly create new categorized workflow lists and individual task cards.
 
 ### Fixed
+- **Kanban Event Bubbling**: Fixed an issue where dragging an individual card would improperly bubble up and trigger the drag event for the entire parent List.
+- **Viewer Role Enforcement**: Hid the "Add Card" button and functionally disabled card dragging capabilities for board Viewers to ensure strictly read-only access.
 - **Board Member Role Serialization**: Fixed a bug where assigning "Viewer" or "Member" roles to a new user inadvertently elevated their permissions to "Owner".
 - **Board Flash/Flicker**: Implemented smart debouncing for SignalR updates to completely eliminate UI flashing for the person actively dragging/dropping cards.
 - **Is Employee Toggle**: Added an `IsEmployee` toggle to User Management. Users with this disabled (like administrative accounts) are safely excluded from the payroll computation engine, and payroll-related form fields are dynamically hidden.
