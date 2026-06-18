@@ -52,7 +52,7 @@ public class PayrollComputationService : IPayrollComputationService
             .ToListAsync();
 
         var allActiveAdvances = await _context.AdvanceRequests
-            .Where(ar => ar.Status == AdvanceStatus.Approved && ar.RemainingBalance > 0)
+            .Where(ar => ar.Status == AdvanceStatus.Approved && (ar.RemainingBalance == null || ar.RemainingBalance > 0))
             .ToListAsync();
 
         foreach (var emp in employees)
@@ -181,7 +181,17 @@ public class PayrollComputationService : IPayrollComputationService
             decimal advancesDeduction = 0;
             foreach (var advance in activeAdvances)
             {
-                decimal deduction = (advance.InstallmentAmount ?? 0m) / 2m;
+                decimal deduction = 0m;
+                if (advance.Type == AdvanceType.ELoan)
+                {
+                    deduction = (advance.InstallmentAmount ?? 0m) / 2m;
+                }
+                else
+                {
+                    // Cash Advance: deduct the entire remaining balance
+                    deduction = advance.RemainingBalance ?? advance.RequestedAmount;
+                }
+                
                 if (deduction > advance.RemainingBalance) deduction = advance.RemainingBalance ?? 0m;
                 advancesDeduction += deduction;
             }

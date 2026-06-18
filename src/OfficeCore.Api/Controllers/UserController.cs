@@ -166,6 +166,20 @@ public class UserController : ControllerBase
         var roles = await _userManager.GetRolesAsync(user);
         return Ok(roles);
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteUser(string id)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null)
+            return NotFound();
+
+        var result = await _userManager.DeleteAsync(user);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return Ok(new { message = "User deleted successfully" });
+    }
 }
 
 public class CreateUserRequest

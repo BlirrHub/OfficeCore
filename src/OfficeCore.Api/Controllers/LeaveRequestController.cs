@@ -90,8 +90,8 @@ public class LeaveRequestController : ControllerBase
         {
             EmployeeId = userId,
             Type = request.Type,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
+            StartDate = request.StartDate.ToUniversalTime(),
+            EndDate = request.EndDate.ToUniversalTime(),
             Reason = request.Reason,
             AttachmentPath = attachmentPath,
             Status = LeaveRequestStatus.Pending,
@@ -116,6 +116,49 @@ public class LeaveRequestController : ControllerBase
 
         return Ok(new { message = "Status updated successfully" });
     }
+
+    [HttpPost("admin-create")]
+    [Authorize(Roles = "Admin,HR")]
+    public async Task<IActionResult> AdminCreateRequest(AdminCreateLeaveRequestDto request)
+    {
+        var leaveRequest = new LeaveRequest
+        {
+            EmployeeId = request.EmployeeId,
+            Type = request.Type,
+            StartDate = request.StartDate.ToUniversalTime(),
+            EndDate = request.EndDate.ToUniversalTime(),
+            Reason = request.Reason,
+            Status = LeaveRequestStatus.Approved,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.LeaveRequests.Add(leaveRequest);
+        await _context.SaveChangesAsync();
+
+        return Ok(leaveRequest);
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,HR")]
+    public async Task<IActionResult> DeleteRequest(Guid id)
+    {
+        var leaveRequest = await _context.LeaveRequests.FindAsync(id);
+        if (leaveRequest == null) return NotFound();
+
+        _context.LeaveRequests.Remove(leaveRequest);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Leave request deleted successfully" });
+    }
+}
+
+public class AdminCreateLeaveRequestDto
+{
+    public string EmployeeId { get; set; } = string.Empty;
+    public LeaveType Type { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public string Reason { get; set; } = string.Empty;
 }
 
 public class CreateLeaveRequestDto

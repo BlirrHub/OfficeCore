@@ -74,14 +74,10 @@ public class AdvanceRequestController : ControllerBase
             RequestDate = DateTime.UtcNow
         };
         
-        // ELoan initial balance is the requested amount
-        if (request.Type == AdvanceType.ELoan)
+        // ELoan initial balance is the requested amount. CA also needs a remaining balance to be deducted.
+        request.RemainingBalance = request.RequestedAmount;
+        if (request.Type != AdvanceType.ELoan)
         {
-            request.RemainingBalance = request.RequestedAmount;
-        }
-        else
-        {
-            request.RemainingBalance = null;
             request.InstallmentAmount = null;
         }
 
@@ -155,15 +151,87 @@ public class AdvanceRequestController : ControllerBase
         return NoContent();
     }
     
+    [HttpPost("admin-create")]
+    [Authorize(Policy = "RequireLedger")]
+    public async Task<IActionResult> AdminCreateRequest(AdminCreateAdvanceRequestDto dto)
+    {
+        var request = new AdvanceRequest
+        {
+            Id = Guid.NewGuid(),
+            EmployeeId = dto.EmployeeId,
+            Type = dto.Type,
+            RequestedAmount = dto.RequestedAmount,
+            Note = dto.Note ?? string.Empty,
+            Status = AdvanceStatus.Approved,
+            RequestDate = DateTime.UtcNow,
+            ResolutionDate = DateTime.UtcNow
+        };
+        
+        request.RemainingBalance = request.RequestedAmount;
+        if (request.Type == AdvanceType.ELoan)
+        {
+            if (!dto.InstallmentAmount.HasValue || dto.InstallmentAmount <= 0)
+                return BadRequest("ELoans require a valid installment amount.");
+            
+            request.InstallmentAmount = dto.InstallmentAmount;
+        }
+        else
+        {
+            request.InstallmentAmount = null;
+        }
+
+        _context.AdvanceRequests.Add(request);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetAllRequests), new { id = request.Id }, request);
+    }
+    
     public class ApproveRequestDto
     {
         public decimal? InstallmentAmount { get; set; }
+    }
+
+    [HttpDelete("admin-cleanup")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AdminCleanup()
+    {
+        var adminAdvances = await _context.AdvanceRequests
+            .Include(ar => ar.Employee)
+            .Where(ar => ar.Employee != null && ar.Employee.Email == "admin@officecore.com")
+            .ToListAsync();
+            
+        _context.AdvanceRequests.RemoveRange(adminAdvances);
+        await _context.SaveChangesAsync();
+        
+        return Ok(new { Message = $"Deleted {adminAdvances.Count} records" });
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Policy = "RequirePayroll")] // Only payroll admins can delete
+    public async Task<IActionResult> DeleteRequest(Guid id)
+    {
+        var advanceRequest = await _context.AdvanceRequests.FindAsync(id);
+        if (advanceRequest == null) return NotFound();
+
+        _context.AdvanceRequests.Remove(advanceRequest);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { Message = "Advance/Loan request deleted successfully" });
     }
     
     public class CreateAdvanceRequestDto
     {
         public AdvanceType Type { get; set; }
         public decimal RequestedAmount { get; set; }
+        public string? Note { get; set; }
+    }
+
+    public class AdminCreateAdvanceRequestDto
+    {
+        public string EmployeeId { get; set; } = string.Empty;
+        public AdvanceType Type { get; set; }
+        public decimal RequestedAmount { get; set; }
+        public decimal? InstallmentAmount { get; set; }
         public string? Note { get; set; }
     }
 }

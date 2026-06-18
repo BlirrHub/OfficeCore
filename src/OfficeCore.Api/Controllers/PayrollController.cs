@@ -152,7 +152,7 @@ public class PayrollController : ControllerBase
         foreach (var payslip in payslips)
         {
             var activeAdvances = await _context.AdvanceRequests
-                .Where(ar => ar.EmployeeId == payslip.EmployeeId && ar.Status == AdvanceStatus.Approved && ar.RemainingBalance > 0)
+                .Where(ar => ar.EmployeeId == payslip.EmployeeId && ar.Status == AdvanceStatus.Approved && (ar.RemainingBalance == null || ar.RemainingBalance > 0))
                 .ToListAsync();
 
             decimal deductionToApply = payslip.AdvancesDeduction;
@@ -160,7 +160,16 @@ public class PayrollController : ControllerBase
             {
                 if (deductionToApply <= 0) break;
                 
-                decimal deduction = (advance.InstallmentAmount ?? 0m) / 2m; // Assuming 1 cutoff deduction
+                decimal deduction = 0m;
+                if (advance.Type == AdvanceType.ELoan)
+                {
+                    deduction = (advance.InstallmentAmount ?? 0m) / 2m; // Assuming 1 cutoff deduction
+                }
+                else
+                {
+                    deduction = advance.RemainingBalance ?? advance.RequestedAmount;
+                }
+                
                 if (deduction > advance.RemainingBalance) deduction = advance.RemainingBalance ?? 0m;
                 
                 if (deduction > deductionToApply) deduction = deductionToApply;

@@ -48,7 +48,11 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
 
 builder.Services.AddAuthorization(options =>
 {
-    var modules = new[] { "Dashboard", "Clients", "Attendance", "Tasks", "Payroll", "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", "Users", "Roles", "Organization", "Advances" };
+    var modules = new[] { 
+        "Dashboard", "Clients", "Attendance", "Tasks", "MyLeaves",
+        "Advances", "Ledger", "Payroll", "Invoices",
+        "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization" 
+    };
     foreach (var module in modules)
     {
         options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));

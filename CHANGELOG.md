@@ -73,3 +73,10 @@ All notable changes to this project will be documented in this file.
 - Built Clients and Invoices tracking modules
 - Prepared base schema for Payroll Generation
 
+
+### Updates
+- Added Advances, My Leaves, and Leave Approvals as configurable Role modules.
+- Grouped Role modules by category in Edit Role dialog.
+- Implemented dynamic Sidebar rendering to hide empty categories based on user module access.
+- Fixed UTC storage issues for Leave Requests and Attendance records.
+- Added Delete capability to Leave Approvals and Attendance log for development purposes.

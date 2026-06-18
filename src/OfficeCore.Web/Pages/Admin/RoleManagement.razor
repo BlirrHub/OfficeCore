@@ -100,16 +100,24 @@
 
             <div>
                 <label class="block text-xs font-medium text-zinc-400 mb-2">Module Access</label>
-                <div class="grid grid-cols-2 gap-2">
-                    @foreach (var module in AllModules)
+                <div class="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+                    @foreach (var category in ModuleCategories)
                     {
-                        var sel = _selectedModules.Contains(module);
-                        <button type="button"
-                                @onclick="() => ToggleModule(module)"
-                                class="@($"flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-left transition-all {(sel ? "bg-fuchsia-600/20 text-fuchsia-300 ring-1 ring-fuchsia-500/40" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800")}")">
-                            <span class="@($"size-2 rounded-full shrink-0 {(sel ? "bg-fuchsia-400" : "bg-zinc-600")}")"></span>
-                            @module
-                        </button>
+                        <div>
+                            <p class="text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-2">@category.Key</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach (var module in category.Value)
+                                {
+                                    var sel = _selectedModules.Contains(module);
+                                    <button type="button"
+                                            @onclick="() => ToggleModule(module)"
+                                            class="@($"flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-left transition-all {(sel ? "bg-fuchsia-600/20 text-fuchsia-300 ring-1 ring-fuchsia-500/40" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800")}")">
+                                        <span class="@($"size-2 rounded-full shrink-0 {(sel ? "bg-fuchsia-400" : "bg-zinc-600")}")"></span>
+                                        @module
+                                    </button>
+                                }
+                            </div>
+                        </div>
                     }
                 </div>
             </div>
@@ -141,13 +149,12 @@
 }
 
 @code {
-    private static readonly string[] AllModules =
-    [
-        "Dashboard", "Clients", "Attendance", "Tasks",
-        "Payroll", "Invoices", "Ledger",
-        "WorkSchedules", "TimeOff", "Locations",
-        "Users", "Roles", "Organization"
-    ];
+    private static readonly Dictionary<string, string[]> ModuleCategories = new()
+    {
+        { "Main", ["Dashboard", "Clients", "Attendance", "Tasks", "MyLeaves"] },
+        { "Finance", ["Advances", "Ledger", "Payroll", "Invoices"] },
+        { "Administration", ["Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization"] }
+    };
 
     private List<RoleDto>? _roles;
     private Dictionary<string, List<string>> _roleModules = new();

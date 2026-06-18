@@ -48,6 +48,10 @@
                     <option value="0">Sick Leave</option>
                     <option value="1">Vacation Leave</option>
                 </select>
+                <button @onclick="() => _isCreatingLeave = true" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
+                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    Create Leave
+                </button>
             </div>
         </div>
 
@@ -139,9 +143,14 @@
                                         }
                                     </td>
                                     <td class="px-6 py-4 text-right">
-                                        <button @onclick:stopPropagation="true" @onclick="() => SelectRequest(request)" class="text-fuchsia-400 hover:text-fuchsia-300 font-medium text-xs">
-                                            View Details
-                                        </button>
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button @onclick:stopPropagation="true" @onclick="() => SelectRequest(request)" class="text-fuchsia-400 hover:text-fuchsia-300 font-medium text-xs">
+                                                View Details
+                                            </button>
+                                            <button @onclick:stopPropagation="true" @onclick="() => ConfirmDelete(request)" class="text-red-400 hover:text-red-300 font-medium text-xs">
+                                                Delete
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -268,6 +277,98 @@
     </div>
 }
 
+@if (_isCreatingLeave)
+{
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-xl shadow-2xl relative overflow-hidden">
+            <div class="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
+                <h3 class="text-xl font-bold text-white tracking-wide uppercase">Create Leave</h3>
+                <button @onclick="() => _isCreatingLeave = false" class="text-zinc-500 hover:text-white transition-colors">
+                    <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-6">
+                @if (_employees == null)
+                {
+                    <div class="text-zinc-500 text-sm">Loading employees...</div>
+                }
+                else
+                {
+                    <EditForm Model="_newLeave" OnValidSubmit="SubmitAdminCreateLeave">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-zinc-400 mb-1">Employee</label>
+                                <InputSelect @bind-Value="_newLeave.EmployeeId" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none">
+                                    <option value="">-- Select Employee --</option>
+                                    @foreach (var emp in _employees)
+                                    {
+                                        <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-zinc-400 mb-1">Leave Type</label>
+                                    <InputSelect @bind-Value="_newLeave.Type" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none">
+                                        <option value="0">Sick Leave</option>
+                                        <option value="1">Vacation Leave</option>
+                                    </InputSelect>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-zinc-400 mb-1">Start Date</label>
+                                    <InputDate @bind-Value="_newLeave.StartDate" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none" />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-zinc-400 mb-1">End Date</label>
+                                    <InputDate @bind-Value="_newLeave.EndDate" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none" />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-zinc-400 mb-1">Reason</label>
+                                <InputTextArea @bind-Value="_newLeave.Reason" rows="3" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none" placeholder="Reason for leave..." />
+                            </div>
+                        </div>
+
+                        <div class="mt-8 flex justify-end gap-3 border-t border-zinc-800 pt-6">
+                            <button type="button" @onclick="() => _isCreatingLeave = false" class="px-5 py-2.5 text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 rounded-lg transition-colors">Cancel</button>
+                            <button type="submit" class="px-5 py-2.5 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">Create & Approve</button>
+                        </div>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if (_requestToDelete != null)
+{
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl relative overflow-hidden">
+            <div class="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
+                <h3 class="text-xl font-bold text-white tracking-wide uppercase">Delete Leave</h3>
+                <button @onclick="() => _requestToDelete = null" class="text-zinc-500 hover:text-white transition-colors">
+                    <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6">
+                <p class="text-zinc-400">Are you sure you want to delete this leave request for <span class="text-white font-medium">@_requestToDelete.EmployeeName</span>?</p>
+                <div class="flex justify-end gap-3 pt-4 border-t border-zinc-800">
+                    <button type="button" @onclick="() => _requestToDelete = null" class="px-5 py-2.5 rounded-lg text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">Cancel</button>
+                    <button type="button" @onclick="DeleteRequest" class="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<LeaveRequestAdminDto>? _requests;
     private string _searchQuery = "";
@@ -277,9 +378,40 @@
     private LeaveRequestAdminDto? _selectedRequest;
     private bool _isUpdating = false;
 
+    // Admin Create State
+    private bool _isCreatingLeave = false;
+    private AdminCreateLeaveRequestDto _newLeave = new() { StartDate = DateTime.Today, EndDate = DateTime.Today };
+    private List<EmployeeDto>? _employees;
+    
+    // Delete State
+    private LeaveRequestAdminDto? _requestToDelete;
+
+    private void ConfirmDelete(LeaveRequestAdminDto request)
+    {
+        _requestToDelete = request;
+    }
+
+    private async Task DeleteRequest()
+    {
+        if (_requestToDelete == null) return;
+        var response = await Http.DeleteAsync($"/api/leaverequest/{_requestToDelete.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            _requestToDelete = null;
+            await LoadRequests();
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadRequests();
+        await LoadEmployees();
+    }
+
+    private async Task LoadEmployees()
+    {
+        _employees = await Http.GetFromJsonAsync<List<EmployeeDto>>("/api/user");
+        _employees = _employees?.Where(e => e.IsActive && e.IsEmployee).ToList() ?? new List<EmployeeDto>();
     }
 
     private async Task LoadRequests()
@@ -310,6 +442,19 @@
         }
     }
 
+    private async Task SubmitAdminCreateLeave()
+    {
+        if (string.IsNullOrWhiteSpace(_newLeave.EmployeeId) || string.IsNullOrWhiteSpace(_newLeave.Reason)) return;
+        
+        var response = await Http.PostAsJsonAsync("/api/leaverequest/admin-create", _newLeave);
+        if (response.IsSuccessStatusCode)
+        {
+            _isCreatingLeave = false;
+            _newLeave = new() { StartDate = DateTime.Today, EndDate = DateTime.Today };
+            await LoadRequests();
+        }
+    }
+
     private class LeaveRequestAdminDto
     {
         public Guid Id { get; set; }
@@ -322,5 +467,25 @@
         public string? AttachmentPath { get; set; }
         public int Status { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+    
+    public class AdminCreateLeaveRequestDto
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string EmployeeId { get; set; } = string.Empty;
+        public int Type { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public class EmployeeDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public bool IsEmployee { get; set; }
     }
 }

@@ -101,4 +101,43 @@ public class AttendanceController : ControllerBase
         
         return Ok(new { message = "Fingerprint mapping deleted." });
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteAttendanceRecord(Guid id)
+    {
+        var record = await _context.AttendanceRecords.FindAsync(id);
+        if (record == null) return NotFound();
+
+        _context.AttendanceRecords.Remove(record);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Attendance record deleted." });
+    }
+
+    [HttpPost("admin-create")]
+    public async Task<IActionResult> AdminCreateAttendanceRecord([FromBody] AdminCreateAttendanceDto dto)
+    {
+        var employee = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.EmployeeId);
+        if (employee == null) return BadRequest("Employee not found");
+
+        var record = new AttendanceRecord
+        {
+            EmployeeId = dto.EmployeeId,
+            Timestamp = new DateTimeOffset(DateTime.SpecifyKind(dto.Timestamp, DateTimeKind.Local)).ToUniversalTime(),
+            Type = dto.Type,
+            Source = AttendanceSource.ManualAdjustment
+        };
+
+        _context.AttendanceRecords.Add(record);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Attendance record created." });
+    }
+}
+
+public class AdminCreateAttendanceDto
+{
+    public required string EmployeeId { get; set; }
+    public DateTime Timestamp { get; set; }
+    public AttendanceType Type { get; set; }
 }
