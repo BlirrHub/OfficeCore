@@ -12,7 +12,49 @@
     <!-- Main content -->
     <div class="flex flex-col flex-1 overflow-hidden">
         <!-- Top bar -->
-        <header class="flex items-center justify-end h-14 px-6 bg-zinc-950 border-b border-zinc-900 shrink-0">
+        <header class="flex items-center justify-between h-14 px-6 bg-zinc-950 border-b border-zinc-900 shrink-0">
+            <!-- Organization Switcher -->
+            <div class="relative">
+                <button @onclick="() => _isOrgDropdownOpen = !_isOrgDropdownOpen" class="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors">
+                    <div class="size-6 rounded bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold">
+                        OC
+                    </div>
+                    <span class="text-sm font-medium text-zinc-300">Switch Workspace</span>
+                    <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                
+                @if (_isOrgDropdownOpen)
+                {
+                    <div class="absolute top-full left-0 mt-2 w-56 rounded-xl bg-zinc-900 border border-zinc-800 shadow-xl overflow-hidden z-50 py-1">
+                        @if (_organizations == null)
+                        {
+                            <div class="px-4 py-3 text-sm text-zinc-500 text-center">Loading...</div>
+                        }
+                        else if (_organizations.Count == 0)
+                        {
+                            <div class="px-4 py-3 text-sm text-zinc-500 text-center">No other workspaces</div>
+                        }
+                        else
+                        {
+                            @foreach (var org in _organizations)
+                            {
+                                <button @onclick="() => SelectOrganization(org.Id)" class="w-full text-left px-4 py-2.5 text-sm text-zinc-300 hover:text-white hover:bg-fuchsia-600/10 hover:border-l-2 hover:border-fuchsia-500 transition-all flex items-center gap-3">
+                                    <div class="size-5 rounded bg-zinc-800 flex items-center justify-center text-[8px] font-bold">
+                                        @GetInitials(org.Name)
+                                    </div>
+                                    <span class="truncate">@org.Name</span>
+                                </button>
+                            }
+                        }
+                        <div class="border-t border-zinc-800 mt-1 pt-1">
+                            <a href="/workspaces" class="block px-4 py-2 text-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">
+                                View all workspaces
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+
             <div class="flex items-center gap-4">
                 <button class="relative text-zinc-400 hover:text-fuchsia-400 transition-colors p-2 rounded-full hover:bg-zinc-900">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
@@ -31,15 +73,54 @@
 
 @code {
     private bool _isSidebarCollapsed = false;
+    private bool _isOrgDropdownOpen = false;
+    private List<OrganizationDto>? _organizations;
+
+    [Inject] private HttpClient Http { get; set; } = default!;
+    [Inject] private Auth.CookieAuthStateProvider CookieAuthProvider { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
         Nav.LocationChanged += OnLocationChanged;
         await CheckPasswordResetGuard();
+        await LoadOrganizations();
+    }
+
+    private async Task LoadOrganizations()
+    {
+        try
+        {
+            _organizations = await Http.GetFromJsonAsync<List<OrganizationDto>>("/api/organizations/my");
+        }
+        catch
+        {
+            _organizations = new List<OrganizationDto>();
+        }
+    }
+
+    private async Task SelectOrganization(Guid orgId)
+    {
+        _isOrgDropdownOpen = false;
+        var response = await Http.PostAsJsonAsync($"/api/organizations/{orgId}/select", new { });
+        if (response.IsSuccessStatusCode)
+        {
+            CookieAuthProvider.NotifyAuthStateChanged();
+            Nav.NavigateTo(Nav.Uri, forceLoad: true);
+        }
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "OC";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Substring(0, Math.Min(2, name.Length)).ToUpper();
     }
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
+        _isOrgDropdownOpen = false;
+        StateHasChanged();
         _ = CheckPasswordResetGuard();
     }
 
@@ -48,10 +129,17 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var mustChangeClaim = authState.User.FindFirst("MustChangePassword")?.Value;
         
-        if (mustChangeClaim == "True" && !Nav.Uri.EndsWith("/profile", StringComparison.OrdinalIgnoreCase))
+        if (mustChangeClaim == "true" && !Nav.Uri.EndsWith("/change-password"))
         {
-            Nav.NavigateTo("/profile");
+            Nav.NavigateTo("/change-password");
         }
+    }
+
+    private class OrganizationDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public DateTime JoinedAt { get; set; }
     }
 
     private void ToggleSidebar()

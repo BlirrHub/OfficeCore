@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+### Added
+- **Landing Page**: Implemented a modern landing page in `Home.razor` with a Hero section, Features list, and Call-to-Action.
+- **Workspaces Dashboard**: Created `/workspaces` page for organization selection. Users land here after logging in or signing up.
+- **SignUp Page**: Created a new registration flow to capture `FirstName`, `LastName`, `Email`, and `Password`. Users are now signed in automatically and redirected to their workspaces.
+- **Organization Switcher**: Added a dropdown in the `MainLayout.razor` top bar to seamlessly switch between different active organizations.
+- **Organizations API**: Implemented `/api/organizations/my`, `/api/organizations`, and `/api/organizations/{id}/select` to manage the multi-tenant scope and context.
+
+### Changed
+- Refactored `Home.razor` into `Dashboard.razor` mapping it to `/dashboard`.
+- Redesigned `Login.razor` with a more modern UI and linked to the new SignUp page and Google Auth placeholder.
+- Updated `AuthController` to include the `/register` endpoint and sign-in functionality upon registration.
+- Added `ActiveOrganizationId` persistence via cookies on the backend when an organization is selected.
 ### Added
 - **Multi-Tenant Architecture Refactoring**: Refactored the core database schema to support Organizations/Companies. Transitioned `IdentityUser` to a global `ApplicationUser` and created a new junction `Employee` model. All entities in the system now implement `ITenantEntity` and include `OrganizationId` to isolate data between tenants.
 - **Global Chat System**: Added a real-time Chat System with a global floating Chat Bubble, supporting direct 1-on-1 messaging, unread badges, typing indicators, and instant real-time message delivery via SignalR.

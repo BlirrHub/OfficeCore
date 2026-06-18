@@ -37,6 +37,32 @@ public class AuthController : ControllerBase
         return Unauthorized(new { message = "Invalid login attempt." });
     }
 
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        if (existingUser != null)
+            return BadRequest("User already exists.");
+
+        var user = new ApplicationUser
+        {
+            UserName = request.Email,
+            Email = request.Email,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            MustChangePassword = false // It's their own password, so they don't need to change it on first login
+        };
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+            return BadRequest(string.Join(", ", result.Errors.Select(e => e.Description)));
+
+        // Sign the user in immediately after registration
+        await _signInManager.SignInAsync(user, isPersistent: false);
+
+        return Ok(new { message = "Registration successful" });
+    }
+
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
@@ -140,6 +166,14 @@ public class LoginRequest
     public required string Email { get; set; }
     public required string Password { get; set; }
     public bool RememberMe { get; set; }
+}
+
+public class RegisterRequest
+{
+    public required string FirstName { get; set; }
+    public required string LastName { get; set; }
+    public required string Email { get; set; }
+    public required string Password { get; set; }
 }
 
 public class ChangePasswordRequest

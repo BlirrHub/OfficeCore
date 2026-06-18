@@ -1,0 +1,244 @@
+@page "/workspaces"
+@layout EmptyLayout
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject CookieAuthStateProvider AuthProvider
+
+<PageTitle>Your Workspaces - OfficeCore</PageTitle>
+
+<div class="min-h-screen bg-zinc-950 text-white selection:bg-fuchsia-500 selection:text-white p-6">
+    <div class="max-w-4xl mx-auto mt-16">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-12">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight mb-2">Your Workspaces</h1>
+                <p class="text-zinc-400">Select an organization to continue or create a new one.</p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button @onclick="Logout" class="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                    Sign out
+                </button>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="flex justify-center items-center py-24">
+                <svg class="animate-spin size-8 text-fuchsia-500" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Create New Workspace Card -->
+                <div @onclick="OpenCreateModal" 
+                     class="group relative bg-zinc-900/50 border border-zinc-800 border-dashed rounded-2xl p-8 hover:bg-zinc-900 hover:border-fuchsia-500/50 transition-all cursor-pointer flex flex-col items-center justify-center text-center h-48">
+                    <div class="size-12 rounded-full bg-zinc-800 group-hover:bg-fuchsia-600/20 flex items-center justify-center mb-4 transition-colors">
+                        <svg class="size-6 text-zinc-400 group-hover:text-fuchsia-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-white mb-1">Create new workspace</h3>
+                    <p class="text-sm text-zinc-500">Set up a new organization</p>
+                </div>
+
+                <!-- Existing Workspaces -->
+                @if (_organizations != null)
+                {
+                    @foreach (var org in _organizations)
+                    {
+                        <div @onclick="() => SelectOrganization(org.Id)" 
+                             class="group relative bg-zinc-900 border border-zinc-800 rounded-2xl p-8 hover:border-zinc-700 hover:shadow-xl hover:shadow-black/50 transition-all cursor-pointer h-48 flex flex-col">
+                            <div class="flex items-center gap-4 mb-auto">
+                                <div class="size-12 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                                    @GetInitials(org.Name)
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-white group-hover:text-fuchsia-400 transition-colors">@org.Name</h3>
+                                    <p class="text-sm text-zinc-500">Joined @org.JoinedAt.ToString("MMM yyyy")</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-center text-sm font-medium text-fuchsia-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Enter workspace
+                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                </svg>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Create Workspace Modal -->
+@if (_isCreateModalOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 relative">
+            <button @onclick="CloseCreateModal" class="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-900 transition-colors">
+                <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            
+            <h2 class="text-xl font-bold text-white mb-2">Create Workspace</h2>
+            <p class="text-sm text-zinc-400 mb-6">Give your organization a name to get started.</p>
+            
+            @if (!string.IsNullOrEmpty(_createError))
+            {
+                <div class="mb-4 p-3 rounded-xl bg-red-950/50 border border-red-900/50 text-sm text-red-400">
+                    @_createError
+                </div>
+            }
+
+            <EditForm Model="_createModel" OnValidSubmit="HandleCreate">
+                <DataAnnotationsValidator />
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-400 mb-1.5">Organization Name</label>
+                        <InputText @bind-Value="_createModel.Name" 
+                                   class="block w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2.5 text-white text-sm focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-colors"
+                                   placeholder="Acme Corp" />
+                        <ValidationMessage For="() => _createModel.Name" class="mt-1 text-xs text-red-400" />
+                    </div>
+                    
+                    <button type="submit" disabled="@_isCreating"
+                            class="w-full rounded-xl bg-fuchsia-600 py-2.5 px-4 text-sm font-semibold text-white hover:bg-fuchsia-500 active:scale-[0.98] transition-all disabled:opacity-50">
+                        @if (_isCreating)
+                        {
+                            <span>Creating...</span>
+                        }
+                        else
+                        {
+                            <span>Create Workspace</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private bool _isCreateModalOpen;
+    private bool _isCreating;
+    private string? _createError;
+    
+    private List<OrganizationDto>? _organizations;
+    private CreateOrgModel _createModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrganizations();
+    }
+
+    private async Task LoadOrganizations()
+    {
+        _isLoading = true;
+        try
+        {
+            _organizations = await Http.GetFromJsonAsync<List<OrganizationDto>>("/api/organizations/my");
+        }
+        catch
+        {
+            // Handle error
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _createModel = new CreateOrgModel();
+        _createError = null;
+        _isCreateModalOpen = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        _isCreateModalOpen = false;
+    }
+
+    private async Task HandleCreate()
+    {
+        _isCreating = true;
+        _createError = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/organizations", new { Name = _createModel.Name });
+            if (response.IsSuccessStatusCode)
+            {
+                var newOrg = await response.Content.ReadFromJsonAsync<OrganizationDto>();
+                if (newOrg != null)
+                {
+                    await SelectOrganization(newOrg.Id);
+                }
+            }
+            else
+            {
+                _createError = await response.Content.ReadAsStringAsync();
+            }
+        }
+        catch
+        {
+            _createError = "Could not connect to the server.";
+        }
+        finally
+        {
+            _isCreating = false;
+        }
+    }
+
+    private async Task SelectOrganization(Guid orgId)
+    {
+        // Tell the server to set the active organization in the token/cookie
+        var response = await Http.PostAsJsonAsync($"/api/organizations/{orgId}/select", new { });
+        if (response.IsSuccessStatusCode)
+        {
+            AuthProvider.NotifyAuthStateChanged();
+            Nav.NavigateTo("/dashboard", forceLoad: true);
+        }
+    }
+
+    private async Task Logout()
+    {
+        await Http.PostAsync("/api/auth/logout", null);
+        AuthProvider.NotifyAuthStateChanged();
+        Nav.NavigateTo("/");
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "OC";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Substring(0, Math.Min(2, name.Length)).ToUpper();
+    }
+
+    private class OrganizationDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public DateTime JoinedAt { get; set; }
+    }
+
+    private class CreateOrgModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Organization name is required.")]
+        [System.ComponentModel.DataAnnotations.StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters.")]
+        public string Name { get; set; } = string.Empty;
+    }
+}

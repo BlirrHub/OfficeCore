@@ -1,0 +1,27 @@
+@page "/dashboard"
+@attribute [Authorize(Policy = "RequireDashboard")]
+
+<PageTitle>Dashboard - OfficeCore</PageTitle>
+
+<div class="space-y-6">
+    <div>
+        <h1 class="text-3xl font-bold tracking-tight text-white">Dashboard</h1>
+        <p class="mt-2 text-zinc-400">Welcome back to OfficeCore. Here's an overview of today's metrics.</p>
+    </div>
+
+    <!-- Placeholder Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h3 class="text-sm font-medium text-zinc-400">Total Employees</h3>
+            <p class="mt-2 text-3xl font-semibold text-white">42</p>
+        </div>
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h3 class="text-sm font-medium text-zinc-400">Active Tasks</h3>
+            <p class="mt-2 text-3xl font-semibold text-white">18</p>
+        </div>
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h3 class="text-sm font-medium text-zinc-400">Pending Invoices</h3>
+            <p class="mt-2 text-3xl font-semibold text-fuchsia-400">5</p>
+        </div>
+    </div>
+</div>
