@@ -1510,6 +1510,9 @@
   .py-20 {
     padding-block: calc(var(--spacing) * 20);
   }
+  .py-\[1px\] {
+    padding-block: 1px;
+  }
   .pt-2 {
     padding-top: calc(var(--spacing) * 2);
   }
@@ -2220,6 +2223,16 @@
         background-color: color-mix(in srgb, oklch(63.7% 0.237 25.331) 10%, transparent);
         @supports (color: color-mix(in lab, red, red)) {
           background-color: color-mix(in oklab, var(--color-red-500) 10%, transparent);
+        }
+      }
+    }
+  }
+  .hover\:bg-red-500\/20 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: color-mix(in srgb, oklch(63.7% 0.237 25.331) 20%, transparent);
+        @supports (color: color-mix(in lab, red, red)) {
+          background-color: color-mix(in oklab, var(--color-red-500) 20%, transparent);
         }
       }
     }
