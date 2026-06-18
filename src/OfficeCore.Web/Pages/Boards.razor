@@ -74,8 +74,9 @@
                     <div class="relative pt-4 flex items-center justify-between border-t border-zinc-800/50">
                         <div class="flex items-center gap-2">
                             <div class="flex -space-x-2">
-                                @foreach (var avatar in board.MemberAvatars.Take(3))
+                                @for (int i = 0; i < Math.Min(3, board.MembersCount); i++)
                                 {
+                                    var avatar = board.MemberAvatars != null && board.MemberAvatars.Count > i ? board.MemberAvatars[i] : null;
                                     if (!string.IsNullOrEmpty(avatar))
                                     {
                                         <img src="@(Configuration["ApiBaseUrl"] + avatar)" class="size-7 rounded-full object-cover border-2 border-zinc-950" />

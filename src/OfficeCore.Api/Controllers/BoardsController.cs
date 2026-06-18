@@ -79,7 +79,7 @@ public class BoardsController : ControllerBase
                 CreatorName = b.CreatedBy.FirstName + " " + b.CreatedBy.LastName,
                 MembersCount = b.Members.Count,
                 IsStarred = b.Members.FirstOrDefault(m => m.UserId == userId)!.IsStarred,
-                MemberAvatars = b.Members.Take(3).Select(m => m.User.ProfilePictureUrl).ToList()
+                MemberAvatars = b.Members.OrderByDescending(m => m.Role).Take(3).Select(m => m.User.ProfilePictureUrl).ToList()
             })
             .ToListAsync();
 
