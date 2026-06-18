@@ -676,6 +676,13 @@ else
                 var createdCard = await response.Content.ReadFromJsonAsync<BoardCardDto>();
                 if (createdCard != null)
                 {
+                    // Manually attach user object for instant UI update
+                    if (!string.IsNullOrEmpty(createdCard.AssignedToUserId))
+                    {
+                        var memberUser = _board?.Members.FirstOrDefault(m => m.User.Id == createdCard.AssignedToUserId)?.User;
+                        createdCard.AssignedToUser = memberUser;
+                    }
+
                     var list = _board?.Lists.FirstOrDefault(l => l.Id == _activeListIdForCard);
                     list?.Cards.Add(createdCard);
                 }
@@ -689,7 +696,22 @@ else
             {
                 _editingCard.Title = _cardModel.Title;
                 _editingCard.Description = _cardModel.Description;
-                _editingCard.AssignedToUserId = _cardModel.AssignedToUserId;
+                
+                var oldUserId = _editingCard.AssignedToUserId;
+                _editingCard.AssignedToUserId = string.IsNullOrWhiteSpace(_cardModel.AssignedToUserId) ? null : _cardModel.AssignedToUserId;
+                
+                if (oldUserId != _editingCard.AssignedToUserId)
+                {
+                    if (_editingCard.AssignedToUserId == null)
+                    {
+                        _editingCard.AssignedToUser = null;
+                    }
+                    else
+                    {
+                        _editingCard.AssignedToUser = _board?.Members.FirstOrDefault(m => m.User.Id == _editingCard.AssignedToUserId)?.User;
+                    }
+                }
+
                 _editingCard.DueDate = _cardModel.DueDate;
             }
         }

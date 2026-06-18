@@ -280,8 +280,8 @@ public class BoardsController : ControllerBase
             ListId = listId,
             Title = req.Title,
             Description = req.Description,
-            AssignedToUserId = req.AssignedToUserId,
-            DueDate = req.DueDate,
+            AssignedToUserId = string.IsNullOrWhiteSpace(req.AssignedToUserId) ? null : req.AssignedToUserId,
+            DueDate = req.DueDate.HasValue ? DateTime.SpecifyKind(req.DueDate.Value, DateTimeKind.Utc) : null,
             OrderIndex = nextOrder
         };
 
@@ -305,8 +305,8 @@ public class BoardsController : ControllerBase
 
         card.Title = req.Title;
         card.Description = req.Description;
-        card.AssignedToUserId = req.AssignedToUserId;
-        card.DueDate = req.DueDate;
+        card.AssignedToUserId = string.IsNullOrWhiteSpace(req.AssignedToUserId) ? null : req.AssignedToUserId;
+        card.DueDate = req.DueDate.HasValue ? DateTime.SpecifyKind(req.DueDate.Value, DateTimeKind.Utc) : null;
 
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(card.List.BoardId);
