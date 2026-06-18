@@ -43,6 +43,11 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     public DbSet<BoardCardChecklistItem> BoardCardChecklistItems { get; set; }
     public DbSet<BoardCardAttachment> BoardCardAttachments { get; set; }
 
+    // Chat System
+    public DbSet<ChatRoom> ChatRooms { get; set; }
+    public DbSet<ChatRoomMember> ChatRoomMembers { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -72,6 +77,37 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
             .WithOne(m => m.Board)
             .HasForeignKey(m => m.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<BoardCardChecklistItem>()
+            .HasOne(i => i.Checklist)
+            .WithMany(cl => cl.Items)
+            .HasForeignKey(i => i.ChecklistId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Chat System Configurations
+        builder.Entity<ChatRoomMember>()
+            .HasOne(m => m.ChatRoom)
+            .WithMany(r => r.Members)
+            .HasForeignKey(m => m.ChatRoomId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ChatRoomMember>()
+            .HasOne(m => m.User)
+            .WithMany()
+            .HasForeignKey(m => m.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<ChatMessage>()
+            .HasOne(m => m.ChatRoom)
+            .WithMany(r => r.Messages)
+            .HasForeignKey(m => m.ChatRoomId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ChatMessage>()
+            .HasOne(m => m.Sender)
+            .WithMany()
+            .HasForeignKey(m => m.SenderId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<BoardList>()
             .HasMany(l => l.Cards)

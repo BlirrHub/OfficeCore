@@ -20,12 +20,14 @@
             </div>
         </header>
 
-        <!-- Page body -->
-        <main class="flex-1 overflow-y-auto p-6">
+        <!-- Main Viewport -->
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-zinc-950 p-6 pt-20 custom-scrollbar">
             @Body
         </main>
     </div>
 </div>
+
+<GlobalChatWidget />
 
 @code {
     private bool _isSidebarCollapsed = false;

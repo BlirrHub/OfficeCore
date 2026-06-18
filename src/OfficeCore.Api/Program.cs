@@ -94,5 +94,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<OfficeCore.Api.Hubs.AttendanceHub>("/attendanceHub");
 app.MapHub<OfficeCore.Api.Hubs.BoardHub>("/hubs/boards");
+app.MapHub<OfficeCore.Api.Hubs.ChatHub>("/hubs/chat");
 
 app.Run();
