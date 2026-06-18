@@ -27,4 +27,6 @@ public class BoardMember
     public Employee User { get; set; } = null!;
 
     public BoardRole Role { get; set; }
+
+    public bool IsStarred { get; set; }
 }

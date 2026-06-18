@@ -113,6 +113,9 @@ else
                                      draggable="@(_isViewer ? "false" : "true")"
                                      @ondragstart="() => HandleDragStart(card)"
                                      @ondragstart:stopPropagation="true"
+                                     ondragover="event.preventDefault();"
+                                     @ondrop="() => HandleDropOnCard(card)"
+                                     @ondrop:stopPropagation="true"
                                      @onclick="() => EditCard(card)">
                                     
                                     @if (card.Labels.Any())
@@ -149,14 +152,21 @@ else
                                         <div class="flex flex-wrap items-center gap-2">
                                             @if (card.DueDate.HasValue)
                                             {
-                                                var isOverdue = card.DueDate.Value.Date < DateTime.UtcNow.Date && list.Name.ToLower() != "done";
-                                                var isDueSoon = card.DueDate.Value.Date == DateTime.UtcNow.Date && list.Name.ToLower() != "done";
-                                                var dueColor = isOverdue ? "text-red-400 bg-red-400/10 border border-red-500/20" : 
-                                                               isDueSoon ? "text-amber-400 bg-amber-400/10 border border-amber-500/20" : 
+                                                var isOverdueOrToday = card.DueDate.Value.Date <= DateTime.UtcNow.Date && list.Name.ToLower() != "done";
+                                                var isClose = card.DueDate.Value.Date == DateTime.UtcNow.Date.AddDays(1) && list.Name.ToLower() != "done";
+                                                var dueColor = isOverdueOrToday ? "text-red-400 bg-red-400/10 border border-red-500/20" : 
+                                                               isClose ? "text-amber-400 bg-amber-400/10 border border-amber-500/20" : 
                                                                "text-zinc-400 bg-zinc-800/50 border border-zinc-700/50";
                                                 
                                                 <div class="flex items-center gap-1 @dueColor px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide">
-                                                    <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                    @if (isOverdueOrToday)
+                                                    {
+                                                        <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                    }
+                                                    else
+                                                    {
+                                                        <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                    }
                                                     @card.DueDate.Value.ToString("MMM dd")
                                                 </div>
                                             }
@@ -295,7 +305,15 @@ else
                                 {
                                     var progress = cl.Items.Any() ? (int)((cl.Items.Count(i => i.IsCompleted) / (double)cl.Items.Count) * 100) : 0;
                                     <div class="bg-zinc-950 border border-zinc-800/60 rounded-xl p-4 space-y-3 shadow-inner">
-                                        <h5 class="text-xs font-semibold text-zinc-300">@cl.Title</h5>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h5 class="text-xs font-semibold text-zinc-300">@cl.Title</h5>
+                                            @if (!_isViewer)
+                                            {
+                                                <button @onclick="() => DeleteChecklist(cl)" class="text-zinc-600 hover:text-red-400 p-1 transition-colors" title="Delete Checklist">
+                                                    <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            }
+                                        </div>
                                         <div class="flex items-center gap-3">
                                             <span class="text-[10px] text-zinc-500 w-8">@progress%</span>
                                             <div class="flex-1 h-1.5 bg-zinc-900 rounded-full overflow-hidden">
@@ -715,6 +733,11 @@ else
                     _isOwner = myMember.Role == BoardRole.Owner;
                     _isViewer = myMember.Role == BoardRole.Viewer;
                 }
+                
+                if (_editingCard != null)
+                {
+                    _editingCard = _board.Lists.SelectMany(l => l.Cards).FirstOrDefault(c => c.Id == _editingCard.Id) ?? _editingCard;
+                }
             }
         }
         catch
@@ -734,6 +757,33 @@ else
     {
         _draggedList = list;
         _draggedCard = null; // Ensure card drag is clear
+    }
+
+    private async Task HandleDropOnCard(BoardCardDto targetCard)
+    {
+        if (_draggedCard == null || _draggedCard.Id == targetCard.Id) return;
+
+        var sourceList = _board?.Lists.FirstOrDefault(l => l.Id == _draggedCard.ListId);
+        var destList = _board?.Lists.FirstOrDefault(l => l.Id == targetCard.ListId);
+
+        if (sourceList != null && destList != null)
+        {
+            sourceList.Cards.Remove(_draggedCard);
+            _draggedCard.ListId = targetCard.ListId;
+            
+            var targetIndex = destList.Cards.IndexOf(targetCard);
+            destList.Cards.Insert(targetIndex, _draggedCard);
+            
+            // Re-index destList
+            for (int i = 0; i < destList.Cards.Count; i++)
+            {
+                destList.Cards[i].OrderIndex = i;
+            }
+
+            MarkAction();
+            var moveReq = new { NewListId = _draggedCard.ListId, NewOrderIndex = targetIndex };
+            await Http.PutAsJsonAsync($"/api/boards/cards/{_draggedCard.Id}/move", moveReq);
+        }
     }
 
     private async Task HandleDropOnList(Guid targetListId)
@@ -1098,6 +1148,17 @@ else
         MarkAction();
         await Http.PutAsync($"/api/boards/checklists/items/{item.Id}/toggle", null);
         item.IsCompleted = !item.IsCompleted;
+    }
+
+    private async Task DeleteChecklist(BoardCardChecklistDto checklist)
+    {
+        if (_editingCard == null) return;
+        MarkAction();
+        var response = await Http.DeleteAsync($"/api/boards/cards/{_editingCard.Id}/checklists/{checklist.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            _editingCard.Checklists.Remove(checklist);
+        }
     }
 
     private async Task HandleFileUpload(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)

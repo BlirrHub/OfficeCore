@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- **Board Pinning**: Users can now star/pin specific boards on their dashboard to keep them locked at the very top of their project list.
+- **Card Rearrangement**: Fully enabled precise card reordering by dragging and dropping a card directly onto another card, supporting sorting both within the same list and across different lists.
+- **Due Date Indicators**: Card due dates are now color-coded dynamically (Red for overdue/today, Amber for tomorrow, Zinc for future) complete with an exclamation mark warning icon for critical dates.
+- **Checklist Deletion**: Users can now fully delete checklists from cards using the new trash icon in the checklist header.
 - **Board Manual Refresh**: Added a manual "Refresh" button to the Boards index page to load newly assigned boards without requiring a full browser tab reload.
 - **Boards Module (Kanban)**: Implemented a robust Trello-style Kanban board system featuring native HTML5 drag-and-drop for sorting lists and moving cards across lists.
 - **Role-Based Board Access**: Introduced Board-level roles (Owner, Member, Viewer). Owners can fully manage lists, cards, and members; Members can add/edit cards; Viewers have read-only access.

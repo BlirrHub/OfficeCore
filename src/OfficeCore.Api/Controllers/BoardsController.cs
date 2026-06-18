@@ -43,6 +43,23 @@ public class BoardsController : ControllerBase
         return Ok();
     }
 
+    [HttpPut("{id}/star")]
+    public async Task<IActionResult> ToggleStar(Guid id)
+    {
+        var userId = _userManager.GetUserId(User);
+        
+        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id);
+        if (board == null) return NotFound();
+
+        var member = board.Members.FirstOrDefault(m => m.UserId == userId);
+        if (member == null) return Forbid();
+
+        member.IsStarred = !member.IsStarred;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { isStarred = member.IsStarred });
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetBoards()
     {
@@ -60,7 +77,8 @@ public class BoardsController : ControllerBase
                 b.CreatedAt,
                 b.CreatedById,
                 CreatorName = b.CreatedBy.FirstName + " " + b.CreatedBy.LastName,
-                MembersCount = b.Members.Count
+                MembersCount = b.Members.Count,
+                IsStarred = b.Members.FirstOrDefault(m => m.UserId == userId)!.IsStarred
             })
             .ToListAsync();
 
@@ -607,6 +625,22 @@ public class BoardsController : ControllerBase
         await NotifyBoardUpdated(item.Checklist.Card.List.BoardId);
         
         return Ok(item);
+    }
+
+    [HttpDelete("cards/{cardId}/checklists/{checklistId}")]
+    public async Task<IActionResult> DeleteChecklist(Guid cardId, Guid checklistId)
+    {
+        var checklist = await _context.BoardCardChecklists
+            .Include(c => c.Card).ThenInclude(c => c.List)
+            .FirstOrDefaultAsync(c => c.Id == checklistId && c.CardId == cardId);
+            
+        if (checklist == null) return NotFound();
+
+        _context.BoardCardChecklists.Remove(checklist);
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(checklist.Card.List.BoardId);
+        
+        return Ok();
     }
 
     // --- ATTACHMENTS ---
