@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- **Profile Avatars**: Users can now upload and display a custom profile picture. The profile image integrates seamlessly into the global sidebar and the overhauled profile page.
+- **Profile Redesign**: Upgraded the "My Profile" page with a refined layout that includes a dynamic avatar upload dropzone and better visual hierarchy.
 - **Board Pinning**: Users can now star/pin specific boards on their dashboard to keep them locked at the very top of their project list.
 - **Card Rearrangement**: Fully enabled precise card reordering by dragging and dropping a card directly onto another card, supporting sorting both within the same list and across different lists.
 - **Due Date Indicators**: Card due dates are now color-coded dynamically (Red for overdue/today, Amber for tomorrow, Zinc for future) complete with an exclamation mark warning icon for critical dates.

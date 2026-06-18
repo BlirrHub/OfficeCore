@@ -670,6 +670,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("ProfilePictureUrl")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("ResignedDate")
                         .HasColumnType("timestamp with time zone");
 

@@ -81,11 +81,37 @@ public class AuthController : ControllerBase
             email = user.Email,
             firstName = user.FirstName,
             lastName = user.LastName,
+            profilePictureUrl = user.ProfilePictureUrl,
             mustChangePassword = user.MustChangePassword,
             roles = roles,
             titleRole = titleRole,
             modules = moduleClaims.Distinct()
         });
+    }
+
+    [HttpPost("profile-picture")]
+    public async Task<IActionResult> UploadProfilePicture(IFormFile file)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Unauthorized();
+
+        if (file == null || file.Length == 0) return BadRequest("File is empty");
+
+        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "profiles");
+        Directory.CreateDirectory(uploadDir);
+
+        var fileName = $"{user.Id}_{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+        var filePath = Path.Combine(uploadDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        user.ProfilePictureUrl = $"/uploads/profiles/{fileName}";
+        await _userManager.UpdateAsync(user);
+
+        return Ok(new { profilePictureUrl = user.ProfilePictureUrl });
     }
 
     [HttpPost("change-password")]

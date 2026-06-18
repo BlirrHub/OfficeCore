@@ -201,11 +201,19 @@
                 var titleRole = user.FindFirst("TitleRole")?.Value;
                 var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
                 var roleText = !string.IsNullOrWhiteSpace(titleRole) ? titleRole : (roles.Any() ? string.Join(", ", roles) : "Employee");
+                var profilePictureUrl = user.FindFirst("ProfilePictureUrl")?.Value;
             }
             <a href="/profile" class="@($"mb-4 bg-zinc-900/40 rounded-xl border border-zinc-800/80 flex items-center shadow-inner hover:bg-zinc-900 transition-colors {(IsCollapsed ? "justify-center p-2" : "gap-3 p-3")}")">
-                <div class="size-9 rounded-full bg-fuchsia-900/30 border border-fuchsia-900/50 flex items-center justify-center text-fuchsia-400 shrink-0">
-                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-                </div>
+                @if (!string.IsNullOrEmpty(profilePictureUrl))
+                {
+                    <img src="@profilePictureUrl" alt="Profile" class="size-9 rounded-full object-cover border border-fuchsia-900/50 shrink-0" />
+                }
+                else
+                {
+                    <div class="size-9 rounded-full bg-fuchsia-900/30 border border-fuchsia-900/50 flex items-center justify-center text-fuchsia-400 shrink-0">
+                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                    </div>
+                }
                 <div class="overflow-hidden @(IsCollapsed ? "hidden" : "block")">
                     <div class="text-sm font-semibold text-zinc-200 truncate">@fullName</div>
                     <div class="text-[10px] text-zinc-500 uppercase tracking-wider truncate font-medium mt-0.5">@roleText</div>

@@ -52,6 +52,9 @@ public class CookieAuthStateProvider : AuthenticationStateProvider
             if (!string.IsNullOrEmpty(userInfo.TitleRole))
                 claims.Add(new Claim("TitleRole", userInfo.TitleRole));
 
+            if (!string.IsNullOrEmpty(userInfo.ProfilePictureUrl))
+                claims.Add(new Claim("ProfilePictureUrl", userInfo.ProfilePictureUrl));
+
             foreach (var role in userInfo.Roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
 

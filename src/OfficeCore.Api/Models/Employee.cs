@@ -9,6 +9,8 @@ public class Employee : IdentityUser
     
     // Optional internal company ID
     public string? EmployeeId { get; set; }
+    // Profile image
+    public string? ProfilePictureUrl { get; set; }
     
     // To soft-disable users
     public bool IsActive { get; set; } = true;
