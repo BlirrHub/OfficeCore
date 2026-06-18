@@ -32,6 +32,11 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     public DbSet<PayrollPeriod> PayrollPeriods { get; set; }
     public DbSet<Payslip> Payslips { get; set; }
 
+    public DbSet<Board> Boards { get; set; }
+    public DbSet<BoardMember> BoardMembers { get; set; }
+    public DbSet<BoardList> BoardLists { get; set; }
+    public DbSet<BoardCard> BoardCards { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -47,6 +52,25 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
             .HasMany(c => c.Businesses)
             .WithOne(b => b.Client)
             .HasForeignKey(b => b.ClientId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Configure Boards
+        builder.Entity<Board>()
+            .HasMany(b => b.Lists)
+            .WithOne(l => l.Board)
+            .HasForeignKey(l => l.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Board>()
+            .HasMany(b => b.Members)
+            .WithOne(m => m.Board)
+            .HasForeignKey(m => m.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<BoardList>()
+            .HasMany(l => l.Cards)
+            .WithOne(c => c.List)
+            .HasForeignKey(c => c.ListId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

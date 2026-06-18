@@ -31,7 +31,7 @@ public static class DbSeeder
         var existingClaims = await roleManager.GetClaimsAsync(adminRole);
         var modules = new[]
         {
-            "Dashboard", "Clients", "Attendance", "Tasks",
+            "Dashboard", "Clients", "Attendance", "Boards",
             "Payroll", "Invoices", "Ledger",
             "WorkSchedules", "TimeOff", "Locations",
             "Users", "Roles", "Organization", "Advances"

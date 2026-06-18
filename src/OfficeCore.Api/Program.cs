@@ -49,7 +49,7 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
 builder.Services.AddAuthorization(options =>
 {
     var modules = new[] { 
-        "Dashboard", "Clients", "Attendance", "Tasks", "MyLeaves",
+        "Dashboard", "Clients", "Attendance", "Boards", "MyLeaves",
         "Advances", "Ledger", "Payroll", "Invoices",
         "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization" 
     };
@@ -61,7 +61,10 @@ builder.Services.AddAuthorization(options =>
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+});
 builder.Services.AddSignalR();
 
 // Register Background Services

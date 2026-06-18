@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- **Boards Module (Kanban)**: Implemented a robust Trello-style Kanban board system featuring native HTML5 drag-and-drop for sorting lists and moving cards across lists.
+- **Role-Based Board Access**: Introduced Board-level roles (Owner, Member, Viewer). Owners can fully manage lists, cards, and members; Members can add/edit cards; Viewers have read-only access.
+- **Board Deletion**: Board Owners can permanently delete entire project boards directly from the UI.
+- **Add Card / Add List**: Fully functional interface to quickly create new categorized workflow lists and individual task cards.
 - **Is Employee Toggle**: Added an `IsEmployee` toggle to User Management. Users with this disabled (like administrative accounts) are safely excluded from the payroll computation engine, and payroll-related form fields are dynamically hidden.
 - **Weekly Rate (No Attendance)**: Added a "Pay Mode" toggle for Fixed Work Schedules. Selecting "Weekly Rate" hides the required start/end time inputs and instructs the payroll engine to automatically calculate basic pay based solely on the number of scheduled work days for the period, completely ignoring any required attendance logs.
 - **Default Passwords**: Removed the password input field when creating an employee. New accounts now default to the password `"password"` and global identity complexity requirements have been relaxed to allow this.

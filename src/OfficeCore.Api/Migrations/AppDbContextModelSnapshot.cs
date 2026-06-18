@@ -226,6 +226,120 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("AttendanceRecords");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.Board", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedById")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.ToTable("Boards");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AssignedToUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ListId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedToUserId");
+
+                    b.HasIndex("ListId");
+
+                    b.ToTable("BoardCards");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardList", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BoardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardId");
+
+                    b.ToTable("BoardLists");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BoardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("BoardMembers");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.Business", b =>
                 {
                     b.Property<Guid>("Id")
@@ -938,6 +1052,64 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.Board", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCard", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "AssignedToUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedToUserId");
+
+                    b.HasOne("OfficeCore.Api.Models.BoardList", "List")
+                        .WithMany("Cards")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssignedToUser");
+
+                    b.Navigation("List");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardList", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Board", "Board")
+                        .WithMany("Lists")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Board");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardMember", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Board", "Board")
+                        .WithMany("Members")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.Employee", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Board");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.Business", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.Client", "Client")
@@ -1063,6 +1235,18 @@ namespace OfficeCore.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("WorkSchedule");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.Board", b =>
+                {
+                    b.Navigation("Lists");
+
+                    b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardList", b =>
+                {
+                    b.Navigation("Cards");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.Client", b =>
