@@ -1154,6 +1154,50 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("Organizations");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvitedById")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InvitedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsAccepted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvitedById");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("OrganizationInvitations");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.PayrollPeriod", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2014,6 +2058,23 @@ namespace OfficeCore.Api.Migrations
                         .HasForeignKey("CreatedById");
 
                     b.Navigation("CreatedBy");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationInvitation", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.ApplicationUser", "InvitedBy")
+                        .WithMany()
+                        .HasForeignKey("InvitedById");
+
+                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InvitedBy");
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.PayrollPeriod", b =>

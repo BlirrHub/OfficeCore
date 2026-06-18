@@ -10,6 +10,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
     }
 
     public DbSet<Organization> Organizations { get; set; }
+    public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
     public DbSet<Employee> Employees { get; set; }
     public DbSet<WorkSchedule> WorkSchedules { get; set; }
     public DbSet<WorkScheduleDay> WorkScheduleDays { get; set; }

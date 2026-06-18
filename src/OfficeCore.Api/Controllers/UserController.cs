@@ -121,8 +121,6 @@ public class UserController : ControllerBase
         if (employee == null || employee.User == null)
             return NotFound();
 
-        employee.User.FirstName = request.FirstName;
-        employee.User.LastName = request.LastName;
         employee.EmployeeId = request.EmployeeId;
         employee.IsActive = request.IsActive;
         employee.IsEmployee = request.IsEmployee;

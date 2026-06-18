@@ -1,0 +1,131 @@
+@page "/join/{Token}"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@using System.Net.Http.Json
+
+<PageTitle>Join Organization - OfficeCore</PageTitle>
+
+<div class="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
+    <!-- Background Effects -->
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-fuchsia-900/20 via-black to-black"></div>
+    
+    <div class="relative w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden p-8">
+        <div class="text-center mb-8">
+            <div class="size-16 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-fuchsia-600/20 mx-auto mb-6">
+                OC
+            </div>
+            <h1 class="text-3xl font-bold text-white mb-2">Join Organization</h1>
+            <p class="text-zinc-400">You have been invited to join a workspace.</p>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="flex flex-col items-center justify-center py-8">
+                <svg class="animate-spin size-8 text-fuchsia-500 mb-4" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <p class="text-zinc-400 text-sm">Processing invitation...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="bg-red-950/30 border border-red-900/50 rounded-xl p-4 text-center">
+                <div class="size-12 rounded-full bg-red-900/20 text-red-500 flex items-center justify-center mx-auto mb-3">
+                    <svg class="size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 class="text-white font-bold mb-1">Invalid Invitation</h3>
+                <p class="text-red-400 text-sm mb-4">@_error</p>
+                <a href="/workspaces" class="block w-full rounded-xl bg-zinc-800 py-3 text-sm font-bold text-white hover:bg-zinc-700 transition-all text-center">
+                    Go to Workspaces
+                </a>
+            </div>
+        }
+        else if (_success)
+        {
+            <div class="bg-emerald-950/30 border border-emerald-900/50 rounded-xl p-4 text-center">
+                <div class="size-12 rounded-full bg-emerald-900/20 text-emerald-500 flex items-center justify-center mx-auto mb-3">
+                    <svg class="size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h3 class="text-white font-bold mb-1">Successfully Joined!</h3>
+                <p class="text-emerald-400 text-sm mb-4">@_successMessage</p>
+                <button @onclick="SelectOrganization" class="block w-full rounded-xl bg-fuchsia-600 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-900/20 hover:bg-fuchsia-500 hover:shadow-fuchsia-600/20 transition-all text-center">
+                    Enter Workspace
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    private bool _isLoading = true;
+    private string? _error;
+    private bool _success;
+    private string? _successMessage;
+    private Guid _organizationId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AcceptInvitation();
+    }
+
+    private async Task AcceptInvitation()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/organizations/join", new { Token = Token });
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<JoinResponseDto>();
+                if (result != null)
+                {
+                    _success = true;
+                    _successMessage = $"You have joined {result.OrganizationName}.";
+                    _organizationId = result.OrganizationId;
+                }
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                _error = !string.IsNullOrWhiteSpace(errorText) ? errorText : "Failed to accept invitation.";
+            }
+        }
+        catch
+        {
+            _error = "An error occurred while connecting to the server.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectOrganization()
+    {
+        var response = await Http.PostAsync($"/api/organizations/{_organizationId}/select", null);
+        if (response.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/", forceLoad: true);
+        }
+        else
+        {
+            _error = "Failed to switch context to the new organization.";
+        }
+    }
+
+    private class JoinResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+        public Guid OrganizationId { get; set; }
+        public string OrganizationName { get; set; } = string.Empty;
+    }
+}

@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Invitation System**: Added `OrganizationInvitations` table and `/api/organizations/{id}/invite` endpoint to generate unique invitation links for joining an organization.
+- **Join Organization Flow**: Implemented `/api/organizations/join` and a frontend page (`/join/{token}`) allowing users to accept an invitation.
+- **GetCurrentOrganization API**: Added `/api/organizations/current` to retrieve the active organization.
 - **Landing Page**: Implemented a modern landing page in `Home.razor` with a Hero section, Features list, and Call-to-Action.
 - **Workspaces Dashboard**: Created `/workspaces` page for organization selection. Users land here after logging in or signing up.
 - **SignUp Page**: Created a new registration flow to capture `FirstName`, `LastName`, `Email`, and `Password`. Users are now signed in automatically and redirected to their workspaces.
@@ -12,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - **Organizations API**: Implemented `/api/organizations/my`, `/api/organizations`, and `/api/organizations/{id}/select` to manage the multi-tenant scope and context.
 
 ### Changed
+- **Employee Management**: Changed "Create User" to "Invite Member" in `UserManagement.razor`. Removed the ability for Organization Admins to edit an Employee's `FirstName` and `LastName` to protect personal information.
 - Refactored `Home.razor` into `Dashboard.razor` mapping it to `/dashboard`.
 - Redesigned `Login.razor` with a more modern UI and linked to the new SignUp page and Google Auth placeholder.
 - Updated `AuthController` to include the `/register` endpoint and sign-in functionality upon registration.

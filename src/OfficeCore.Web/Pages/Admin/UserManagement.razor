@@ -18,7 +18,7 @@
             <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Add Employee
+            Invite Member
         </button>
     </div>
 
@@ -108,14 +108,14 @@
     </div>
 </div>
 
-<!-- Create User Modal -->
+<!-- Invite Member Modal -->
 @if (_showCreate)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-6 max-h-[90vh]">
+        <div class="w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-6 max-h-[90vh]">
             <div class="flex items-center justify-between shrink-0">
-                <h2 class="text-xl font-bold text-white">Add Employee</h2>
-                <button @onclick="() => _showCreate = false" class="text-zinc-500 hover:text-white transition-colors">
+                <h2 class="text-xl font-bold text-white">Invite Member</h2>
+                <button @onclick="() => { _showCreate = false; _inviteLink = null; _create.Email = string.Empty; }" class="text-zinc-500 hover:text-white transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -123,139 +123,19 @@
             </div>
 
             <div class="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-zinc-400 mb-1">First Name</label>
-                        <input @bind="_create.FirstName" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-zinc-400 mb-1">Last Name</label>
-                        <input @bind="_create.LastName" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                    </div>
-                </div>
                 <div>
                     <label class="block text-xs font-medium text-zinc-400 mb-1">Email</label>
                     <input @bind="_create.Email" type="email" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-zinc-400 mb-1">Employee ID (optional)</label>
-                        <input @bind="_create.EmployeeId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-zinc-400 mb-1">Date Hired</label>
-                        <input @bind="_create.DateHired" type="date" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                    </div>
-                </div>
-                <label class="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" @bind="_create.IsEmployee" class="sr-only peer" />
-                    <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                    <div>
-                        <span class="text-sm font-medium text-zinc-300">Is Employee</span>
-                        <p class="text-xs text-zinc-500 mt-0.5">When checked, this user will be included in payroll and leave processing.</p>
-                    </div>
-                </label>
-
-                @if (_create.IsEmployee)
+                
+                @if (!string.IsNullOrEmpty(_inviteLink))
                 {
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-zinc-400 mb-1">Daily Rate (&#8369;)</label>
-                            <input @bind="_create.DailyRate" type="number" step="0.01" min="0" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-zinc-400 mb-1">Work Schedule</label>
-                            <select @bind="_create.WorkScheduleId" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none">
-                                <option value="">-- No Schedule Assigned --</option>
-                                @if (_workSchedules != null)
-                                {
-                                    @foreach (var schedule in _workSchedules)
-                                    {
-                                        <option value="@schedule.Id">@schedule.Name</option>
-                                    }
-                                }
-                            </select>
-                        </div>
+                    <div class="bg-emerald-900/30 border border-emerald-800 rounded-lg p-3 mt-4">
+                        <p class="text-xs text-emerald-400 font-medium mb-1">Invitation Generated!</p>
+                        <input readonly value="@_inviteLink" class="w-full bg-black/50 text-emerald-300 text-xs font-mono p-2 rounded border border-emerald-900/50 outline-none" />
+                        <p class="text-[10px] text-zinc-500 mt-2">Send this link to the user to join.</p>
                     </div>
-
-                    <!-- Sick Leave Pay Rate -->
-                    <div class="pt-3 border-t border-zinc-800/60">
-                        <label class="flex items-center gap-3 cursor-pointer">
-                            <input type="checkbox" @bind="_create.UseCustomDailyRate" class="sr-only peer" />
-                            <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                            <div>
-                                <span class="text-sm font-medium text-zinc-300">Use own daily rate for sick leave pay</span>
-                                <p class="text-xs text-zinc-500 mt-0.5">
-                                    @(_create.UseCustomDailyRate
-                                        ? "Employee's personal daily rate will be used when a sick leave is approved."
-                                        : "Global minimum daily rate from Payroll Settings will be used for sick leave pay.")
-                                </p>
-                            </div>
-                        </label>
-                    </div>
-
-                    <!-- Vacation Leave Eligibility -->
-                    <label class="flex items-center gap-3 cursor-pointer mb-2">
-                        <input type="checkbox" @bind="_create.IsEligibleForLeave" class="sr-only peer" />
-                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                        <div>
-                            <span class="text-sm font-medium text-zinc-300">Eligible for Vacation Leave</span>
-                            <p class="text-xs text-zinc-500 mt-0.5">Sick leave is always available regardless of this setting.</p>
-                        </div>
-                    </label>
                 }
-
-                <!-- Assign Roles -->
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-2">Assign Roles</label>
-                    @if (_roles != null)
-                    {
-                        <div class="flex flex-wrap gap-2">
-                            @foreach (var role in _roles)
-                            {
-                                var roleName = role.Name ?? string.Empty;
-                                var selected = _create.SelectedRoles.Contains(roleName);
-                                <button type="button"
-                                        @onclick="() => ToggleRole(_create.SelectedRoles, roleName)"
-                                        class="@($"rounded-lg px-3 py-1.5 text-xs font-medium transition-all {(selected ? "bg-fuchsia-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}")">
-                                    @roleName
-                                </button>
-                            }
-                        </div>
-                    }
-                </div>
-
-                <!-- Government Records -->
-                <div class="pt-4 border-t border-zinc-800">
-                    <h3 class="text-sm font-semibold text-white mb-3">Government Records</h3>
-                    <label class="flex items-center gap-3 cursor-pointer mb-4">
-                        <input type="checkbox" @bind="_create.GovernmentRecord.IsEligibleForDeductions" class="sr-only peer" />
-                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                        <span class="text-sm font-medium text-zinc-300">Eligible for Deductions (SSS, PhilHealth, Pag-IBIG)</span>
-                    </label>
-
-                    @if (_create.GovernmentRecord.IsEligibleForDeductions)
-                    {
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-zinc-400 mb-1">SSS Number</label>
-                                <input @bind="_create.GovernmentRecord.SssNumber" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-zinc-400 mb-1">PhilHealth Number</label>
-                                <input @bind="_create.GovernmentRecord.PhilHealthNumber" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-zinc-400 mb-1">Pag-IBIG Number</label>
-                                <input @bind="_create.GovernmentRecord.PagIbigNumber" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-zinc-400 mb-1">TIN</label>
-                                <input @bind="_create.GovernmentRecord.TinNumber" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                            </div>
-                        </div>
-                    }
-                </div>
             </div>
 
             @if (!string.IsNullOrEmpty(_modalError))
@@ -264,11 +144,11 @@
             }
 
             <div class="flex justify-end gap-3 pt-4 border-t border-zinc-800 shrink-0">
-                <button @onclick="() => _showCreate = false"
-                        class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
-                <button @onclick="CreateUser"
-                        class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors">
-                    Create Employee
+                <button @onclick="() => { _showCreate = false; _inviteLink = null; _create.Email = string.Empty; }"
+                        class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Close</button>
+                <button @onclick="InviteMember" disabled="@(!string.IsNullOrEmpty(_inviteLink))"
+                        class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
+                    Generate Link
                 </button>
             </div>
         </div>
@@ -293,11 +173,15 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-zinc-400 mb-1">First Name</label>
-                        <input @bind="_edit.FirstName" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                        <div class="w-full rounded-lg bg-zinc-900/50 border border-zinc-800 px-3 py-2 text-sm text-zinc-500 cursor-not-allowed">
+                            @_edit.FirstName
+                        </div>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-zinc-400 mb-1">Last Name</label>
-                        <input @bind="_edit.LastName" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                        <div class="w-full rounded-lg bg-zinc-900/50 border border-zinc-800 px-3 py-2 text-sm text-zinc-500 cursor-not-allowed">
+                            @_edit.LastName
+                        </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -855,7 +739,12 @@
         if (!set.Remove(role)) set.Add(role);
     }
 
-    private async Task CreateUser()
+    private string? _inviteLink;
+    
+    private class OrganizationDto { public Guid Id { get; set; } }
+    private class InviteResponseDto { public string JoinUrl { get; set; } = string.Empty; }
+
+    private async Task InviteMember()
     {
         _modalError = null;
         if (string.IsNullOrWhiteSpace(_create.Email))
@@ -864,66 +753,35 @@
             return;
         }
 
-        var createPayload = new CreateUserRequestDto
+        try
         {
-            Email = _create.Email,
-            FirstName = _create.FirstName,
-            LastName = _create.LastName,
-            EmployeeId = _create.EmployeeId,
-            DailyRate = _create.DailyRate,
-            UseCustomDailyRate = _create.UseCustomDailyRate,
-            DateHired = _create.DateHired,
-            IsEligibleForLeave = _create.IsEligibleForLeave,
-            IsEmployee = _create.IsEmployee,
-            WorkScheduleId = _create.WorkScheduleId,
-            Roles = _create.SelectedRoles.ToList(),
-            GovernmentRecord = _create.GovernmentRecord
-        };
+            var orgRes = await Http.GetFromJsonAsync<OrganizationDto>("/api/organizations/current");
+            if (orgRes == null) {
+                _modalError = "Failed to get current organization.";
+                return;
+            }
 
-        var response = await Http.PostAsJsonAsync("/api/user", createPayload);
-
-        if (response.IsSuccessStatusCode)
-        {
-            _showCreate = false;
-            _create = new();
-            await LoadData();
+            var response = await Http.PostAsJsonAsync($"/api/organizations/{orgRes.Id}/invite", new { Email = _create.Email });
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<InviteResponseDto>();
+                if (result != null)
+                {
+                    _inviteLink = Nav.BaseUri + result.JoinUrl.TrimStart('/');
+                }
+            }
+            else
+            {
+                _modalError = "Failed to generate invitation.";
+            }
         }
-        else
+        catch
         {
-            try 
-            {
-                var errors = await response.Content.ReadFromJsonAsync<List<IdentityErrorDto>>();
-                if (errors != null && errors.Any())
-                {
-                    _modalError = string.Join(" ", errors.Select(e => e.Description));
-                }
-                else 
-                {
-                    _modalError = "Failed to create user. Check the details and try again.";
-                }
-            }
-            catch 
-            {
-                _modalError = "Failed to create user. Check the details and try again.";
-            }
+            _modalError = "Failed to generate invitation.";
         }
     }
 
-    private class CreateUserRequestDto
-    {
-        public string Email { get; set; } = string.Empty;
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string? EmployeeId { get; set; }
-        public decimal? DailyRate { get; set; }
-        public bool UseCustomDailyRate { get; set; }
-        public DateTime? DateHired { get; set; }
-        public bool IsEligibleForLeave { get; set; }
-        public bool IsEmployee { get; set; } = true;
-        public Guid? WorkScheduleId { get; set; }
-        public List<string>? Roles { get; set; }
-        public GovernmentRecordDto? GovernmentRecord { get; set; }
-    }
+
 
     private async Task UpdateUser()
     {
