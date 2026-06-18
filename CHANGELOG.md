@@ -80,3 +80,4 @@ All notable changes to this project will be documented in this file.
 - Implemented dynamic Sidebar rendering to hide empty categories based on user module access.
 - Fixed UTC storage issues for Leave Requests and Attendance records.
 - Added Delete capability to Leave Approvals and Attendance log for development purposes.
+- Standardized UI layouts across the `Advances`, `Ledger`, `WorkSchedules`, and `TimeOff` modules to ensure a consistent, premium deep-dark aesthetic aligning with the `Dashboard` and `Attendance` designs.

@@ -4,13 +4,20 @@
 
 <PageTitle>Time Off & Holidays - OfficeCore</PageTitle>
 
-<div class="flex flex-col h-full bg-zinc-950">
+<div class="space-y-6 h-full flex flex-col">
+    <div class="flex items-center justify-between shrink-0">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-white">Time Off & Holidays</h1>
+            <p class="mt-1 text-zinc-400 text-sm">Configure company holidays and time-off policies</p>
+        </div>
+    </div>
+
     <!-- Top Tabs Header -->
     @{
         var policiesClass = _activeTab == "Policies" ? "border-fuchsia-500 text-fuchsia-400" : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-700";
         var holidaysClass = _activeTab == "Holidays" ? "border-fuchsia-500 text-fuchsia-400" : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-700";
     }
-    <div class="border-b border-zinc-800 px-6 pt-4 flex gap-6">
+    <div class="border-b border-zinc-800 flex gap-6 shrink-0">
         <button class="pb-3 text-sm font-medium border-b-2 transition-colors @policiesClass" 
                 @onclick='() => SetActiveTab("Policies")'>
             Time Off Policies
@@ -20,6 +27,8 @@
             Holidays
         </button>
     </div>
+
+    <div class="flex flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
 
     @if (_activeTab == "Policies")
     {
@@ -39,7 +48,7 @@
     {
         <div class="flex flex-1 overflow-hidden">
             <!-- Sidebar for Calendars -->
-            <div class="w-72 border-r border-zinc-800 bg-zinc-950 flex flex-col">
+            <div class="w-72 border-r border-zinc-800 bg-zinc-900/50 flex flex-col">
                 <div class="p-4 border-b border-zinc-800">
                     <div class="relative mb-4">
                         <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,10 +96,10 @@
                     <div class="max-w-3xl mx-auto bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-xl">
                         <div class="space-y-8">
                             <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
-                                <h2 class="text-xl font-bold text-white uppercase tracking-wider">Create Calendar</h2>
+                                <h2 class="text-xl font-bold text-white uppercase tracking-wider">Calendar Editor</h2>
                                 <div class="flex gap-3">
                                     <button @onclick="CancelEdit" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
-                                    <button @onclick="SaveCalendar" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">Save</button>
+                                    <button @onclick="SaveCalendar" class="px-4 py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">Save Changes</button>
                                 </div>
                             </div>
 
@@ -219,7 +228,7 @@
                                     }
                                 </div>
                                 
-                                <button @onclick="() => _isAddingHoliday = true" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
+                                <button @onclick="() => { _isAddingHoliday = true; _editingHoliday = false; _newHoliday = new HolidayDto { Date = DateTime.Now }; }" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
                                     <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                                     Add Holiday
                                 </button>
@@ -227,11 +236,26 @@
 
                             @if (_isAddingHoliday)
                             {
-                                <div class="p-6 bg-zinc-950/50 border-b border-zinc-800 flex items-center gap-4">
-                                    <input type="text" @bind="_newHoliday.Name" placeholder="Holiday name" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                    <input type="date" @bind="_newHoliday.Date" class="w-48 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                    <button @onclick="SaveNewHoliday" class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 transition-colors">Save</button>
-                                    <button @onclick="() => _isAddingHoliday = false" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                                <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                                    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+                                        <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
+                                            <h3 class="text-lg font-bold text-white tracking-wide">@(_editingHoliday ? "Edit Holiday" : "Add Holiday")</h3>
+                                        </div>
+                                        <div class="p-6 space-y-4">
+                                            <div>
+                                                <label class="block text-xs font-semibold text-zinc-500 uppercase mb-2">Name</label>
+                                                <input type="text" @bind="_newHoliday.Name" placeholder="Holiday name" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-zinc-500 uppercase mb-2">Date</label>
+                                                <input type="date" @bind="_newHoliday.Date" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                            </div>
+                                        </div>
+                                        <div class="px-6 py-4 border-t border-zinc-800 flex justify-end gap-3">
+                                            <button @onclick="() => _isAddingHoliday = false" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                                            <button @onclick="SaveNewHoliday" class="px-4 py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">Save</button>
+                                        </div>
+                                    </div>
                                 </div>
                             }
 
@@ -252,7 +276,7 @@
                                     </div>
                                     <h3 class="text-lg font-bold text-white mb-2">No holidays</h3>
                                     <p class="text-sm text-zinc-500 max-w-sm mb-6">There are no holidays scheduled for this calendar in @_selectedViewYear. Remember to take some time off!</p>
-                                    <button @onclick="() => _isAddingHoliday = true" class="px-5 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">
+                                    <button @onclick="() => { _isAddingHoliday = true; _editingHoliday = false; _newHoliday = new HolidayDto { Date = new DateTime(_selectedViewYear, 1, 1) }; }" class="px-5 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">
                                         Add Holiday
                                     </button>
                                 </div>
@@ -265,7 +289,7 @@
                                             <th class="px-6 py-4 border-b border-zinc-800">Holiday Name</th>
                                             <th class="px-6 py-4 border-b border-zinc-800">Date</th>
                                             <th class="px-6 py-4 border-b border-zinc-800">Day</th>
-                                            <th class="px-6 py-4 border-b border-zinc-800 w-16 text-right"></th>
+                                            <th class="px-6 py-4 border-b border-zinc-800 w-32 text-right"></th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-zinc-800/50">
@@ -276,9 +300,7 @@
                                                 <td class="px-6 py-4 text-zinc-300">@h.Date.ToString("MMM dd, yyyy")</td>
                                                 <td class="px-6 py-4 text-zinc-500">@h.Date.ToString("dddd")</td>
                                                 <td class="px-6 py-4 text-right">
-                                                    <button @onclick="() => DeleteHoliday(h)" class="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1">
-                                                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
+                                                    <button @onclick="() => DeleteHoliday(h)" class="text-xs font-medium text-zinc-500 hover:text-red-400">Delete</button>
                                                 </td>
                                             </tr>
                                         }
@@ -305,9 +327,11 @@
             </div>
         </div>
     }
+    </div>
 </div>
 
 @code {
+    private bool _editingHoliday = false;
     private string _activeTab = "Holidays"; // Start on holidays for this implementation
     
     private void SetActiveTab(string tab) => _activeTab = tab;
