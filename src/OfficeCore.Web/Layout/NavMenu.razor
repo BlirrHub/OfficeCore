@@ -198,8 +198,9 @@
                     ? email ?? "User" 
                     : $"{firstName} {lastName}".Trim();
                     
+                var titleRole = user.FindFirst("TitleRole")?.Value;
                 var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
-                var roleText = roles.Any() ? string.Join(", ", roles) : "Employee";
+                var roleText = !string.IsNullOrWhiteSpace(titleRole) ? titleRole : (roles.Any() ? string.Join(", ", roles) : "Employee");
             }
             <a href="/profile" class="@($"mb-4 bg-zinc-900/40 rounded-xl border border-zinc-800/80 flex items-center shadow-inner hover:bg-zinc-900 transition-colors {(IsCollapsed ? "justify-center p-2" : "gap-3 p-3")}")">
                 <div class="size-9 rounded-full bg-fuchsia-900/30 border border-fuchsia-900/50 flex items-center justify-center text-fuchsia-400 shrink-0">

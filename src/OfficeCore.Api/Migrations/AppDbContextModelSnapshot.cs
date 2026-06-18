@@ -191,6 +191,9 @@ namespace OfficeCore.Api.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<bool>("ShowAsTitle")
+                        .HasColumnType("boolean");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")

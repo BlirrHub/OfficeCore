@@ -57,17 +57,23 @@ public class AuthController : ControllerBase
         var roles = await _userManager.GetRolesAsync(user);
         var claims = await _userManager.GetClaimsAsync(user);
 
-        // Gather role claims (module access)
+        // Gather role claims (module access) and find TitleRoles
         var moduleClaims = new List<string>();
+        var titleRoles = new List<string>();
         foreach (var role in roles)
         {
             var appRole = await _roleManager.FindByNameAsync(role);
             if (appRole != null)
             {
+                if (appRole.ShowAsTitle && !string.IsNullOrEmpty(appRole.Name))
+                    titleRoles.Add(appRole.Name);
+
                 var roleClaims = await _roleManager.GetClaimsAsync(appRole);
                 moduleClaims.AddRange(roleClaims.Where(c => c.Type == "ModuleAccess").Select(c => c.Value));
             }
         }
+
+        var titleRole = titleRoles.Any() ? string.Join(" / ", titleRoles) : null;
 
         return Ok(new
         {
@@ -77,6 +83,7 @@ public class AuthController : ControllerBase
             lastName = user.LastName,
             mustChangePassword = user.MustChangePassword,
             roles = roles,
+            titleRole = titleRole,
             modules = moduleClaims.Distinct()
         });
     }

@@ -26,7 +26,8 @@ public class RoleController : ControllerBase
         {
             r.Id,
             r.Name,
-            r.Description
+            r.Description,
+            r.ShowAsTitle
         }).ToListAsync();
 
         return Ok(roles);
@@ -35,7 +36,11 @@ public class RoleController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
     {
-        var role = new AppRole(request.Name) { Description = request.Description };
+        var role = new AppRole(request.Name) 
+        { 
+            Description = request.Description,
+            ShowAsTitle = request.ShowAsTitle
+        };
         var result = await _roleManager.CreateAsync(role);
         
         if (!result.Succeeded)
@@ -50,6 +55,25 @@ public class RoleController : ControllerBase
         }
 
         return Ok(new { message = "Role created successfully", roleId = role.Id });
+    }
+
+    [HttpPut("{id}/details")]
+    public async Task<IActionResult> UpdateRoleDetails(string id, [FromBody] UpdateRoleRequest request)
+    {
+        var role = await _roleManager.FindByIdAsync(id);
+        if (role == null) return NotFound();
+
+        if (role.Name != "Admin" && !string.IsNullOrWhiteSpace(request.Name))
+        {
+            role.Name = request.Name;
+        }
+        role.Description = request.Description;
+        role.ShowAsTitle = request.ShowAsTitle;
+
+        var result = await _roleManager.UpdateAsync(role);
+        if (!result.Succeeded) return BadRequest(result.Errors);
+
+        return Ok(new { message = "Role updated successfully" });
     }
 
     [HttpGet("{id}/modules")]
@@ -112,5 +136,13 @@ public class CreateRoleRequest
 {
     public required string Name { get; set; }
     public string? Description { get; set; }
+    public bool ShowAsTitle { get; set; }
     public List<string>? Modules { get; set; }
+}
+
+public class UpdateRoleRequest
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public bool ShowAsTitle { get; set; }
 }
