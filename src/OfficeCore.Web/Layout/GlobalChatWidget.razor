@@ -350,7 +350,18 @@
             _ = LoadRooms();
         });
 
-        await _hubConnection.StartAsync();
+        try
+        {
+            await _hubConnection.StartAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation during fast navigation
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to connect to Chat SignalR: {ex.Message}");
+        }
         await LoadRooms();
     }
 

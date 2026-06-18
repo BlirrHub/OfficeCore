@@ -720,6 +720,10 @@ else
             await hubConnection.StartAsync();
             await hubConnection.SendAsync("JoinBoardGroup", Id.ToString());
         }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation during navigation
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to connect to SignalR hub: {ex.Message}");

@@ -17,8 +17,10 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddTransient<OfficeCore.Web.Client.Auth.CookieHandler>();
 
+var baseUri = new Uri(builder.HostEnvironment.BaseAddress);
+var apiUrl = $"{baseUri.Scheme}://{baseUri.Host}:5026";
 builder.Services.AddHttpClient("Default", client => 
-    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7001"))
+    client.BaseAddress = new Uri(apiUrl))
     .AddHttpMessageHandler<OfficeCore.Web.Client.Auth.CookieHandler>();
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));

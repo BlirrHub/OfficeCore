@@ -72,6 +72,17 @@ All notable changes to this project will be documented in this file.
 - `Home.razor` renamed/refactored to `Dashboard.razor`.
 - Redesigned `Login.razor` with modern deep-dark aesthetic.
 
+### Added
+- Created `OrganizationClaimsTransformation` to dynamically inject organizational roles and module access into ClaimsPrincipal based on the active workspace.
+- Added `EmployeeRole`, `OrganizationRole`, and `OrganizationRoleClaim` entities for multi-tenant RBAC.
+- Added LAN access capabilities by binding to `0.0.0.0` in `launchSettings.json` and dynamically resolving API base URL in the Blazor WebAssembly frontend.
+
+### Fixed
+- Resolved 403 Forbidden errors when navigating between workspaces by correctly populating `ModuleAccess` claims via claims transformation.
+- Fixed UI layout issue where `Advances & Loans` page was unclickable due to an invisible empty state covering the viewport (`absolute inset-0`).
+- Fixed large empty padding gap at the top of all pages in `MainLayout.razor` by removing unnecessary `pt-20` class.
+- Fixed `OperationCanceledException` crashes when switching pages rapidly while SignalR `HubConnection` is still starting up.
+
 ### Fixed — Phase 1
 - Kanban event bubbling: card drag no longer triggers parent list drag.
 - Viewer role enforcement: "Add Card" button and drag hidden for Viewers.

@@ -209,7 +209,18 @@
             await InvokeAsync(StateHasChanged);
         });
 
-        await _hubConnection.StartAsync();
+        try
+        {
+            await _hubConnection.StartAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation during fast navigation
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to connect to SignalR: {ex.Message}");
+        }
     }
 
     private async Task LoadData()

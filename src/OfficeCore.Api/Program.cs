@@ -12,10 +12,9 @@ CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 var builder = WebApplication.CreateBuilder(args);
 
 // CORS – allow the Blazor frontend
-var blazorOrigin = builder.Configuration["BlazorOrigin"] ?? "https://localhost:7057";
 builder.Services.AddCors(opt =>
     opt.AddPolicy("BlazorPolicy", p => p
-        .WithOrigins(blazorOrigin)
+        .SetIsOriginAllowed(origin => true)
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()));
@@ -75,6 +74,7 @@ builder.Services.AddHostedService(provider => provider.GetRequiredService<Office
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<OfficeCore.Api.Services.TenantService>();
 builder.Services.AddScoped<OfficeCore.Api.Services.IPayrollComputationService, OfficeCore.Api.Services.PayrollComputationService>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, OfficeCore.Api.Services.OrganizationClaimsTransformation>();
 
 var app = builder.Build();
 
