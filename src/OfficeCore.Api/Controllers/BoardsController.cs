@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 
+using Microsoft.AspNetCore.SignalR;
+using OfficeCore.Api.Hubs;
+
 namespace OfficeCore.Api.Controllers;
 
 [Authorize]
@@ -13,11 +16,13 @@ public class BoardsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly UserManager<Employee> _userManager;
+    private readonly IHubContext<BoardHub> _hubContext;
 
-    public BoardsController(AppDbContext context, UserManager<Employee> userManager)
+    public BoardsController(AppDbContext context, UserManager<Employee> userManager, IHubContext<BoardHub> hubContext)
     {
         _context = context;
         _userManager = userManager;
+        _hubContext = hubContext;
     }
 
     [HttpDelete("{id}")]
@@ -34,6 +39,7 @@ public class BoardsController : ControllerBase
 
         _context.Boards.Remove(board);
         await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(id);
         return Ok();
     }
 
@@ -68,11 +74,28 @@ public class BoardsController : ControllerBase
 
         var board = await _context.Boards
             .Include(b => b.CreatedBy)
+            .Include(b => b.Labels)
             .Include(b => b.Members)
                 .ThenInclude(m => m.User)
             .Include(b => b.Lists.OrderBy(l => l.OrderIndex))
                 .ThenInclude(l => l.Cards.OrderBy(c => c.OrderIndex))
                     .ThenInclude(c => c.AssignedToUser)
+            .Include(b => b.Lists)
+                .ThenInclude(l => l.Cards)
+                    .ThenInclude(c => c.Labels)
+                        .ThenInclude(cl => cl.Label)
+            .Include(b => b.Lists)
+                .ThenInclude(l => l.Cards)
+                    .ThenInclude(c => c.Comments.OrderByDescending(cm => cm.CreatedAt))
+                        .ThenInclude(cm => cm.User)
+            .Include(b => b.Lists)
+                .ThenInclude(l => l.Cards)
+                    .ThenInclude(c => c.Checklists)
+                        .ThenInclude(cl => cl.Items)
+            .Include(b => b.Lists)
+                .ThenInclude(l => l.Cards)
+                    .ThenInclude(c => c.Attachments)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (board == null) return NotFound();
@@ -119,6 +142,7 @@ public class BoardsController : ControllerBase
 
         _context.Boards.Add(board);
         await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(board.Id);
 
         return Ok(board);
     }
@@ -183,6 +207,7 @@ public class BoardsController : ControllerBase
         {
             _context.BoardMembers.Remove(targetMember);
             await _context.SaveChangesAsync();
+            await NotifyBoardUpdated(id);
         }
 
         return Ok();
@@ -217,6 +242,7 @@ public class BoardsController : ControllerBase
 
         _context.BoardLists.Add(list);
         await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(id);
 
         return Ok(list);
     }
@@ -261,7 +287,29 @@ public class BoardsController : ControllerBase
 
         _context.BoardCards.Add(card);
         await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(list.BoardId);
 
+        return Ok(card);
+    }
+
+    [HttpPut("cards/{cardId}")]
+    public async Task<IActionResult> UpdateCard(Guid cardId, [FromBody] CreateCardRequest req)
+    {
+        var userId = _userManager.GetUserId(User);
+        var card = await _context.BoardCards.Include(c => c.List).ThenInclude(l => l.Board).ThenInclude(b => b.Members).FirstOrDefaultAsync(c => c.Id == cardId);
+        if (card == null) return NotFound();
+
+        var currentUserMember = card.List.Board.Members.FirstOrDefault(m => m.UserId == userId);
+        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
+            return Forbid();
+
+        card.Title = req.Title;
+        card.Description = req.Description;
+        card.AssignedToUserId = req.AssignedToUserId;
+        card.DueDate = req.DueDate;
+
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(card.List.BoardId);
         return Ok(card);
     }
 
@@ -338,6 +386,11 @@ public class BoardsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(card.List.BoardId);
+        if (targetList.BoardId != card.List.BoardId)
+        {
+            await NotifyBoardUpdated(targetList.BoardId);
+        }
         return Ok();
     }
 
@@ -359,6 +412,7 @@ public class BoardsController : ControllerBase
 
         _context.BoardLists.Remove(list);
         await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(list.BoardId);
         return Ok();
     }
 
@@ -381,6 +435,7 @@ public class BoardsController : ControllerBase
 
         _context.BoardCards.Remove(card);
         await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(card.List.BoardId);
         return Ok();
     }
 
@@ -417,6 +472,202 @@ public class BoardsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(id);
         return Ok();
     }
+    private async Task NotifyBoardUpdated(Guid boardId)
+    {
+        await _hubContext.Clients.Group(boardId.ToString()).SendAsync("BoardUpdated");
+    }
+
+    // --- LABELS ---
+    [HttpPost("{id}/labels")]
+    public async Task<IActionResult> CreateLabel(Guid id, [FromBody] BoardLabel labelReq)
+    {
+        var board = await _context.Boards.FindAsync(id);
+        if (board == null) return NotFound();
+
+        var label = new BoardLabel
+        {
+            Id = Guid.NewGuid(),
+            BoardId = id,
+            Name = labelReq.Name,
+            ColorHex = labelReq.ColorHex
+        };
+        _context.BoardLabels.Add(label);
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(id);
+        return Ok(label);
+    }
+
+    [HttpPost("cards/{cardId}/labels/{labelId}")]
+    public async Task<IActionResult> AddLabelToCard(Guid cardId, Guid labelId)
+    {
+        var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
+        if (card == null) return NotFound();
+
+        _context.BoardCardLabels.Add(new BoardCardLabel { CardId = cardId, LabelId = labelId });
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(card.List.BoardId);
+        return Ok();
+    }
+
+    [HttpDelete("cards/{cardId}/labels/{labelId}")]
+    public async Task<IActionResult> RemoveLabelFromCard(Guid cardId, Guid labelId)
+    {
+        var cardLabel = await _context.BoardCardLabels.FirstOrDefaultAsync(cl => cl.CardId == cardId && cl.LabelId == labelId);
+        if (cardLabel != null)
+        {
+            var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
+            _context.BoardCardLabels.Remove(cardLabel);
+            await _context.SaveChangesAsync();
+            if (card != null) await NotifyBoardUpdated(card.List.BoardId);
+        }
+        return Ok();
+    }
+
+    // --- COMMENTS ---
+    public class CreateCommentRequest { public string Text { get; set; } = string.Empty; }
+    
+    [HttpPost("cards/{cardId}/comments")]
+    public async Task<IActionResult> AddComment(Guid cardId, [FromBody] CreateCommentRequest req)
+    {
+        var userId = _userManager.GetUserId(User);
+        var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
+        if (card == null) return NotFound();
+
+        var comment = new BoardCardComment
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId,
+            UserId = userId!,
+            Text = req.Text,
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.BoardCardComments.Add(comment);
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(card.List.BoardId);
+        
+        return Ok(comment);
+    }
+
+    // --- CHECKLISTS ---
+    public class CreateChecklistRequest { public string Title { get; set; } = string.Empty; }
+    
+    [HttpPost("cards/{cardId}/checklists")]
+    public async Task<IActionResult> AddChecklist(Guid cardId, [FromBody] CreateChecklistRequest req)
+    {
+        var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
+        if (card == null) return NotFound();
+
+        var checklist = new BoardCardChecklist
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId,
+            Title = req.Title
+        };
+        _context.BoardCardChecklists.Add(checklist);
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(card.List.BoardId);
+        
+        return Ok(checklist);
+    }
+
+    [HttpPost("checklists/{checklistId}/items")]
+    public async Task<IActionResult> AddChecklistItem(Guid checklistId, [FromBody] CreateChecklistRequest req)
+    {
+        var checklist = await _context.BoardCardChecklists.Include(c => c.Card).ThenInclude(c => c.List).FirstOrDefaultAsync(c => c.Id == checklistId);
+        if (checklist == null) return NotFound();
+
+        var item = new BoardCardChecklistItem
+        {
+            Id = Guid.NewGuid(),
+            ChecklistId = checklistId,
+            Text = req.Title,
+            IsCompleted = false
+        };
+        _context.BoardCardChecklistItems.Add(item);
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(checklist.Card.List.BoardId);
+        
+        return Ok(item);
+    }
+
+    [HttpPut("checklists/items/{itemId}/toggle")]
+    public async Task<IActionResult> ToggleChecklistItem(Guid itemId)
+    {
+        var item = await _context.BoardCardChecklistItems
+            .Include(i => i.Checklist).ThenInclude(c => c.Card).ThenInclude(c => c.List)
+            .FirstOrDefaultAsync(i => i.Id == itemId);
+            
+        if (item == null) return NotFound();
+
+        item.IsCompleted = !item.IsCompleted;
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(item.Checklist.Card.List.BoardId);
+        
+        return Ok(item);
+    }
+
+    // --- ATTACHMENTS ---
+    [HttpPost("cards/{cardId}/attachments")]
+    public async Task<IActionResult> AddAttachment(Guid cardId, IFormFile file)
+    {
+        var userId = _userManager.GetUserId(User);
+        var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
+        if (card == null) return NotFound();
+
+        if (file == null || file.Length == 0) return BadRequest("File is empty");
+
+        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "boards");
+        Directory.CreateDirectory(uploadDir);
+
+        var fileName = $"{Guid.NewGuid()}_{file.FileName}";
+        var filePath = Path.Combine(uploadDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var attachment = new BoardCardAttachment
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId,
+            UserId = userId!,
+            FileName = file.FileName,
+            FilePath = $"/uploads/boards/{fileName}",
+            FileSize = file.Length,
+            UploadedAt = DateTime.UtcNow
+        };
+
+        _context.BoardCardAttachments.Add(attachment);
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(card.List.BoardId);
+
+        return Ok(attachment);
+    }
+
+    [HttpDelete("attachments/{attachmentId}")]
+    public async Task<IActionResult> DeleteAttachment(Guid attachmentId)
+    {
+        var attachment = await _context.BoardCardAttachments
+            .Include(a => a.Card).ThenInclude(c => c.List)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId);
+            
+        if (attachment == null) return NotFound();
+
+        var physicalPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", attachment.FilePath.TrimStart('/'));
+        if (System.IO.File.Exists(physicalPath))
+        {
+            System.IO.File.Delete(physicalPath);
+        }
+
+        _context.BoardCardAttachments.Remove(attachment);
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(attachment.Card.List.BoardId);
+
+        return Ok();
+    }
+
 }

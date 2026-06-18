@@ -24,4 +24,5 @@ public class Board
 
     public List<BoardMember> Members { get; set; } = new();
     public List<BoardList> Lists { get; set; } = new();
+    public List<BoardLabel> Labels { get; set; } = new();
 }

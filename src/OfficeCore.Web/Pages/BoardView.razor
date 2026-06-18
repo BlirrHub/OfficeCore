@@ -1,7 +1,11 @@
 @page "/boards/{Id:guid}"
 @attribute [Authorize(Policy = "RequireBoards")]
+@using Microsoft.AspNetCore.SignalR.Client
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthProvider
+@implements IAsyncDisposable
 
 <PageTitle>@(_board?.Name ?? "Loading Board...") - OfficeCore</PageTitle>
 
@@ -67,7 +71,7 @@ else
                         <svg class="size-4 text-zinc-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
                         Members
                     </button>
-                    <button @onclick="DeleteBoard" class="inline-flex items-center gap-2 rounded-lg bg-red-950/30 border border-red-900/50 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-all ml-2">
+                    <button @onclick="() => _showDeleteBoardModal = true" class="inline-flex items-center gap-2 rounded-lg bg-red-950/30 border border-red-900/50 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-all ml-2">
                         <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                         Delete Board
                     </button>
@@ -81,7 +85,7 @@ else
                 
                 @foreach (var list in _board.Lists.OrderBy(l => l.OrderIndex))
                 {
-                    <div class="w-80 shrink-0 bg-zinc-900/50 border border-zinc-800/80 rounded-2xl flex flex-col max-h-full overflow-hidden"
+                    <div @key="list.Id" class="w-80 shrink-0 bg-zinc-900/50 border border-zinc-800/80 rounded-2xl flex flex-col max-h-full overflow-hidden"
                          draggable="true"
                          @ondragstart="() => HandleListDragStart(list)"
                          ondragover="event.preventDefault();"
@@ -105,18 +109,33 @@ else
                         <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
                             @foreach (var card in list.Cards.OrderBy(c => c.OrderIndex))
                             {
-                                <div class="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 cursor-grab hover:border-fuchsia-500/50 hover:shadow-lg hover:shadow-fuchsia-900/10 transition-all group active:cursor-grabbing"
+                                <div @key="card.Id" class="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 cursor-grab hover:border-fuchsia-500/50 hover:shadow-lg hover:shadow-fuchsia-900/10 transition-all group active:cursor-grabbing"
                                      draggable="true"
                                      @ondragstart="() => HandleDragStart(card)"
                                      @onclick="() => EditCard(card)">
                                     
+                                    @if (card.Labels.Any())
+                                    {
+                                        <div class="flex flex-wrap gap-1 mb-2">
+                                            @foreach(var l in card.Labels)
+                                            {
+                                                <span class="w-8 h-2 rounded-full" style="background-color: @l.Label.ColorHex" title="@l.Label.Name"></span>
+                                            }
+                                        </div>
+                                    }
+
                                     <div class="flex justify-between items-start gap-2 mb-2">
                                         <h4 class="text-sm font-semibold text-zinc-200 leading-tight">@card.Title</h4>
                                         @if (!_isViewer)
                                         {
-                                            <button @onclick="() => DeleteCard(card.Id)" @onclick:stopPropagation="true" class="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1" title="Delete Card">
-                                                <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            </button>
+                                            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button @onclick="() => EditCard(card)" @onclick:stopPropagation="true" class="text-zinc-600 hover:text-fuchsia-400 transition-colors p-1" title="Edit Card">
+                                                    <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.89 1.14l-2.811.93a.75.75 0 01-.95-.95l.93-2.811a4.5 4.5 0 011.14-1.89l13.611-13.61z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 7.125L16.875 4.5" /></svg>
+                                                </button>
+                                                <button @onclick="() => DeleteCard(card.Id)" @onclick:stopPropagation="true" class="text-zinc-600 hover:text-red-400 transition-colors p-1" title="Delete Card">
+                                                    <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            </div>
                                         }
                                     </div>
                                     
@@ -133,6 +152,32 @@ else
                                                 <div class="flex items-center gap-1 @(isOverdue ? "text-red-400 bg-red-400/10" : "text-zinc-500 bg-zinc-900") px-1.5 py-0.5 rounded text-[10px] font-medium">
                                                     <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                     @card.DueDate.Value.ToString("MMM dd")
+                                                </div>
+                                            }
+                                            
+                                            @if (card.Checklists.Any())
+                                            {
+                                                var total = card.Checklists.SelectMany(c => c.Items).Count();
+                                                var completed = card.Checklists.SelectMany(c => c.Items).Count(i => i.IsCompleted);
+                                                <div class="flex items-center gap-1 text-zinc-500 text-[10px] font-medium" title="Checklist items">
+                                                    <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                                                    @completed/@total
+                                                </div>
+                                            }
+
+                                            @if (card.Attachments.Any())
+                                            {
+                                                <div class="flex items-center gap-1 text-zinc-500 text-[10px] font-medium" title="Attachments">
+                                                    <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                                    @card.Attachments.Count
+                                                </div>
+                                            }
+
+                                            @if (card.Comments.Any())
+                                            {
+                                                <div class="flex items-center gap-1 text-zinc-500 text-[10px] font-medium" title="Comments">
+                                                    <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                                    @card.Comments.Count
                                                 </div>
                                             }
                                         </div>
@@ -188,7 +233,7 @@ else
 @if (_showCardModal)
 {
     <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900 shrink-0">
                 <h3 class="text-lg font-bold text-white tracking-wide">@(_editingCard == null ? "Add Card" : "Edit Card")</h3>
                 <button @onclick="CloseCardModal" class="text-zinc-500 hover:text-white transition-colors">
@@ -235,6 +280,30 @@ else
         </div>
     </div>
 }
+<!-- Delete Board Modal -->
+@if (_showDeleteBoardModal)
+{
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-zinc-900 border border-red-900/50 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900 shrink-0">
+                <h3 class="text-lg font-bold text-white tracking-wide">Delete Board</h3>
+                <button @onclick="() => _showDeleteBoardModal = false" class="text-zinc-500 hover:text-white transition-colors">
+                    <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="p-6">
+                <p class="text-zinc-300 text-sm mb-6">Are you sure you want to delete this board? This action cannot be undone.</p>
+                
+                <div class="flex justify-end gap-3">
+                    <button @onclick="() => _showDeleteBoardModal = false" class="px-4 py-2 text-sm font-bold text-white bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-all">Cancel</button>
+                    <button @onclick="ConfirmDeleteBoard" class="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-500 transition-all">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <!-- Members Modal -->
 @if (_showMembersModal)
 {
@@ -285,8 +354,8 @@ else
                                     }
                                 </select>
                                 <select @bind="_newMemberRole" class="w-28 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none appearance-none">
-                                    <option value="1">Member</option>
-                                    <option value="2">Viewer</option>
+                                    <option value="@BoardRole.Member">Member</option>
+                                    <option value="@BoardRole.Viewer">Viewer</option>
                                 </select>
                             </div>
                             <button @onclick="AddMember" disabled="@string.IsNullOrEmpty(_newMemberUserId)" class="w-full py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 disabled:opacity-50 transition-all">
@@ -332,21 +401,58 @@ else
     private string _newListName = string.Empty;
 
     // Modal State
+    private bool _showDeleteBoardModal = false;
     private bool _showMembersModal = false;
     private string _newMemberUserId = string.Empty;
-    private int _newMemberRole = 1; // Default Member
+    private BoardRole _newMemberRole = BoardRole.Member;
 
     private bool _showCardModal = false;
     private Guid _activeListIdForCard;
     private BoardCardDto? _editingCard;
     private CardEditModel _cardModel = new();
 
-    public enum BoardRole { Owner = 0, Member = 1, Viewer = 2 }
+    private DateTime _lastActionTime = DateTime.MinValue;
+    private void MarkAction() => _lastActionTime = DateTime.UtcNow;
+
+    public enum BoardRole { Viewer = 0, Member = 1, Owner = 2 }
+
+    private HubConnection? hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadBoard();
+        await LoadBoard(true);
         await LoadAllUsers();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(Http.BaseAddress!, "hubs/boards"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On("BoardUpdated", async () =>
+        {
+            if (DateTime.UtcNow - _lastActionTime < TimeSpan.FromSeconds(2)) return;
+            await LoadBoard(false);
+            await InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            await hubConnection.StartAsync();
+            await hubConnection.SendAsync("JoinBoardGroup", Id.ToString());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to connect to SignalR hub: {ex.Message}");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("LeaveBoardGroup", Id.ToString());
+            await hubConnection.DisposeAsync();
+        }
     }
 
     private async Task LoadAllUsers()
@@ -359,20 +465,22 @@ else
         catch { }
     }
 
-    private async Task LoadBoard()
+    private async Task LoadBoard(bool showLoading = false)
     {
-        _isLoading = true;
+        if (showLoading) _isLoading = true;
         try
         {
             _board = await Http.GetFromJsonAsync<BoardDto>($"/api/boards/{Id}");
             if (_board != null)
             {
-                // In a real app we'd decode the JWT to check our own ID to determine role, 
-                // but since the endpoint only returns boards we can access, and we can check role if we included it in Dto.
-                // Assuming BoardDto includes our current role or we infer it. 
-                // For this demo, let's just assume we can deduce it or default to Owner for simplicity if missing.
-                _isOwner = true; // Simplifying access check for UI logic
-                _isViewer = false;
+                var authState = await AuthProvider.GetAuthenticationStateAsync();
+                var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var myMember = _board.Members.FirstOrDefault(m => m.User.Id == userId);
+                if (myMember != null)
+                {
+                    _isOwner = myMember.Role == BoardRole.Owner;
+                    _isViewer = myMember.Role == BoardRole.Viewer;
+                }
             }
         }
         catch
@@ -412,6 +520,7 @@ else
                 }
                 
                 // Backend update
+                MarkAction();
                 var moveReq = new { NewListId = targetListId, NewOrderIndex = destList.Cards.Count };
                 await Http.PutAsJsonAsync($"/api/boards/cards/{_draggedCard.Id}/move", moveReq);
             }
@@ -435,7 +544,8 @@ else
                     _board.Lists[i].OrderIndex = i;
                 }
 
-                // Backend update
+                // Send backend update
+                MarkAction();
                 var moveReq = new { NewOrderIndex = newIndex };
                 await Http.PutAsJsonAsync($"/api/boards/{Id}/lists/{_draggedList.Id}/move", moveReq);
             }
@@ -448,6 +558,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(_newListName) || _board == null) return;
 
+        MarkAction();
         var req = new { Name = _newListName };
         var response = await Http.PostAsJsonAsync($"/api/boards/{Id}/lists", req);
         
@@ -486,8 +597,17 @@ else
 
     private void EditCard(BoardCardDto card)
     {
-        // Currently read-only / simplistic edit mode
-        // Full implementation would update the card.
+        if (_isViewer) return;
+        _activeListIdForCard = card.ListId;
+        _editingCard = card;
+        _cardModel = new CardEditModel
+        {
+            Title = card.Title,
+            Description = card.Description,
+            AssignedToUserId = card.AssignedToUserId ?? card.AssignedToUser?.Id,
+            DueDate = card.DueDate
+        };
+        _showCardModal = true;
     }
 
     private void CloseCardModal()
@@ -499,17 +619,18 @@ else
     {
         if (string.IsNullOrWhiteSpace(_cardModel.Title)) return;
 
+        var req = new 
+        { 
+            Title = _cardModel.Title, 
+            Description = _cardModel.Description,
+            AssignedToUserId = _cardModel.AssignedToUserId,
+            DueDate = _cardModel.DueDate
+        };
+
         if (_editingCard == null)
         {
-            var req = new 
-            { 
-                Title = _cardModel.Title, 
-                Description = _cardModel.Description,
-                AssignedToUserId = _cardModel.AssignedToUserId,
-                DueDate = _cardModel.DueDate
-            };
+            MarkAction();
             var response = await Http.PostAsJsonAsync($"/api/boards/lists/{_activeListIdForCard}/cards", req);
-            
             if (response.IsSuccessStatusCode)
             {
                 var createdCard = await response.Content.ReadFromJsonAsync<BoardCardDto>();
@@ -520,11 +641,23 @@ else
                 }
             }
         }
+        else
+        {
+            MarkAction();
+            var response = await Http.PutAsJsonAsync($"/api/boards/cards/{_editingCard.Id}", req);
+            if (response.IsSuccessStatusCode)
+            {
+                _editingCard.Title = _cardModel.Title;
+                _editingCard.Description = _cardModel.Description;
+                _editingCard.AssignedToUserId = _cardModel.AssignedToUserId;
+                _editingCard.DueDate = _cardModel.DueDate;
+            }
+        }
 
         _showCardModal = false;
     }
 
-    private async Task DeleteBoard()
+    private async Task ConfirmDeleteBoard()
     {
         var response = await Http.DeleteAsync($"/api/boards/{Id}");
         if (response.IsSuccessStatusCode)
@@ -535,6 +668,7 @@ else
 
     private async Task DeleteList(Guid listId)
     {
+        MarkAction();
         var response = await Http.DeleteAsync($"/api/boards/lists/{listId}");
         if (response.IsSuccessStatusCode)
         {
@@ -545,6 +679,7 @@ else
 
     private async Task DeleteCard(Guid cardId)
     {
+        MarkAction();
         var response = await Http.DeleteAsync($"/api/boards/cards/{cardId}");
         if (response.IsSuccessStatusCode)
         {
@@ -565,16 +700,18 @@ else
         if (string.IsNullOrEmpty(_newMemberUserId)) return;
 
         var req = new { UserId = _newMemberUserId, Role = _newMemberRole };
+        MarkAction();
         var response = await Http.PostAsJsonAsync($"/api/boards/{Id}/members", req);
         if (response.IsSuccessStatusCode)
         {
-            await LoadBoard();
+            await LoadBoard(false);
             _newMemberUserId = string.Empty;
         }
     }
 
     private async Task RemoveMember(string userId)
     {
+        MarkAction();
         var response = await Http.DeleteAsync($"/api/boards/{Id}/members/{userId}");
         if (response.IsSuccessStatusCode)
         {
@@ -599,12 +736,13 @@ else
         public string? Description { get; set; }
         public List<BoardMemberDto> Members { get; set; } = new();
         public List<BoardListDto> Lists { get; set; } = new();
+        public List<BoardLabelDto> Labels { get; set; } = new();
     }
 
     public class BoardMemberDto
     {
         public EmployeeDto User { get; set; } = new();
-        public int Role { get; set; }
+        public BoardRole Role { get; set; }
     }
 
     public class EmployeeDto
@@ -629,7 +767,57 @@ else
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public int OrderIndex { get; set; }
+        public string? AssignedToUserId { get; set; }
         public EmployeeDto? AssignedToUser { get; set; }
         public DateTime? DueDate { get; set; }
+
+        public List<BoardCardLabelDto> Labels { get; set; } = new();
+        public List<BoardCardCommentDto> Comments { get; set; } = new();
+        public List<BoardCardChecklistDto> Checklists { get; set; } = new();
+        public List<BoardCardAttachmentDto> Attachments { get; set; } = new();
+    }
+
+    public class BoardLabelDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string ColorHex { get; set; } = string.Empty;
+    }
+
+    public class BoardCardLabelDto
+    {
+        public Guid LabelId { get; set; }
+        public BoardLabelDto Label { get; set; } = new();
+    }
+
+    public class BoardCardCommentDto
+    {
+        public Guid Id { get; set; }
+        public EmployeeDto User { get; set; } = new();
+        public string Text { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class BoardCardChecklistDto
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public List<BoardCardChecklistItemDto> Items { get; set; } = new();
+    }
+
+    public class BoardCardChecklistItemDto
+    {
+        public Guid Id { get; set; }
+        public string Text { get; set; } = string.Empty;
+        public bool IsCompleted { get; set; }
+    }
+
+    public class BoardCardAttachmentDto
+    {
+        public Guid Id { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public DateTime UploadedAt { get; set; }
     }
 }

@@ -36,6 +36,12 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
     public DbSet<BoardMember> BoardMembers { get; set; }
     public DbSet<BoardList> BoardLists { get; set; }
     public DbSet<BoardCard> BoardCards { get; set; }
+    public DbSet<BoardLabel> BoardLabels { get; set; }
+    public DbSet<BoardCardLabel> BoardCardLabels { get; set; }
+    public DbSet<BoardCardComment> BoardCardComments { get; set; }
+    public DbSet<BoardCardChecklist> BoardCardChecklists { get; set; }
+    public DbSet<BoardCardChecklistItem> BoardCardChecklistItems { get; set; }
+    public DbSet<BoardCardAttachment> BoardCardAttachments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -71,6 +77,22 @@ public class AppDbContext : IdentityDbContext<Employee, AppRole, string>
             .HasMany(l => l.Cards)
             .WithOne(c => c.List)
             .HasForeignKey(c => c.ListId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Configure Board Labels
+        builder.Entity<BoardCardLabel>()
+            .HasKey(bcl => new { bcl.CardId, bcl.LabelId });
+
+        builder.Entity<BoardCardLabel>()
+            .HasOne(bcl => bcl.Card)
+            .WithMany()
+            .HasForeignKey(bcl => bcl.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<BoardCardLabel>()
+            .HasOne(bcl => bcl.Label)
+            .WithMany()
+            .HasForeignKey(bcl => bcl.LabelId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

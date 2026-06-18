@@ -291,6 +291,165 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("BoardCards");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("BoardCardAttachments");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardChecklist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardId");
+
+                    b.ToTable("BoardCardChecklists");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardChecklistItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChecklistId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChecklistId");
+
+                    b.ToTable("BoardCardChecklistItems");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("BoardCardComments");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardLabel", b =>
+                {
+                    b.Property<Guid>("CardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LabelId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BoardCardId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CardId", "LabelId");
+
+                    b.HasIndex("BoardCardId");
+
+                    b.HasIndex("LabelId");
+
+                    b.ToTable("BoardCardLabels");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardLabel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BoardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ColorHex")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardId");
+
+                    b.ToTable("BoardLabels");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.BoardList", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1080,6 +1239,100 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("List");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardAttachment", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.BoardCard", "Card")
+                        .WithMany("Attachments")
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.Employee", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Card");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardChecklist", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.BoardCard", "Card")
+                        .WithMany("Checklists")
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Card");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardChecklistItem", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.BoardCardChecklist", "Checklist")
+                        .WithMany("Items")
+                        .HasForeignKey("ChecklistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Checklist");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardComment", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.BoardCard", "Card")
+                        .WithMany("Comments")
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.Employee", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Card");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardLabel", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.BoardCard", null)
+                        .WithMany("Labels")
+                        .HasForeignKey("BoardCardId");
+
+                    b.HasOne("OfficeCore.Api.Models.BoardCard", "Card")
+                        .WithMany()
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.BoardLabel", "Label")
+                        .WithMany()
+                        .HasForeignKey("LabelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Card");
+
+                    b.Navigation("Label");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardLabel", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Board", "Board")
+                        .WithMany("Labels")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Board");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.BoardList", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.Board", "Board")
@@ -1239,9 +1492,27 @@ namespace OfficeCore.Api.Migrations
 
             modelBuilder.Entity("OfficeCore.Api.Models.Board", b =>
                 {
+                    b.Navigation("Labels");
+
                     b.Navigation("Lists");
 
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCard", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("Checklists");
+
+                    b.Navigation("Comments");
+
+                    b.Navigation("Labels");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardChecklist", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.BoardList", b =>
