@@ -3,6 +3,7 @@
 @inject HttpClient Http
 @inject CookieAuthStateProvider AuthProvider
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>Sign In - OfficeCore</PageTitle>
 
@@ -49,6 +50,14 @@
                                           placeholder:text-zinc-600 focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-colors"
                                    placeholder="••••••••" autocomplete="current-password" />
                         <ValidationMessage For="() => _model.Password" class="mt-1 text-xs text-red-400" />
+                    </div>
+
+                    <div class="flex items-center justify-between mt-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <InputCheckbox @bind-Value="_model.RememberMe" class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 text-fuchsia-600 focus:ring-fuchsia-500 focus:ring-offset-zinc-950" />
+                            <span class="text-sm text-zinc-400 select-none">Remember me</span>
+                        </label>
+                        <a href="#" class="text-sm font-medium text-fuchsia-400 hover:text-fuchsia-300">Forgot password?</a>
                     </div>
 
                     <button type="submit" disabled="@_isLoading"
@@ -102,6 +111,32 @@
     private string? _errorMessage;
     private bool _isLoading;
 
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            Nav.NavigateTo("/workspaces", forceLoad: true);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var savedEmail = await JS.InvokeAsync<string>("localStorage.getItem", "lastLoginEmail");
+                if (!string.IsNullOrEmpty(savedEmail))
+                {
+                    _model.Email = savedEmail;
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
+    }
+
     private async Task HandleLogin()
     {
         _isLoading = true;
@@ -113,11 +148,12 @@
             {
                 email = _model.Email,
                 password = _model.Password,
-                rememberMe = false
+                rememberMe = _model.RememberMe
             });
 
             if (response.IsSuccessStatusCode)
             {
+                try { await JS.InvokeVoidAsync("localStorage.setItem", "lastLoginEmail", _model.Email); } catch { }
                 AuthProvider.NotifyAuthStateChanged();
                 Nav.NavigateTo("/workspaces", forceLoad: true);
             }
@@ -145,5 +181,7 @@
         [System.ComponentModel.DataAnnotations.Required]
         [System.ComponentModel.DataAnnotations.MinLength(8)]
         public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
     }
 }

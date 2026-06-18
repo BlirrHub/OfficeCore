@@ -10,7 +10,7 @@ public class OrganizationInvitation : ITenantEntity
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
     
-    public required string Email { get; set; }
+    public string? Email { get; set; }
     public required string Token { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

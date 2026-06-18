@@ -18,6 +18,25 @@
             </div>
             
             <div class="flex items-center gap-4">
+                @if (_user != null)
+                {
+                    <div class="flex items-center gap-3 mr-4">
+                        @if (!string.IsNullOrEmpty(_user.ProfilePictureUrl))
+                        {
+                            <img src="@_user.ProfilePictureUrl" alt="@_user.FirstName" class="w-10 h-10 rounded-full object-cover border border-zinc-800" />
+                        }
+                        else
+                        {
+                            <div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-medium border border-zinc-700">
+                                @GetInitials($"{_user.FirstName} {_user.LastName}")
+                            </div>
+                        }
+                        <div class="hidden sm:block">
+                            <p class="text-sm font-medium text-white">@_user.FirstName @_user.LastName</p>
+                            <p class="text-xs text-zinc-500">@_user.Email</p>
+                        </div>
+                    </div>
+                }
                 <button @onclick="Logout" class="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
                     Sign out
                 </button>
@@ -74,6 +93,42 @@
                     }
                 }
             </div>
+
+            <!-- Pending Invitations -->
+            @if (_pendingInvitations != null && _pendingInvitations.Any())
+            {
+                <div class="mt-16">
+                    <h2 class="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                        <span>Pending Invitations</span>
+                        <span class="px-2 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-400 text-xs">@_pendingInvitations.Count</span>
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        @foreach (var invite in _pendingInvitations)
+                        {
+                            <div class="bg-zinc-900/50 border border-fuchsia-500/30 rounded-2xl p-6 relative overflow-hidden flex flex-col">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/10 blur-3xl rounded-full"></div>
+                                <div class="flex items-center gap-4 mb-4">
+                                    <div class="size-10 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                                        @GetInitials(invite.OrganizationName)
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-white">@invite.OrganizationName</h3>
+                                        <p class="text-sm text-zinc-400">Invited by @invite.InvitedBy</p>
+                                    </div>
+                                </div>
+                                <div class="mt-auto flex gap-3 pt-4 border-t border-white/5 relative z-10">
+                                    <button @onclick="() => AcceptInvitation(invite.Token)" class="flex-1 py-2 px-4 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-sm font-medium text-white transition-colors">
+                                        Accept
+                                    </button>
+                                    <button @onclick="() => DeclineInvitation(invite.Token)" class="flex-1 py-2 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-medium text-white transition-colors">
+                                        Decline
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
         }
     </div>
 </div>
@@ -135,19 +190,29 @@
     private string? _createError;
     
     private List<OrganizationDto>? _organizations;
+    private List<InvitationDto>? _pendingInvitations;
+    private UserDto? _user;
     private CreateOrgModel _createModel = new();
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadOrganizations();
+        await LoadData();
     }
 
-    private async Task LoadOrganizations()
+    private async Task LoadData()
     {
         _isLoading = true;
         try
         {
-            _organizations = await Http.GetFromJsonAsync<List<OrganizationDto>>("/api/organizations/my");
+            var userTask = Http.GetFromJsonAsync<UserDto>("/api/auth/me");
+            var orgsTask = Http.GetFromJsonAsync<List<OrganizationDto>>("/api/organizations/my");
+            var invitesTask = Http.GetFromJsonAsync<List<InvitationDto>>("/api/organizations/invitations/pending");
+            
+            await Task.WhenAll(userTask, orgsTask, invitesTask);
+            
+            _user = userTask.Result;
+            _organizations = orgsTask.Result;
+            _pendingInvitations = invitesTask.Result;
         }
         catch
         {
@@ -213,6 +278,26 @@
         }
     }
 
+    private async Task AcceptInvitation(string token)
+    {
+        var response = await Http.PostAsJsonAsync("/api/organizations/join", new { Token = token });
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeclineInvitation(string token)
+    {
+        var response = await Http.PostAsync($"/api/organizations/invitations/{token}/decline", null);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
     private async Task Logout()
     {
         await Http.PostAsync("/api/auth/logout", null);
@@ -233,6 +318,24 @@
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public DateTime JoinedAt { get; set; }
+    }
+
+    private class InvitationDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public string OrganizationName { get; set; } = string.Empty;
+        public string InvitedBy { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime ExpiresAt { get; set; }
+    }
+
+    private class UserDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string? ProfilePictureUrl { get; set; }
     }
 
     private class CreateOrgModel

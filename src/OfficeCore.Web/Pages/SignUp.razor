@@ -121,6 +121,15 @@
     private string? _errorMessage;
     private bool _isLoading;
 
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            Nav.NavigateTo("/workspaces", forceLoad: true);
+        }
+    }
+
     private async Task HandleRegister()
     {
         _isLoading = true;

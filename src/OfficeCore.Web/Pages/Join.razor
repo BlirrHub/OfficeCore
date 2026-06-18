@@ -3,7 +3,7 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 @using System.Net.Http.Json
-
+@layout Layout.EmptyLayout
 <PageTitle>Join Organization - OfficeCore</PageTitle>
 
 <div class="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
@@ -26,7 +26,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <p class="text-zinc-400 text-sm">Processing invitation...</p>
+                <p class="text-zinc-400 text-sm">Loading invitation...</p>
             </div>
         }
         else if (!string.IsNullOrEmpty(_error))
@@ -59,6 +59,30 @@
                 </button>
             </div>
         }
+        else if (_invitation != null)
+        {
+            <div class="text-center">
+                <div class="size-16 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg mx-auto mb-6">
+                    @GetInitials(_invitation.OrganizationName)
+                </div>
+                <h2 class="text-xl font-bold text-white mb-2">@_invitation.OrganizationName</h2>
+                <p class="text-zinc-400 mb-8">You were invited by <strong class="text-white">@_invitation.InvitedBy</strong>.</p>
+                
+                <button @onclick="AcceptInvitation" disabled="@_isAccepting" class="block w-full rounded-xl bg-fuchsia-600 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-900/20 hover:bg-fuchsia-500 hover:shadow-fuchsia-600/20 transition-all text-center mb-3">
+                    @if (_isAccepting)
+                    {
+                        <span>Accepting...</span>
+                    }
+                    else
+                    {
+                        <span>Accept Invitation</span>
+                    }
+                </button>
+                <a href="/workspaces" class="block w-full rounded-xl bg-transparent border border-zinc-700 py-3 text-sm font-bold text-white hover:bg-zinc-800 transition-all text-center">
+                    Decline or Later
+                </a>
+            </div>
+        }
     </div>
 </div>
 
@@ -67,18 +91,38 @@
     public string Token { get; set; } = string.Empty;
 
     private bool _isLoading = true;
+    private bool _isAccepting = false;
     private string? _error;
     private bool _success;
     private string? _successMessage;
     private Guid _organizationId;
+    
+    private InvitationDetailsDto? _invitation;
 
     protected override async Task OnInitializedAsync()
     {
-        await AcceptInvitation();
+        try
+        {
+            _invitation = await Http.GetFromJsonAsync<InvitationDetailsDto>($"/api/organizations/invitations/{Token}");
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _error = "Invitation not found or has expired.";
+        }
+        catch
+        {
+            _error = "Could not load invitation details.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private async Task AcceptInvitation()
     {
+        _isAccepting = true;
+        _error = null;
         try
         {
             var response = await Http.PostAsJsonAsync("/api/organizations/join", new { Token = Token });
@@ -105,7 +149,7 @@
         }
         finally
         {
-            _isLoading = false;
+            _isAccepting = false;
         }
     }
 
@@ -114,12 +158,29 @@
         var response = await Http.PostAsync($"/api/organizations/{_organizationId}/select", null);
         if (response.IsSuccessStatusCode)
         {
-            Nav.NavigateTo("/", forceLoad: true);
+            Nav.NavigateTo("/workspaces", forceLoad: true);
         }
         else
         {
             _error = "Failed to switch context to the new organization.";
         }
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "OC";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Substring(0, Math.Min(2, name.Length)).ToUpper();
+    }
+
+    private class InvitationDetailsDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public string OrganizationName { get; set; } = string.Empty;
+        public string InvitedBy { get; set; } = string.Empty;
+        public bool HasEmail { get; set; }
+        public string? TargetEmail { get; set; }
     }
 
     private class JoinResponseDto

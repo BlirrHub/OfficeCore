@@ -1,6 +1,6 @@
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.EmptyLayout)">
             <NotAuthorized>
                 @if (!context.User.Identity?.IsAuthenticated ?? true)
                 {
@@ -16,12 +16,17 @@
                     </div>
                 }
             </NotAuthorized>
+            <Authorizing>
+                <div class="min-h-screen bg-black flex items-center justify-center">
+                    <div class="animate-spin size-8 text-fuchsia-500 border-2 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full"></div>
+                </div>
+            </Authorizing>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
     <NotFound>
         <PageTitle>Not found</PageTitle>
-        <LayoutView Layout="typeof(Layout.MainLayout)">
+        <LayoutView Layout="typeof(Layout.EmptyLayout)">
             <div class="min-h-screen bg-black flex flex-col items-center justify-center p-4">
                 <h1 class="text-6xl font-bold text-white mb-4">404</h1>
                 <p class="text-zinc-400 text-lg mb-8">Sorry, there's nothing at this address.</p>

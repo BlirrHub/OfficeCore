@@ -33,7 +33,10 @@ All notable changes to this project will be documented in this file.
 - **GetCurrentOrganization API**: `GET /api/organizations/current` returns the currently active org's name and ID.
 
 ### Changed — Phase 3
-- **Employee Management**: "Add Employee" replaced with "Invite Member" in `UserManagement.razor`. A link-generator modal produces a shareable invite URL. Admins can no longer edit `FirstName`/`LastName` on employee records (those are personal global user fields).
+- **Employee Management**: "Add Employee" replaced with "Invite Member" in `UserManagement.razor`. A new two-tab modal produces a shareable invite URL (By Link) or sends it directly to a user's workspace (By Email). Admins can no longer edit `FirstName`/`LastName` on employee records (those are personal global user fields).
+- **Join Organization Flow**: `Join.razor` now acts as a standalone landing page (using `EmptyLayout`) displaying invitation details before explicitly requiring the user to click "Accept". Redirects to `/workspaces` upon success.
+- **Workspaces Dashboard**: Displays the logged-in user's profile and includes a new "Pending Invitations" section for direct email invites.
+- **Login**: Added a "Remember me" checkbox that auto-fills the last successfully authenticated email.
 
 ---
 

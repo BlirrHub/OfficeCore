@@ -122,18 +122,45 @@
                 </button>
             </div>
 
+            <!-- Tabs -->
+            <div class="flex p-1 bg-zinc-900 rounded-lg">
+                <button @onclick="@(() => _inviteTab = "link")" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "link" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
+                    By Link
+                </button>
+                <button @onclick="@(() => _inviteTab = "email")" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "email" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
+                    By Email
+                </button>
+            </div>
+
             <div class="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-1">Email</label>
-                    <input @bind="_create.Email" type="email" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                </div>
+                @if (_inviteTab == "email")
+                {
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Email Address</label>
+                        <input @bind="_create.Email" type="email" placeholder="user@example.com" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                        <p class="text-[10px] text-zinc-500 mt-2">They will see this invitation when they log in.</p>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-xs text-zinc-400">Generate a shareable link. Anyone with this link can request to join your workspace.</p>
+                }
                 
                 @if (!string.IsNullOrEmpty(_inviteLink))
                 {
                     <div class="bg-emerald-900/30 border border-emerald-800 rounded-lg p-3 mt-4">
                         <p class="text-xs text-emerald-400 font-medium mb-1">Invitation Generated!</p>
                         <input readonly value="@_inviteLink" class="w-full bg-black/50 text-emerald-300 text-xs font-mono p-2 rounded border border-emerald-900/50 outline-none" />
-                        <p class="text-[10px] text-zinc-500 mt-2">Send this link to the user to join.</p>
+                        @if (_inviteTab == "link")
+                        {
+                            <p class="text-[10px] text-zinc-500 mt-2">Send this link to the user to join.</p>
+                        }
+                    </div>
+                }
+                else if (_inviteSuccessMessage != null)
+                {
+                    <div class="bg-emerald-900/30 border border-emerald-800 rounded-lg p-3 mt-4">
+                        <p class="text-xs text-emerald-400 font-medium text-center">@_inviteSuccessMessage</p>
                     </div>
                 }
             </div>
@@ -144,11 +171,11 @@
             }
 
             <div class="flex justify-end gap-3 pt-4 border-t border-zinc-800 shrink-0">
-                <button @onclick="() => { _showCreate = false; _inviteLink = null; _create.Email = string.Empty; }"
+                <button @onclick="() => { _showCreate = false; _inviteLink = null; _inviteSuccessMessage = null; _create.Email = string.Empty; }"
                         class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Close</button>
-                <button @onclick="InviteMember" disabled="@(!string.IsNullOrEmpty(_inviteLink))"
+                <button @onclick="InviteMember" disabled="@(!string.IsNullOrEmpty(_inviteLink) || !string.IsNullOrEmpty(_inviteSuccessMessage))"
                         class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
-                    Generate Link
+                    @(_inviteTab == "email" ? "Send Invitation" : "Generate Link")
                 </button>
             </div>
         </div>
@@ -751,6 +778,8 @@
     }
 
     private string? _inviteLink;
+    private string? _inviteSuccessMessage;
+    private string _inviteTab = "link";
     
     private class OrganizationDto { public Guid Id { get; set; } }
     private class InviteResponseDto { public string JoinUrl { get; set; } = string.Empty; }
@@ -758,7 +787,7 @@
     private async Task InviteMember()
     {
         _modalError = null;
-        if (string.IsNullOrWhiteSpace(_create.Email))
+        if (_inviteTab == "email" && string.IsNullOrWhiteSpace(_create.Email))
         {
             _modalError = "Email is required.";
             return;
@@ -772,13 +801,22 @@
                 return;
             }
 
-            var response = await Http.PostAsJsonAsync($"/api/organizations/{orgRes.Id}/invite", new { Email = _create.Email });
+            var requestBody = new { Email = _inviteTab == "email" ? _create.Email : null };
+            var response = await Http.PostAsJsonAsync($"/api/organizations/{orgRes.Id}/invite", requestBody);
+            
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<InviteResponseDto>();
                 if (result != null)
                 {
-                    _inviteLink = Nav.BaseUri + result.JoinUrl.TrimStart('/');
+                    if (_inviteTab == "link")
+                    {
+                        _inviteLink = Nav.BaseUri + result.JoinUrl.TrimStart('/');
+                    }
+                    else
+                    {
+                        _inviteSuccessMessage = $"Invitation sent successfully to {_create.Email}!";
+                    }
                 }
             }
             else

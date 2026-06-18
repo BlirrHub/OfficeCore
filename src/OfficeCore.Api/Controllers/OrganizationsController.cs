@@ -170,8 +170,7 @@ public class OrganizationsController : ControllerBase
         Response.Cookies.Append("ActiveOrganizationId", id.ToString(), new CookieOptions
         {
             HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
+            SameSite = SameSiteMode.Lax,
             Expires = DateTimeOffset.UtcNow.AddDays(7)
         });
 
@@ -184,7 +183,6 @@ public class OrganizationsController : ControllerBase
         var userId = _userManager.GetUserId(User);
         if (userId == null) return Unauthorized();
 
-        // Basic check: is user in this organization? (In a real app, check for Admin role)
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == id);
         
@@ -197,7 +195,7 @@ public class OrganizationsController : ControllerBase
         {
             Id = Guid.NewGuid(),
             OrganizationId = id,
-            Email = request.Email,
+            Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email,
             Token = token,
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
@@ -207,7 +205,6 @@ public class OrganizationsController : ControllerBase
         _context.OrganizationInvitations.Add(invitation);
         await _context.SaveChangesAsync();
 
-        // Note: In production we would email this link. For now, just return it.
         var joinUrl = $"/join/{token}";
         
         return Ok(new { message = "Invitation created", joinUrl, token });
@@ -269,6 +266,66 @@ public class OrganizationsController : ControllerBase
             organizationName = invitation.Organization!.Name
         });
     }
+
+    [HttpGet("invitations/pending")]
+    public async Task<IActionResult> GetPendingInvitations()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Unauthorized();
+
+        var pendingInvites = await _context.OrganizationInvitations
+            .Include(i => i.Organization)
+            .Include(i => i.InvitedBy)
+            .Where(i => i.Email == user.Email && !i.IsAccepted && i.ExpiresAt > DateTime.UtcNow)
+            .Select(i => new
+            {
+                Token = i.Token,
+                OrganizationName = i.Organization!.Name,
+                InvitedBy = i.InvitedBy != null ? $"{i.InvitedBy.FirstName} {i.InvitedBy.LastName}" : "Someone",
+                CreatedAt = i.CreatedAt,
+                ExpiresAt = i.ExpiresAt
+            })
+            .ToListAsync();
+
+        return Ok(pendingInvites);
+    }
+
+    [HttpGet("invitations/{token}")]
+    public async Task<IActionResult> GetInvitation(string token)
+    {
+        var invitation = await _context.OrganizationInvitations
+            .Include(i => i.Organization)
+            .Include(i => i.InvitedBy)
+            .FirstOrDefaultAsync(i => i.Token == token && !i.IsAccepted && i.ExpiresAt > DateTime.UtcNow);
+
+        if (invitation == null) return NotFound("Invitation not found or has expired.");
+
+        return Ok(new
+        {
+            Token = invitation.Token,
+            OrganizationName = invitation.Organization!.Name,
+            InvitedBy = invitation.InvitedBy != null ? $"{invitation.InvitedBy.FirstName} {invitation.InvitedBy.LastName}" : "Someone",
+            HasEmail = !string.IsNullOrEmpty(invitation.Email),
+            TargetEmail = invitation.Email
+        });
+    }
+
+    [HttpPost("invitations/{token}/decline")]
+    public async Task<IActionResult> DeclineInvitation(string token)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Unauthorized();
+
+        var invitation = await _context.OrganizationInvitations
+            .FirstOrDefaultAsync(i => i.Token == token && i.Email == user.Email && !i.IsAccepted);
+
+        if (invitation == null) return NotFound("Invitation not found.");
+
+        _context.OrganizationInvitations.Remove(invitation);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Invitation declined" });
+    }
 }
 
 public class CreateOrgRequest
@@ -278,7 +335,7 @@ public class CreateOrgRequest
 
 public class InviteRequest
 {
-    public required string Email { get; set; }
+    public string? Email { get; set; }
 }
 
 public class JoinRequest
