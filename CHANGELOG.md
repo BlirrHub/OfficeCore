@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **TenantService**: Created a `TenantService` registered as scoped DI to centralize organization context resolution (reads `ActiveOrganizationId` cookie) and Employee resolution for the active org.
+- **Org-Scoped Chat**: Chat rooms, messages, and members are now fully isolated per organization. Users in Org A cannot see rooms or messages from Org B.
+- **Org-Scoped Boards**: Boards are now created with `OrganizationId` and scoped queries prevent cross-org data leakage. `BoardMember`, `BoardList` records are properly org-tagged on creation.
+- **Org-Scoped User Lists**: `GET /api/user` and `GET /api/chat/users` now only return employees belonging to the active organization.
 - **Invitation System**: Added `OrganizationInvitations` table and `/api/organizations/{id}/invite` endpoint to generate unique invitation links for joining an organization.
 - **Join Organization Flow**: Implemented `/api/organizations/join` and a frontend page (`/join/{token}`) allowing users to accept an invitation.
 - **GetCurrentOrganization API**: Added `/api/organizations/current` to retrieve the active organization.

@@ -1,17 +1,31 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Hubs;
 
 [Authorize]
 public class ChatHub : Hub
 {
+    private readonly AppDbContext _context;
+    private readonly TenantService _tenant;
+
+    public ChatHub(AppDbContext context, TenantService tenant)
+    {
+        _context = context;
+        _tenant = tenant;
+    }
+
     public override async Task OnConnectedAsync()
     {
-        var userId = Context.UserIdentifier;
-        if (!string.IsNullOrEmpty(userId))
+        // Each connection joins a per-org per-employee group so messages are isolated.
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee != null)
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+            var orgId = _tenant.GetActiveOrganizationId();
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId}_employee_{employee.Id}");
         }
 
         await base.OnConnectedAsync();
@@ -19,7 +33,17 @@ public class ChatHub : Hub
 
     public async Task JoinRoom(string roomId)
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"room_{roomId}");
+        // Verify the user is actually a member of this room before allowing them to subscribe
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return;
+
+        var isMember = await _context.ChatRoomMembers
+            .AnyAsync(m => m.ChatRoomId == Guid.Parse(roomId) && m.UserId == employee.Id);
+
+        if (isMember)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"room_{roomId}");
+        }
     }
 
     public async Task LeaveRoom(string roomId)
@@ -29,7 +53,9 @@ public class ChatHub : Hub
 
     public async Task SendTypingIndicator(string roomId)
     {
-        var userId = Context.UserIdentifier;
-        await Clients.Group($"room_{roomId}").SendAsync("UserTyping", roomId, userId);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return;
+        
+        await Clients.Group($"room_{roomId}").SendAsync("UserTyping", roomId, employee.Id);
     }
 }

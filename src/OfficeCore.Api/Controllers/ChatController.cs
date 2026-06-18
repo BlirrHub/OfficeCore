@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using OfficeCore.Api.Data;
 using OfficeCore.Api.Hubs;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -17,23 +17,26 @@ public class ChatController : ControllerBase
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<ChatHub> _chatHub;
+    private readonly TenantService _tenant;
 
-    public ChatController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<ChatHub> chatHub)
+    public ChatController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<ChatHub> chatHub, TenantService tenant)
     {
         _context = context;
         _userManager = userManager;
         _chatHub = chatHub;
+        _tenant = tenant;
     }
 
     [HttpGet("rooms")]
     public async Task<IActionResult> GetRooms()
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        
+        var orgId = _tenant.GetActiveOrganizationId();
 
         var rooms = await _context.ChatRooms
-            .Include(r => r.Members)
-                .ThenInclude(m => m.User)
-            .Where(r => r.Members.Any(m => m.UserId == userId))
+            .Where(r => r.OrganizationId == orgId && r.Members.Any(m => m.UserId == employee.Id))
             .Select(r => new
             {
                 r.Id,
@@ -60,7 +63,7 @@ public class ChatController : ControllerBase
                     })
                     .FirstOrDefault(),
                 UnreadCount = _context.ChatMessages
-                    .Where(m => m.ChatRoomId == r.Id && m.CreatedAt > r.Members.First(me => me.UserId == userId).LastReadAt)
+                    .Where(m => m.ChatRoomId == r.Id && m.CreatedAt > r.Members.First(me => me.UserId == employee.Id).LastReadAt)
                     .Count()
             })
             .OrderByDescending(r => r.LastMessage != null ? r.LastMessage.CreatedAt : r.CreatedAt)
@@ -72,9 +75,10 @@ public class ChatController : ControllerBase
     [HttpGet("rooms/{roomId}/messages")]
     public async Task<IActionResult> GetMessages(Guid roomId, [FromQuery] int skip = 0, [FromQuery] int take = 50)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
 
-        var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == userId);
+        var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
         if (!isMember) return Forbid();
 
         var messages = await _context.ChatMessages
@@ -106,46 +110,48 @@ public class ChatController : ControllerBase
     [HttpPost("rooms/{roomId}/messages")]
     public async Task<IActionResult> SendMessage(Guid roomId, [FromBody] SendMessageRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
-        var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == userId);
+        var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
         if (!isMember) return Forbid();
 
         var message = new ChatMessage
         {
             Id = Guid.NewGuid(),
             ChatRoomId = roomId,
-            SenderId = userId!,
+            SenderId = employee.Id,
             Content = req.Content,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OrganizationId = orgId
         };
 
         _context.ChatMessages.Add(message);
         
         // Update sender's LastReadAt
-        var member = await _context.ChatRoomMembers.FirstAsync(m => m.ChatRoomId == roomId && m.UserId == userId);
+        var member = await _context.ChatRoomMembers.FirstAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
         member.LastReadAt = message.CreatedAt;
 
         await _context.SaveChangesAsync();
-
-        var sender = await _context.Users.FindAsync(userId);
 
         var msgDto = new
         {
             message.Id,
             message.ChatRoomId,
             message.SenderId,
-            SenderName = sender!.FirstName + " " + sender.LastName,
-            sender.ProfilePictureUrl,
+            SenderName = employee.User!.FirstName + " " + employee.User.LastName,
+            employee.User.ProfilePictureUrl,
             message.Content,
             message.CreatedAt
         };
 
-        // Notify all members of the room
+        // Notify all members of the room via org-scoped SignalR group
         var roomMembers = await _context.ChatRoomMembers.Where(m => m.ChatRoomId == roomId).Select(m => m.UserId).ToListAsync();
         foreach (var memberId in roomMembers)
         {
-            await _chatHub.Clients.Group($"user_{memberId}").SendAsync("ReceiveMessage", roomId, msgDto);
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{memberId}").SendAsync("ReceiveMessage", roomId, msgDto);
         }
 
         return Ok(msgDto);
@@ -154,31 +160,39 @@ public class ChatController : ControllerBase
     [HttpPost("rooms/{roomId}/read")]
     public async Task<IActionResult> MarkAsRead(Guid roomId)
     {
-        var userId = _userManager.GetUserId(User);
-        var member = await _context.ChatRoomMembers.FirstOrDefaultAsync(m => m.ChatRoomId == roomId && m.UserId == userId);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
+
+        var member = await _context.ChatRoomMembers.FirstOrDefaultAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
         if (member == null) return Forbid();
 
         member.LastReadAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         
-        await _chatHub.Clients.Group($"user_{userId}").SendAsync("RoomRead", roomId);
+        await _chatHub.Clients.Group($"org_{orgId}_employee_{employee.Id}").SendAsync("RoomRead", roomId);
 
         return Ok();
     }
 
-    [HttpPost("direct/{targetUserId}")]
-    public async Task<IActionResult> GetOrCreateDirectMessage(string targetUserId)
+    [HttpPost("direct/{targetEmployeeId}")]
+    public async Task<IActionResult> GetOrCreateDirectMessage(string targetEmployeeId)
     {
-        var userId = _userManager.GetUserId(User);
-        if (userId == targetUserId) return BadRequest("Cannot start DM with yourself.");
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
-        var targetUser = await _context.Users.FindAsync(targetUserId);
-        if (targetUser == null) return NotFound("User not found.");
+        if (employee.Id == targetEmployeeId) return BadRequest("Cannot start DM with yourself.");
 
-        // Check if DM already exists
+        var targetEmployee = await _context.Employees.Include(e => e.User).FirstOrDefaultAsync(e => e.Id == targetEmployeeId && e.OrganizationId == orgId);
+        if (targetEmployee == null) return NotFound("Member not found in this organization.");
+
+        // Check if DM already exists within this org
         var existingRoom = await _context.ChatRooms
-            .Where(r => r.Type == ChatRoomType.DirectMessage)
-            .Where(r => r.Members.Any(m => m.UserId == userId) && r.Members.Any(m => m.UserId == targetUserId))
+            .Where(r => r.OrganizationId == orgId && r.Type == ChatRoomType.DirectMessage)
+            .Where(r => r.Members.Any(m => m.UserId == employee.Id) && r.Members.Any(m => m.UserId == targetEmployeeId))
             .FirstOrDefaultAsync();
 
         if (existingRoom != null) return Ok(new { RoomId = existingRoom.Id });
@@ -187,18 +201,19 @@ public class ChatController : ControllerBase
         {
             Id = Guid.NewGuid(),
             Type = ChatRoomType.DirectMessage,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OrganizationId = orgId
         };
 
-        newRoom.Members.Add(new ChatRoomMember { Id = Guid.NewGuid(), UserId = userId!, JoinedAt = DateTime.UtcNow, LastReadAt = DateTime.UtcNow });
-        newRoom.Members.Add(new ChatRoomMember { Id = Guid.NewGuid(), UserId = targetUserId, JoinedAt = DateTime.UtcNow, LastReadAt = DateTime.UtcNow });
+        newRoom.Members.Add(new ChatRoomMember { Id = Guid.NewGuid(), UserId = employee.Id, JoinedAt = DateTime.UtcNow, LastReadAt = DateTime.UtcNow, OrganizationId = orgId });
+        newRoom.Members.Add(new ChatRoomMember { Id = Guid.NewGuid(), UserId = targetEmployeeId, JoinedAt = DateTime.UtcNow, LastReadAt = DateTime.UtcNow, OrganizationId = orgId });
 
         _context.ChatRooms.Add(newRoom);
         await _context.SaveChangesAsync();
 
-        // Notify target user that a room was created
-        await _chatHub.Clients.Group($"user_{targetUserId}").SendAsync("RoomCreated", newRoom.Id);
-        await _chatHub.Clients.Group($"user_{userId}").SendAsync("RoomCreated", newRoom.Id);
+        // Notify both members that a new room was created
+        await _chatHub.Clients.Group($"org_{orgId}_employee_{targetEmployeeId}").SendAsync("RoomCreated", newRoom.Id);
+        await _chatHub.Clients.Group($"org_{orgId}_employee_{employee.Id}").SendAsync("RoomCreated", newRoom.Id);
 
         return Ok(new { RoomId = newRoom.Id });
     }
@@ -206,17 +221,23 @@ public class ChatController : ControllerBase
     [HttpGet("users")]
     public async Task<IActionResult> GetUsersForChat()
     {
-        var users = await _context.Users
-            .Where(u => u.IsActive)
-            .Select(u => new
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        // Only return employees in the current organization
+        var employees = await _context.Employees
+            .Include(e => e.User)
+            .Where(e => e.OrganizationId == orgId && e.IsActive)
+            .Select(e => new
             {
-                u.Id,
-                u.FirstName,
-                u.LastName,
-                u.ProfilePictureUrl
+                Id = e.Id,           // Employee.Id (used for chat membership)
+                ApplicationUserId = e.UserId, // ApplicationUser.Id (used to identify self)
+                e.User!.FirstName,
+                e.User.LastName,
+                e.User.ProfilePictureUrl
             })
             .ToListAsync();
 
-        return Ok(users);
+        return Ok(employees);
     }
 }

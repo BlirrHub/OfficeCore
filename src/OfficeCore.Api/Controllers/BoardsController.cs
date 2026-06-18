@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 using Microsoft.AspNetCore.SignalR;
 using OfficeCore.Api.Hubs;
@@ -17,25 +18,29 @@ public class BoardsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<BoardHub> _hubContext;
+    private readonly TenantService _tenant;
 
-    public BoardsController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<BoardHub> hubContext)
+    public BoardsController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<BoardHub> hubContext, TenantService tenant)
     {
         _context = context;
         _userManager = userManager;
         _hubContext = hubContext;
+        _tenant = tenant;
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteBoard(Guid id)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
 
-        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id);
+        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId);
         if (board == null) return NotFound();
 
-        var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == userId);
+        var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
         if (currentUserMember == null || currentUserMember.Role != BoardRole.Owner)
-            return Forbid(); // Only owners can delete
+            return Forbid();
 
         _context.Boards.Remove(board);
         await _context.SaveChangesAsync();
@@ -46,12 +51,14 @@ public class BoardsController : ControllerBase
     [HttpPut("{id}/star")]
     public async Task<IActionResult> ToggleStar(Guid id)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
         
-        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id);
+        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId);
         if (board == null) return NotFound();
 
-        var member = board.Members.FirstOrDefault(m => m.UserId == userId);
+        var member = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
         if (member == null) return Forbid();
 
         member.IsStarred = !member.IsStarred;
@@ -63,12 +70,12 @@ public class BoardsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetBoards()
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
         
-        // Admins can see all boards? Or only boards they are members of. 
-        // Let's stick to boards the user is a member of for privacy.
         var boards = await _context.Boards
-            .Where(b => b.Members.Any(m => m.UserId == userId))
+            .Where(b => b.OrganizationId == orgId && b.Members.Any(m => m.UserId == employee.Id))
             .Select(b => new
             {
                 b.Id,
@@ -78,7 +85,7 @@ public class BoardsController : ControllerBase
                 b.CreatedById,
                 CreatorName = b.CreatedBy.User.FirstName + " " + b.CreatedBy.User.LastName,
                 MembersCount = b.Members.Count,
-                IsStarred = b.Members.FirstOrDefault(m => m.UserId == userId)!.IsStarred,
+                IsStarred = b.Members.FirstOrDefault(m => m.UserId == employee.Id)!.IsStarred,
                 MemberAvatars = b.Members.OrderByDescending(m => m.Role).Take(3).Select(m => m.User.User.ProfilePictureUrl).ToList()
             })
             .ToListAsync();
@@ -89,7 +96,9 @@ public class BoardsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetBoard(Guid id)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
 
         var board = await _context.Boards
             .Include(b => b.CreatedBy)
@@ -115,12 +124,12 @@ public class BoardsController : ControllerBase
                 .ThenInclude(l => l.Cards)
                     .ThenInclude(c => c.Attachments)
             .AsSplitQuery()
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId);
 
         if (board == null) return NotFound();
 
         // Check if user is a member
-        if (!board.Members.Any(m => m.UserId == userId))
+        if (!board.Members.Any(m => m.UserId == employee.Id))
             return Forbid();
 
         return Ok(board);
@@ -135,7 +144,9 @@ public class BoardsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateBoard([FromBody] CreateBoardRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
         var board = new Board
         {
@@ -143,21 +154,23 @@ public class BoardsController : ControllerBase
             Name = req.Name,
             Description = req.Description,
             CreatedAt = DateTime.UtcNow,
-            CreatedById = userId!
+            CreatedById = employee.Id,
+            OrganizationId = orgId
         };
 
         // Add creator as owner
         board.Members.Add(new BoardMember
         {
             Id = Guid.NewGuid(),
-            UserId = userId!,
-            Role = BoardRole.Owner
+            UserId = employee.Id,
+            Role = BoardRole.Owner,
+            OrganizationId = orgId
         });
 
         // Add default lists
-        board.Lists.Add(new BoardList { Id = Guid.NewGuid(), Name = "To Do", OrderIndex = 0 });
-        board.Lists.Add(new BoardList { Id = Guid.NewGuid(), Name = "In Progress", OrderIndex = 1 });
-        board.Lists.Add(new BoardList { Id = Guid.NewGuid(), Name = "Done", OrderIndex = 2 });
+        board.Lists.Add(new BoardList { Id = Guid.NewGuid(), Name = "To Do", OrderIndex = 0, OrganizationId = orgId });
+        board.Lists.Add(new BoardList { Id = Guid.NewGuid(), Name = "In Progress", OrderIndex = 1, OrganizationId = orgId });
+        board.Lists.Add(new BoardList { Id = Guid.NewGuid(), Name = "Done", OrderIndex = 2, OrganizationId = orgId });
 
         _context.Boards.Add(board);
         await _context.SaveChangesAsync();
@@ -175,31 +188,32 @@ public class BoardsController : ControllerBase
     [HttpPost("{id}/members")]
     public async Task<IActionResult> ManageMember(Guid id, [FromBody] ManageMemberRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
         
-        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id);
+        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId);
         if (board == null) return NotFound();
 
-        var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == userId);
+        var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
         if (currentUserMember == null || currentUserMember.Role != BoardRole.Owner)
-            return Forbid(); // Only owners can manage members
+            return Forbid();
 
         var targetMember = board.Members.FirstOrDefault(m => m.UserId == req.UserId);
         
         if (targetMember != null)
         {
-            // Update role
             targetMember.Role = req.Role;
         }
         else
         {
-            // Add member
             var newMember = new BoardMember
             {
                 Id = Guid.NewGuid(),
                 BoardId = id,
                 UserId = req.UserId,
-                Role = req.Role
+                Role = req.Role,
+                OrganizationId = orgId!.Value
             };
             _context.Set<BoardMember>().Add(newMember);
         }
@@ -211,14 +225,15 @@ public class BoardsController : ControllerBase
     [HttpDelete("{id}/members/{targetUserId}")]
     public async Task<IActionResult> RemoveMember(Guid id, string targetUserId)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
         
-        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id);
+        var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId);
         if (board == null) return NotFound();
 
-        var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == userId);
-        // Only owners can remove others. Users can remove themselves.
-        if (userId != targetUserId && (currentUserMember == null || currentUserMember.Role != BoardRole.Owner))
+        var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (employee.Id != targetUserId && (currentUserMember == null || currentUserMember.Role != BoardRole.Owner))
             return Forbid();
 
         var targetMember = board.Members.FirstOrDefault(m => m.UserId == targetUserId);

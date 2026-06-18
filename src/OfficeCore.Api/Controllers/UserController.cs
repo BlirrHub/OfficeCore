@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -13,22 +14,28 @@ public class UserController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppDbContext _context;
+    private readonly TenantService _tenant;
 
-    public UserController(UserManager<ApplicationUser> userManager, AppDbContext context)
+    public UserController(UserManager<ApplicationUser> userManager, AppDbContext context, TenantService tenant)
     {
         _userManager = userManager;
         _context = context;
+        _tenant = tenant;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetUsers()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var employees = await _context.Employees
             .Include(e => e.User)
             .Include(e => e.GovernmentRecord)
+            .Where(e => e.OrganizationId == orgId)
             .Select(e => new
             {
-                e.User.Id,
+                e.User!.Id,
                 e.User.Email,
                 e.User.FirstName,
                 e.User.LastName,

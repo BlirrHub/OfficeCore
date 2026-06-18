@@ -84,7 +84,7 @@
                                     <div class="size-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
                                         @if (room.Type == 0) // Direct Message
                                         {
-                                            var otherMember = room.Members.FirstOrDefault(m => m.UserId != _currentUserId);
+                                            var otherMember = room.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
                                             if (otherMember != null && !string.IsNullOrEmpty(otherMember.ProfilePictureUrl))
                                             {
                                                 <img src="@(Configuration["ApiBaseUrl"] + otherMember.ProfilePictureUrl)" class="w-full h-full object-cover" />
@@ -111,7 +111,7 @@
                                         <h4 class="font-semibold text-sm text-zinc-100 truncate pr-2">
                                             @if (room.Type == 0)
                                             {
-                                                var otherMember = room.Members.FirstOrDefault(m => m.UserId != _currentUserId);
+                                                var otherMember = room.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
                                                 <text>@(otherMember?.FirstName) @(otherMember?.LastName)</text>
                                             }
                                             else
@@ -143,7 +143,7 @@
                     <div class="size-8 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700 shrink-0">
                         @if (_activeRoom.Type == 0)
                         {
-                            var otherMember = _activeRoom.Members.FirstOrDefault(m => m.UserId != _currentUserId);
+                            var otherMember = _activeRoom.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
                             if (otherMember != null && !string.IsNullOrEmpty(otherMember.ProfilePictureUrl))
                             {
                                 <img src="@(Configuration["ApiBaseUrl"] + otherMember.ProfilePictureUrl)" class="w-full h-full object-cover" />
@@ -159,7 +159,7 @@
                         <h4 class="font-bold text-white text-sm truncate">
                             @if (_activeRoom.Type == 0)
                             {
-                                var otherMember = _activeRoom.Members.FirstOrDefault(m => m.UserId != _currentUserId);
+                                var otherMember = _activeRoom.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
                                 <text>@(otherMember?.FirstName) @(otherMember?.LastName)</text>
                             }
                             else
@@ -182,7 +182,7 @@
                     <div class="space-y-4 flex flex-col">
                         @foreach (var msg in _messages.OrderBy(m => m.CreatedAt))
                         {
-                            bool isMine = msg.SenderId == _currentUserId;
+                            bool isMine = msg.SenderId == _currentEmployeeId;
                             <div class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start")">
                                 @if (!isMine)
                                 {
@@ -255,7 +255,8 @@
 @code {
     private bool _isOpen = false;
     private HubConnection? _hubConnection;
-    private string _currentUserId = string.Empty;
+    private string _currentUserId = string.Empty;  // ApplicationUser.Id from claims
+    private string _currentEmployeeId = string.Empty; // Employee.Id in current org
 
     private bool _isLoadingRooms = true;
     private List<ChatRoomDto> _rooms = new();
@@ -284,11 +285,18 @@
 
         if (string.IsNullOrEmpty(_currentUserId)) return;
 
-        // Load users for new message search
-        try { _allUsers = await Http.GetFromJsonAsync<List<UserDto>>("/api/chat/users") ?? new(); } catch { }
+        // Load employees in org for new message search (returns Employee.Id as Id)
+        try 
+        { 
+            _allUsers = await Http.GetFromJsonAsync<List<UserDto>>("/api/chat/users") ?? new();
+            // Find our current employee record to get the Employee.Id
+            var me = _allUsers.FirstOrDefault(u => u.ApplicationUserId == _currentUserId);
+            if (me != null) _currentEmployeeId = me.Id;
+        } 
+        catch { }
         
-        // Remove current user from searchable list
-        _allUsers.RemoveAll(u => u.Id == _currentUserId);
+        // Remove current employee from searchable list
+        _allUsers.RemoveAll(u => u.Id == _currentEmployeeId);
 
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(new Uri(Http.BaseAddress!, "hubs/chat"), options =>
@@ -326,7 +334,7 @@
 
         _hubConnection.On<Guid, string>("UserTyping", (roomId, userId) =>
         {
-            if (_activeRoom?.Id == roomId && userId != _currentUserId)
+            if (_activeRoom?.Id == roomId && userId != _currentEmployeeId)
             {
                 _isTyping = true;
                 _typingTimer?.Stop();
@@ -462,7 +470,8 @@
 
     public class UserDto
     {
-        public string Id { get; set; } = string.Empty;
+        public string Id { get; set; } = string.Empty;  // Employee.Id
+        public string ApplicationUserId { get; set; } = string.Empty; // For identifying self
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? ProfilePictureUrl { get; set; }

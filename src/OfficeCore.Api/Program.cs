@@ -72,6 +72,8 @@ builder.Services.AddSingleton<OfficeCore.Api.Services.FingerprintDeviceService>(
 builder.Services.AddHostedService(provider => provider.GetRequiredService<OfficeCore.Api.Services.FingerprintDeviceService>());
 
 // Register Application Services
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<OfficeCore.Api.Services.TenantService>();
 builder.Services.AddScoped<OfficeCore.Api.Services.IPayrollComputationService, OfficeCore.Api.Services.PayrollComputationService>();
 
 var app = builder.Build();
