@@ -759,7 +759,7 @@ else
             {
                 var authState = await AuthProvider.GetAuthenticationStateAsync();
                 var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                var myMember = _board.Members.FirstOrDefault(m => m.User.Id == userId);
+                var myMember = _board.Members.FirstOrDefault(m => m.User.ApplicationUserId == userId);
                 if (myMember != null)
                 {
                     _isOwner = myMember.Role == BoardRole.Owner;
@@ -1250,6 +1250,7 @@ else
     public class EmployeeDto
     {
         public string Id { get; set; } = string.Empty;
+        public string ApplicationUserId { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? ProfilePictureUrl { get; set; }

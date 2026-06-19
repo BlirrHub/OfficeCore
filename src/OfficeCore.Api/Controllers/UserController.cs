@@ -101,6 +101,7 @@ public class UserController : ControllerBase
             GovernmentRecord = request.GovernmentRecord != null ? new EmployeeGovernmentRecord
             {
                 EmployeeId = "", // Updated after save or handled by EF
+                OrganizationId = orgId.Value,
                 IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions,
                 SssNumber = request.GovernmentRecord.SssNumber,
                 PagIbigNumber = request.GovernmentRecord.PagIbigNumber,
@@ -161,7 +162,8 @@ public class UserController : ControllerBase
         {
             if (employee.GovernmentRecord == null)
             {
-                employee.GovernmentRecord = new EmployeeGovernmentRecord { EmployeeId = employee.Id };
+                var orgId = _tenant.GetActiveOrganizationId();
+                employee.GovernmentRecord = new EmployeeGovernmentRecord { EmployeeId = employee.Id, OrganizationId = orgId!.Value };
             }
             employee.GovernmentRecord.IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions;
             employee.GovernmentRecord.SssNumber = request.GovernmentRecord.SssNumber;
@@ -240,23 +242,25 @@ public class UserController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteUser(string id)
+    public async Task<IActionResult> RemoveUserFromOrganization(string id)
     {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user == null)
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
+
+        if (employee == null)
             return NotFound();
 
-        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == id);
-        if (employee != null)
-        {
-            _context.Employees.Remove(employee);
-        }
+        // Remove the employee from this organization
+        _context.Employees.Remove(employee);
+        
+        // Save changes will cascade delete org-specific records like BoardMember depending on EF config,
+        // or the user just loses access to this org.
+        await _context.SaveChangesAsync();
 
-        var result = await _userManager.DeleteAsync(user);
-        if (!result.Succeeded)
-            return BadRequest(result.Errors);
-
-        return Ok(new { message = "User deleted successfully" });
+        return Ok(new { message = "User removed from workspace successfully" });
     }
 }
 

@@ -105,9 +105,11 @@ public class BoardsController : ControllerBase
             .Include(b => b.Labels)
             .Include(b => b.Members)
                 .ThenInclude(m => m.User)
+                    .ThenInclude(e => e.User)
             .Include(b => b.Lists.OrderBy(l => l.OrderIndex))
                 .ThenInclude(l => l.Cards.OrderBy(c => c.OrderIndex))
                     .ThenInclude(c => c.AssignedToUser)
+                        .ThenInclude(e => e.User)
             .Include(b => b.Lists)
                 .ThenInclude(l => l.Cards)
                     .ThenInclude(c => c.Labels)
@@ -116,6 +118,7 @@ public class BoardsController : ControllerBase
                 .ThenInclude(l => l.Cards)
                     .ThenInclude(c => c.Comments.OrderByDescending(cm => cm.CreatedAt))
                         .ThenInclude(cm => cm.User)
+                            .ThenInclude(e => e.User)
             .Include(b => b.Lists)
                 .ThenInclude(l => l.Cards)
                     .ThenInclude(c => c.Checklists)
@@ -132,7 +135,62 @@ public class BoardsController : ControllerBase
         if (!board.Members.Any(m => m.UserId == employee.Id))
             return Forbid();
 
-        return Ok(board);
+        var boardDto = new {
+            board.Id,
+            board.Name,
+            board.Description,
+            Labels = board.Labels.Select(l => new { l.Id, l.Name, l.ColorHex }),
+            Members = board.Members.Select(m => new {
+                m.Role,
+                User = new {
+                    Id = m.UserId,
+                    ApplicationUserId = m.User.UserId,
+                    FirstName = m.User.User.FirstName,
+                    LastName = m.User.User.LastName,
+                    ProfilePictureUrl = m.User.User.ProfilePictureUrl
+                }
+            }),
+            Lists = board.Lists.Select(l => new {
+                l.Id,
+                l.Name,
+                l.OrderIndex,
+                Cards = l.Cards.Select(c => new {
+                    c.Id,
+                    c.ListId,
+                    c.Title,
+                    c.Description,
+                    c.OrderIndex,
+                    c.AssignedToUserId,
+                    AssignedToUser = c.AssignedToUser == null ? null : new {
+                        Id = c.AssignedToUser.Id,
+                        FirstName = c.AssignedToUser.User.FirstName,
+                        LastName = c.AssignedToUser.User.LastName,
+                        ProfilePictureUrl = c.AssignedToUser.User.ProfilePictureUrl
+                    },
+                    c.DueDate,
+                    Labels = c.Labels.Select(cl => new { cl.LabelId, Label = new { cl.Label.Id, cl.Label.Name, cl.Label.ColorHex } }),
+                    Comments = c.Comments.Select(cm => new {
+                        cm.Id,
+                        cm.Text,
+                        cm.CreatedAt,
+                        User = new {
+                            Id = cm.UserId,
+                            FirstName = cm.User.User.FirstName,
+                            LastName = cm.User.User.LastName,
+                            ProfilePictureUrl = cm.User.User.ProfilePictureUrl
+                        }
+                    }),
+                    Checklists = c.Checklists.Select(chk => new {
+                        chk.Id,
+                        chk.Title,
+                        Items = chk.Items.Select(ci => new { ci.Id, ci.Text, ci.IsCompleted })
+                    }),
+                    Attachments = c.Attachments.Select(a => new { a.Id, a.FileName, a.FilePath, a.FileSize, a.UploadedAt })
+                })
+            })
+        };
+
+        return Ok(boardDto);
     }
 
     public class CreateBoardRequest
@@ -255,7 +313,9 @@ public class BoardsController : ControllerBase
     [HttpPost("{id}/lists")]
     public async Task<IActionResult> CreateList(Guid id, [FromBody] CreateListRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
         
         var board = await _context.Boards.Include(b => b.Members).Include(b => b.Lists).FirstOrDefaultAsync(b => b.Id == id);
         if (board == null) return NotFound();
@@ -292,7 +352,9 @@ public class BoardsController : ControllerBase
     [HttpPost("lists/{listId}/cards")]
     public async Task<IActionResult> CreateCard(Guid listId, [FromBody] CreateCardRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
         
         var list = await _context.BoardLists
             .Include(l => l.Board)
@@ -329,7 +391,9 @@ public class BoardsController : ControllerBase
     [HttpPut("cards/{cardId}")]
     public async Task<IActionResult> UpdateCard(Guid cardId, [FromBody] CreateCardRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
         var card = await _context.BoardCards.Include(c => c.List).ThenInclude(l => l.Board).ThenInclude(b => b.Members).FirstOrDefaultAsync(c => c.Id == cardId);
         if (card == null) return NotFound();
 
@@ -356,7 +420,9 @@ public class BoardsController : ControllerBase
     [HttpPut("cards/{cardId}/move")]
     public async Task<IActionResult> MoveCard(Guid cardId, [FromBody] MoveCardRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
 
         var card = await _context.BoardCards
             .Include(c => c.List)
@@ -431,7 +497,9 @@ public class BoardsController : ControllerBase
     [HttpDelete("lists/{listId}")]
     public async Task<IActionResult> DeleteList(Guid listId)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
         
         var list = await _context.BoardLists
             .Include(l => l.Board)
@@ -453,7 +521,9 @@ public class BoardsController : ControllerBase
     [HttpDelete("cards/{cardId}")]
     public async Task<IActionResult> DeleteCard(Guid cardId)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
 
         var card = await _context.BoardCards
             .Include(c => c.List)
@@ -481,7 +551,9 @@ public class BoardsController : ControllerBase
     [HttpPut("{id}/lists/{listId}/move")]
     public async Task<IActionResult> MoveList(Guid id, Guid listId, [FromBody] MoveListRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
 
         var board = await _context.Boards
             .Include(b => b.Members)
@@ -566,7 +638,9 @@ public class BoardsController : ControllerBase
     [HttpPost("cards/{cardId}/comments")]
     public async Task<IActionResult> AddComment(Guid cardId, [FromBody] CreateCommentRequest req)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
         var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
         if (card == null) return NotFound();
 
@@ -663,7 +737,9 @@ public class BoardsController : ControllerBase
     [HttpPost("cards/{cardId}/attachments")]
     public async Task<IActionResult> AddAttachment(Guid cardId, IFormFile file)
     {
-        var userId = _userManager.GetUserId(User);
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
         var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
         if (card == null) return NotFound();
 

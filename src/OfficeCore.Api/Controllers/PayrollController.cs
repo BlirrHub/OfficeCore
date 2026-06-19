@@ -13,18 +13,23 @@ public class PayrollController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IPayrollComputationService _computationService;
+    private readonly TenantService _tenant;
 
-    public PayrollController(AppDbContext context, IPayrollComputationService computationService)
+    public PayrollController(AppDbContext context, IPayrollComputationService computationService, TenantService tenant)
     {
         _context = context;
         _computationService = computationService;
+        _tenant = tenant;
     }
 
     [HttpGet("periods")]
     public async Task<IActionResult> GetPayrollPeriods()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var periods = await _context.PayrollPeriods
-            .Where(p => !p.IsArchived)
+            .Where(p => !p.IsArchived && p.OrganizationId == orgId)
             .OrderByDescending(p => p.StartDate)
             .ToListAsync();
         return Ok(periods);
@@ -50,9 +55,13 @@ public class PayrollController : ControllerBase
     [HttpPost("periods")]
     public async Task<IActionResult> CreatePayrollPeriod(PayrollPeriod period)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         period.Id = Guid.NewGuid();
         period.Status = PayrollStatus.Draft;
         period.CreatedAt = DateTime.UtcNow;
+        period.OrganizationId = orgId.Value;
 
         _context.PayrollPeriods.Add(period);
         await _context.SaveChangesAsync();
@@ -63,7 +72,8 @@ public class PayrollController : ControllerBase
     [HttpGet("periods/{id}")]
     public async Task<IActionResult> GetPayrollPeriod(Guid id)
     {
-        var period = await _context.PayrollPeriods.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId);
         if (period == null) return NotFound();
         return Ok(period);
     }
@@ -78,7 +88,7 @@ public class PayrollController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { Message = ex.Message });
+            return BadRequest(new { Message = ex.ToString() });
         }
     }
 

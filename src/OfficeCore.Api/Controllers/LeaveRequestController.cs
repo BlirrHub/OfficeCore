@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using System.Security.Claims;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -15,22 +16,25 @@ public class LeaveRequestController : ControllerBase
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _env;
+    private readonly TenantService _tenant;
 
-    public LeaveRequestController(AppDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env)
+    public LeaveRequestController(AppDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, TenantService tenant)
     {
         _context = context;
         _userManager = userManager;
         _env = env;
+        _tenant = tenant;
     }
 
     [HttpGet("my")]
     public async Task<IActionResult> GetMyRequests()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId == null) return Unauthorized();
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Unauthorized();
+        var orgId = _tenant.GetActiveOrganizationId();
 
         var requests = await _context.LeaveRequests
-            .Where(r => r.EmployeeId == userId)
+            .Where(r => r.EmployeeId == employee.Id && r.OrganizationId == orgId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
@@ -41,8 +45,13 @@ public class LeaveRequestController : ControllerBase
     [Authorize(Roles = "Admin,HR")]
     public async Task<IActionResult> GetAllRequests()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var requests = await _context.LeaveRequests
             .Include(r => r.Employee)
+                .ThenInclude(e => e.User)
+            .Where(r => r.OrganizationId == orgId)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new
             {
@@ -65,8 +74,9 @@ public class LeaveRequestController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SubmitRequest([FromForm] CreateLeaveRequestDto request)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId == null) return Unauthorized();
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Unauthorized();
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
         string? attachmentPath = null;
 
@@ -88,14 +98,15 @@ public class LeaveRequestController : ControllerBase
 
         var leaveRequest = new LeaveRequest
         {
-            EmployeeId = userId,
+            EmployeeId = employee.Id,
             Type = request.Type,
             StartDate = request.StartDate.ToUniversalTime(),
             EndDate = request.EndDate.ToUniversalTime(),
             Reason = request.Reason,
             AttachmentPath = attachmentPath,
             Status = LeaveRequestStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OrganizationId = orgId
         };
 
         _context.LeaveRequests.Add(leaveRequest);
@@ -121,6 +132,9 @@ public class LeaveRequestController : ControllerBase
     [Authorize(Roles = "Admin,HR")]
     public async Task<IActionResult> AdminCreateRequest(AdminCreateLeaveRequestDto request)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var leaveRequest = new LeaveRequest
         {
             EmployeeId = request.EmployeeId,
@@ -129,7 +143,8 @@ public class LeaveRequestController : ControllerBase
             EndDate = request.EndDate.ToUniversalTime(),
             Reason = request.Reason,
             Status = LeaveRequestStatus.Approved,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OrganizationId = orgId.Value
         };
 
         _context.LeaveRequests.Add(leaveRequest);

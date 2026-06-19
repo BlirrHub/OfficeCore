@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -11,16 +12,22 @@ namespace OfficeCore.Api.Controllers;
 public class WorkScheduleController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly TenantService _tenant;
 
-    public WorkScheduleController(AppDbContext context)
+    public WorkScheduleController(AppDbContext context, TenantService tenant)
     {
         _context = context;
+        _tenant = tenant;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetWorkSchedules()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var schedules = await _context.WorkSchedules
+            .Where(ws => ws.OrganizationId == orgId)
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
             .Include(ws => ws.AutoDeductions)
@@ -33,7 +40,9 @@ public class WorkScheduleController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetWorkSchedule(Guid id)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
         var schedule = await _context.WorkSchedules
+            .Where(ws => ws.OrganizationId == orgId)
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
             .Include(ws => ws.AutoDeductions)
@@ -48,44 +57,85 @@ public class WorkScheduleController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = "RequireWorkSchedules")]
-    public async Task<IActionResult> CreateWorkSchedule(WorkSchedule schedule)
+    public async Task<IActionResult> CreateWorkSchedule(WorkScheduleDto dto)
     {
-        // WorkScheduleDay will be passed along with WorkSchedule
-        schedule.Id = Guid.NewGuid();
-        
-        if (schedule.Days != null)
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var schedule = new WorkSchedule
         {
-            foreach (var day in schedule.Days)
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId.Value,
+            Name = dto.Name,
+            WorkArrangement = (WorkArrangement)dto.WorkArrangement,
+            IncludeTimeTrackedBeforeScheduledStartTime = dto.IncludeTimeTrackedBeforeScheduledStartTime,
+            AutoClockOut = dto.AutoClockOut,
+            SplitTimesheetsAt = dto.SplitTimesheetsAt,
+            TotalWeeklyHours = dto.TotalWeeklyHours,
+            IsFixedWeeklyRate = dto.IsFixedWeeklyRate
+        };
+        
+        if (dto.Days != null)
+        {
+            foreach (var day in dto.Days)
             {
-                day.WorkScheduleId = schedule.Id;
-                day.Id = 0; // Let DB generate ID
+                schedule.Days.Add(new WorkScheduleDay
+                {
+                    WorkScheduleId = schedule.Id,
+                    OrganizationId = orgId.Value,
+                    DayOfWeek = day.DayOfWeek,
+                    IsRestDay = day.IsRestDay,
+                    StartTime = day.StartTime,
+                    EndTime = day.EndTime,
+                    WorkingHours = day.WorkingHours
+                });
             }
         }
         
-        if (schedule.Breaks != null)
+        if (dto.Breaks != null)
         {
-            foreach (var b in schedule.Breaks)
+            foreach (var b in dto.Breaks)
             {
-                b.WorkScheduleId = schedule.Id;
-                b.Id = 0; // Let DB generate ID
+                schedule.Breaks.Add(new WorkScheduleBreak
+                {
+                    WorkScheduleId = schedule.Id,
+                    OrganizationId = orgId.Value,
+                    Name = b.Name,
+                    IsPaid = b.IsPaid,
+                    StartTime = b.StartTime,
+                    EndTime = b.EndTime
+                });
             }
         }
         
-        if (schedule.AutoDeductions != null)
+        if (dto.HasOvertimeRules && dto.AutoDeductions != null)
         {
-            foreach (var ad in schedule.AutoDeductions)
+            foreach (var ad in dto.AutoDeductions)
             {
-                ad.WorkScheduleId = schedule.Id;
-                ad.Id = 0;
+                schedule.AutoDeductions.Add(new WorkScheduleAutoDeduction
+                {
+                    WorkScheduleId = schedule.Id,
+                    OrganizationId = orgId.Value,
+                    Name = ad.Name,
+                    DeductHours = ad.DeductHours,
+                    AfterWorkHours = ad.AfterWorkHours
+                });
             }
         }
         
-        if (schedule.OvertimeRules != null)
+        if (dto.HasOvertimeRules && dto.OvertimeRules != null)
         {
-            foreach (var or in schedule.OvertimeRules)
+            foreach (var or in dto.OvertimeRules)
             {
-                or.WorkScheduleId = schedule.Id;
-                or.Id = 0;
+                schedule.OvertimeRules.Add(new WorkScheduleOvertimeRule
+                {
+                    WorkScheduleId = schedule.Id,
+                    OrganizationId = orgId.Value,
+                    TriggerMode = (OvertimeTriggerMode)or.TriggerMode,
+                    AfterHours = or.AfterHours,
+                    AfterTime = or.AfterTime,
+                    Multiplier = or.Multiplier
+                });
             }
         }
 
@@ -97,12 +147,16 @@ public class WorkScheduleController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = "RequireWorkSchedules")]
-    public async Task<IActionResult> UpdateWorkSchedule(Guid id, WorkSchedule updatedSchedule)
+    public async Task<IActionResult> UpdateWorkSchedule(Guid id, WorkScheduleDto dto)
     {
-        if (id != updatedSchedule.Id)
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        if (id != dto.Id)
             return BadRequest();
 
         var existingSchedule = await _context.WorkSchedules
+            .Where(ws => ws.OrganizationId == orgId)
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
             .Include(ws => ws.AutoDeductions)
@@ -112,60 +166,83 @@ public class WorkScheduleController : ControllerBase
         if (existingSchedule == null)
             return NotFound();
 
-        existingSchedule.Name = updatedSchedule.Name;
-        existingSchedule.WorkArrangement = updatedSchedule.WorkArrangement;
-        existingSchedule.IncludeTimeTrackedBeforeScheduledStartTime = updatedSchedule.IncludeTimeTrackedBeforeScheduledStartTime;
-        existingSchedule.AutoClockOut = updatedSchedule.AutoClockOut;
-        existingSchedule.SplitTimesheetsAt = updatedSchedule.SplitTimesheetsAt;
-        existingSchedule.TotalWeeklyHours = updatedSchedule.TotalWeeklyHours;
+        existingSchedule.Name = dto.Name;
+        existingSchedule.WorkArrangement = (WorkArrangement)dto.WorkArrangement;
+        existingSchedule.IncludeTimeTrackedBeforeScheduledStartTime = dto.IncludeTimeTrackedBeforeScheduledStartTime;
+        existingSchedule.AutoClockOut = dto.AutoClockOut;
+        existingSchedule.SplitTimesheetsAt = dto.SplitTimesheetsAt;
+        existingSchedule.TotalWeeklyHours = dto.TotalWeeklyHours;
+        existingSchedule.IsFixedWeeklyRate = dto.IsFixedWeeklyRate;
 
-        // Update days: remove old ones and add new ones (simple approach)
+        // Update days
         _context.WorkScheduleDays.RemoveRange(existingSchedule.Days);
-        
-        if (updatedSchedule.Days != null)
+        if (dto.Days != null)
         {
-            foreach (var day in updatedSchedule.Days)
+            foreach (var day in dto.Days)
             {
-                day.Id = 0;
-                day.WorkScheduleId = id;
-                existingSchedule.Days.Add(day);
+                existingSchedule.Days.Add(new WorkScheduleDay
+                {
+                    WorkScheduleId = id,
+                    OrganizationId = orgId.Value,
+                    DayOfWeek = day.DayOfWeek,
+                    IsRestDay = day.IsRestDay,
+                    StartTime = day.StartTime,
+                    EndTime = day.EndTime,
+                    WorkingHours = day.WorkingHours
+                });
             }
         }
 
-        // Update breaks: remove old ones and add new ones
+        // Update breaks
         _context.WorkScheduleBreaks.RemoveRange(existingSchedule.Breaks);
-        
-        if (updatedSchedule.Breaks != null)
+        if (dto.Breaks != null)
         {
-            foreach (var b in updatedSchedule.Breaks)
+            foreach (var b in dto.Breaks)
             {
-                b.Id = 0;
-                b.WorkScheduleId = id;
-                existingSchedule.Breaks.Add(b);
+                existingSchedule.Breaks.Add(new WorkScheduleBreak
+                {
+                    WorkScheduleId = id,
+                    OrganizationId = orgId.Value,
+                    Name = b.Name,
+                    IsPaid = b.IsPaid,
+                    StartTime = b.StartTime,
+                    EndTime = b.EndTime
+                });
             }
         }
         
         // Update auto deductions
         _context.WorkScheduleAutoDeductions.RemoveRange(existingSchedule.AutoDeductions);
-        if (updatedSchedule.AutoDeductions != null)
+        if (dto.HasOvertimeRules && dto.AutoDeductions != null)
         {
-            foreach (var ad in updatedSchedule.AutoDeductions)
+            foreach (var ad in dto.AutoDeductions)
             {
-                ad.Id = 0;
-                ad.WorkScheduleId = id;
-                existingSchedule.AutoDeductions.Add(ad);
+                existingSchedule.AutoDeductions.Add(new WorkScheduleAutoDeduction
+                {
+                    WorkScheduleId = id,
+                    OrganizationId = orgId.Value,
+                    Name = ad.Name,
+                    DeductHours = ad.DeductHours,
+                    AfterWorkHours = ad.AfterWorkHours
+                });
             }
         }
         
         // Update overtime rules
         _context.WorkScheduleOvertimeRules.RemoveRange(existingSchedule.OvertimeRules);
-        if (updatedSchedule.OvertimeRules != null)
+        if (dto.HasOvertimeRules && dto.OvertimeRules != null)
         {
-            foreach (var or in updatedSchedule.OvertimeRules)
+            foreach (var or in dto.OvertimeRules)
             {
-                or.Id = 0;
-                or.WorkScheduleId = id;
-                existingSchedule.OvertimeRules.Add(or);
+                existingSchedule.OvertimeRules.Add(new WorkScheduleOvertimeRule
+                {
+                    WorkScheduleId = id,
+                    OrganizationId = orgId.Value,
+                    TriggerMode = (OvertimeTriggerMode)or.TriggerMode,
+                    AfterHours = or.AfterHours,
+                    AfterTime = or.AfterTime,
+                    Multiplier = or.Multiplier
+                });
             }
         }
 
@@ -178,7 +255,8 @@ public class WorkScheduleController : ControllerBase
     [Authorize(Policy = "RequireWorkSchedules")]
     public async Task<IActionResult> DeleteWorkSchedule(Guid id)
     {
-        var schedule = await _context.WorkSchedules.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        var schedule = await _context.WorkSchedules.FirstOrDefaultAsync(ws => ws.Id == id && ws.OrganizationId == orgId);
         if (schedule == null)
             return NotFound();
 
@@ -187,4 +265,53 @@ public class WorkScheduleController : ControllerBase
 
         return NoContent();
     }
+}
+
+public class WorkScheduleDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int WorkArrangement { get; set; }
+    public bool IncludeTimeTrackedBeforeScheduledStartTime { get; set; }
+    public bool AutoClockOut { get; set; }
+    public TimeSpan SplitTimesheetsAt { get; set; }
+    public double? TotalWeeklyHours { get; set; }
+    public bool IsFixedWeeklyRate { get; set; }
+    public List<WorkScheduleDayDto> Days { get; set; } = new();
+    public List<WorkScheduleBreakDto> Breaks { get; set; } = new();
+    public bool HasOvertimeRules { get; set; }
+    public List<WorkScheduleAutoDeductionDto> AutoDeductions { get; set; } = new();
+    public List<WorkScheduleOvertimeRuleDto> OvertimeRules { get; set; } = new();
+}
+
+public class WorkScheduleDayDto
+{
+    public DayOfWeek DayOfWeek { get; set; }
+    public bool IsRestDay { get; set; }
+    public TimeSpan? StartTime { get; set; }
+    public TimeSpan? EndTime { get; set; }
+    public double? WorkingHours { get; set; }
+}
+
+public class WorkScheduleBreakDto
+{
+    public string Name { get; set; } = string.Empty;
+    public bool IsPaid { get; set; }
+    public TimeSpan StartTime { get; set; }
+    public TimeSpan EndTime { get; set; }
+}
+
+public class WorkScheduleAutoDeductionDto
+{
+    public string Name { get; set; } = string.Empty;
+    public double DeductHours { get; set; }
+    public double AfterWorkHours { get; set; }
+}
+
+public class WorkScheduleOvertimeRuleDto
+{
+    public int TriggerMode { get; set; }
+    public double? AfterHours { get; set; }
+    public TimeSpan? AfterTime { get; set; }
+    public double Multiplier { get; set; } = 1.5;
 }

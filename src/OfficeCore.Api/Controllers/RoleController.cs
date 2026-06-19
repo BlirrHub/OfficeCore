@@ -132,22 +132,18 @@ public class RoleController : ControllerBase
 
         // Remove existing module claims
         var existingModuleClaims = role.Claims.Where(c => c.ClaimType == "ModuleAccess").ToList();
-        foreach (var claim in existingModuleClaims)
-        {
-            _context.OrganizationRoleClaims.Remove(claim);
-        }
+        _context.OrganizationRoleClaims.RemoveRange(existingModuleClaims);
 
         // Add new module claims
-        foreach (var module in modules)
+        var newClaims = modules.Select(module => new OrganizationRoleClaim
         {
-            role.Claims.Add(new OrganizationRoleClaim
-            {
-                Id = Guid.NewGuid(),
-                OrganizationRoleId = role.Id,
-                ClaimType = "ModuleAccess",
-                ClaimValue = module
-            });
-        }
+            Id = Guid.NewGuid(),
+            OrganizationRoleId = role.Id,
+            ClaimType = "ModuleAccess",
+            ClaimValue = module
+        }).ToList();
+        
+        _context.OrganizationRoleClaims.AddRange(newClaims);
 
         await _context.SaveChangesAsync();
 

@@ -25,7 +25,7 @@ public class PayrollComputationService : IPayrollComputationService
 
         var employees = await _context.Employees
             .Include(e => e.User)
-            .Where(e => e.IsActive && e.IsEmployee)
+            .Where(e => e.IsActive && e.IsEmployee && e.OrganizationId == period.OrganizationId)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Days)
             .Include(e => e.WorkSchedule)
@@ -230,7 +230,8 @@ public class PayrollComputationService : IPayrollComputationService
                 OtherAllowances = 0,
                 OtherDeductions = 0,
                 NetPay = netPay,
-                CalculationDetailsJson = JsonSerializer.Serialize(calculationDetails)
+                CalculationDetailsJson = JsonSerializer.Serialize(calculationDetails),
+                OrganizationId = period.OrganizationId
             };
 
             payslips.Add(payslip);

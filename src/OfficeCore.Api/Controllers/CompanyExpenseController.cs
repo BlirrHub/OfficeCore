@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -11,16 +12,22 @@ namespace OfficeCore.Api.Controllers;
 public class CompanyExpenseController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly TenantService _tenant;
 
-    public CompanyExpenseController(AppDbContext context)
+    public CompanyExpenseController(AppDbContext context, TenantService tenant)
     {
         _context = context;
+        _tenant = tenant;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetExpenses()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var expenses = await _context.CompanyExpenses
+            .Where(e => e.OrganizationId == orgId)
             .OrderByDescending(e => e.DateIncurred)
             .ToListAsync();
 
@@ -30,13 +37,17 @@ public class CompanyExpenseController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateExpense(CreateCompanyExpenseDto dto)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var expense = new CompanyExpense
         {
             Id = Guid.NewGuid(),
             Description = dto.Description,
             Amount = dto.Amount,
             Category = dto.Category,
-            DateIncurred = dto.DateIncurred.ToUniversalTime()
+            DateIncurred = dto.DateIncurred.ToUniversalTime(),
+            OrganizationId = orgId.Value
         };
 
         _context.CompanyExpenses.Add(expense);

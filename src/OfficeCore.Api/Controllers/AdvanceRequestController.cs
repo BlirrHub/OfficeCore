@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -13,21 +14,24 @@ public class AdvanceRequestController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly TenantService _tenant;
 
-    public AdvanceRequestController(AppDbContext context, UserManager<ApplicationUser> userManager)
+    public AdvanceRequestController(AppDbContext context, UserManager<ApplicationUser> userManager, TenantService tenant)
     {
         _context = context;
         _userManager = userManager;
+        _tenant = tenant;
     }
 
     [HttpGet("my")]
     public async Task<IActionResult> GetMyRequests()
     {
-        var user = await _userManager.GetUserAsync(User);
-        if (user == null) return Unauthorized();
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Unauthorized();
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
         var requests = await _context.AdvanceRequests
-            .Where(r => r.EmployeeId == user.Id)
+            .Where(r => r.EmployeeId == employee.Id && r.OrganizationId == orgId)
             .OrderByDescending(r => r.RequestDate)
             .ToListAsync();
 
@@ -38,8 +42,13 @@ public class AdvanceRequestController : ControllerBase
     [Authorize(Policy = "RequireLedger")]
     public async Task<IActionResult> GetAllRequests()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var requests = await _context.AdvanceRequests
             .Include(r => r.Employee)
+                .ThenInclude(e => e.User)
+            .Where(r => r.OrganizationId == orgId)
             .OrderByDescending(r => r.RequestDate)
             .Select(r => new {
                 r.Id,
@@ -60,18 +69,20 @@ public class AdvanceRequestController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateRequest(CreateAdvanceRequestDto dto)
     {
-        var user = await _userManager.GetUserAsync(User);
-        if (user == null) return Unauthorized();
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Unauthorized();
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
         var request = new AdvanceRequest
         {
             Id = Guid.NewGuid(),
-            EmployeeId = user.Id,
+            EmployeeId = employee.Id,
             Type = dto.Type,
             RequestedAmount = dto.RequestedAmount,
             Note = dto.Note ?? string.Empty,
             Status = AdvanceStatus.Pending,
-            RequestDate = DateTime.UtcNow
+            RequestDate = DateTime.UtcNow,
+            OrganizationId = orgId
         };
         
         // ELoan initial balance is the requested amount. CA also needs a remaining balance to be deducted.
@@ -90,10 +101,11 @@ public class AdvanceRequestController : ControllerBase
     [HttpPut("{id}/cancel")]
     public async Task<IActionResult> CancelRequest(Guid id)
     {
-        var user = await _userManager.GetUserAsync(User);
-        if (user == null) return Unauthorized();
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Unauthorized();
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
-        var request = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.EmployeeId == user.Id);
+        var request = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.EmployeeId == employee.Id && r.OrganizationId == orgId);
         
         if (request == null)
             return NotFound();
@@ -155,6 +167,9 @@ public class AdvanceRequestController : ControllerBase
     [Authorize(Policy = "RequireLedger")]
     public async Task<IActionResult> AdminCreateRequest(AdminCreateAdvanceRequestDto dto)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var request = new AdvanceRequest
         {
             Id = Guid.NewGuid(),
@@ -164,7 +179,8 @@ public class AdvanceRequestController : ControllerBase
             Note = dto.Note ?? string.Empty,
             Status = AdvanceStatus.Approved,
             RequestDate = DateTime.UtcNow,
-            ResolutionDate = DateTime.UtcNow
+            ResolutionDate = DateTime.UtcNow,
+            OrganizationId = orgId.Value
         };
         
         request.RemainingBalance = request.RequestedAmount;

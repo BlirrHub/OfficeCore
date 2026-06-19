@@ -96,7 +96,7 @@ public class OrganizationsController : ControllerBase
         {
             Id = Guid.NewGuid(),
             OrganizationId = org.Id,
-            Name = "Member",
+            Name = "Employee",
             Description = "Standard organization member",
             ShowAsTitle = false
         };
@@ -106,7 +106,7 @@ public class OrganizationsController : ControllerBase
             "Dashboard", "Clients", "Attendance", "Boards",
             "Payroll", "Invoices", "Ledger",
             "WorkSchedules", "TimeOff", "Locations",
-            "Users", "Roles", "Organization", "Advances", "MyLeaves"
+            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals"
         };
 
         foreach (var module in modules)
@@ -120,7 +120,7 @@ public class OrganizationsController : ControllerBase
             });
             
             // Give members basic access
-            if (module == "Dashboard" || module == "Attendance" || module == "Boards" || module == "MyLeaves")
+            if (module == "Dashboard" || module == "Attendance" || module == "Boards" || module == "MyLeaves" || module == "Advances")
             {
                 memberRole.Claims.Add(new OrganizationRoleClaim
                 {
@@ -240,9 +240,9 @@ public class OrganizationsController : ControllerBase
 
         _context.Employees.Add(employee);
 
-        // Assign default 'Member' role
+        // Assign default 'Employee' role
         var memberRole = await _context.OrganizationRoles
-            .FirstOrDefaultAsync(r => r.OrganizationId == invitation.OrganizationId && r.Name == "Member");
+            .FirstOrDefaultAsync(r => r.OrganizationId == invitation.OrganizationId && r.Name == "Employee");
 
         if (memberRole != null)
         {

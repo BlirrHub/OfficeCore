@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -11,16 +12,22 @@ namespace OfficeCore.Api.Controllers;
 public class ClientController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly TenantService _tenant;
 
-    public ClientController(AppDbContext context)
+    public ClientController(AppDbContext context, TenantService tenant)
     {
         _context = context;
+        _tenant = tenant;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Client>>> GetClients()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         return await _context.Clients
+            .Where(c => c.OrganizationId == orgId)
             .Include(c => c.Businesses)
             .OrderByDescending(c => c.DateAdded)
             .ToListAsync();
@@ -29,7 +36,11 @@ public class ClientController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<Client>> GetClient(Guid id)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var client = await _context.Clients
+            .Where(c => c.OrganizationId == orgId)
             .Include(c => c.Businesses)
             .FirstOrDefaultAsync(c => c.Id == id);
 
@@ -44,9 +55,13 @@ public class ClientController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Client>> CreateClient(Client client)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         client.Id = Guid.NewGuid();
         client.DateAdded = DateTime.UtcNow;
         client.IsActive = true;
+        client.OrganizationId = orgId.Value;
         
         // Ensure businesses have new IDs and point to this client
         if (client.Businesses != null)
@@ -67,12 +82,16 @@ public class ClientController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateClient(Guid id, Client clientUpdate)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         if (id != clientUpdate.Id)
         {
             return BadRequest();
         }
 
         var client = await _context.Clients
+            .Where(c => c.OrganizationId == orgId)
             .Include(c => c.Businesses)
             .FirstOrDefaultAsync(c => c.Id == id);
 
@@ -107,7 +126,10 @@ public class ClientController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> ArchiveClient(Guid id)
     {
-        var client = await _context.Clients.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var client = await _context.Clients.FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == orgId);
         if (client == null)
         {
             return NotFound();
