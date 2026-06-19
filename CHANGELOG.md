@@ -14,6 +14,11 @@ All notable changes to this project will be documented in this file.
 - **Default Role Rename:** Renamed the default role generated upon organization creation from `Member` to `Employee` to align with the system's global Employee terminology.
 - **Authorization Context:** Rewrote `/api/auth/me` to dynamically resolve module claims based on the user's roles within their active organization, removing the temporary "grant all" hack.
 - **UI Refactoring:** Updated Role Management and User Management admin pages to seamlessly interact with tenant-scoped roles.
+- **User Management Modal:** Refactored layout to move Resign/Remove buttons to the footer, updated headers for a premium aesthetic, and fixed padding/alignment issues. Government Deductions toggle now correctly defaults to off.
+
+### Fixed — Phase 6
+- **Module Synchronization:** Fixed a discrepancy in the module registries between the backend and frontend that was completely hiding the `LeaveApprovals` and `MyLeaves` modules from the Sidebar and Role Management assignment list.
+- **Port Conflict Crashes:** Resolved a severe local dev issue where ghost processes holding port 5261 were causing `dotnet watch` to crash and serve corrupt, 404-ing WebAssembly files.
 
 ### Added — Phase 4: Multi-Tenant Feature Isolation
 - **TenantService** (`Services/TenantService.cs`): New scoped DI service that centralizes org-context resolution by reading the `ActiveOrganizationId` cookie and resolving the current user's `Employee` record for that org.

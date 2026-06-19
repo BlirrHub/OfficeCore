@@ -88,17 +88,6 @@
                                         class="text-fuchsia-400 hover:text-fuchsia-300 text-xs font-medium transition-colors">
                                     Edit
                                 </button>
-                                @if (user.IsActive)
-                                {
-                                    <button @onclick="() => ShowResignModal(user)"
-                                            class="text-orange-400 hover:text-orange-300 text-xs font-medium transition-colors">
-                                        Resign
-                                    </button>
-                                }
-                                <button @onclick="() => ShowDeleteUserModal(user)"
-                                        class="text-red-400 hover:text-red-300 text-xs font-medium transition-colors">
-                                    Delete
-                                </button>
                             </td>
                         </tr>
                     }
@@ -111,28 +100,39 @@
 <!-- Invite Member Modal -->
 @if (_showCreate)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-6 max-h-[90vh]">
-            <div class="flex items-center justify-between shrink-0">
-                <h2 class="text-xl font-bold text-white">Invite Member</h2>
-                <button @onclick="() => { _showCreate = false; _inviteLink = null; _create.Email = string.Empty; }" class="text-zinc-500 hover:text-white transition-colors">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 transition-all">
+        <div class="w-full max-w-md bg-zinc-950 border border-zinc-800/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-fuchsia-900/20 to-transparent p-6 pb-4 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="size-10 rounded-xl bg-fuchsia-500/10 flex items-center justify-center border border-fuchsia-500/20">
+                        <svg class="size-5 text-fuchsia-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white tracking-tight">Invite Member</h2>
+                        <p class="text-xs text-zinc-400 mt-0.5">Add someone to your workspace</p>
+                    </div>
+                </div>
+                <button @onclick="() => { _showCreate = false; _inviteLink = null; _create.Email = string.Empty; }" class="text-zinc-500 hover:text-white hover:bg-zinc-800 p-2 rounded-lg transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
 
-            <!-- Tabs -->
-            <div class="flex p-1 bg-zinc-900 rounded-lg">
-                <button @onclick="@(() => _inviteTab = "link")" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "link" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
-                    By Link
-                </button>
-                <button @onclick="@(() => _inviteTab = "email")" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "email" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
-                    By Email
-                </button>
-            </div>
-
-            <div class="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            <div class="p-6 pb-2 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+                <!-- Tabs -->
+                <div class="flex p-1 bg-zinc-900 rounded-lg shrink-0">
+                    <button @onclick="@(() => _inviteTab = "link")" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "link" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
+                        By Link
+                    </button>
+                    <button @onclick="@(() => _inviteTab = "email")" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "email" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
+                        By Email
+                    </button>
+                </div>
+                <div class="space-y-4">
                 @if (_inviteTab == "email")
                 {
                     <div>
@@ -163,6 +163,7 @@
                         <p class="text-xs text-emerald-400 font-medium text-center">@_inviteSuccessMessage</p>
                     </div>
                 }
+                </div>
             </div>
 
             @if (!string.IsNullOrEmpty(_modalError))
@@ -170,7 +171,7 @@
                 <p class="text-xs text-red-400">@_modalError</p>
             }
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-zinc-800 shrink-0">
+            <div class="flex justify-end gap-3 p-6 bg-zinc-900/50 border-t border-zinc-800 shrink-0">
                 <button @onclick="() => { _showCreate = false; _inviteLink = null; _inviteSuccessMessage = null; _create.Email = string.Empty; }"
                         class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Close</button>
                 <button @onclick="InviteMember" disabled="@(!string.IsNullOrEmpty(_inviteLink) || !string.IsNullOrEmpty(_inviteSuccessMessage))"
@@ -185,18 +186,29 @@
 <!-- Edit User Modal -->
 @if (_showEdit)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-6 max-h-[90vh]">
-            <div class="flex items-center justify-between shrink-0">
-                <h2 class="text-xl font-bold text-white">Edit Employee</h2>
-                <button @onclick="() => _showEdit = false" class="text-zinc-500 hover:text-white transition-colors">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 transition-all">
+        <div class="w-full max-w-lg bg-zinc-950 border border-zinc-800/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-fuchsia-900/20 to-transparent p-6 pb-4 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="size-10 rounded-xl bg-fuchsia-500/10 flex items-center justify-center border border-fuchsia-500/20">
+                        <svg class="size-5 text-fuchsia-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white tracking-tight">Edit Employee</h2>
+                        <p class="text-xs text-zinc-400 mt-0.5">Manage user details and permissions</p>
+                    </div>
+                </div>
+                <button @onclick="() => _showEdit = false" class="text-zinc-500 hover:text-white hover:bg-zinc-800 p-2 rounded-lg transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
 
-            <div class="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            <div class="p-6 pb-2 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-zinc-400 mb-1">First Name</label>
@@ -221,6 +233,12 @@
                         <input @bind="_edit.DateHired" type="date" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                     </div>
                 </div>
+                
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" @bind="_edit.IsActive" class="sr-only peer" />
+                    <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
+                    <span class="text-sm font-medium text-zinc-300">Account Active</span>
+                </label>
                 <label class="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" @bind="_edit.IsEmployee" class="sr-only peer" />
                     <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
@@ -279,11 +297,7 @@
                     </label>
                 }
 
-                <label class="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" @bind="_edit.IsActive" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-fuchsia-600 relative"></div>
-                    <span class="text-sm font-medium text-zinc-300">Account Active</span>
-                </label>
+                
 
                 <div>
                     <label class="block text-xs font-medium text-zinc-400 mb-2">Assign Roles</label>
@@ -387,13 +401,28 @@
                 <p class="text-xs text-red-400">@_modalError</p>
             }
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-zinc-800 shrink-0">
-                <button @onclick="() => _showEdit = false"
-                        class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
-                <button @onclick="UpdateUser"
-                        class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors">
-                    Save Changes
-                </button>
+            <div class="flex justify-between items-center p-6 bg-zinc-900/50 border-t border-zinc-800 shrink-0">
+                <div class="flex items-center gap-3">
+                    @if (_edit.IsActive)
+                    {
+                        <button @onclick="() => ShowResignModal(_users!.First(u => u.Id == _edit.Id))"
+                                class="rounded-lg border border-orange-900/50 bg-orange-900/20 px-4 py-2 text-sm font-medium text-orange-400 hover:bg-orange-900/40 hover:text-orange-300 transition-colors">
+                            Resign
+                        </button>
+                    }
+                    <button @onclick="() => ShowDeleteUserModal(_users!.First(u => u.Id == _edit.Id))"
+                            class="rounded-lg border border-red-900/50 bg-red-900/20 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors">
+                        Remove
+                    </button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button @onclick="() => _showEdit = false"
+                            class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                    <button @onclick="UpdateUser"
+                            class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors">
+                        Save Changes
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -450,7 +479,7 @@
     </div>
 }
 
-<!-- Delete User Modal -->
+<!-- Remove User Modal -->
 @if (_showDeleteUserModal && _userToDelete != null)
 {
     <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -462,18 +491,18 @@
                     </svg>
                 </div>
                 <div>
-                    <h3 class="text-lg font-bold text-white">Delete User</h3>
+                    <h3 class="text-lg font-bold text-white">Remove User</h3>
                     <p class="text-sm text-zinc-400">@_userToDelete.FirstName @_userToDelete.LastName</p>
                 </div>
             </div>
-            <p class="text-sm text-zinc-400 mb-6">Are you sure you want to permanently delete this user? This action cannot be undone and will delete all related records.</p>
+            <p class="text-sm text-zinc-400 mb-6">Are you sure you want to permanently remove this user from the workspace? This action cannot be undone.</p>
             @if (!string.IsNullOrEmpty(_deleteUserError))
             {
                 <p class="text-xs text-red-400 mb-4">@_deleteUserError</p>
             }
             <div class="flex gap-3">
                 <button @onclick="() => _showDeleteUserModal = false" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
-                <button @onclick="ConfirmDeleteUser" disabled="@_isDeletingUser" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all disabled:opacity-50">Delete</button>
+                <button @onclick="ConfirmDeleteUser" disabled="@_isDeletingUser" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all disabled:opacity-50">Remove</button>
             </div>
         </div>
     </div>
@@ -590,7 +619,7 @@
             SelectedRoles = new HashSet<string>(),
             GovernmentRecord = new GovernmentRecordDto
             {
-                IsEligibleForDeductions = user.GovernmentRecord?.IsEligibleForDeductions ?? true,
+                IsEligibleForDeductions = user.GovernmentRecord?.IsEligibleForDeductions ?? false,
                 SssNumber = user.GovernmentRecord?.SssNumber,
                 PagIbigNumber = user.GovernmentRecord?.PagIbigNumber,
                 PhilHealthNumber = user.GovernmentRecord?.PhilHealthNumber,

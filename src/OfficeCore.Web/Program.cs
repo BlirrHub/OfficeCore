@@ -28,7 +28,7 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 // Auth services
 builder.Services.AddAuthorizationCore(options =>
 {
-    var modules = new[] { "Dashboard", "Clients", "Attendance", "Boards", "Payroll", "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", "Users", "Roles", "Organization", "Advances" };
+    var modules = new[] { "Dashboard", "Clients", "Attendance", "Boards", "Payroll", "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals" };
     foreach (var module in modules)
     {
         options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));
