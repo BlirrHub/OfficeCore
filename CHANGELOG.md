@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — [2026-06-19]
+- **Standardized UI Headers:** Standardized page headers (titles and descriptions) across all Blazor pages (`Workspaces`, `CompanyProfile`, `Invoices`, `Locations`, `Dashboard`, `MyLeaves`, `LeaveApprovals`, `PayrollSettings`, `Profile`, and `PayrollList`) to use consistent premium CSS classes (`text-3xl font-bold tracking-tight text-white` and `mt-1 text-zinc-400 text-sm`).
+- **Improved Invitation Logic:**
+  - Added email trimming and database verification in the API.
+  - Checked that the recipient email belongs to an existing user in the database.
+  - Ensured the recipient is not already a member of the target workspace.
+  - Prevented duplicate pending invitations.
+  - Improved standard response error messaging.
+- **Invitation Modal UX Enhancements:** Updated `UserManagement.razor` modal tab switching to clear generated links, success messages, and validation errors when switching between "By Link" and "By Email" tabs. Also ensured submit button disabling states are tab-sensitive.
+
 ### Added — Phase 6: Member Roles (Multi-Tenant RBAC) - [2026-06-18]
 - **Isolated Roles:** Migrated Role-Based Access Control (RBAC) to be fully multi-tenant, replacing global `AppRole` with `OrganizationRole` and `OrganizationRoleClaim`.
 - **Employee Mapping:** Roles are now assigned to `EmployeeRole` mapping table, correctly connecting the tenant-specific user (`Employee`) to their tenant-specific roles.

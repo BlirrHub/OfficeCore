@@ -5,7 +5,7 @@
 
 ### Tech Stack
 - **Backend Framework:** C# .NET 10 Web API
-- **Database:** SQL Server (accessed via Entity Framework Core)
+- **Database:** PostgreSQL (accessed via Entity Framework Core)
 - **Real-Time Communication:** SignalR WebSockets (used extensively for Kanban Boards)
 - **Frontend Framework:** Blazor WebAssembly (Standalone/Client-Side)
 - **Styling:** Custom Vanilla CSS utilizing utility classes (Tailwind methodology)
@@ -15,17 +15,21 @@
 
 ## ✅ 2. What Has Been Done (Current Capabilities)
 
+### Multi-Tenancy & Access Control
+- [x] Multi-tenant workspace isolation for boards, chat, payroll, employees, and settings.
+- [x] Multi-tenant Role-Based Access Control (RBAC) supporting custom organization-scoped roles (`OrganizationRole`, `OrganizationRoleClaims`).
+- [x] Workspace invitation system allowing users to join organizations via secure tokens (By Link or By Email) with email verification.
+- [x] Claims transformation dynamically resolving role-scoped module permissions for the active workspace.
+
 ### Authentication & Identity
-- [x] JWT-based secure authentication.
-- [x] Role-based access control (`System Administrator`, `HR`, `Employee`).
-- [x] Default password provisioning (`"password"`) for new hires.
-- [x] Forced "Must Change Password" barrier screen upon first login.
-- [x] Profile management and manual password changes.
+- [x] Cookie-based secure authentication.
+- [x] Default password provisioning and forced "Must Change Password" barrier screen upon first login.
+- [x] Profile management (including global user fields like names and avatar uploads).
 
 ### Employee Management
-- [x] Complete CRUD interface for employee records.
+- [x] Complete CRUD interface for employee records scoped to the active workspace.
 - [x] Distinction between "System Users" and "Employees" via an `IsEmployee` toggle.
-- [x] Configuration of base pay rates, fixed weekly schedules, and assignment of roles.
+- [x] Configuration of base pay rates, fixed weekly schedules, and assignment of workspace-specific roles.
 
 ### Attendance & Time Tracking
 - [x] Web-based Time In / Time Out interface.

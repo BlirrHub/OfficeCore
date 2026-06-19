@@ -189,13 +189,36 @@ public class OrganizationsController : ControllerBase
         if (employee == null)
             return Forbid("You are not a member of this organization.");
 
+        string? email = request.Email?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var invitedUser = await _userManager.FindByEmailAsync(email);
+            if (invitedUser == null)
+            {
+                return BadRequest("No user found with this email address.");
+            }
+
+            var alreadyMember = await _context.Employees.AnyAsync(e => e.UserId == invitedUser.Id && e.OrganizationId == id);
+            if (alreadyMember)
+            {
+                return BadRequest("This user is already a member of this workspace.");
+            }
+
+            var alreadyInvited = await _context.OrganizationInvitations.AnyAsync(i => i.Email == email && i.OrganizationId == id && !i.IsAccepted && i.ExpiresAt > DateTime.UtcNow);
+            if (alreadyInvited)
+            {
+                return BadRequest("This user already has a pending invitation to this workspace.");
+            }
+        }
+
         var token = Guid.NewGuid().ToString("N");
 
         var invitation = new OrganizationInvitation
         {
             Id = Guid.NewGuid(),
             OrganizationId = id,
-            Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email,
+            Email = string.IsNullOrWhiteSpace(email) ? null : email,
             Token = token,
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
