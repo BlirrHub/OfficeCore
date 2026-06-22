@@ -1,6 +1,7 @@
 @page "/clients"
 @attribute [Authorize(Policy = "RequireClients")]
 @inject HttpClient Http
+@inject OfficeCore.Web.Services.ToastService ToastService
 
 <PageTitle>Clients - OfficeCore</PageTitle>
 
@@ -91,7 +92,7 @@
                                     @foreach (var biz in client.Businesses)
                                     {
                                         <div class="bg-zinc-950 rounded-xl p-4 border border-zinc-800 group/biz relative">
-                                            <button @onclick="() => RemoveBusiness(client, biz)" class="absolute top-3 right-3 text-zinc-600 hover:text-red-400 opacity-0 group-hover/biz:opacity-100 transition-all">
+                                            <button @onclick='() => PromptDeleteBusiness(client, biz)' class="absolute top-3 right-3 text-zinc-600 hover:text-red-400 opacity-0 group-hover/biz:opacity-100 transition-all">
                                                 <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
                                             <div class="font-medium text-zinc-200 mb-1 flex items-center gap-2">
@@ -228,6 +229,21 @@
     </div>
 }
 
+<!-- Generic Delete Modal -->
+@if (_showGenericDeleteModal)
+{
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+        <div class="bg-zinc-900 border border-red-900/50 rounded-2xl w-full max-w-sm shadow-2xl p-6 relative">
+            <h3 class="text-lg font-bold text-white mb-2">@_genericDeleteTitle</h3>
+            <p class="text-sm text-zinc-400 mb-6">@_genericDeleteText</p>
+            <div class="flex justify-end gap-3">
+                <button @onclick="() => _showGenericDeleteModal = false" class="px-4 py-2 text-sm font-bold text-white bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-all">Cancel</button>
+                <button @onclick="ConfirmGenericDelete" class="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-500 transition-all">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<ClientDto>? _clients;
     
@@ -242,6 +258,25 @@
     private BusinessDto _businessModel = new();
     private ClientDto? _activeClientForBusiness;
     private ClientDto? _clientToArchive;
+
+    private bool _showGenericDeleteModal = false;
+    private string _genericDeleteTitle = "";
+    private string _genericDeleteText = "";
+    private Func<Task>? _genericDeleteAction;
+
+    private void PromptDeleteBusiness(ClientDto client, BusinessDto biz)
+    {
+        _genericDeleteTitle = "Delete Business";
+        _genericDeleteText = $"Are you sure you want to remove the business \"{biz.Name}\" from {client.FullName}?";
+        _genericDeleteAction = async () => await RemoveBusiness(client, biz);
+        _showGenericDeleteModal = true;
+    }
+
+    private async Task ConfirmGenericDelete()
+    {
+        if (_genericDeleteAction != null) await _genericDeleteAction();
+        _showGenericDeleteModal = false;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -309,6 +344,11 @@
             {
                 await LoadClients();
                 CloseModals();
+                ToastService.ShowSuccess("Client updated successfully.");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to update client.");
             }
         }
         else
@@ -318,6 +358,11 @@
             {
                 await LoadClients();
                 CloseModals();
+                ToastService.ShowSuccess("Client created successfully.");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to create client.");
             }
         }
     }
@@ -344,6 +389,11 @@
         {
             await LoadClients();
             CloseModals();
+            ToastService.ShowSuccess("Business added successfully.");
+        }
+        else
+        {
+            ToastService.ShowError("Failed to add business.");
         }
     }
 
@@ -363,6 +413,11 @@
         if (response.IsSuccessStatusCode)
         {
             await LoadClients();
+            ToastService.ShowSuccess("Business removed.");
+        }
+        else
+        {
+            ToastService.ShowError("Failed to remove business.");
         }
     }
 
@@ -381,6 +436,11 @@
         {
             await LoadClients();
             CloseModals();
+            ToastService.ShowSuccess("Client archived.");
+        }
+        else
+        {
+            ToastService.ShowError("Failed to archive client.");
         }
     }
 

@@ -21,8 +21,8 @@ All notable changes to this project will be documented in this file.
   - Improved error handling in the API and UI to prevent silent failures when saving schedules.
 - **Global UI Feedback System (Toasts):**
   - Implemented a centralized `ToastService` and global `ToastContainer` (positioned at the top right) to replace hardcoded, silent, or localized error/success messages.
-  - Migrated `WorkSchedules`, `UserManagement`, `RoleManagement`, `Workspaces`, `Join`, and `Profile` components to utilize the new Toast system.
-  - Standardized delete actions (`WorkSchedules`, `RoleManagement`) by adding confirmation modals prior to execution.
+  - Migrated `WorkSchedules`, `UserManagement`, `RoleManagement`, `Workspaces`, `Join`, `Profile`, `BoardView`, `Clients`, `TimeOff`, and `Ledger` components to utilize the new Toast system.
+  - Standardized delete actions (`WorkSchedules`, `RoleManagement`, `BoardView`, `Clients`, `TimeOff`) by adding confirmation modals prior to execution.
 
 ### Changed — [2026-06-19]
 - **Standardized UI Headers:** Standardized page headers (titles and descriptions) across all Blazor pages (`Workspaces`, `CompanyProfile`, `Invoices`, `Locations`, `Dashboard`, `MyLeaves`, `LeaveApprovals`, `PayrollSettings`, `Profile`, and `PayrollList`) to use consistent premium CSS classes (`text-3xl font-bold tracking-tight text-white` and `mt-1 text-zinc-400 text-sm`).
