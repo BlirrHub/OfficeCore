@@ -6,148 +6,185 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 
-<div class="space-y-6">
-    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6">
-        <h2 class="text-xl font-bold text-white mb-4">Device Management</h2>
-        
-        @if (_isLoading)
-        {
-            <div class="text-zinc-500 text-sm">Loading device settings...</div>
-        }
-        else
-        {
-            <div class="space-y-4 max-w-md">
-                <div>
-                    <label class="block text-sm font-medium text-zinc-400 mb-1">Device Name</label>
-                    <input type="text" @bind="_device.Name" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" placeholder="e.g. Front Door Scanner" />
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-zinc-400 mb-1">Connection Type</label>
-                    <select @bind="_device.ConnectionType" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
-                        <option value="0">Wired (USB COM Port via Browser)</option>
-                        <option value="1">Wi-Fi (TCP Server via Cloud API)</option>
-                    </select>
-                </div>
-
-                @if (_device.ConnectionType == 1) // WiFi
-                {
-                    <div class="bg-blue-900/20 border border-blue-900/50 p-4 rounded-lg">
-                        <h4 class="text-sm font-bold text-blue-400 mb-2">Wi-Fi Setup Instructions</h4>
-                        <p class="text-xs text-zinc-400 mb-2">Configure your physical scanner device to connect to this server:</p>
-                        <ul class="list-disc list-inside text-xs text-zinc-400 space-y-1">
-                            <li><strong>Mode:</strong> TCP Client</li>
-                            <li><strong>Server IP:</strong> (Your Cloud Server IP)</li>
-                            <li><strong>Server Port:</strong> 9000</li>
-                        </ul>
-                    </div>
-                }
-                
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="isActive" @bind="_device.IsActive" class="rounded border-zinc-800 bg-zinc-900 text-fuchsia-600 focus:ring-fuchsia-600 focus:ring-offset-zinc-950" />
-                    <label for="isActive" class="text-sm font-medium text-zinc-400">Device is Active</label>
-                </div>
-
-                <div class="pt-2">
-                    <button @onclick="SaveDevice" class="px-4 py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 shadow-lg transition-colors">
-                        Save Device Settings
-                    </button>
-                </div>
-            </div>
-            
-            @if (_device.ConnectionType == 0) // Wired
-            {
-                <div class="mt-6 border-t border-zinc-800 pt-6">
-                    <h3 class="text-lg font-bold text-white mb-2">Wired Connection (USB)</h3>
-                    <p class="text-sm text-zinc-400 mb-4">Connect to your local USB scanner directly from this browser using the Web Serial API.</p>
-                    
-                    @if (!_isSerialConnected)
-                    {
-                        <button @onclick="ConnectSerial" class="px-4 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 shadow-lg transition-colors flex items-center gap-2">
-                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                            Connect USB Scanner
-                        </button>
-                    }
-                    else
-                    {
-                        <div class="flex items-center gap-3">
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-900/40 px-2.5 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/30">
-                                <span class="size-1.5 rounded-full bg-emerald-500"></span>
-                                Connected to USB Scanner
-                            </span>
-                            <button @onclick="DisconnectSerial" class="text-xs text-zinc-500 hover:text-white transition-colors underline">Disconnect</button>
-                        </div>
-                    }
-                </div>
-            }
-        }
+<div class="max-w-7xl mx-auto p-6 space-y-6">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-white">Attendance Settings</h1>
+            <p class="mt-1 text-zinc-400 text-sm">Configure fingerprint scanners and manage employee biometrics.</p>
+        </div>
     </div>
 
-    <!-- Enrollment Section -->
-    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6">
-        <h2 class="text-xl font-bold text-white mb-4">Employee Fingerprint Enrollment</h2>
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         
-        <div class="max-w-md space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-zinc-400 mb-1">Select Employee</label>
-                <select @bind="SelectedEmployeeId" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
-                    <option value="">-- Choose Employee --</option>
-                    @if (_employees != null)
-                    {
-                        foreach (var emp in _employees)
-                        {
-                            <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
-                        }
-                    }
-                </select>
-            </div>
-
-            @if (!string.IsNullOrEmpty(SelectedEmployeeId))
+        <!-- Device Configuration + USB Connection (combined 2-col card) -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h2 class="text-xl font-semibold text-white mb-6">Device Connection</h2>
+            
+            @if (_isLoading)
             {
-                <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                    <h3 class="text-sm font-bold text-white mb-3">Enrolled Fingerprints</h3>
-                    @if (_fingerprints == null)
-                    {
-                        <div class="text-zinc-500 text-xs">Loading...</div>
-                    }
-                    else if (!_fingerprints.Any())
-                    {
-                        <div class="text-zinc-500 text-xs italic">No fingerprints enrolled yet.</div>
-                    }
-                    else
-                    {
-                        <ul class="space-y-2 mb-4">
-                            @foreach (var fp in _fingerprints)
-                            {
-                                <li class="flex items-center justify-between bg-zinc-950 px-3 py-2 rounded-lg border border-zinc-800/50">
-                                    <div class="flex items-center gap-2">
-                                        <svg class="size-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg>
-                                        <span class="text-xs text-zinc-300">ID: @fp.FingerprintId (Enrolled @fp.EnrolledAt.ToString("MMM dd, yyyy"))</span>
-                                    </div>
-                                    <button @onclick="() => DeleteFingerprint(fp.Id)" class="text-xs text-red-400 hover:text-red-300 transition-colors">Delete</button>
-                                </li>
-                            }
-                        </ul>
-                    }
-
-                    <div class="pt-3 border-t border-zinc-800">
-                        @if (_isEnrolling)
-                        {
-                            <div class="text-sm font-medium text-amber-400 animate-pulse flex items-center gap-2">
-                                <svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                Please place finger on sensor...
-                                <span class="text-xs text-zinc-500 ml-2">(@_enrollStatus)</span>
+                <div class="flex items-center justify-center py-8">
+                    <svg class="animate-spin size-8 text-fuchsia-500" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    
+                    <!-- Left: Settings -->
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-zinc-400 mb-1.5">Device Name</label>
+                                <input type="text" @bind="_device.Name" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none focus:ring-1 focus:ring-fuchsia-500" placeholder="e.g. Main Lobby Scanner" />
                             </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-zinc-400 mb-1.5">Connection Protocol</label>
+                                <select @bind="_device.ConnectionType" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none focus:ring-1 focus:ring-fuchsia-500">
+                                    <option value="0">Wired (USB COM Port via Browser)</option>
+                                    <option value="1">Wi-Fi (TCP Server via Cloud API)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        @if (_device.ConnectionType == 1)
+                        {
+                            <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-xl text-sm text-zinc-500 space-y-1">
+                                <li><span class="text-zinc-300">Mode:</span> TCP Client</li>
+                                <li><span class="text-zinc-300">Port:</span> 9000</li>
+                            </div>
+                        }
+                        
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="deviceActive" @bind="_device.IsActive" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 text-fuchsia-600 focus:ring-fuchsia-600" />
+                            <label for="deviceActive" class="text-sm font-medium text-white cursor-pointer">Device is Active globally</label>
+                        </div>
+
+                        <button @onclick="SaveDevice" class="w-full py-2.5 px-4 text-sm font-medium text-white bg-zinc-800 border border-zinc-700 rounded-xl hover:bg-zinc-700 transition-colors">
+                            Save Configuration
+                        </button>
+                    </div>
+
+                    <!-- Right: Direct USB Connection -->
+                    <div class="border-l border-zinc-800 pl-6">
+                        <h3 class="text-base font-semibold text-white mb-1">Direct USB Connection</h3>
+                        <p class="text-xs text-zinc-400 mb-4">Connect via USB to enroll fingerprints or provision Wi-Fi.</p>
+
+                        @if (!_isSerialConnected)
+                        {
+                            <button @onclick="ConnectSerial" class="w-full py-2.5 px-4 text-sm font-medium text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/20 transition-colors flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                Connect USB Scanner
+                            </button>
                         }
                         else
                         {
-                            <button @onclick="StartEnrollment" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-500 shadow-lg transition-colors w-full">
-                                Enroll New Fingerprint
-                            </button>
+                            <div class="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-4">
+                                <div class="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    Scanner Connected
+                                </div>
+                                <button @onclick="DisconnectSerial" class="text-xs font-medium text-zinc-400 hover:text-white transition-colors">Disconnect</button>
+                            </div>
+                            
+                            <div class="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <h4 class="text-sm font-medium text-white mb-3">Provision Wi-Fi</h4>
+                                <div class="space-y-2">
+                                    <input type="text" @bind="_wifiSsid" placeholder="Wi-Fi SSID" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                    <input type="password" @bind="_wifiPassword" placeholder="Wi-Fi Password" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                    <input type="text" @bind="_wifiServerIp" placeholder="API Server IP" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                    <button @onclick="SendWifiConfig" class="w-full py-2 text-sm font-medium text-white bg-zinc-800 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition-colors">
+                                        Send to Device
+                                    </button>
+                                </div>
+                            </div>
                         }
                     </div>
+
                 </div>
             }
+        </div>
+
+        <!-- Enrollment Panel -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col">
+            <h2 class="text-xl font-semibold text-white mb-6">Biometric Enrollment</h2>
+            
+            <div class="space-y-5 flex-1 flex flex-col">
+                <div>
+                    <label class="block text-sm font-medium text-zinc-400 mb-1.5">Select Employee</label>
+                    <select @bind="SelectedEmployeeId" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none focus:ring-1 focus:ring-fuchsia-500">
+                        <option value="">-- Choose Employee --</option>
+                        @if (_employees != null)
+                        {
+                            foreach (var emp in _employees)
+                            {
+                                <option value="@emp.EmployeeId">@emp.FirstName @emp.LastName</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                @if (!string.IsNullOrEmpty(SelectedEmployeeId))
+                {
+                    <div class="flex-1 flex flex-col pt-2">
+                        <h3 class="text-sm font-medium text-zinc-400 mb-3">Enrolled Fingerprints</h3>
+                        <div class="bg-zinc-950 border border-zinc-800 rounded-xl flex-1 mb-6 p-2 min-h-[150px]">
+                            @if (_fingerprints == null)
+                            {
+                                <div class="h-full flex items-center justify-center text-sm text-zinc-500">Loading records...</div>
+                            }
+                            else if (!_fingerprints.Any())
+                            {
+                                <div class="h-full flex items-center justify-center text-sm text-zinc-500">No fingerprints enrolled.</div>
+                            }
+                            else
+                            {
+                                <ul class="space-y-2">
+                                    @foreach (var fp in _fingerprints)
+                                    {
+                                        <li class="flex items-center justify-between bg-zinc-900 px-4 py-3 rounded-lg border border-zinc-800 group">
+                                            <div>
+                                                <p class="text-sm font-medium text-white">Fingerprint #@fp.FingerprintId</p>
+                                                <p class="text-xs text-zinc-500">Enrolled @fp.EnrolledAt.ToString("MMM dd, yyyy")</p>
+                                            </div>
+                                            <button @onclick="() => DeleteFingerprint(fp.Id)" class="p-2 text-zinc-500 hover:text-red-400 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+
+                        <div class="mt-auto">
+                            @if (_isEnrolling)
+                            {
+                                <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-3">
+                                        <svg class="w-5 h-5 text-amber-500 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        <div>
+                                            <p class="text-sm font-medium text-amber-500">Scan in Progress</p>
+                                            <p class="text-xs text-amber-400/80">@_enrollStatus</p>
+                                        </div>
+                                    </div>
+                                    <button @onclick="CancelEnrollment" class="px-3 py-1.5 text-xs font-medium text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-lg hover:text-white transition-colors">
+                                        Cancel
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <button @onclick="StartEnrollment" class="w-full py-2.5 px-4 text-sm font-medium text-zinc-900 bg-fuchsia-500 rounded-xl hover:bg-fuchsia-400 transition-colors flex items-center justify-center gap-2">
+                                    Start New Enrollment
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -177,16 +214,19 @@
     
     // Web Serial State
     private bool _isSerialConnected = false;
+    private string _wifiSsid = "";
+    private string _wifiPassword = "";
+    private string _wifiServerIp = "";
     private IJSObjectReference? _serialModule;
     private DotNetObjectReference<AttendanceSettings>? _dotNetRef;
     private HubConnection? _hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
+        _dotNetRef = DotNetObjectReference.Create(this);
+
         await LoadDevice();
         await LoadEmployees();
-        
-        _dotNetRef = DotNetObjectReference.Create(this);
         
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"))
@@ -198,6 +238,11 @@
             if (empId == SelectedEmployeeId)
             {
                 _enrollStatus = status;
+                if (status.StartsWith("ERROR", StringComparison.OrdinalIgnoreCase))
+                {
+                    _isEnrolling = false;
+                    ToastService.ShowError(status);
+                }
                 InvokeAsync(StateHasChanged);
             }
         });
@@ -313,10 +358,8 @@
                 return;
             }
             
-            // Tell the browser to send ENROLL command over USB
             try 
             {
-                // We set the target employee so the JS interop knows who to map success to
                 await _serialModule.InvokeVoidAsync("startEnrollment", SelectedEmployeeId);
                 _enrollStatus = "Waiting for finger...";
             }
@@ -348,6 +391,23 @@
                 _isEnrolling = false;
             }
         }
+    }
+
+    private async Task CancelEnrollment()
+    {
+        _isEnrolling = false;
+        _enrollStatus = "Cancelled";
+        
+        if (_device.ConnectionType == 0 && _serialModule != null)
+        {
+            try
+            {
+                await _serialModule.InvokeVoidAsync("cancelEnrollment");
+            }
+            catch { }
+        }
+        
+        StateHasChanged();
     }
 
     private async Task DeleteFingerprint(int id)
@@ -384,11 +444,22 @@
     }
     
     [JSInvokable]
+    public void OnSerialEnrollStatus(string status)
+    {
+        _enrollStatus = status;
+        if (status.StartsWith("ERROR", StringComparison.OrdinalIgnoreCase))
+        {
+            _isEnrolling = false;
+            ToastService.ShowError(status);
+        }
+        StateHasChanged();
+    }
+
+    [JSInvokable]
     public async Task OnSerialScanEvent(int fingerprintId)
     {
-        // PUSH raw attendance log
+        // Fire and forget attendance scan POST
         await Http.PostAsJsonAsync("/api/attendance/scan-event", new { FingerprintId = fingerprintId });
-        ToastService.ShowSuccess($"Scan {fingerprintId} received!");
     }
 
     [JSInvokable]
@@ -429,16 +500,40 @@
         }
     }
 
+    private async Task SendWifiConfig()
+    {
+        if (_serialModule != null)
+        {
+            if (string.IsNullOrEmpty(_wifiSsid) || string.IsNullOrEmpty(_wifiServerIp))
+            {
+                ToastService.ShowError("SSID and Server IP are required.");
+                return;
+            }
+
+            try
+            {
+                await _serialModule.InvokeVoidAsync("sendWifiConfig", _wifiSsid, _wifiPassword, _wifiServerIp);
+                ToastService.ShowSuccess("Wi-Fi configuration sent! Device will reboot.");
+                _wifiSsid = "";
+                _wifiPassword = "";
+                _wifiServerIp = "";
+            }
+            catch (Exception ex)
+            {
+                ToastService.ShowError("Failed to send config: " + ex.Message);
+            }
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();
         }
-        if (_dotNetRef != null)
-        {
-            _dotNetRef.Dispose();
-        }
+        // Note: we intentionally do NOT dispose _dotNetRef here.
+        // The JS serial module holds a reference to it for ongoing attendance callbacks.
+        // It will be replaced with a new reference on the next component mount via initSerial.
         if (_serialModule != null)
         {
             await _serialModule.DisposeAsync();
@@ -455,7 +550,8 @@
 
     private class EmployeeDto
     {
-        public string Id { get; set; } = string.Empty;
+        public string Id { get; set; } = string.Empty;         // ASP.NET User ID
+        public string EmployeeId { get; set; } = string.Empty; // Employee table PK (FK for fingerprints)
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public bool IsActive { get; set; }

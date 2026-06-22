@@ -1,4 +1,6 @@
 #include <Adafruit_Fingerprint.h>
+#include <WiFi.h>
+#include <Preferences.h>
 
 // ESP32 Hardware Serial 2 pins
 #define RXD2 16
@@ -6,20 +8,60 @@
 
 HardwareSerial mySerial(2);
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+Preferences preferences;
+WiFiClient client;
 
 bool isEnrollMode = false;
+bool wifiEnabled = false;
+
+String ssid = "";
+String password = "";
+String serverIp = "";
+const int serverPort = 9000;
 
 void setup() {
   // Initialize communication with the PC via USB
   Serial.begin(9600);
   while (!Serial);
 
+  // Load saved Wi-Fi credentials
+  preferences.begin("fingerprint", false);
+  ssid = preferences.getString("ssid", "");
+  password = preferences.getString("password", "");
+  serverIp = preferences.getString("serverIp", "");
+  
+  // Attempt Wi-Fi connection if credentials exist
+  if (ssid != "" && serverIp != "") {
+    wifiEnabled = true;
+    Serial.println("INFO: WiFi credentials found. Connecting...");
+    WiFi.begin(ssid.c_str(), password.c_str());
+    
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+    Serial.println();
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("INFO: WiFi Connected.");
+      Serial.print("INFO: IP Address: ");
+      Serial.println(WiFi.localIP());
+    } else {
+      Serial.println("ERROR: WiFi Connection Failed. Falling back to Wired mode only.");
+      wifiEnabled = false;
+    }
+  } else {
+    Serial.println("INFO: No WiFi credentials found. Starting in Wired mode.");
+  }
+
   // Initialize communication with the fingerprint sensor
   mySerial.begin(57600, SERIAL_8N1, RXD2, TXD2);
   finger.begin(57600);
   
   if (finger.verifyPassword()) {
-    Serial.println("DEVICE_READY");
+    sendMessage("DEVICE_READY");
   } else {
     Serial.println("ERROR: Could not find fingerprint sensor.");
     while (1) { delay(1); }
@@ -27,16 +69,8 @@ void setup() {
 }
 
 void loop() {
-  // Check for commands from the PC (OfficeCore API Background Service)
-  if (Serial.available() > 0) {
-    String command = Serial.readStringUntil('\n');
-    command.trim();
-    
-    if (command == "ENROLL") {
-      isEnrollMode = true;
-      Serial.println("MODE:ENROLLING");
-    }
-  }
+  handleTCP();
+  handleSerial();
 
   if (isEnrollMode) {
     enrollFingerprint();
@@ -47,97 +81,194 @@ void loop() {
   delay(50);
 }
 
+// Sends message to BOTH Serial and TCP server if connected
+void sendMessage(String msg) {
+  Serial.println(msg); 
+  
+  if (wifiEnabled && WiFi.status() == WL_CONNECTED) {
+    if (!client.connected()) {
+      client.connect(serverIp.c_str(), serverPort);
+    }
+    if (client.connected()) {
+      client.println(msg);
+    }
+  }
+}
+
+void handleCommand(String command) {
+  command.trim();
+  if (command == "") return;
+  
+  if (command == "ENROLL") {
+    isEnrollMode = true;
+    sendMessage("MODE:ENROLLING");
+  } 
+  else if (command.startsWith("SET_WIFI:")) {
+    // Expected format: SET_WIFI:MySSID,MyPassword,192.168.1.100
+    String data = command.substring(9);
+    int firstComma = data.indexOf(',');
+    int secondComma = data.lastIndexOf(',');
+    
+    if (firstComma != -1 && secondComma != -1 && firstComma != secondComma) {
+      String newSsid = data.substring(0, firstComma);
+      String newPass = data.substring(firstComma + 1, secondComma);
+      String newIp = data.substring(secondComma + 1);
+      
+      preferences.putString("ssid", newSsid);
+      preferences.putString("password", newPass);
+      preferences.putString("serverIp", newIp);
+      
+      Serial.println("INFO: WiFi Configuration Saved. Rebooting in 2 seconds...");
+      delay(2000);
+      ESP.restart();
+    } else {
+      Serial.println("ERROR: Invalid WiFi config format. Use SET_WIFI:ssid,pass,ip");
+    }
+  }
+  else if (command == "RESET_WIFI") {
+    preferences.clear();
+    Serial.println("INFO: WiFi Configuration Cleared. Rebooting in 2 seconds...");
+    delay(2000);
+    ESP.restart();
+  }
+}
+
+void handleSerial() {
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    handleCommand(command);
+  }
+}
+
+void handleTCP() {
+  if (!wifiEnabled || WiFi.status() != WL_CONNECTED) return;
+  
+  if (!client.connected()) {
+    client.connect(serverIp.c_str(), serverPort);
+  }
+  
+  if (client.connected() && client.available()) {
+    String command = client.readStringUntil('\n');
+    handleCommand(command);
+  }
+}
+
 void checkAttendance() {
   uint8_t p = finger.getImage();
-  if (p != FINGERPRINT_OK) return; // No finger detected
+  if (p != FINGERPRINT_OK) return; 
   
   p = finger.image2Tz();
-  if (p != FINGERPRINT_OK) return; // Bad image
+  if (p != FINGERPRINT_OK) return; 
 
   p = finger.fingerSearch();
   if (p == FINGERPRINT_OK) {
-    // Found a match!
-    Serial.print("ATTENDANCE:");
-    Serial.println(finger.fingerID);
+    sendMessage("ATTENDANCE:" + String(finger.fingerID));
     delay(2000); // Wait so we don't trigger 10 times for one touch
   }
 }
 
 void enrollFingerprint() {
-  // Find an empty slot
   int id = 1;
   while (id < 127) {
     if (finger.loadModel(id) != FINGERPRINT_OK) {
-      break; // Found an empty slot
+      break; 
     }
     id++;
   }
 
   if (id > 127) {
-    Serial.println("ERROR: Sensor is full!");
+    sendMessage("ERROR: Sensor is full!");
     isEnrollMode = false;
     return;
   }
 
-  // Scan finger first time
-  Serial.println("INFO: Waiting for valid finger to enroll");
-  uint8_t p = -1;
   while (isEnrollMode) {
-    p = finger.getImage();
-    if (p == FINGERPRINT_OK) {
-      p = finger.image2Tz(1);
+    sendMessage("INFO: Waiting for valid finger to enroll");
+    uint8_t p = -1;
+    while (isEnrollMode) {
+      p = finger.getImage();
       if (p == FINGERPRINT_OK) {
-        break; // Good image captured!
+        p = finger.image2Tz(1);
+        if (p == FINGERPRINT_OK) break;
+      }
+      
+      if (Serial.available() > 0) {
+        String cmd = Serial.readStringUntil('\n');
+        cmd.trim();
+        if (cmd == "CANCEL") {
+          isEnrollMode = false;
+          sendMessage("INFO: Enrollment cancelled.");
+          return;
+        }
+      }
+      if (wifiEnabled && client.connected() && client.available()) {
+         String cmd = client.readStringUntil('\n');
+         cmd.trim();
+         if (cmd == "CANCEL") {
+           isEnrollMode = false;
+           sendMessage("INFO: Enrollment cancelled.");
+           return;
+         }
       }
     }
     
-    // Check if PC sent cancel command
-    if (Serial.available() > 0) {
-      String cmd = Serial.readStringUntil('\n');
-      cmd.trim();
-      if (cmd == "CANCEL") {
+    if (!isEnrollMode) return; 
+
+    sendMessage("INFO: First scan successful. Remove finger.");
+    delay(2000); 
+
+    p = 0;
+    while (p != FINGERPRINT_NOFINGER) {
+      p = finger.getImage();
+    }
+    
+    sendMessage("INFO: Finger removed. Place SAME finger again.");
+    p = -1;
+    while (isEnrollMode) {
+      p = finger.getImage();
+      if (p == FINGERPRINT_OK) {
+        p = finger.image2Tz(2);
+        if (p == FINGERPRINT_OK) break;
+      }
+      
+      if (Serial.available() > 0) {
+        String cmd = Serial.readStringUntil('\n');
+        cmd.trim();
+        if (cmd == "CANCEL") {
+          isEnrollMode = false;
+          sendMessage("INFO: Enrollment cancelled.");
+          return;
+        }
+      }
+      if (wifiEnabled && client.connected() && client.available()) {
+         String cmd = client.readStringUntil('\n');
+         cmd.trim();
+         if (cmd == "CANCEL") {
+           isEnrollMode = false;
+           sendMessage("INFO: Enrollment cancelled.");
+           return;
+         }
+      }
+    }
+
+    if (!isEnrollMode) return; 
+
+    sendMessage("INFO: Second scan successful. Creating model...");
+    p = finger.createModel();
+    if (p == FINGERPRINT_OK) {
+      p = finger.storeModel(id);
+      if (p == FINGERPRINT_OK) {
+        sendMessage("ENROLL_SUCCESS:" + String(id));
+        isEnrollMode = false;
+        return;
+      } else {
+        sendMessage("ERROR: Failed to store model.");
         isEnrollMode = false;
         return;
       }
-    }
-  }
-  
-  Serial.println("INFO: First scan successful. Remove finger.");
-  delay(2000); // Give user 2 full seconds to realize the scan worked and lift their finger
-
-  // Wait for finger to be removed
-  p = 0;
-  while (p != FINGERPRINT_NOFINGER) {
-    p = finger.getImage();
-  }
-  
-  Serial.println("INFO: Finger removed. Place SAME finger again.");
-  // Scan finger second time
-  p = -1;
-  while (isEnrollMode) {
-    p = finger.getImage();
-    if (p == FINGERPRINT_OK) {
-      p = finger.image2Tz(2);
-      if (p == FINGERPRINT_OK) {
-        break; // Good image captured!
-      }
-    }
-  }
-
-  Serial.println("INFO: Second scan successful. Creating model...");
-  // Create model
-  p = finger.createModel();
-  if (p == FINGERPRINT_OK) {
-    p = finger.storeModel(id);
-    if (p == FINGERPRINT_OK) {
-      Serial.print("ENROLL_SUCCESS:");
-      Serial.println(id);
     } else {
-      Serial.println("ERROR: Failed to store model.");
+      sendMessage("INFO: Fingerprints did not match. Please try again.");
+      delay(2000);
     }
-  } else {
-    Serial.println("ERROR: Fingerprints did not match.");
   }
-  
-  isEnrollMode = false;
 }

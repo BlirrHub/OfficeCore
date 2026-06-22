@@ -7,7 +7,26 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed — [2026-06-22]
-- **Fingerprint Scanner & Attendance:**
+- **Attendance Settings UI Overhaul:**
+  - Redesigned the Settings tab to match the professional minimalist style of other modules (dark `zinc-900` cards, standard inputs, no flashy gradients).
+  - Restructured layout to a single combined card with a 2-column inner grid: **Device Connection settings** on the left and **Direct USB Connection** on the right, eliminating excess whitespace.
+  - The overall settings page now uses a 2-column layout (`xl:grid-cols-2`) pairing the Device card with the Biometric Enrollment card side by side.
+  - Removed the scanning toast notification that fired on every fingerprint scan.
+- **Fingerprint Enrollment Fixes:**
+  - **Fixed critical enrollment 500 error:** The `EnrollSuccess` API endpoint was incorrectly looking up `_context.Users` by Employee ID. Fixed to use `_context.Employees.FindAsync()` since `EmployeeFingerprint.EmployeeId` is a FK to `Employee.Id`. Also set `OrganizationId` on the new fingerprint record (was missing, causing multi-tenant constraint failure).
+  - **Fixed wrong ID sent for enrollment:** The employee dropdown was using `User.Id` (ASP.NET Identity ID) as the option value. Fixed to use `Employee.EmployeeId` (the `Employee` table PK) which is the correct FK for `EmployeeFingerprint`. Added `EmployeeId` field to the `EmployeeDto` class.
+  - **Fixed fingerprint mismatch retry:** Updated `ESP32_Fingerprint_Device.ino` to loop back to first-scan when fingerprints don't match (`INFO: Fingerprints did not match. Please try again.`) instead of exiting enrollment mode. Also added CANCEL command handling in the second-scan loop.
+  - **Added enrollment cancellation:** Added a "Cancel" button and `CancelEnrollment()` method that sends a `CANCEL` command to the ESP32 over USB/TCP, cleanly halting the enrollment process.
+- **Web Serial (USB) Reliability Fixes:**
+  - **Fixed "port already open" error on navigation:** When navigating from Attendance Records back to Settings, the component re-mounted and tried to re-open an already-open serial port. Fixed `initSerial` in `webserial.js` to detect if the port is already open (`savedPort.readable`) and re-attach to it without calling `port.open()` again.
+  - **Fixed baud rate mismatch:** `webserial.js` auto-connect was using `57600` baud while the ESP32 `Serial.begin()` uses `9600`. Fixed both auto-connect and manual connect paths to use `9600`.
+  - **Auto-reconnect on page revisit:** `initSerial` now calls `navigator.serial.getPorts()` on mount to automatically reconnect to a previously approved USB scanner without requiring the user to click "Connect" every time.
+  - **Fixed DotNetObjectReference disposed error:** The component no longer disposes `_dotNetRef` on navigation away. The JS module retains the reference for ongoing attendance scan callbacks; it is replaced with a fresh reference on the next component mount.
+- **ESP32 Firmware (`ESP32_Fingerprint_Device.ino`):**
+  - Refactored `enrollFingerprint()` to wrap the full scan cycle in an outer `while(isEnrollMode)` loop, enabling automatic retry on fingerprint mismatch without re-entering enrollment mode.
+  - Added CANCEL command checks inside the second-scan polling loop (both USB Serial and TCP Wi-Fi paths).
+  - Sends `INFO: Fingerprints did not match. Please try again.` and loops back instead of sending `ERROR:` and aborting.
+- **Fingerprint Scanner & Attendance (initial setup):**
   - Migrated fingerprint enrollment and device management from User Management to a dedicated "Settings" tab in the Attendance module.
   - Implemented a Hybrid Device Architecture:
     - **Wired Connection:** Added Web Serial API support allowing browsers to connect directly to local USB scanners for immediate scanning and enrollment.

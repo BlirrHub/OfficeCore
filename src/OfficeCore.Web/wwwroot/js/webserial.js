@@ -3,8 +3,41 @@ let reader;
 let dotNetRef;
 let targetEnrollEmployeeId = null;
 
-export function initSerial(dotNetReference) {
+export async function initSerial(dotNetReference) {
     dotNetRef = dotNetReference;
+
+    // Check if we already have an authorized port
+    if ("serial" in navigator) {
+        try {
+            const ports = await navigator.serial.getPorts();
+            if (ports.length > 0) {
+                const savedPort = ports[0];
+
+                // If we already have this port open (e.g. navigated away and back), just re-attach
+                if (port && port === savedPort && port.readable) {
+                    dotNetRef.invokeMethodAsync('OnSerialConnected');
+                    return;
+                }
+
+                // Close stale open port from a different instance if needed
+                if (savedPort.readable) {
+                    // Port is already open by another context — attach to it
+                    port = savedPort;
+                    dotNetRef.invokeMethodAsync('OnSerialConnected');
+                    readLoop();
+                    return;
+                }
+
+                // Port exists but is closed — open it
+                port = savedPort;
+                await port.open({ baudRate: 9600 });
+                dotNetRef.invokeMethodAsync('OnSerialConnected');
+                readLoop();
+            }
+        } catch (e) {
+            console.warn("Auto-connect skipped:", e.message);
+        }
+    }
     console.log("Web Serial API initialized.");
 }
 
@@ -47,6 +80,30 @@ export async function startEnrollment(employeeId) {
     const writer = port.writable.getWriter();
     const encoder = new TextEncoder();
     await writer.write(encoder.encode("ENROLL\n"));
+    writer.releaseLock();
+}
+
+export async function cancelEnrollment() {
+    if (!port || !port.writable) {
+        return;
+    }
+    
+    targetEnrollEmployeeId = null;
+    const writer = port.writable.getWriter();
+    const encoder = new TextEncoder();
+    await writer.write(encoder.encode("CANCEL\n"));
+    writer.releaseLock();
+}
+
+export async function sendWifiConfig(ssid, password, serverIp) {
+    if (!port || !port.writable) {
+        throw new Error("Serial port not writable.");
+    }
+    
+    const writer = port.writable.getWriter();
+    const encoder = new TextEncoder();
+    const command = `SET_WIFI:${ssid},${password},${serverIp}\n`;
+    await writer.write(encoder.encode(command));
     writer.releaseLock();
 }
 
@@ -96,6 +153,17 @@ function processLine(line) {
         if (!isNaN(fingerprintId) && targetEnrollEmployeeId) {
             dotNetRef.invokeMethodAsync('OnSerialEnrollSuccess', targetEnrollEmployeeId, fingerprintId);
             targetEnrollEmployeeId = null;
+        }
+    }
+    else if (line.startsWith("INFO:") || line.startsWith("ERROR:") || line.startsWith("MODE:")) {
+        if (targetEnrollEmployeeId) {
+            // e.g. "INFO: Waiting for valid finger" -> "Waiting for valid finger"
+            let msg = line.substring(line.indexOf(":") + 1).trim();
+            dotNetRef.invokeMethodAsync('OnSerialEnrollStatus', msg);
+            
+            if (line.startsWith("ERROR:")) {
+                targetEnrollEmployeeId = null; // stop tracking if error
+            }
         }
     }
 }

@@ -170,13 +170,14 @@ public class AttendanceController : ControllerBase
     [HttpPost("enroll-success")]
     public async Task<IActionResult> EnrollSuccess([FromBody] EnrollSuccessDto dto)
     {
-        var employee = await _context.Users.FindAsync(dto.EmployeeId);
+        var employee = await _context.Employees.FindAsync(dto.EmployeeId);
         if (employee == null) return BadRequest("Employee not found");
 
         _context.EmployeeFingerprints.Add(new EmployeeFingerprint
         {
             EmployeeId = dto.EmployeeId,
-            FingerprintId = dto.FingerprintId
+            FingerprintId = dto.FingerprintId,
+            OrganizationId = employee.OrganizationId
         });
 
         await _context.SaveChangesAsync();
