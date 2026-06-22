@@ -110,7 +110,9 @@ public class ChatController : ControllerBase
     [HttpPost("rooms/{roomId}/messages")]
     public async Task<IActionResult> SendMessage(Guid roomId, [FromBody] SendMessageRequest req)
     {
-        var employee = await _tenant.GetCurrentEmployeeAsync();
+        var currentEmployee = await _tenant.GetCurrentEmployeeAsync();
+        if (currentEmployee == null) return Forbid();
+        var employee = await _context.Employees.Include(e => e.User).FirstOrDefaultAsync(e => e.Id == currentEmployee.Id);
         if (employee == null) return Forbid();
         
         var orgId = _tenant.GetActiveOrganizationId()!.Value;

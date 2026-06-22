@@ -677,7 +677,6 @@
         {
             if (!_editModel.HasOvertimeRules)
             {
-                _editModel.AutoDeductions.Clear();
                 _editModel.OvertimeRules.Clear();
             }
 
@@ -687,12 +686,16 @@
                 await LoadData();
                 _isCreating = false;
             }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error creating schedule: {response.StatusCode} - {error}");
+            }
         }
         else if (_isEditing)
         {
             if (!_editModel.HasOvertimeRules)
             {
-                _editModel.AutoDeductions.Clear();
                 _editModel.OvertimeRules.Clear();
             }
 

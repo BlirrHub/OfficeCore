@@ -15,6 +15,10 @@ All notable changes to this project will be documented in this file.
 - **Real-Time Global Chat Optimizations:**
   - Implemented optimistic UI rendering on the global chat widget to display outgoing messages immediately without waiting for server response.
   - Added message ID verification in the SignalR message handler to prevent duplicate entries of optimistically-added messages.
+  - Fixed a missing `User` join in `ChatController` that was throwing a silent `NullReferenceException` and preventing real-time messages from being broadcasted via SignalR.
+- **Work Schedules Fixes:**
+  - Fixed an issue where Auto Deductions were incorrectly tied to the Overtime Rules toggle, causing standard breaks to be cleared and ignored if overtime was disabled.
+  - Improved error handling in the API and UI to prevent silent failures when saving schedules.
 
 ### Changed — [2026-06-19]
 - **Standardized UI Headers:** Standardized page headers (titles and descriptions) across all Blazor pages (`Workspaces`, `CompanyProfile`, `Invoices`, `Locations`, `Dashboard`, `MyLeaves`, `LeaveApprovals`, `PayrollSettings`, `Profile`, and `PayrollList`) to use consistent premium CSS classes (`text-3xl font-bold tracking-tight text-white` and `mt-1 text-zinc-400 text-sm`).

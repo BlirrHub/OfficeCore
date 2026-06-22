@@ -108,7 +108,7 @@ public class WorkScheduleController : ControllerBase
             }
         }
         
-        if (dto.HasOvertimeRules && dto.AutoDeductions != null)
+        if (dto.AutoDeductions != null)
         {
             foreach (var ad in dto.AutoDeductions)
             {
@@ -139,8 +139,15 @@ public class WorkScheduleController : ControllerBase
             }
         }
 
-        _context.WorkSchedules.Add(schedule);
-        await _context.SaveChangesAsync();
+        try
+        {
+            _context.WorkSchedules.Add(schedule);
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Error = ex.InnerException?.Message ?? ex.Message });
+        }
 
         return CreatedAtAction(nameof(GetWorkSchedule), new { id = schedule.Id }, schedule);
     }
@@ -213,7 +220,7 @@ public class WorkScheduleController : ControllerBase
         
         // Update auto deductions
         _context.WorkScheduleAutoDeductions.RemoveRange(existingSchedule.AutoDeductions);
-        if (dto.HasOvertimeRules && dto.AutoDeductions != null)
+        if (dto.AutoDeductions != null)
         {
             foreach (var ad in dto.AutoDeductions)
             {
