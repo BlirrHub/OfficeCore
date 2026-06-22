@@ -1,6 +1,7 @@
 @page "/admin/leave-approvals"
 @attribute [Authorize(Roles = "Admin,HR")]
 @inject HttpClient Http
+@inject OfficeCore.Web.Services.ToastService ToastService
 
 <PageTitle>Leave Approvals - OfficeCore</PageTitle>
 
@@ -394,11 +395,23 @@
     private async Task DeleteRequest()
     {
         if (_requestToDelete == null) return;
-        var response = await Http.DeleteAsync($"/api/leaverequest/{_requestToDelete.Id}");
-        if (response.IsSuccessStatusCode)
+        try
         {
-            _requestToDelete = null;
-            await LoadRequests();
+            var response = await Http.DeleteAsync($"/api/leaverequest/{_requestToDelete.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _requestToDelete = null;
+                await LoadRequests();
+                ToastService.ShowSuccess("Leave request deleted.");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to delete request.");
+            }
+        }
+        catch
+        {
+            ToastService.ShowError("An error occurred.");
         }
     }
 
@@ -434,6 +447,11 @@
             {
                 await LoadRequests();
                 _selectedRequest = null;
+                ToastService.ShowSuccess($"Request {(newStatus == 1 ? "approved" : "rejected")}.");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to update status.");
             }
         }
         finally
@@ -452,6 +470,11 @@
             _isCreatingLeave = false;
             _newLeave = new() { StartDate = DateTime.Today, EndDate = DateTime.Today };
             await LoadRequests();
+            ToastService.ShowSuccess("Leave created and approved.");
+        }
+        else
+        {
+            ToastService.ShowError("Failed to create leave.");
         }
     }
 

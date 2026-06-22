@@ -3,6 +3,7 @@
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject IConfiguration Configuration
+@inject OfficeCore.Web.Services.ToastService ToastService
 
 <PageTitle>Boards - OfficeCore</PageTitle>
 
@@ -181,8 +182,13 @@
             var createdBoard = await response.Content.ReadFromJsonAsync<BoardSummaryDto>();
             if (createdBoard != null)
             {
+                ToastService.ShowSuccess("Board created successfully.");
                 NavigateToBoard(createdBoard.Id);
             }
+        }
+        else
+        {
+            ToastService.ShowError("Failed to create board.");
         }
     }
 

@@ -4,6 +4,7 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject OfficeCore.Web.Services.ToastService ToastService
 
 <div class="space-y-6">
     <div class="flex items-center justify-between">
@@ -71,7 +72,7 @@
                         <div class="flex items-center gap-3">
                             @if (p.Status == 0 || p.Status == 1) // Draft or Computed
                             {
-                                <button @onclick="() => ArchivePeriod(p.Id)" @onclick:stopPropagation class="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors" title="Archive Period">
+                                <button @onclick="() => ShowDeleteConfirmation(p.Id)" @onclick:stopPropagation class="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors" title="Archive Period">
                                     <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
                             }
@@ -137,11 +138,27 @@
     </div>
 }
 
+@if (showDeleteModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl p-6 relative">
+            <h3 class="text-lg font-bold text-white mb-2">Archive Payroll Period</h3>
+            <p class="text-sm text-zinc-400 mb-6">Are you sure you want to archive this payroll period? This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button @onclick="() => showDeleteModal = false" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
+                <button @onclick="ConfirmArchivePeriod" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all">Archive</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<PayrollPeriodDto>? periods;
     private bool isLoading = true;
     private bool isCreateModalOpen = false;
     private bool isSubmitting = false;
+    private bool showDeleteModal = false;
+    private Guid? periodToDelete;
     
     private PayrollPeriodDto newPeriod = new();
 
@@ -193,11 +210,16 @@
             {
                 CloseCreateModal();
                 await LoadPeriods();
+                ToastService.ShowSuccess("Payroll period created.");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to create payroll period.");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error creating period: {ex.Message}");
+            ToastService.ShowError("Error creating period.");
         }
         finally
         {
@@ -210,21 +232,37 @@
         Navigation.NavigateTo($"/payroll/{id}");
     }
 
-    private async Task ArchivePeriod(Guid id)
+    private void ShowDeleteConfirmation(Guid id)
     {
-        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to archive this payroll period? This cannot be undone.");
-        if (confirm)
+        periodToDelete = id;
+        showDeleteModal = true;
+    }
+
+    private async Task ConfirmArchivePeriod()
+    {
+        if (periodToDelete == null) return;
+        
+        try
         {
-            var response = await Http.DeleteAsync($"api/payroll/periods/{id}");
+            var response = await Http.DeleteAsync($"api/payroll/periods/{periodToDelete}");
             if (response.IsSuccessStatusCode)
             {
+                showDeleteModal = false;
                 await LoadPeriods();
+                ToastService.ShowSuccess("Payroll period archived.");
             }
             else
             {
-                var error = await response.Content.ReadAsStringAsync();
-                await JSRuntime.InvokeVoidAsync("alert", $"Failed to archive: {error}");
+                ToastService.ShowError("Failed to archive payroll period.");
             }
+        }
+        catch
+        {
+            ToastService.ShowError("An error occurred.");
+        }
+        finally
+        {
+            periodToDelete = null;
         }
     }
 

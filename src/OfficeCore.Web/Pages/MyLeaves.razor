@@ -1,6 +1,7 @@
 @page "/myleaves"
 @attribute [Authorize]
 @inject HttpClient Http
+@inject OfficeCore.Web.Services.ToastService ToastService
 
 <PageTitle>My Leaves - OfficeCore</PageTitle>
 
@@ -248,15 +249,16 @@
                 _isCreating = false;
                 _newRequest = new CreateForm { StartDate = DateTime.Now, EndDate = DateTime.Now };
                 _selectedFile = null;
+                ToastService.ShowSuccess("Leave request submitted successfully.");
             }
             else
             {
-                _modalError = "Failed to submit request. Please try again.";
+                ToastService.ShowError("Failed to submit request. Please try again.");
             }
         }
         catch (Exception)
         {
-            _modalError = "An error occurred while submitting your request.";
+            ToastService.ShowError("An error occurred while submitting your request.");
         }
         finally
         {
