@@ -1,4 +1,6 @@
-using System.IO.Ports;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using OfficeCore.Api.Models;
@@ -11,7 +13,10 @@ public class FingerprintDeviceService : BackgroundService
     private readonly ILogger<FingerprintDeviceService> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
-    private SerialPort? _serialPort;
+    
+    private TcpListener? _listener;
+    private TcpClient? _activeClient;
+    private NetworkStream? _activeStream;
 
     // State for enrollment mode
     private string? _pendingEnrollEmployeeId;
@@ -26,53 +31,85 @@ public class FingerprintDeviceService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        var port = _configuration.GetValue<int>("FingerprintDevice:TcpPort", 9000);
+        
+        try
         {
-            var portName = _configuration["FingerprintDevice:PortName"] ?? "COM3";
-            var baudRate = _configuration.GetValue<int>("FingerprintDevice:BaudRate", 9600);
+            _listener = new TcpListener(IPAddress.Any, port);
+            _listener.Start();
+            _logger.LogInformation("TCP Listener started for Wi-Fi Fingerprint Devices on port {Port}.", port);
 
-            try
+            while (!stoppingToken.IsCancellationRequested)
             {
-                _serialPort = new SerialPort(portName, baudRate);
-                _serialPort.Open();
-                _logger.LogInformation("Opened Serial Port {PortName} at {BaudRate} baud.", portName, baudRate);
-
-                using var reader = new StreamReader(_serialPort.BaseStream);
-                
-                while (!stoppingToken.IsCancellationRequested && _serialPort.IsOpen)
+                if (_listener.Pending())
                 {
-                    if (_serialPort.BytesToRead > 0)
+                    if (_activeClient != null)
                     {
-                        var line = await reader.ReadLineAsync();
-                        if (!string.IsNullOrWhiteSpace(line))
-                        {
-                            await ProcessMessageAsync(line.Trim());
-                        }
+                        // Disconnect old client if a new one connects (single device setup per server for now)
+                        _activeClient.Close();
                     }
-                    else
-                    {
-                        await Task.Delay(100, stoppingToken);
-                    }
+
+                    _activeClient = await _listener.AcceptTcpClientAsync(stoppingToken);
+                    _activeStream = _activeClient.GetStream();
+                    _logger.LogInformation("Fingerprint device connected via TCP: {Endpoint}", _activeClient.Client.RemoteEndPoint);
+                    
+                    _ = HandleClientAsync(_activeClient, _activeStream, stoppingToken);
+                }
+                else
+                {
+                    await Task.Delay(100, stoppingToken);
                 }
             }
-            catch (Exception ex)
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error starting TCP Listener for Fingerprint Devices");
+        }
+        finally
+        {
+            _listener?.Stop();
+        }
+    }
+
+    private async Task HandleClientAsync(TcpClient client, NetworkStream stream, CancellationToken stoppingToken)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        try
+        {
+            while (!stoppingToken.IsCancellationRequested && client.Connected)
             {
-                _logger.LogError("Error with Fingerprint Device on port {PortName}: {Message}. Retrying in 5 seconds...", portName, ex.Message);
-                await Task.Delay(5000, stoppingToken);
-            }
-            finally
-            {
-                if (_serialPort != null && _serialPort.IsOpen)
+                if (stream.DataAvailable)
                 {
-                    _serialPort.Close();
+                    var line = await reader.ReadLineAsync();
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        await ProcessMessageAsync(line.Trim());
+                    }
+                }
+                else
+                {
+                    await Task.Delay(100, stoppingToken);
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("TCP Client disconnected or error: {Message}", ex.Message);
+        }
+        finally
+        {
+            if (_activeClient == client)
+            {
+                _activeClient = null;
+                _activeStream = null;
+            }
+            client.Close();
         }
     }
 
     private async Task ProcessMessageAsync(string message)
     {
-        _logger.LogInformation("Received from device: {Message}", message);
+        _logger.LogInformation("Received from TCP device: {Message}", message);
 
         if (message.StartsWith("ATTENDANCE:"))
         {
@@ -126,11 +163,10 @@ public class FingerprintDeviceService : BackgroundService
 
         if (mapping == null)
         {
-            _logger.LogWarning("Unknown fingerprint scanned: {FingerprintId}", fingerprintId);
+            _logger.LogWarning("Unknown fingerprint scanned via TCP: {FingerprintId}", fingerprintId);
             return;
         }
 
-        // Logic for ClockIn vs ClockOut (simple toggle based on today's records)
         var today = DateTimeOffset.UtcNow.Date;
         var latestRecord = await context.AttendanceRecords
             .Where(a => a.EmployeeId == mapping.EmployeeId && a.Timestamp.Date == today)
@@ -154,7 +190,7 @@ public class FingerprintDeviceService : BackgroundService
         context.AttendanceRecords.Add(record);
         await context.SaveChangesAsync();
 
-        _logger.LogInformation("Logged {Type} for Employee {EmployeeId}", type, mapping.EmployeeId);
+        _logger.LogInformation("Logged {Type} for Employee {EmployeeId} via TCP", type, mapping.EmployeeId);
 
         var hubContext = scope.ServiceProvider.GetService<IHubContext<AttendanceHub>>();
         if (hubContext != null)
@@ -167,14 +203,13 @@ public class FingerprintDeviceService : BackgroundService
     {
         if (_pendingEnrollEmployeeId == null)
         {
-            _logger.LogWarning("Device enrolled a fingerprint ({FingerprintId}) but no employee was pending enrollment.", fingerprintId);
+            _logger.LogWarning("TCP Device enrolled a fingerprint ({FingerprintId}) but no employee was pending enrollment.", fingerprintId);
             return;
         }
 
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        // Check if employee exists
         var employee = await context.Users.FindAsync(_pendingEnrollEmployeeId);
         if (employee != null)
         {
@@ -184,7 +219,7 @@ public class FingerprintDeviceService : BackgroundService
                 FingerprintId = fingerprintId
             });
             await context.SaveChangesAsync();
-            _logger.LogInformation("Successfully linked Fingerprint {FingerprintId} to Employee {EmployeeId}", fingerprintId, _pendingEnrollEmployeeId);
+            _logger.LogInformation("Successfully linked Fingerprint {FingerprintId} to Employee {EmployeeId} via TCP", fingerprintId, _pendingEnrollEmployeeId);
             
             var hubContext = scope.ServiceProvider.GetService<Microsoft.AspNetCore.SignalR.IHubContext<OfficeCore.Api.Hubs.AttendanceHub>>();
             if (hubContext != null)
@@ -193,15 +228,14 @@ public class FingerprintDeviceService : BackgroundService
             }
         }
 
-        // Clear enrollment state
         _pendingEnrollEmployeeId = null;
     }
 
     public bool StartEnrollment(string employeeId)
     {
-        if (_serialPort == null || !_serialPort.IsOpen)
+        if (_activeStream == null || _activeClient == null || !_activeClient.Connected)
         {
-            _logger.LogError("Cannot start enrollment, serial port is not open.");
+            _logger.LogError("Cannot start TCP enrollment, no active Wi-Fi scanner connected.");
             return false;
         }
 
@@ -215,13 +249,15 @@ public class FingerprintDeviceService : BackgroundService
         
         try
         {
-            _serialPort.WriteLine("ENROLL");
-            _logger.LogInformation("Sent ENROLL command to device for Employee {EmployeeId}", employeeId);
+            var command = Encoding.UTF8.GetBytes("ENROLL\n");
+            _activeStream.Write(command, 0, command.Length);
+            _activeStream.Flush();
+            _logger.LogInformation("Sent ENROLL command to TCP device for Employee {EmployeeId}", employeeId);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send ENROLL command");
+            _logger.LogError(ex, "Failed to send ENROLL command via TCP");
             _pendingEnrollEmployeeId = null;
             return false;
         }

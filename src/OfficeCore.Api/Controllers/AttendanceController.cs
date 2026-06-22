@@ -133,6 +133,66 @@ public class AttendanceController : ControllerBase
 
         return Ok(new { message = "Attendance record created." });
     }
+    [HttpPost("scan-event")]
+    public async Task<IActionResult> LogScanEvent([FromBody] ScanEventDto dto)
+    {
+        var mapping = await _context.EmployeeFingerprints
+            .FirstOrDefaultAsync(f => f.FingerprintId == dto.FingerprintId);
+
+        if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
+
+        var today = DateTimeOffset.UtcNow.Date;
+        var latestRecord = await _context.AttendanceRecords
+            .Where(a => a.EmployeeId == mapping.EmployeeId && a.Timestamp.Date == today)
+            .OrderByDescending(a => a.Timestamp)
+            .FirstOrDefaultAsync();
+
+        var type = AttendanceType.ClockIn;
+        if (latestRecord != null && latestRecord.Type == AttendanceType.ClockIn)
+        {
+            type = AttendanceType.ClockOut;
+        }
+
+        var record = new AttendanceRecord
+        {
+            EmployeeId = mapping.EmployeeId,
+            Timestamp = DateTimeOffset.UtcNow,
+            Type = type,
+            Source = AttendanceSource.Device
+        };
+
+        _context.AttendanceRecords.Add(record);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Attendance logged." });
+    }
+
+    [HttpPost("enroll-success")]
+    public async Task<IActionResult> EnrollSuccess([FromBody] EnrollSuccessDto dto)
+    {
+        var employee = await _context.Users.FindAsync(dto.EmployeeId);
+        if (employee == null) return BadRequest("Employee not found");
+
+        _context.EmployeeFingerprints.Add(new EmployeeFingerprint
+        {
+            EmployeeId = dto.EmployeeId,
+            FingerprintId = dto.FingerprintId
+        });
+
+        await _context.SaveChangesAsync();
+        return Ok(new { message = "Fingerprint enrolled successfully." });
+    }
+}
+
+public class ScanEventDto
+{
+    public int FingerprintId { get; set; }
+}
+
+public class EnrollSuccessDto
+{
+    public string EmployeeId { get; set; } = string.Empty;
+    public int FingerprintId { get; set; }
 }
 
 public class AdminCreateAttendanceDto

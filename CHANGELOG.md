@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed — [2026-06-22]
+- **Fingerprint Scanner & Attendance:**
+  - Migrated fingerprint enrollment and device management from User Management to a dedicated "Settings" tab in the Attendance module.
+  - Implemented a Hybrid Device Architecture:
+    - **Wired Connection:** Added Web Serial API support allowing browsers to connect directly to local USB scanners for immediate scanning and enrollment.
+    - **Wi-Fi Connection:** Refactored backend service from local `SerialPort` to `TcpListener` (Option A), allowing remote cloud scanners to push logs as TCP Clients.
+  - Device settings are now fully multi-tenant, managed via a new `FingerprintDeviceController` and `FingerprintDevices` table.
 - **Boards Tenant Isolation & Scoping:**
   - Fixed board lists, cards, comments, checklists, checklist items, and attachments to correctly associate the active `OrganizationId` upon creation.
   - Fixed Board member addition to resolve and store the target workspace-scoped `Employee.Id` rather than the global `ApplicationUser.Id`.

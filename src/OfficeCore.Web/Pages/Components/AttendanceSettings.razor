@@ -1,0 +1,470 @@
+@using Microsoft.AspNetCore.Components.Web
+@inject HttpClient Http
+@inject ToastService ToastService
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+<div class="space-y-6">
+    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Device Management</h2>
+        
+        @if (_isLoading)
+        {
+            <div class="text-zinc-500 text-sm">Loading device settings...</div>
+        }
+        else
+        {
+            <div class="space-y-4 max-w-md">
+                <div>
+                    <label class="block text-sm font-medium text-zinc-400 mb-1">Device Name</label>
+                    <input type="text" @bind="_device.Name" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" placeholder="e.g. Front Door Scanner" />
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-zinc-400 mb-1">Connection Type</label>
+                    <select @bind="_device.ConnectionType" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
+                        <option value="0">Wired (USB COM Port via Browser)</option>
+                        <option value="1">Wi-Fi (TCP Server via Cloud API)</option>
+                    </select>
+                </div>
+
+                @if (_device.ConnectionType == 1) // WiFi
+                {
+                    <div class="bg-blue-900/20 border border-blue-900/50 p-4 rounded-lg">
+                        <h4 class="text-sm font-bold text-blue-400 mb-2">Wi-Fi Setup Instructions</h4>
+                        <p class="text-xs text-zinc-400 mb-2">Configure your physical scanner device to connect to this server:</p>
+                        <ul class="list-disc list-inside text-xs text-zinc-400 space-y-1">
+                            <li><strong>Mode:</strong> TCP Client</li>
+                            <li><strong>Server IP:</strong> (Your Cloud Server IP)</li>
+                            <li><strong>Server Port:</strong> 9000</li>
+                        </ul>
+                    </div>
+                }
+                
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="isActive" @bind="_device.IsActive" class="rounded border-zinc-800 bg-zinc-900 text-fuchsia-600 focus:ring-fuchsia-600 focus:ring-offset-zinc-950" />
+                    <label for="isActive" class="text-sm font-medium text-zinc-400">Device is Active</label>
+                </div>
+
+                <div class="pt-2">
+                    <button @onclick="SaveDevice" class="px-4 py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 shadow-lg transition-colors">
+                        Save Device Settings
+                    </button>
+                </div>
+            </div>
+            
+            @if (_device.ConnectionType == 0) // Wired
+            {
+                <div class="mt-6 border-t border-zinc-800 pt-6">
+                    <h3 class="text-lg font-bold text-white mb-2">Wired Connection (USB)</h3>
+                    <p class="text-sm text-zinc-400 mb-4">Connect to your local USB scanner directly from this browser using the Web Serial API.</p>
+                    
+                    @if (!_isSerialConnected)
+                    {
+                        <button @onclick="ConnectSerial" class="px-4 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 shadow-lg transition-colors flex items-center gap-2">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            Connect USB Scanner
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="flex items-center gap-3">
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-900/40 px-2.5 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/30">
+                                <span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                Connected to USB Scanner
+                            </span>
+                            <button @onclick="DisconnectSerial" class="text-xs text-zinc-500 hover:text-white transition-colors underline">Disconnect</button>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Enrollment Section -->
+    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Employee Fingerprint Enrollment</h2>
+        
+        <div class="max-w-md space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-zinc-400 mb-1">Select Employee</label>
+                <select @bind="SelectedEmployeeId" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
+                    <option value="">-- Choose Employee --</option>
+                    @if (_employees != null)
+                    {
+                        foreach (var emp in _employees)
+                        {
+                            <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            @if (!string.IsNullOrEmpty(SelectedEmployeeId))
+            {
+                <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+                    <h3 class="text-sm font-bold text-white mb-3">Enrolled Fingerprints</h3>
+                    @if (_fingerprints == null)
+                    {
+                        <div class="text-zinc-500 text-xs">Loading...</div>
+                    }
+                    else if (!_fingerprints.Any())
+                    {
+                        <div class="text-zinc-500 text-xs italic">No fingerprints enrolled yet.</div>
+                    }
+                    else
+                    {
+                        <ul class="space-y-2 mb-4">
+                            @foreach (var fp in _fingerprints)
+                            {
+                                <li class="flex items-center justify-between bg-zinc-950 px-3 py-2 rounded-lg border border-zinc-800/50">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="size-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg>
+                                        <span class="text-xs text-zinc-300">ID: @fp.FingerprintId (Enrolled @fp.EnrolledAt.ToString("MMM dd, yyyy"))</span>
+                                    </div>
+                                    <button @onclick="() => DeleteFingerprint(fp.Id)" class="text-xs text-red-400 hover:text-red-300 transition-colors">Delete</button>
+                                </li>
+                            }
+                        </ul>
+                    }
+
+                    <div class="pt-3 border-t border-zinc-800">
+                        @if (_isEnrolling)
+                        {
+                            <div class="text-sm font-medium text-amber-400 animate-pulse flex items-center gap-2">
+                                <svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                Please place finger on sensor...
+                                <span class="text-xs text-zinc-500 ml-2">(@_enrollStatus)</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <button @onclick="StartEnrollment" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-500 shadow-lg transition-colors w-full">
+                                Enroll New Fingerprint
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private DeviceDto _device = new();
+    private List<EmployeeDto>? _employees;
+    private List<FingerprintDto>? _fingerprints;
+
+    private string? _selectedEmployeeId;
+    public string? SelectedEmployeeId
+    {
+        get => _selectedEmployeeId;
+        set
+        {
+            if (_selectedEmployeeId != value)
+            {
+                _selectedEmployeeId = value;
+                _ = LoadFingerprints();
+            }
+        }
+    }
+
+    private bool _isEnrolling = false;
+    private string _enrollStatus = "";
+    
+    // Web Serial State
+    private bool _isSerialConnected = false;
+    private IJSObjectReference? _serialModule;
+    private DotNetObjectReference<AttendanceSettings>? _dotNetRef;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDevice();
+        await LoadEmployees();
+        
+        _dotNetRef = DotNetObjectReference.Create(this);
+        
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<string, string>("ReceiveEnrollmentStatus", (empId, status) =>
+        {
+            if (empId == SelectedEmployeeId)
+            {
+                _enrollStatus = status;
+                InvokeAsync(StateHasChanged);
+            }
+        });
+
+        _hubConnection.On<string>("ReceiveEnrollmentSuccess", async (empId) =>
+        {
+            if (empId == SelectedEmployeeId)
+            {
+                _isEnrolling = false;
+                _enrollStatus = "Success!";
+                ToastService.ShowSuccess("Fingerprint enrolled successfully!");
+                await LoadFingerprints();
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+
+        try { await _hubConnection.StartAsync(); } catch { }
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _serialModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/webserial.js");
+                await _serialModule.InvokeVoidAsync("initSerial", _dotNetRef);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Could not load webserial.js: " + ex.Message);
+            }
+        }
+    }
+
+    private async Task LoadDevice()
+    {
+        try
+        {
+            _isLoading = true;
+            var res = await Http.GetAsync("/api/fingerprintdevice");
+            if (res.IsSuccessStatusCode)
+            {
+                _device = await res.Content.ReadFromJsonAsync<DeviceDto>() ?? new();
+            }
+        }
+        catch { }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveDevice()
+    {
+        try
+        {
+            var res = await Http.PostAsJsonAsync("/api/fingerprintdevice", _device);
+            if (res.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Device settings saved.");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to save.");
+            }
+        }
+        catch
+        {
+            ToastService.ShowError("Error saving device settings.");
+        }
+    }
+
+    private async Task LoadEmployees()
+    {
+        try
+        {
+            _employees = await Http.GetFromJsonAsync<List<EmployeeDto>>("/api/user");
+            _employees = _employees?.Where(e => e.IsActive).ToList() ?? new();
+        }
+        catch { }
+    }
+
+    private async Task LoadFingerprints()
+    {
+        if (string.IsNullOrEmpty(SelectedEmployeeId))
+        {
+            _fingerprints = null;
+            return;
+        }
+
+        try
+        {
+            _fingerprints = await Http.GetFromJsonAsync<List<FingerprintDto>>($"/api/attendance/fingerprints/{SelectedEmployeeId}");
+            await InvokeAsync(StateHasChanged);
+        }
+        catch { }
+    }
+
+    private async Task StartEnrollment()
+    {
+        if (string.IsNullOrEmpty(SelectedEmployeeId)) return;
+
+        _isEnrolling = true;
+        _enrollStatus = "Initializing...";
+
+        if (_device.ConnectionType == 0) // Wired via Web Serial
+        {
+            if (!_isSerialConnected || _serialModule == null)
+            {
+                ToastService.ShowError("Please connect the USB scanner first.");
+                _isEnrolling = false;
+                return;
+            }
+            
+            // Tell the browser to send ENROLL command over USB
+            try 
+            {
+                // We set the target employee so the JS interop knows who to map success to
+                await _serialModule.InvokeVoidAsync("startEnrollment", SelectedEmployeeId);
+                _enrollStatus = "Waiting for finger...";
+            }
+            catch (Exception ex)
+            {
+                ToastService.ShowError("Serial communication failed.");
+                _isEnrolling = false;
+            }
+        }
+        else // WiFi via TCP
+        {
+            try
+            {
+                var res = await Http.PostAsync($"/api/attendance/enroll/{SelectedEmployeeId}", null);
+                if (!res.IsSuccessStatusCode)
+                {
+                    var err = await res.Content.ReadAsStringAsync();
+                    ToastService.ShowError("Failed to start enrollment: " + err);
+                    _isEnrolling = false;
+                }
+                else
+                {
+                    _enrollStatus = "Waiting for finger...";
+                }
+            }
+            catch
+            {
+                ToastService.ShowError("Network error starting enrollment.");
+                _isEnrolling = false;
+            }
+        }
+    }
+
+    private async Task DeleteFingerprint(int id)
+    {
+        try
+        {
+            var res = await Http.DeleteAsync($"/api/attendance/fingerprints/{id}");
+            if (res.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Fingerprint deleted.");
+                await LoadFingerprints();
+            }
+            else
+            {
+                ToastService.ShowError("Failed to delete.");
+            }
+        }
+        catch { }
+    }
+
+    // JS Interop calls from webserial.js
+    [JSInvokable]
+    public void OnSerialConnected()
+    {
+        _isSerialConnected = true;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnSerialDisconnected()
+    {
+        _isSerialConnected = false;
+        StateHasChanged();
+    }
+    
+    [JSInvokable]
+    public async Task OnSerialScanEvent(int fingerprintId)
+    {
+        // PUSH raw attendance log
+        await Http.PostAsJsonAsync("/api/attendance/scan-event", new { FingerprintId = fingerprintId });
+        ToastService.ShowSuccess($"Scan {fingerprintId} received!");
+    }
+
+    [JSInvokable]
+    public async Task OnSerialEnrollSuccess(string employeeId, int fingerprintId)
+    {
+        await Http.PostAsJsonAsync("/api/attendance/enroll-success", new { EmployeeId = employeeId, FingerprintId = fingerprintId });
+        
+        if (SelectedEmployeeId == employeeId)
+        {
+            _isEnrolling = false;
+            _enrollStatus = "Success!";
+            await LoadFingerprints();
+            StateHasChanged();
+            ToastService.ShowSuccess("Fingerprint enrolled successfully via USB!");
+        }
+    }
+
+    private async Task ConnectSerial()
+    {
+        if (_serialModule != null)
+        {
+            try
+            {
+                await _serialModule.InvokeVoidAsync("connectSerial");
+            }
+            catch (Exception ex)
+            {
+                ToastService.ShowError(ex.Message);
+            }
+        }
+    }
+
+    private async Task DisconnectSerial()
+    {
+        if (_serialModule != null)
+        {
+            await _serialModule.InvokeVoidAsync("disconnectSerial");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+        if (_dotNetRef != null)
+        {
+            _dotNetRef.Dispose();
+        }
+        if (_serialModule != null)
+        {
+            await _serialModule.DisposeAsync();
+        }
+    }
+
+    private class DeviceDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public int ConnectionType { get; set; }
+        public string? IpAddress { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    private class EmployeeDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+    }
+
+    private class FingerprintDto
+    {
+        public int Id { get; set; }
+        public int FingerprintId { get; set; }
+        public DateTimeOffset EnrolledAt { get; set; }
+    }
+}

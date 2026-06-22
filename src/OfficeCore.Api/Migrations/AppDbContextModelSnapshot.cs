@@ -986,6 +986,40 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("EmployeeRoles");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.FingerprintDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConnectionType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastSeen")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("FingerprintDevices");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.GeneralPayrollSetting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2064,6 +2098,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.FingerprintDevice", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.GeneralPayrollSetting", b =>

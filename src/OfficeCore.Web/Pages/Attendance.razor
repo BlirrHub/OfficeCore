@@ -13,10 +13,26 @@
             <h1 class="text-3xl font-bold tracking-tight text-white">Attendance Log</h1>
             <p class="mt-1 text-zinc-400 text-sm">Real-time clock-in and clock-out records from the fingerprint scanner.</p>
         </div>
-        <button @onclick="ShowCreateModal" class="px-4 py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 shadow-lg shadow-fuchsia-900/30 transition-colors">
-            + Manual Entry
+        @if (_activeTab == "records")
+        {
+            <button @onclick="ShowCreateModal" class="px-4 py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 shadow-lg shadow-fuchsia-900/30 transition-colors">
+                + Manual Entry
+            </button>
+        }
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-4 border-b border-zinc-800">
+        <button @onclick='() => _activeTab = "records"' class="@(_activeTab == "records" ? "text-fuchsia-400 border-b-2 border-fuchsia-500 font-bold" : "text-zinc-500 hover:text-zinc-300 font-medium") pb-2 px-2 text-sm transition-colors">
+            Attendance Records
+        </button>
+        <button @onclick='() => _activeTab = "settings"' class="@(_activeTab == "settings" ? "text-fuchsia-400 border-b-2 border-fuchsia-500 font-bold" : "text-zinc-500 hover:text-zinc-300 font-medium") pb-2 px-2 text-sm transition-colors">
+            Settings
         </button>
     </div>
+
+    @if (_activeTab == "records")
+    {
 
     <!-- Filters -->
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap gap-4 items-end">
@@ -120,6 +136,11 @@
             }
         }
     </div>
+    }
+    else if (_activeTab == "settings")
+    {
+        <OfficeCore.Web.Client.Pages.Components.AttendanceSettings />
+    }
 </div>
 
 <!-- Create Manual Entry Modal -->
@@ -191,6 +212,7 @@
 }
 
 @code {
+    private string _activeTab = "records";
     private List<AttendanceRecordDto>? _records;
     private HubConnection? _hubConnection;
 
