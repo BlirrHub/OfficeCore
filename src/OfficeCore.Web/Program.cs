@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http;
 using Microsoft.AspNetCore.Components.Web;
 using OfficeCore.Web.Client.Auth;
+using OfficeCore.Web.Services;
 
 using System.Globalization;
 
@@ -37,5 +38,7 @@ builder.Services.AddAuthorizationCore(options =>
 builder.Services.AddScoped<CookieAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<CookieAuthStateProvider>());
+
+builder.Services.AddScoped<ToastService>();
 
 await builder.Build().RunAsync();

@@ -4,6 +4,7 @@
 @implements IAsyncDisposable
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject ToastService ToastService
 
 <PageTitle>User Management - OfficeCore</PageTitle>
 
@@ -124,12 +125,11 @@
 
             <div class="p-6 pb-2 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
                 <!-- Tabs -->
-                <!-- Tabs -->
                 <div class="flex p-1 bg-zinc-900 rounded-lg shrink-0">
-                    <button type="button" @onclick="@(() => { _inviteTab = "link"; _inviteLink = null; _inviteSuccessMessage = null; _modalError = null; })" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "link" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
+                    <button type="button" @onclick="@(() => { _inviteTab = "link"; _inviteLink = null; })" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "link" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
                         By Link
                     </button>
-                    <button type="button" @onclick="@(() => { _inviteTab = "email"; _inviteLink = null; _inviteSuccessMessage = null; _modalError = null; })" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "email" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
+                    <button type="button" @onclick="@(() => { _inviteTab = "email"; _inviteLink = null; })" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "email" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
                         By Email
                     </button>
                 </div>
@@ -155,25 +155,13 @@
                         <p class="text-[10px] text-zinc-500 mt-2">Send this link to the user to join.</p>
                     </div>
                 }
-                
-                @if (_inviteSuccessMessage != null && _inviteTab == "email")
-                {
-                    <div class="bg-emerald-900/30 border border-emerald-800 rounded-lg p-3 mt-4">
-                        <p class="text-xs text-emerald-400 font-medium text-center">@_inviteSuccessMessage</p>
-                    </div>
-                }
                 </div>
             </div>
 
-            @if (!string.IsNullOrEmpty(_modalError))
-            {
-                <p class="text-xs text-red-400 px-6">@_modalError</p>
-            }
-
             <div class="flex justify-end gap-3 p-6 bg-zinc-900/50 border-t border-zinc-800 shrink-0">
-                <button type="button" @onclick="() => { _showCreate = false; _inviteLink = null; _inviteSuccessMessage = null; _create.Email = string.Empty; }"
+                <button type="button" @onclick="() => { _showCreate = false; _inviteLink = null; _create.Email = string.Empty; }"
                         class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Close</button>
-                <button type="button" @onclick="InviteMember" disabled="@((_inviteTab == "link" && !string.IsNullOrEmpty(_inviteLink)) || (_inviteTab == "email" && !string.IsNullOrEmpty(_inviteSuccessMessage)))"
+                <button type="button" @onclick="InviteMember" disabled="@(_inviteTab == "link" && !string.IsNullOrEmpty(_inviteLink))"
                         class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
                     @(_inviteTab == "email" ? "Send Invitation" : "Generate Link")
                 </button>
@@ -395,11 +383,6 @@
                 </div>
             </div>
 
-            @if (!string.IsNullOrEmpty(_modalError))
-            {
-                <p class="text-xs text-red-400">@_modalError</p>
-            }
-
             <div class="flex justify-between items-center p-6 bg-zinc-900/50 border-t border-zinc-800 shrink-0">
                 <div class="flex items-center gap-3">
                     @if (_edit.IsActive)
@@ -466,10 +449,6 @@
                 <input type="date" @bind="_resignDate"
                        class="w-full rounded-lg bg-zinc-950 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none" />
             </div>
-            @if (!string.IsNullOrEmpty(_resignError))
-            {
-                <p class="text-xs text-red-400 mb-4">@_resignError</p>
-            }
             <div class="flex gap-3">
                 <button @onclick="CloseResignModal" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
                 <button @onclick="ConfirmResign" disabled="@_isResigning" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 shadow-lg shadow-orange-900/20 transition-all disabled:opacity-50">Resign & Archive</button>
@@ -495,10 +474,6 @@
                 </div>
             </div>
             <p class="text-sm text-zinc-400 mb-6">Are you sure you want to permanently remove this user from the workspace? This action cannot be undone.</p>
-            @if (!string.IsNullOrEmpty(_deleteUserError))
-            {
-                <p class="text-xs text-red-400 mb-4">@_deleteUserError</p>
-            }
             <div class="flex gap-3">
                 <button @onclick="() => _showDeleteUserModal = false" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
                 <button @onclick="ConfirmDeleteUser" disabled="@_isDeletingUser" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all disabled:opacity-50">Remove</button>
@@ -513,7 +488,6 @@
     private List<WorkScheduleDto>? _workSchedules;
     private bool _showCreate;
     private bool _showEdit;
-    private string? _modalError;
     private string? _enrollmentMessage;
     private CreateForm _create = new();
     private UpdateForm _edit = new();
@@ -528,14 +502,12 @@
     private bool _showResignModal = false;
     private UserDto? _resigningUser;
     private DateTime _resignDate = DateTime.Today;
-    private string? _resignError;
     private bool _isResigning = false;
 
     // Delete User State
     private bool _showDeleteUserModal = false;
     private UserDto? _userToDelete;
     private bool _isDeletingUser = false;
-    private string? _deleteUserError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -601,7 +573,6 @@
 
     private async Task EditUser(UserDto user)
     {
-        _modalError = null;
         _edit = new UpdateForm
         {
             Id = user.Id,
@@ -651,7 +622,6 @@
     {
         _resigningUser = user;
         _resignDate = DateTime.Today;
-        _resignError = null;
         _showResignModal = true;
     }
 
@@ -659,14 +629,12 @@
     {
         _showResignModal = false;
         _resigningUser = null;
-        _resignError = null;
     }
 
     private async Task ConfirmResign()
     {
         if (_resigningUser == null) return;
         _isResigning = true;
-        _resignError = null;
         try
         {
             var response = await Http.PostAsJsonAsync($"/api/user/{_resigningUser.Id}/resign", new { ResignedDate = _resignDate });
@@ -674,15 +642,16 @@
             {
                 CloseResignModal();
                 await LoadData();
+                ToastService.ShowSuccess("Employee resigned and archived.");
             }
             else
             {
-                _resignError = "Failed to resign employee. Please try again.";
+                ToastService.ShowError("Failed to resign employee. Please try again.");
             }
         }
         catch
         {
-            _resignError = "An error occurred.";
+            ToastService.ShowError("An error occurred while resigning employee.");
         }
         finally
         {
@@ -693,7 +662,6 @@
     private void ShowDeleteUserModal(UserDto user)
     {
         _userToDelete = user;
-        _deleteUserError = null;
         _showDeleteUserModal = true;
     }
 
@@ -702,7 +670,6 @@
         if (_userToDelete == null) return;
 
         _isDeletingUser = true;
-        _deleteUserError = null;
         
         try
         {
@@ -711,15 +678,16 @@
             {
                 _showDeleteUserModal = false;
                 await LoadData();
+                ToastService.ShowSuccess("User permanently removed.");
             }
             else
             {
-                _deleteUserError = "Failed to delete user. Please try again.";
+                ToastService.ShowError("Failed to delete user. Please try again.");
             }
         }
         catch
         {
-            _deleteUserError = "An error occurred.";
+            ToastService.ShowError("An error occurred while deleting user.");
         }
         finally
         {
@@ -744,7 +712,6 @@
     private async Task EnrollFingerprint()
     {
         _enrollmentMessage = null;
-        _modalError = null;
         try
         {
             var response = await Http.PostAsync($"/api/attendance/enroll/{_edit.Id}", null);
@@ -756,12 +723,12 @@
             else
             {
                 var error = await response.Content.ReadFromJsonAsync<EnrollmentResponse>();
-                _modalError = error?.Message ?? "Failed to start enrollment.";
+                ToastService.ShowError(error?.Message ?? "Failed to start enrollment.");
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _modalError = "Error communicating with the API.";
+            ToastService.ShowError("Error communicating with the API.");
         }
     }
 
@@ -788,15 +755,16 @@
             {
                 await LoadFingerprints(_edit.Id);
                 CloseFpDeleteModal();
+                ToastService.ShowSuccess("Fingerprint deleted.");
             }
             else
             {
-                _modalError = "Failed to delete fingerprint.";
+                ToastService.ShowError("Failed to delete fingerprint.");
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _modalError = "An error occurred.";
+            ToastService.ShowError("An error occurred while deleting fingerprint.");
         }
     }
 
@@ -806,7 +774,6 @@
     }
 
     private string? _inviteLink;
-    private string? _inviteSuccessMessage;
     private string _inviteTab = "link";
     
     private class OrganizationDto { public Guid Id { get; set; } }
@@ -814,10 +781,9 @@
 
     private async Task InviteMember()
     {
-        _modalError = null;
         if (_inviteTab == "email" && string.IsNullOrWhiteSpace(_create.Email))
         {
-            _modalError = "Email is required.";
+            ToastService.ShowWarning("Email is required.");
             return;
         }
 
@@ -825,7 +791,7 @@
         {
             var orgRes = await Http.GetFromJsonAsync<OrganizationDto>("/api/organizations/current");
             if (orgRes == null) {
-                _modalError = "Failed to get current organization.";
+                ToastService.ShowError("Failed to get current organization.");
                 return;
             }
 
@@ -840,22 +806,23 @@
                     if (_inviteTab == "link")
                     {
                         _inviteLink = Nav.BaseUri + result.JoinUrl.TrimStart('/');
+                        ToastService.ShowSuccess("Invitation link generated.");
                     }
                     else
                     {
-                        _inviteSuccessMessage = $"Invitation sent successfully to {_create.Email}!";
+                        ToastService.ShowSuccess($"Invitation sent successfully to {_create.Email}!");
                     }
                 }
             }
             else
             {
                 var errStr = await response.Content.ReadAsStringAsync();
-                _modalError = !string.IsNullOrWhiteSpace(errStr) ? errStr : "Failed to generate invitation.";
+                ToastService.ShowError(!string.IsNullOrWhiteSpace(errStr) ? errStr : "Failed to generate invitation.");
             }
         }
         catch
         {
-            _modalError = "Failed to generate invitation.";
+            ToastService.ShowError("Failed to generate invitation.");
         }
     }
 
@@ -863,10 +830,9 @@
 
     private async Task UpdateUser()
     {
-        _modalError = null;
         if (string.IsNullOrWhiteSpace(_edit.FirstName) || string.IsNullOrWhiteSpace(_edit.LastName))
         {
-            _modalError = "First Name and Last Name are required.";
+            ToastService.ShowWarning("First Name and Last Name are required.");
             return;
         }
 
@@ -892,6 +858,7 @@
         {
             _showEdit = false;
             await LoadData();
+            ToastService.ShowSuccess("User details updated successfully.");
         }
         else
         {
@@ -900,16 +867,16 @@
                 var errors = await response.Content.ReadFromJsonAsync<List<IdentityErrorDto>>();
                 if (errors != null && errors.Any())
                 {
-                    _modalError = string.Join(" ", errors.Select(e => e.Description));
+                    ToastService.ShowError(string.Join(" ", errors.Select(e => e.Description)));
                 }
                 else 
                 {
-                    _modalError = "Failed to update user. Check the details and try again.";
+                    ToastService.ShowError("Failed to update user. Check the details and try again.");
                 }
             }
             catch 
             {
-                _modalError = "Failed to update user. Check the details and try again.";
+                ToastService.ShowError("Failed to update user. Check the details and try again.");
             }
         }
     }

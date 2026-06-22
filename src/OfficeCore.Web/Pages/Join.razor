@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @using System.Net.Http.Json
 @layout Layout.EmptyLayout
+@inject ToastService ToastService
 <PageTitle>Join Organization - OfficeCore</PageTitle>
 
 <div class="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
@@ -122,7 +123,6 @@
     private async Task AcceptInvitation()
     {
         _isAccepting = true;
-        _error = null;
         try
         {
             var response = await Http.PostAsJsonAsync("/api/organizations/join", new { Token = Token });
@@ -135,17 +135,18 @@
                     _success = true;
                     _successMessage = $"You have joined {result.OrganizationName}.";
                     _organizationId = result.OrganizationId;
+                    ToastService.ShowSuccess("Successfully joined workspace.");
                 }
             }
             else
             {
                 var errorText = await response.Content.ReadAsStringAsync();
-                _error = !string.IsNullOrWhiteSpace(errorText) ? errorText : "Failed to accept invitation.";
+                ToastService.ShowError(!string.IsNullOrWhiteSpace(errorText) ? errorText : "Failed to accept invitation.");
             }
         }
         catch
         {
-            _error = "An error occurred while connecting to the server.";
+            ToastService.ShowError("An error occurred while connecting to the server.");
         }
         finally
         {
@@ -162,7 +163,7 @@
         }
         else
         {
-            _error = "Failed to switch context to the new organization.";
+            ToastService.ShowError("Failed to switch context to the new organization.");
         }
     }
 

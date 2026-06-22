@@ -4,6 +4,7 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject CookieAuthStateProvider AuthProvider
+@inject ToastService ToastService
 
 <PageTitle>Your Workspaces - OfficeCore</PageTitle>
 
@@ -146,13 +147,6 @@
             
             <h2 class="text-xl font-bold text-white mb-2">Create Workspace</h2>
             <p class="text-sm text-zinc-400 mb-6">Give your organization a name to get started.</p>
-            
-            @if (!string.IsNullOrEmpty(_createError))
-            {
-                <div class="mb-4 p-3 rounded-xl bg-red-950/50 border border-red-900/50 text-sm text-red-400">
-                    @_createError
-                </div>
-            }
 
             <EditForm Model="_createModel" OnValidSubmit="HandleCreate">
                 <DataAnnotationsValidator />
@@ -187,7 +181,6 @@
     private bool _isLoading = true;
     private bool _isCreateModalOpen;
     private bool _isCreating;
-    private string? _createError;
     
     private List<OrganizationDto>? _organizations;
     private List<InvitationDto>? _pendingInvitations;
@@ -227,7 +220,6 @@
     private void OpenCreateModal()
     {
         _createModel = new CreateOrgModel();
-        _createError = null;
         _isCreateModalOpen = true;
     }
 
@@ -239,7 +231,6 @@
     private async Task HandleCreate()
     {
         _isCreating = true;
-        _createError = null;
 
         try
         {
@@ -250,16 +241,17 @@
                 if (newOrg != null)
                 {
                     await SelectOrganization(newOrg.Id);
+                    ToastService.ShowSuccess("Workspace created successfully.");
                 }
             }
             else
             {
-                _createError = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError(await response.Content.ReadAsStringAsync());
             }
         }
         catch
         {
-            _createError = "Could not connect to the server.";
+            ToastService.ShowError("Could not connect to the server.");
         }
         finally
         {
@@ -285,6 +277,11 @@
         {
             await LoadData();
             StateHasChanged();
+            ToastService.ShowSuccess("Invitation accepted.");
+        }
+        else
+        {
+            ToastService.ShowError("Failed to accept invitation.");
         }
     }
 
@@ -295,6 +292,11 @@
         {
             await LoadData();
             StateHasChanged();
+            ToastService.ShowInfo("Invitation declined.");
+        }
+        else
+        {
+            ToastService.ShowError("Failed to decline invitation.");
         }
     }
 

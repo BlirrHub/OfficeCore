@@ -1,0 +1,84 @@
+@inject ToastService ToastService
+@implements IDisposable
+
+<div class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    @foreach (var toast in _toasts.OrderBy(t => t.Timestamp))
+    {
+        <div @key="toast.Id" class="pointer-events-auto min-w-[300px] max-w-sm rounded-lg shadow-lg border p-4 transition-all duration-300 translate-y-0 opacity-100 @GetToastClasses(toast.Level)">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                    @switch (toast.Level)
+                    {
+                        case ToastLevel.Success:
+                            <i class="fas fa-check-circle text-emerald-400"></i>
+                            break;
+                        case ToastLevel.Error:
+                            <i class="fas fa-exclamation-circle text-rose-400"></i>
+                            break;
+                        case ToastLevel.Warning:
+                            <i class="fas fa-exclamation-triangle text-amber-400"></i>
+                            break;
+                        case ToastLevel.Info:
+                            <i class="fas fa-info-circle text-blue-400"></i>
+                            break;
+                    }
+                </div>
+                <div class="flex-1">
+                    @if (!string.IsNullOrEmpty(toast.Title))
+                    {
+                        <h4 class="text-sm font-bold text-white mb-0.5">@toast.Title</h4>
+                    }
+                    <p class="text-sm text-zinc-300">@toast.Message</p>
+                </div>
+                <button @onclick="() => RemoveToast(toast.Id)" class="flex-shrink-0 text-zinc-400 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<ToastMessage> _toasts = new();
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnShow += ShowToast;
+        ToastService.OnHide += RemoveToast;
+    }
+
+    private async void ShowToast(ToastMessage toast)
+    {
+        _toasts.Add(toast);
+        await InvokeAsync(StateHasChanged);
+
+        // Auto remove after 5 seconds
+        await Task.Delay(5000);
+        RemoveToast(toast.Id);
+    }
+
+    private async void RemoveToast(Guid id)
+    {
+        var toast = _toasts.FirstOrDefault(t => t.Id == id);
+        if (toast != null)
+        {
+            _toasts.Remove(toast);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string GetToastClasses(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "bg-zinc-900 border-emerald-500/30 shadow-emerald-900/20",
+        ToastLevel.Error => "bg-zinc-900 border-rose-500/30 shadow-rose-900/20",
+        ToastLevel.Warning => "bg-zinc-900 border-amber-500/30 shadow-amber-900/20",
+        ToastLevel.Info => "bg-zinc-900 border-blue-500/30 shadow-blue-900/20",
+        _ => "bg-zinc-900 border-zinc-700"
+    };
+
+    public void Dispose()
+    {
+        ToastService.OnShow -= ShowToast;
+        ToastService.OnHide -= RemoveToast;
+    }
+}
