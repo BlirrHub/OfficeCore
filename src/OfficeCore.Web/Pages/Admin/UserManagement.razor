@@ -45,21 +45,52 @@
         {
             <table class="w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 text-zinc-400 text-left">
-                        <th class="px-6 py-4 font-medium">Employee</th>
+                    <tr class="border-b border-zinc-800 text-zinc-400 text-left select-none">
+                        <th class="px-6 py-4 font-medium cursor-pointer hover:text-white transition-colors group" @onclick='() => SortBy("Employee")'>
+                            <div class="flex items-center gap-2">
+                                <span class="@(_sortColumn == "Employee" ? "text-fuchsia-400 font-semibold" : "")">Employee</span>
+                                @RenderSortIcon("Employee")
+                            </div>
+                        </th>
                         <th class="px-6 py-4 font-medium">Email</th>
+                        <th class="px-6 py-4 font-medium cursor-pointer hover:text-white transition-colors group" @onclick='() => SortBy("Role")'>
+                            <div class="flex items-center gap-2">
+                                <span class="@(_sortColumn == "Role" ? "text-fuchsia-400 font-semibold" : "")">Role</span>
+                                @RenderSortIcon("Role")
+                            </div>
+                        </th>
                         <th class="px-6 py-4 font-medium">Status</th>
-                        <th class="px-6 py-4 font-medium">Employee ID</th>
-                        <th class="px-6 py-4 font-medium">Date Hired</th>
+                        <th class="px-6 py-4 font-medium cursor-pointer hover:text-white transition-colors group" @onclick='() => SortBy("EmployeeId")'>
+                            <div class="flex items-center gap-2">
+                                <span class="@(_sortColumn == "EmployeeId" ? "text-fuchsia-400 font-semibold" : "")">Employee ID</span>
+                                @RenderSortIcon("EmployeeId")
+                            </div>
+                        </th>
+                        <th class="px-6 py-4 font-medium cursor-pointer hover:text-white transition-colors group" @onclick='() => SortBy("DateHired")'>
+                            <div class="flex items-center gap-2">
+                                <span class="@(_sortColumn == "DateHired" ? "text-fuchsia-400 font-semibold" : "")">Date Hired</span>
+                                @RenderSortIcon("DateHired")
+                            </div>
+                        </th>
                         <th class="px-6 py-4 font-medium">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-800/50">
-                    @foreach (var user in _users)
+                    @foreach (var user in SortedUsers)
                     {
                         <tr class="hover:bg-zinc-900/50 transition-colors">
                             <td class="px-6 py-4 text-white font-medium">@user.FirstName @user.LastName</td>
                             <td class="px-6 py-4 text-zinc-400">@user.Email</td>
+                            <td class="px-6 py-4 text-zinc-300">
+                                @if (user.Roles != null && user.Roles.Any())
+                                {
+                                    @string.Join(", ", user.Roles)
+                                }
+                                else
+                                {
+                                    <span class="text-zinc-500 italic text-xs">No role</span>
+                                }
+                            </td>
                             <td class="px-6 py-4">
                                 @if (user.IsActive)
                                 {
@@ -288,10 +319,10 @@
 
                 <div>
                     <label class="block text-xs font-medium text-zinc-400 mb-2">Assign Roles</label>
-                    @if (_roles != null)
+                    @if (_orgRoles != null)
                     {
                         <div class="flex flex-wrap gap-2">
-                            @foreach (var role in _roles)
+                            @foreach (var role in _orgRoles)
                             {
                                 var roleName = role.Name ?? string.Empty;
                                 var selected = _edit.SelectedRoles.Contains(roleName);
@@ -484,8 +515,11 @@
 
 @code {
     private List<UserDto>? _users;
-    private List<RoleDto>? _roles;
+    private List<RoleDto>? _orgRoles;
     private List<WorkScheduleDto>? _workSchedules;
+    
+    private string _sortColumn = "Employee";
+    private bool _sortAscending = true;
     private bool _showCreate;
     private bool _showEdit;
     private string? _enrollmentMessage;
@@ -567,7 +601,7 @@
     private async Task LoadData()
     {
         _users = await Http.GetFromJsonAsync<List<UserDto>>("/api/user");
-        _roles = await Http.GetFromJsonAsync<List<RoleDto>>("/api/role");
+        _orgRoles = await Http.GetFromJsonAsync<List<RoleDto>>("/api/role");
         _workSchedules = await Http.GetFromJsonAsync<List<WorkScheduleDto>>("/api/workschedule");
     }
 
@@ -617,6 +651,63 @@
 
         _showEdit = true;
     }
+
+    private IEnumerable<UserDto> SortedUsers
+    {
+        get
+        {
+            if (_users == null) return Enumerable.Empty<UserDto>();
+            
+            return _sortColumn switch
+            {
+                "Employee" => _sortAscending 
+                    ? _users.OrderBy(u => u.FirstName).ThenBy(u => u.LastName) 
+                    : _users.OrderByDescending(u => u.FirstName).ThenByDescending(u => u.LastName),
+                "Role" => _sortAscending 
+                    ? _users.OrderBy(u => u.Roles != null ? string.Join(",", u.Roles) : "") 
+                    : _users.OrderByDescending(u => u.Roles != null ? string.Join(",", u.Roles) : ""),
+                "EmployeeId" => _sortAscending 
+                    ? _users.OrderBy(u => u.EmployeeId) 
+                    : _users.OrderByDescending(u => u.EmployeeId),
+                "DateHired" => _sortAscending 
+                    ? _users.OrderBy(u => u.DateHired) 
+                    : _users.OrderByDescending(u => u.DateHired),
+                _ => _users
+            };
+        }
+    }
+
+    private void SortBy(string column)
+    {
+        if (_sortColumn == column)
+        {
+            _sortAscending = !_sortAscending;
+        }
+        else
+        {
+            _sortColumn = column;
+            _sortAscending = true;
+        }
+    }
+
+    private RenderFragment RenderSortIcon(string column) => __builder =>
+    {
+        if (_sortColumn == column)
+        {
+            if (_sortAscending)
+            {
+                <svg class="size-4 text-fuchsia-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
+            }
+            else
+            {
+                <svg class="size-4 text-fuchsia-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+            }
+        }
+        else
+        {
+            <svg class="size-4 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" /></svg>
+        }
+    };
 
     private void ShowResignModal(UserDto user)
     {
@@ -936,7 +1027,7 @@
         public GovernmentRecordDto GovernmentRecord { get; set; } = new() { IsEligibleForDeductions = true };
     }
 
-    private record UserDto(string Id, string Email, string FirstName, string LastName, string? EmployeeId, bool IsActive, bool IsEmployee, decimal? DailyRate, bool UseCustomDailyRate, DateTime? DateHired, DateTime? ResignedDate, bool IsEligibleForLeave, Guid? WorkScheduleId, GovernmentRecordDto? GovernmentRecord);
+    private record UserDto(string Id, string Email, string FirstName, string LastName, string? EmployeeId, bool IsActive, bool IsEmployee, decimal? DailyRate, bool UseCustomDailyRate, DateTime? DateHired, DateTime? ResignedDate, bool IsEligibleForLeave, Guid? WorkScheduleId, GovernmentRecordDto? GovernmentRecord, List<string>? Roles);
     private record RoleDto(string Id, string? Name, string? Description);
     private record WorkScheduleDto(Guid Id, string Name);
     private record FingerprintDto(int Id, int FingerprintId, DateTimeOffset EnrolledAt);

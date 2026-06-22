@@ -23,6 +23,9 @@ All notable changes to this project will be documented in this file.
   - Implemented a centralized `ToastService` and global `ToastContainer` (positioned at the top right) to replace hardcoded, silent, or localized error/success messages.
   - Migrated `WorkSchedules`, `UserManagement`, `RoleManagement`, `Workspaces`, `Join`, `Profile`, `BoardView`, `Clients`, `TimeOff`, `Ledger`, `Boards`, `MyLeaves`, `LeaveApprovals`, `Advances`, `PayrollList` and `PayrollDetails` components to utilize the new Toast system.
   - Standardized delete/archive actions (`WorkSchedules`, `RoleManagement`, `BoardView`, `Clients`, `TimeOff`, `LeaveApprovals`, `Advances`, `PayrollList`, `PayrollDetails`) by adding confirmation modals prior to execution.
+- **UI Enhancements:**
+  - Upgraded `UserManagement` table headers to include interactive sorting functionality with proper visual cues and SVG icons.
+  - Refactored `Clients` page from a grid of cards to a functional data table, introduced a search filter, and added the ability to edit assigned businesses inline.
 
 ### Changed — [2026-06-19]
 - **Standardized UI Headers:** Standardized page headers (titles and descriptions) across all Blazor pages (`Workspaces`, `CompanyProfile`, `Invoices`, `Locations`, `Dashboard`, `MyLeaves`, `LeaveApprovals`, `PayrollSettings`, `Profile`, and `PayrollList`) to use consistent premium CSS classes (`text-3xl font-bold tracking-tight text-white` and `mt-1 text-zinc-400 text-sm`).

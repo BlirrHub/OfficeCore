@@ -55,7 +55,8 @@ public class UserController : ControllerBase
                     e.GovernmentRecord.PagIbigNumber,
                     e.GovernmentRecord.PhilHealthNumber,
                     e.GovernmentRecord.TinNumber
-                } : null
+                } : null,
+                Roles = _context.EmployeeRoles.Where(er => er.EmployeeId == e.Id).Select(er => er.Role!.Name).ToList()
             }).ToListAsync();
 
         return Ok(employees);
