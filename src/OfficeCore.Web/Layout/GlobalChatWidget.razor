@@ -314,9 +314,12 @@
                 room.LastMessage = msg;
                 if (_activeRoom?.Id == roomId)
                 {
-                    _messages.Add(msg);
+                    // Avoid duplicate if we already added it optimistically
+                    if (!_messages.Any(m => m.Id == msg.Id))
+                    {
+                        _messages.Add(msg);
+                    }
                     InvokeAsync(StateHasChanged);
-                    // Automatically mark as read if room is open
                     _ = Http.PostAsync($"/api/chat/rooms/{roomId}/read", null);
                 }
                 else
@@ -327,7 +330,6 @@
             }
             else
             {
-                // New room we don't know about, reload rooms
                 _ = LoadRooms();
             }
         });
@@ -427,8 +429,31 @@
         var content = _newMessageContent;
         _newMessageContent = string.Empty;
 
+        var optimisticMsg = new ChatMessageDto
+        {
+            Id = Guid.NewGuid(),
+            ChatRoomId = _activeRoom.Id,
+            SenderId = _currentEmployeeId,
+            SenderName = "Me",
+            Content = content,
+            CreatedAt = DateTime.UtcNow
+        };
+        _messages.Add(optimisticMsg);
+        StateHasChanged();
+
         var req = new { Content = content };
-        await Http.PostAsJsonAsync($"/api/chat/rooms/{_activeRoom.Id}/messages", req);
+        var response = await Http.PostAsJsonAsync($"/api/chat/rooms/{_activeRoom.Id}/messages", req);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            var realMsg = await response.Content.ReadFromJsonAsync<ChatMessageDto>();
+            if (realMsg != null)
+            {
+                _messages.Remove(optimisticMsg);
+                _messages.Add(realMsg);
+                StateHasChanged();
+            }
+        }
     }
 
     private void HandleKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)

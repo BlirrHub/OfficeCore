@@ -70,6 +70,7 @@ public class ClientController : ControllerBase
             {
                 business.Id = Guid.NewGuid();
                 business.ClientId = client.Id;
+                business.OrganizationId = orgId.Value;
             }
         }
 
@@ -104,6 +105,7 @@ public class ClientController : ControllerBase
         client.Email = clientUpdate.Email;
         client.PhoneNumber = clientUpdate.PhoneNumber;
         client.IsActive = clientUpdate.IsActive;
+        client.OrganizationId = orgId.Value;
 
         // Update Businesses - very simple approach
         _context.Businesses.RemoveRange(client.Businesses);
@@ -114,6 +116,7 @@ public class ClientController : ControllerBase
             {
                 b.Id = Guid.NewGuid();
                 b.ClientId = client.Id;
+                b.OrganizationId = orgId.Value;
                 _context.Businesses.Add(b);
             }
         }

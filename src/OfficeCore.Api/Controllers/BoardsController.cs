@@ -257,7 +257,10 @@ public class BoardsController : ControllerBase
         if (currentUserMember == null || currentUserMember.Role != BoardRole.Owner)
             return Forbid();
 
-        var targetMember = board.Members.FirstOrDefault(m => m.UserId == req.UserId);
+        var targetEmployee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.UserId == req.UserId && e.OrganizationId == orgId);
+
+        var targetMember = board.Members.FirstOrDefault(m => m.UserId == targetEmployee.Id);
         
         if (targetMember != null)
         {
@@ -269,7 +272,7 @@ public class BoardsController : ControllerBase
             {
                 Id = Guid.NewGuid(),
                 BoardId = id,
-                UserId = req.UserId,
+                UserId = targetEmployee.Id,
                 Role = req.Role,
                 OrganizationId = orgId!.Value
             };
@@ -326,12 +329,15 @@ public class BoardsController : ControllerBase
 
         var nextOrder = board.Lists.Any() ? board.Lists.Max(l => l.OrderIndex) + 1 : 0;
 
+        var orgId = _tenant.GetActiveOrganizationId();
+
         var list = new BoardList
         {
             Id = Guid.NewGuid(),
             BoardId = id,
             Name = req.Name,
-            OrderIndex = nextOrder
+            OrderIndex = nextOrder,
+            OrganizationId = orgId!.Value
         };
 
         _context.BoardLists.Add(list);
@@ -370,6 +376,8 @@ public class BoardsController : ControllerBase
 
         var nextOrder = list.Cards.Any() ? list.Cards.Max(c => c.OrderIndex) + 1 : 0;
 
+        var orgId = _tenant.GetActiveOrganizationId();
+
         var card = new BoardCard
         {
             Id = Guid.NewGuid(),
@@ -378,7 +386,8 @@ public class BoardsController : ControllerBase
             Description = req.Description,
             AssignedToUserId = string.IsNullOrWhiteSpace(req.AssignedToUserId) ? null : req.AssignedToUserId,
             DueDate = req.DueDate.HasValue ? DateTime.SpecifyKind(req.DueDate.Value, DateTimeKind.Utc) : null,
-            OrderIndex = nextOrder
+            OrderIndex = nextOrder,
+            OrganizationId = orgId!.Value
         };
 
         _context.BoardCards.Add(card);
@@ -644,13 +653,16 @@ public class BoardsController : ControllerBase
         var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
         if (card == null) return NotFound();
 
+        var orgId = _tenant.GetActiveOrganizationId();
+
         var comment = new BoardCardComment
         {
             Id = Guid.NewGuid(),
             CardId = cardId,
             UserId = userId!,
             Text = req.Text,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OrganizationId = orgId!.Value   
         };
         _context.BoardCardComments.Add(comment);
         await _context.SaveChangesAsync();
@@ -668,11 +680,14 @@ public class BoardsController : ControllerBase
         var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
         if (card == null) return NotFound();
 
+        var orgId = _tenant.GetActiveOrganizationId();
+
         var checklist = new BoardCardChecklist
         {
             Id = Guid.NewGuid(),
             CardId = cardId,
-            Title = req.Title
+            Title = req.Title,
+            OrganizationId = orgId!.Value
         };
         _context.BoardCardChecklists.Add(checklist);
         await _context.SaveChangesAsync();
@@ -687,12 +702,15 @@ public class BoardsController : ControllerBase
         var checklist = await _context.BoardCardChecklists.Include(c => c.Card).ThenInclude(c => c.List).FirstOrDefaultAsync(c => c.Id == checklistId);
         if (checklist == null) return NotFound();
 
+        var orgId = _tenant.GetActiveOrganizationId();
+
         var item = new BoardCardChecklistItem
         {
             Id = Guid.NewGuid(),
             ChecklistId = checklistId,
             Text = req.Title,
-            IsCompleted = false
+            IsCompleted = false,
+            OrganizationId = orgId!.Value
         };
         _context.BoardCardChecklistItems.Add(item);
         await _context.SaveChangesAsync();
@@ -756,6 +774,8 @@ public class BoardsController : ControllerBase
             await file.CopyToAsync(stream);
         }
 
+        var orgId = _tenant.GetActiveOrganizationId();
+
         var attachment = new BoardCardAttachment
         {
             Id = Guid.NewGuid(),
@@ -764,7 +784,8 @@ public class BoardsController : ControllerBase
             FileName = file.FileName,
             FilePath = $"/uploads/boards/{fileName}",
             FileSize = file.Length,
-            UploadedAt = DateTime.UtcNow
+            UploadedAt = DateTime.UtcNow,
+            OrganizationId = orgId!.Value
         };
 
         _context.BoardCardAttachments.Add(attachment);

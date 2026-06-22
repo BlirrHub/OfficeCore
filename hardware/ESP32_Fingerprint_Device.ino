@@ -13,7 +13,7 @@ void setup() {
   // Initialize communication with the PC via USB
   Serial.begin(9600);
   while (!Serial);
-  
+
   // Initialize communication with the fingerprint sensor
   mySerial.begin(57600, SERIAL_8N1, RXD2, TXD2);
   finger.begin(57600);

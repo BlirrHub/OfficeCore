@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — [2026-06-22]
+- **Boards Tenant Isolation & Scoping:**
+  - Fixed board lists, cards, comments, checklists, checklist items, and attachments to correctly associate the active `OrganizationId` upon creation.
+  - Fixed Board member addition to resolve and store the target workspace-scoped `Employee.Id` rather than the global `ApplicationUser.Id`.
+- **Client Management Scoping:**
+  - Set missing `OrganizationId` on `Business` sub-entities during creation and updates to ensure complete multi-tenant scoping.
+- **Real-Time Global Chat Optimizations:**
+  - Implemented optimistic UI rendering on the global chat widget to display outgoing messages immediately without waiting for server response.
+  - Added message ID verification in the SignalR message handler to prevent duplicate entries of optimistically-added messages.
+
 ### Changed — [2026-06-19]
 - **Standardized UI Headers:** Standardized page headers (titles and descriptions) across all Blazor pages (`Workspaces`, `CompanyProfile`, `Invoices`, `Locations`, `Dashboard`, `MyLeaves`, `LeaveApprovals`, `PayrollSettings`, `Profile`, and `PayrollList`) to use consistent premium CSS classes (`text-3xl font-bold tracking-tight text-white` and `mt-1 text-zinc-400 text-sm`).
 - **Improved Invitation Logic:**
