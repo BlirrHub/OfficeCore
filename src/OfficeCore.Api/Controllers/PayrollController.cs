@@ -97,6 +97,7 @@ public class PayrollController : ControllerBase
     {
         var payslips = await _context.Payslips
             .Include(p => p.Employee)
+                .ThenInclude(e => e.User)
             .Where(p => p.PayrollPeriodId == id)
             .ToListAsync();
         

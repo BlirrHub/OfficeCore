@@ -29,10 +29,13 @@ public class UserController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
+        var org = await _context.Organizations.FindAsync(orgId);
+        var createdByUserId = org?.CreatedByUserId;
+
         var employees = await _context.Employees
             .Include(e => e.User)
             .Include(e => e.GovernmentRecord)
-            .Where(e => e.OrganizationId == orgId)
+            .Where(e => e.OrganizationId == orgId && e.UserId != createdByUserId)
             .Select(e => new
             {
                 e.User!.Id,
@@ -142,10 +145,13 @@ public class UserController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserRequest request)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var employee = await _context.Employees
             .Include(e => e.User)
             .Include(e => e.GovernmentRecord)
-            .FirstOrDefaultAsync(e => e.UserId == id);
+            .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
 
         if (employee == null || employee.User == null)
             return NotFound();
@@ -163,8 +169,7 @@ public class UserController : ControllerBase
         {
             if (employee.GovernmentRecord == null)
             {
-                var orgId = _tenant.GetActiveOrganizationId();
-                employee.GovernmentRecord = new EmployeeGovernmentRecord { EmployeeId = employee.Id, OrganizationId = orgId!.Value };
+                employee.GovernmentRecord = new EmployeeGovernmentRecord { EmployeeId = employee.Id, OrganizationId = orgId.Value };
             }
             employee.GovernmentRecord.IsEligibleForDeductions = request.GovernmentRecord.IsEligibleForDeductions;
             employee.GovernmentRecord.SssNumber = request.GovernmentRecord.SssNumber;
@@ -179,8 +184,6 @@ public class UserController : ControllerBase
 
         if (request.Roles != null)
         {
-            var orgId = _tenant.GetActiveOrganizationId();
-            if (orgId == null) return Forbid();
 
             var currentEmployeeRoles = await _context.EmployeeRoles
                 .Where(er => er.EmployeeId == employee.Id)
@@ -209,7 +212,10 @@ public class UserController : ControllerBase
     [HttpPost("{id}/resign")]
     public async Task<IActionResult> ResignUser(string id, [FromBody] ResignRequest request)
     {
-        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
         if (employee == null)
             return NotFound();
 

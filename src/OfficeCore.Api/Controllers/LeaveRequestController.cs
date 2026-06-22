@@ -100,8 +100,8 @@ public class LeaveRequestController : ControllerBase
         {
             EmployeeId = employee.Id,
             Type = request.Type,
-            StartDate = request.StartDate.ToUniversalTime(),
-            EndDate = request.EndDate.ToUniversalTime(),
+            StartDate = DateTime.SpecifyKind(request.StartDate.Date, DateTimeKind.Utc),
+            EndDate = DateTime.SpecifyKind(request.EndDate.Date, DateTimeKind.Utc),
             Reason = request.Reason,
             AttachmentPath = attachmentPath,
             Status = LeaveRequestStatus.Pending,
@@ -135,12 +135,17 @@ public class LeaveRequestController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => (e.UserId == request.EmployeeId || e.Id == request.EmployeeId) && e.OrganizationId == orgId.Value);
+
+        if (employee == null) return BadRequest("Employee not found");
+
         var leaveRequest = new LeaveRequest
         {
-            EmployeeId = request.EmployeeId,
+            EmployeeId = employee.Id,
             Type = request.Type,
-            StartDate = request.StartDate.ToUniversalTime(),
-            EndDate = request.EndDate.ToUniversalTime(),
+            StartDate = DateTime.SpecifyKind(request.StartDate.Date, DateTimeKind.Utc),
+            EndDate = DateTime.SpecifyKind(request.EndDate.Date, DateTimeKind.Utc),
             Reason = request.Reason,
             Status = LeaveRequestStatus.Approved,
             CreatedAt = DateTime.UtcNow,

@@ -24,6 +24,15 @@
         </div>
     </div>
 
+    <div class="flex items-center gap-4 bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
+        <div class="relative flex-1 max-w-md">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="size-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+            </div>
+            <input type="text" @bind="searchTerm" @bind:event="oninput" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" placeholder="Search by date or remarks..." />
+        </div>
+    </div>
+
     @if (isLoading)
     {
         <div class="animate-pulse space-y-4">
@@ -46,44 +55,82 @@
             </button>
         </div>
     }
+    else if (!FilteredPeriods.Any())
+    {
+        <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-8 text-center backdrop-blur-xl">
+            <div class="size-12 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                <svg class="size-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-white mb-1">No matches found</h3>
+            <p class="text-zinc-400">Try adjusting your search criteria.</p>
+        </div>
+    }
     else
     {
-        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            @foreach (var p in periods)
-            {
-                <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-5 hover:bg-zinc-900 transition-colors group cursor-pointer" @onclick="() => NavigateToPeriod(p.Id)">
-                    <div class="flex items-start justify-between mb-4">
-                        <div>
-
-                            <h3 class="text-lg font-semibold text-white">@p.StartDate.ToString("MMM dd") - @p.EndDate.ToString("MMM dd, yyyy")</h3>
-                        </div>
-                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider @GetStatusBadgeClass(p.Status)">
-                            @p.Status.ToString()
-                        </span>
-                    </div>
-                    
-                    @if (!string.IsNullOrEmpty(p.Remarks))
-                    {
-                        <p class="text-sm text-zinc-500 mb-4 line-clamp-2">@p.Remarks</p>
-                    }
-                    
-                    <div class="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800">
-                        <div class="text-xs text-zinc-500">Created @p.CreatedAt.ToString("MMM dd")</div>
-                        <div class="flex items-center gap-3">
-                            @if (p.Status == 0 || p.Status == 1) // Draft or Computed
-                            {
-                                <button @onclick="() => ShowDeleteConfirmation(p.Id)" @onclick:stopPropagation class="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors" title="Archive Period">
-                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                            }
-                            <div class="text-sm text-fuchsia-400 font-medium group-hover:text-fuchsia-300 transition-colors flex items-center gap-1">
-                                View Details
-                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden backdrop-blur-xl">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead class="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 uppercase tracking-wider text-[11px] font-semibold">
+                    <tr>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors group select-none" @onclick='() => Sort("Period")'>
+                            <div class="flex items-center gap-2">
+                                Period
+                                @RenderSortIcon("Period")
                             </div>
-                        </div>
-                    </div>
-                </div>
-            }
+                        </th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors group select-none" @onclick='() => Sort("Status")'>
+                            <div class="flex items-center gap-2">
+                                Status
+                                @RenderSortIcon("Status")
+                            </div>
+                        </th>
+                        <th class="px-6 py-4">Remarks</th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors group select-none" @onclick='() => Sort("Created")'>
+                            <div class="flex items-center gap-2">
+                                Created Date
+                                @RenderSortIcon("Created")
+                            </div>
+                        </th>
+                        <th class="px-6 py-4 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800/50">
+                    @foreach (var p in FilteredPeriods)
+                    {
+                        <tr class="hover:bg-zinc-800/30 transition-colors cursor-pointer group" @onclick="() => NavigateToPeriod(p.Id)">
+                            <td class="px-6 py-4">
+                                <span class="font-semibold text-white">@p.StartDate.ToString("MMM dd") - @p.EndDate.ToString("MMM dd, yyyy")</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider @GetStatusBadgeClass(p.Status)">
+                                    @p.Status.ToString()
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-zinc-400 block truncate max-w-xs">@(string.IsNullOrEmpty(p.Remarks) ? "—" : p.Remarks)</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-zinc-400">@p.CreatedAt.ToString("MMM dd, yyyy")</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center justify-center gap-3">
+                                    <div class="text-sm text-fuchsia-400 font-medium group-hover:text-fuchsia-300 transition-colors flex items-center gap-1">
+                                        View
+                                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                    </div>
+                                    @if (p.Status == 0 || p.Status == 1) // Draft or Computed
+                                    {
+                                        <button @onclick="() => ShowDeleteConfirmation(p.Id)" @onclick:stopPropagation class="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors" title="Archive Period">
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     }
 </div>
@@ -114,6 +161,16 @@
                     <div>
                         <label class="block text-sm font-medium text-zinc-300 mb-1.5">Remarks (Optional)</label>
                         <InputTextArea @bind-Value="newPeriod.Remarks" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-all resize-none" rows="2" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-300 mb-1.5">Gov. Deduction Cycle</label>
+                        <InputSelect @bind-Value="newPeriod.DeductionMultiplier" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-all">
+                            <option value="1.0">Full Month (100%)</option>
+                            <option value="0.5">Semi-Monthly (50%)</option>
+                            <option value="0.25">Weekly (25%)</option>
+                            <option value="0.0">No Deductions (0%)</option>
+                        </InputSelect>
                     </div>
                 </div>
                 
@@ -161,6 +218,85 @@
     private Guid? periodToDelete;
     
     private PayrollPeriodDto newPeriod = new();
+    private string searchTerm = "";
+
+    private IEnumerable<PayrollPeriodDto> FilteredPeriods
+    {
+        get
+        {
+            if (periods == null) return Enumerable.Empty<PayrollPeriodDto>();
+            
+            var query = periods.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(p => 
+                    (p.Remarks != null && p.Remarks.ToLower().Contains(term)) ||
+                    p.StartDate.ToString("MMM dd yyyy").ToLower().Contains(term) ||
+                    p.EndDate.ToString("MMM dd yyyy").ToLower().Contains(term) ||
+                    p.Status.ToString().ToLower().Contains(term)
+                );
+            }
+
+            return sortColumn switch
+            {
+                "Period" => sortAscending ? query.OrderBy(p => p.StartDate) : query.OrderByDescending(p => p.StartDate),
+                "Status" => sortAscending ? query.OrderBy(p => p.Status) : query.OrderByDescending(p => p.Status),
+                "Created" => sortAscending ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt),
+                _ => query.OrderByDescending(p => p.StartDate)
+            };
+        }
+    }
+
+    private string sortColumn = "Period";
+    private bool sortAscending = false;
+
+    private void Sort(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private RenderFragment RenderSortIcon(string column) => builder =>
+    {
+        if (sortColumn != column)
+        {
+            builder.OpenElement(0, "svg");
+            builder.AddAttribute(1, "class", "size-3.5 text-zinc-600 group-hover:text-zinc-400 transition-colors opacity-0 group-hover:opacity-100");
+            builder.AddAttribute(2, "fill", "none");
+            builder.AddAttribute(3, "viewBox", "0 0 24 24");
+            builder.AddAttribute(4, "stroke", "currentColor");
+            builder.AddAttribute(5, "stroke-width", "2");
+            builder.OpenElement(6, "path");
+            builder.AddAttribute(7, "stroke-linecap", "round");
+            builder.AddAttribute(8, "stroke-linejoin", "round");
+            builder.AddAttribute(9, "d", "M8 9l4-4 4 4m0 6l-4 4-4-4");
+            builder.CloseElement();
+            builder.CloseElement();
+            return;
+        }
+
+        builder.OpenElement(0, "svg");
+        builder.AddAttribute(1, "class", "size-3.5 text-fuchsia-400");
+        builder.AddAttribute(2, "fill", "none");
+        builder.AddAttribute(3, "viewBox", "0 0 24 24");
+        builder.AddAttribute(4, "stroke", "currentColor");
+        builder.AddAttribute(5, "stroke-width", "2");
+        builder.OpenElement(6, "path");
+        builder.AddAttribute(7, "stroke-linecap", "round");
+        builder.AddAttribute(8, "stroke-linejoin", "round");
+        builder.AddAttribute(9, "d", sortAscending ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -284,5 +420,6 @@
         public int Status { get; set; }
         public string? Remarks { get; set; }
         public DateTime CreatedAt { get; set; }
+        public decimal DeductionMultiplier { get; set; } = 1.0m;
     }
 }

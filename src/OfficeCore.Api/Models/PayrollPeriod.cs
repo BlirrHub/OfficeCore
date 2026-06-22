@@ -27,6 +27,8 @@ public class PayrollPeriod : ITenantEntity{
 
     public string? Remarks { get; set; }
 
+    public decimal DeductionMultiplier { get; set; } = 1.0m;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     public DateTime? FinalizedAt { get; set; }

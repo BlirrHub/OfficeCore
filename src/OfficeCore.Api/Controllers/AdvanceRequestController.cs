@@ -170,10 +170,15 @@ public class AdvanceRequestController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => (e.UserId == dto.EmployeeId || e.Id == dto.EmployeeId) && e.OrganizationId == orgId.Value);
+
+        if (employee == null) return BadRequest("Employee not found");
+
         var request = new AdvanceRequest
         {
             Id = Guid.NewGuid(),
-            EmployeeId = dto.EmployeeId,
+            EmployeeId = employee.Id,
             Type = dto.Type,
             RequestedAmount = dto.RequestedAmount,
             Note = dto.Note ?? string.Empty,

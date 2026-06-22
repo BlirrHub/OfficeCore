@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 - **Boards Tenant Isolation & Scoping:**
   - Fixed board lists, cards, comments, checklists, checklist items, and attachments to correctly associate the active `OrganizationId` upon creation.
   - Fixed Board member addition to resolve and store the target workspace-scoped `Employee.Id` rather than the global `ApplicationUser.Id`.
+- **Payroll & Ledger Multi-Tenancy & Logic Fixes:**
+  - Fixed a critical multi-tenancy bug where default Government Deduction Settings and General Payroll Settings were created without an `OrganizationId`, causing foreign key constraint errors.
+  - Implemented proportional Government Deductions calculation (SSS, PhilHealth, Pag-IBIG) using a 28-day base month.
+  - Added a "Gov. Deduction Cycle" setting to the Payroll Period creation modal, allowing the selection of Full Month (100%), Semi-Monthly (50%), Weekly (25%), or No Deductions (0%).
+  - Fixed an identity mapping error in Admin Leave Creation and E-Loan/Cash Advance Creation where the global `UserId` was incorrectly saved instead of the workspace `Employee.Id`, preventing foreign key failures.
+  - Resolved a timezone shifting issue where leave request dates were shifting a day backward upon UTC serialization by locking the selected date accurately using `DateTime.SpecifyKind`.
+  - Updated E-Loan payroll computation to automatically skip the current payroll period and begin deductions strictly on the next payroll period following the loan's approval date.
 - **Client Management Scoping:**
   - Set missing `OrganizationId` on `Business` sub-entities during creation and updates to ensure complete multi-tenant scoping.
 - **Real-Time Global Chat Optimizations:**

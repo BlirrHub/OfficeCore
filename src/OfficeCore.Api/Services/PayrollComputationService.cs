@@ -23,17 +23,29 @@ public class PayrollComputationService : IPayrollComputationService
             throw new Exception("Cannot recompute a finalized or paid payroll period");
         }
 
+        var org = await _context.Organizations.FindAsync(period.OrganizationId);
+        var createdByUserId = org?.CreatedByUserId;
+
         var employees = await _context.Employees
             .Include(e => e.User)
-            .Where(e => e.IsActive && e.IsEmployee && e.OrganizationId == period.OrganizationId)
+            .Include(e => e.GovernmentRecord)
+            .Where(e => e.IsActive && e.IsEmployee && e.OrganizationId == period.OrganizationId && e.UserId != createdByUserId)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Days)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Breaks)
             .ToListAsync();
 
-        var generalSetting = await _context.GeneralPayrollSettings.FirstOrDefaultAsync(s => s.Key == "MinimumDailyRate");
+        var generalSetting = await _context.GeneralPayrollSettings.FirstOrDefaultAsync(s => s.Key == "MinimumDailyRate" && s.OrganizationId == period.OrganizationId);
         var defaultRate = generalSetting?.Value ?? 610m;
+
+        var govDeductions = await _context.GovernmentDeductionSettings
+            .Where(s => s.OrganizationId == period.OrganizationId)
+            .ToListAsync();
+
+        decimal monthlySss = govDeductions.FirstOrDefault(d => d.AgencyName == "SSS")?.EmployeeShare ?? 0m;
+        decimal monthlyPhilHealth = govDeductions.FirstOrDefault(d => d.AgencyName == "PhilHealth")?.EmployeeShare ?? 0m;
+        decimal monthlyPagIbig = govDeductions.FirstOrDefault(d => d.AgencyName == "Pag-IBIG")?.EmployeeShare ?? 0m;
 
         var existingPayslips = await _context.Payslips.Where(p => p.PayrollPeriodId == payrollPeriodId).ToListAsync();
         _context.Payslips.RemoveRange(existingPayslips);
@@ -42,6 +54,9 @@ public class PayrollComputationService : IPayrollComputationService
 
         var periodStartDt = DateTime.SpecifyKind(period.StartDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
         var periodEndDt = DateTime.SpecifyKind(period.EndDate.ToDateTime(TimeOnly.MaxValue), DateTimeKind.Utc);
+        
+        // Use the explicitly defined DeductionMultiplier for government deductions
+        decimal proportionMultiplier = period.DeductionMultiplier;
 
         var allAttendance = await _context.AttendanceRecords
             .Where(a => a.Timestamp >= periodStartDt && a.Timestamp <= periodEndDt)
@@ -176,7 +191,14 @@ public class PayrollComputationService : IPayrollComputationService
             decimal sss = 0;
             decimal philhealth = 0;
             decimal pagibig = 0;
-            decimal tax = 0;
+            decimal tax = 0; // Tax calculation left as 0 for now unless there's a specific rule
+
+            if (emp.GovernmentRecord != null && emp.GovernmentRecord.IsEligibleForDeductions)
+            {
+                sss = Math.Round(monthlySss * proportionMultiplier, 2);
+                philhealth = Math.Round(monthlyPhilHealth * proportionMultiplier, 2);
+                pagibig = Math.Round(monthlyPagIbig * proportionMultiplier, 2);
+            }
             
             var activeAdvances = allActiveAdvances.Where(ar => ar.EmployeeId == emp.Id).ToList();
             decimal advancesDeduction = 0;
@@ -185,11 +207,16 @@ public class PayrollComputationService : IPayrollComputationService
                 decimal deduction = 0m;
                 if (advance.Type == AdvanceType.ELoan)
                 {
-                    deduction = (advance.InstallmentAmount ?? 0m) / 2m;
+                    // Delay E-Loan deduction to the next payroll period
+                    // (The period must start after the E-Loan was approved)
+                    if (periodStartDt > (advance.ResolutionDate ?? advance.RequestDate))
+                    {
+                        deduction = (advance.InstallmentAmount ?? 0m) / 2m;
+                    }
                 }
                 else
                 {
-                    // Cash Advance: deduct the entire remaining balance
+                    // Cash Advance: deduct the entire remaining balance immediately
                     deduction = advance.RemainingBalance ?? advance.RequestedAmount;
                 }
                 

@@ -1271,6 +1271,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal>("DeductionMultiplier")
+                        .HasColumnType("numeric");
+
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
 
