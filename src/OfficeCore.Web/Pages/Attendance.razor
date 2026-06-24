@@ -4,6 +4,7 @@
 @implements IAsyncDisposable
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject ToastService ToastService
 
 <PageTitle>Attendance - OfficeCore</PageTitle>
 
@@ -227,8 +228,32 @@
 
         _hubConnection.On("ReceiveAttendanceUpdate", async () =>
         {
+            var oldFirstId = _records?.FirstOrDefault()?.Id;
             await LoadData();
+            var newFirst = _records?.FirstOrDefault();
+            
+            if (newFirst != null && newFirst.Id != oldFirstId)
+            {
+                var typeStr = (newFirst.Type == "ClockIn" || newFirst.Type == "0") ? "Clocked In" : "Clocked Out";
+                ToastService.ShowSuccess($"Attendance: {newFirst.EmployeeName} {typeStr}");
+            }
+            
             await InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<string>("ReceiveDeviceMessage", (message) =>
+        {
+            if (message.StartsWith("INFO:"))
+            {
+                var text = message.Substring(5).Trim();
+                ToastService.ShowWarning($"Scanner: {text}");
+            }
+            else if (message.StartsWith("ERROR:"))
+            {
+                var text = message.Substring(6).Trim();
+                ToastService.ShowError($"Scanner Error: {text}");
+            }
+            InvokeAsync(StateHasChanged);
         });
 
         try

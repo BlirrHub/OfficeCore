@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using Microsoft.AspNetCore.SignalR;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -13,17 +14,21 @@ public class AttendanceController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly FingerprintDeviceService _deviceService;
+    private readonly Microsoft.AspNetCore.SignalR.IHubContext<OfficeCore.Api.Hubs.AttendanceHub> _hubContext;
 
-    public AttendanceController(AppDbContext context, FingerprintDeviceService deviceService)
+    public AttendanceController(AppDbContext context, FingerprintDeviceService deviceService, Microsoft.AspNetCore.SignalR.IHubContext<OfficeCore.Api.Hubs.AttendanceHub> hubContext)
     {
         _context = context;
         _deviceService = deviceService;
+        _hubContext = hubContext;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAttendanceRecords()
     {
         var records = await _context.AttendanceRecords
+            .Include(a => a.Employee)
+                .ThenInclude(e => e!.User)
             .Include(a => a.Employee)
                 .ThenInclude(e => e!.WorkSchedule)
                     .ThenInclude(ws => ws!.Days)
@@ -75,6 +80,13 @@ public class AttendanceController : ControllerBase
         }
         
         return BadRequest(new { message = "Could not start enrollment. Make sure the device is connected and not currently enrolling another user." });
+    }
+
+    [HttpPost("cancel-enroll")]
+    public IActionResult CancelEnrollment()
+    {
+        _deviceService.CancelEnrollment();
+        return Ok(new { message = "Enrollment cancelled." });
     }
 
     [HttpGet("fingerprints/{employeeId}")]
@@ -141,9 +153,13 @@ public class AttendanceController : ControllerBase
 
         if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
 
-        var today = DateTimeOffset.UtcNow.Date;
+        var todayUtc = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+        var tomorrowUtc = todayUtc.AddDays(1);
+
         var latestRecord = await _context.AttendanceRecords
-            .Where(a => a.EmployeeId == mapping.EmployeeId && a.Timestamp.Date == today)
+            .Where(a => a.EmployeeId == mapping.EmployeeId
+                     && a.Timestamp >= todayUtc
+                     && a.Timestamp < tomorrowUtc)
             .OrderByDescending(a => a.Timestamp)
             .FirstOrDefaultAsync();
 
@@ -158,13 +174,16 @@ public class AttendanceController : ControllerBase
             EmployeeId = mapping.EmployeeId,
             Timestamp = DateTimeOffset.UtcNow,
             Type = type,
-            Source = AttendanceSource.Device
+            Source = AttendanceSource.Device,
+            OrganizationId = mapping.OrganizationId
         };
 
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Attendance logged." });
+        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+
+        return Ok(new { message = "Attendance logged.", type = type.ToString() });
     }
 
     [HttpPost("enroll-success")]

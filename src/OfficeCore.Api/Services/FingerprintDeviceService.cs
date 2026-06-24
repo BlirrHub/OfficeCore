@@ -35,6 +35,20 @@ public class FingerprintDeviceService : BackgroundService
         
         try
         {
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var devices = await context.FingerprintDevices.Where(d => d.IpAddress != null).ToListAsync(stoppingToken);
+                foreach (var device in devices)
+                {
+                    device.IpAddress = null;
+                }
+                if (devices.Any())
+                {
+                    await context.SaveChangesAsync(stoppingToken);
+                }
+            }
+
             _listener = new TcpListener(IPAddress.Any, port);
             _listener.Start();
             _logger.LogInformation("TCP Listener started for Wi-Fi Fingerprint Devices on port {Port}.", port);
@@ -51,7 +65,30 @@ public class FingerprintDeviceService : BackgroundService
 
                     _activeClient = await _listener.AcceptTcpClientAsync(stoppingToken);
                     _activeStream = _activeClient.GetStream();
-                    _logger.LogInformation("Fingerprint device connected via TCP: {Endpoint}", _activeClient.Client.RemoteEndPoint);
+                    
+                    var endpoint = _activeClient.Client.RemoteEndPoint?.ToString();
+                    _logger.LogInformation("Fingerprint device connected via TCP: {Endpoint}", endpoint);
+                    
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                        var device = await context.FingerprintDevices.FirstOrDefaultAsync();
+                        if (device != null)
+                        {
+                            device.LastSeen = DateTimeOffset.UtcNow;
+                            if (endpoint != null)
+                            {
+                                device.IpAddress = endpoint.Split(':')[0]; // Just the IP, drop the port
+                            }
+                            await context.SaveChangesAsync(stoppingToken);
+                            
+                            var hubContext = scope.ServiceProvider.GetService<IHubContext<AttendanceHub>>();
+                            if (hubContext != null)
+                            {
+                                await hubContext.Clients.All.SendAsync("ReceiveDeviceConnectionStatus", device.IpAddress, device.LastSeen);
+                            }
+                        }
+                    }
                     
                     _ = HandleClientAsync(_activeClient, _activeStream, stoppingToken);
                 }
@@ -102,6 +139,23 @@ public class FingerprintDeviceService : BackgroundService
             {
                 _activeClient = null;
                 _activeStream = null;
+                
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var device = await context.FingerprintDevices.FirstOrDefaultAsync();
+                    if (device != null)
+                    {
+                        device.IpAddress = null;
+                        await context.SaveChangesAsync();
+                        
+                        var hubContext = scope.ServiceProvider.GetService<IHubContext<AttendanceHub>>();
+                        if (hubContext != null)
+                        {
+                            await hubContext.Clients.All.SendAsync("ReceiveDeviceConnectionStatus", null, device.LastSeen);
+                        }
+                    }
+                }
             }
             client.Close();
         }
@@ -140,6 +194,20 @@ public class FingerprintDeviceService : BackgroundService
              {
                  await SendEnrollmentStatusAsync(_pendingEnrollEmployeeId, message);
              }
+             else
+             {
+                 await SendDeviceMessageAsync(message);
+             }
+        }
+    }
+
+    private async Task SendDeviceMessageAsync(string message)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var hubContext = scope.ServiceProvider.GetService<IHubContext<AttendanceHub>>();
+        if (hubContext != null)
+        {
+            await hubContext.Clients.All.SendAsync("ReceiveDeviceMessage", message);
         }
     }
 
@@ -167,9 +235,13 @@ public class FingerprintDeviceService : BackgroundService
             return;
         }
 
-        var today = DateTimeOffset.UtcNow.Date;
+        var todayUtc = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+        var tomorrowUtc = todayUtc.AddDays(1);
+
         var latestRecord = await context.AttendanceRecords
-            .Where(a => a.EmployeeId == mapping.EmployeeId && a.Timestamp.Date == today)
+            .Where(a => a.EmployeeId == mapping.EmployeeId 
+                     && a.Timestamp >= todayUtc 
+                     && a.Timestamp < tomorrowUtc)
             .OrderByDescending(a => a.Timestamp)
             .FirstOrDefaultAsync();
 
@@ -184,7 +256,8 @@ public class FingerprintDeviceService : BackgroundService
             EmployeeId = mapping.EmployeeId,
             Timestamp = DateTimeOffset.UtcNow,
             Type = type,
-            Source = AttendanceSource.Device
+            Source = AttendanceSource.Device,
+            OrganizationId = mapping.OrganizationId
         };
 
         context.AttendanceRecords.Add(record);
@@ -257,9 +330,31 @@ public class FingerprintDeviceService : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send ENROLL command via TCP");
+            _logger.LogError("Error sending ENROLL command: {Message}", ex.Message);
             _pendingEnrollEmployeeId = null;
             return false;
+        }
+    }
+
+    public void CancelEnrollment()
+    {
+        if (_pendingEnrollEmployeeId == null) return;
+        
+        _pendingEnrollEmployeeId = null;
+        
+        if (_activeStream != null && _activeClient != null && _activeClient.Connected)
+        {
+            try
+            {
+                var command = Encoding.UTF8.GetBytes("CANCEL\n");
+                _activeStream.Write(command, 0, command.Length);
+                _activeStream.Flush();
+                _logger.LogInformation("Sent CANCEL command to TCP device.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error sending CANCEL command: {Message}", ex.Message);
+            }
         }
     }
 }

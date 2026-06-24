@@ -43,6 +43,7 @@ public class UserController : ControllerBase
                 e.User.FirstName,
                 e.User.LastName,
                 e.EmployeeId,
+                EmployeePk = e.Id,  // Employee table PK — used as FK in EmployeeFingerprint
                 e.IsActive,
                 e.IsEmployee,
                 e.DailyRate,

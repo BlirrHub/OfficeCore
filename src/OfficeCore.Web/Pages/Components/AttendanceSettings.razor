@@ -38,7 +38,7 @@
                         <div class="grid grid-cols-1 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-zinc-400 mb-1.5">Device Name</label>
-                                <input type="text" @bind="_device.Name" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none focus:ring-1 focus:ring-fuchsia-500" placeholder="e.g. Main Lobby Scanner" />
+                                <input type="text" @bind="_device.Name" @bind:event="oninput" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none focus:ring-1 focus:ring-fuchsia-500" placeholder="e.g. Main Lobby Scanner" />
                             </div>
                             
                             <div>
@@ -68,37 +68,103 @@
                         </button>
                     </div>
 
-                    <!-- Right: Direct USB Connection -->
+                    <!-- Right: Dynamic Connection pane -->
                     <div class="border-l border-zinc-800 pl-6">
-                        <h3 class="text-base font-semibold text-white mb-1">Direct USB Connection</h3>
-                        <p class="text-xs text-zinc-400 mb-4">Connect via USB to enroll fingerprints or provision Wi-Fi.</p>
+                        @if (_device.ConnectionType == 0)
+                        {
+                            <h3 class="text-base font-semibold text-white mb-1">Direct USB Connection</h3>
+                            <p class="text-xs text-zinc-400 mb-4">Connect via USB to enroll fingerprints or provision Wi-Fi.</p>
 
-                        @if (!_isSerialConnected)
-                        {
-                            <button @onclick="ConnectSerial" class="w-full py-2.5 px-4 text-sm font-medium text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/20 transition-colors flex items-center justify-center gap-2">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                Connect USB Scanner
-                            </button>
-                        }
-                        else
-                        {
-                            <div class="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-4">
-                                <div class="flex items-center gap-2 text-sm font-medium text-emerald-400">
-                                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                                    Scanner Connected
+                            @if (!_isSerialConnected)
+                            {
+                                <button @onclick="ConnectSerial" class="w-full py-2.5 px-4 text-sm font-medium text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/20 transition-colors flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                    Connect USB Scanner
+                                </button>
+                            }
+                            else
+                            {
+                                <div class="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-4">
+                                    <div class="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                                        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                        Scanner Connected
+                                    </div>
+                                    <button @onclick="DisconnectSerial" class="text-xs font-medium text-zinc-400 hover:text-white transition-colors">Disconnect</button>
                                 </div>
-                                <button @onclick="DisconnectSerial" class="text-xs font-medium text-zinc-400 hover:text-white transition-colors">Disconnect</button>
-                            </div>
-                            
-                            <div class="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <h4 class="text-sm font-medium text-white mb-3">Provision Wi-Fi</h4>
-                                <div class="space-y-2">
-                                    <input type="text" @bind="_wifiSsid" placeholder="Wi-Fi SSID" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                    <input type="password" @bind="_wifiPassword" placeholder="Wi-Fi Password" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                    <input type="text" @bind="_wifiServerIp" placeholder="API Server IP" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                    <button @onclick="SendWifiConfig" class="w-full py-2 text-sm font-medium text-white bg-zinc-800 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition-colors">
-                                        Send to Device
+                                
+                                <div class="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                    <h4 class="text-sm font-medium text-white mb-3">Provision Wi-Fi</h4>
+                                    <div class="space-y-2">
+                                        <input type="text" @bind="_wifiSsid" placeholder="Wi-Fi SSID" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                        
+                                        <div class="relative">
+                                            <input type="@(_showWifiPassword ? "text" : "password")" @bind="_wifiPassword" placeholder="Wi-Fi Password" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-3 pr-10 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                            <button type="button" @onclick="() => _showWifiPassword = !_showWifiPassword" class="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-500 hover:text-zinc-300 transition-colors">
+                                                @if (_showWifiPassword)
+                                                {
+                                                    <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                                }
+                                                else
+                                                {
+                                                    <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                }
+                                            </button>
+                                        </div>
+                                        
+                                        <input type="text" @bind="_wifiServerIp" placeholder="API Server IP" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                                        
+                                        @if (!string.IsNullOrEmpty(_wifiProvisionStatus))
+                                        {
+                                            <div class="text-xs font-medium px-1 py-0.5 @(_wifiProvisionStatus.ToLower().Contains("error") ? "text-red-400" : "text-emerald-400")">
+                                                @_wifiProvisionStatus
+                                            </div>
+                                        }
+                                        
+                                        <button @onclick="SendWifiConfig" class="w-full py-2 text-sm font-medium text-white bg-zinc-800 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition-colors">
+                                            Send to Device
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-2 mt-3">
+                                    <button @onclick="PromptResetWifi" class="flex-1 py-2 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-2">
+                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243-2.829a4.978 4.978 0 011.415-1.414M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c2.25 0 4.326.746 5.972 1.996l-3.29 3.29A4.982 4.982 0 0012 9a4.992 4.992 0 00-3.536 1.464l-3.29-3.29zm7.532 7.532l3.29 3.29m-3.29-3.29L3 21" /></svg>
+                                        Disconnect Wi-Fi
                                     </button>
+
+                                    <button @onclick="PromptWipeSensor" class="flex-1 py-2 text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2">
+                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        Wipe Sensor
+                                    </button>
+                                </div>
+                            }
+                        }
+                        else if (_device.ConnectionType == 1)
+                        {
+                            <h3 class="text-base font-semibold text-white mb-1">Wi-Fi Connection State</h3>
+                            <p class="text-xs text-zinc-400 mb-4">The scanner is communicating via Wi-Fi.</p>
+                            
+                            <div class="space-y-4">
+                                <div class="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                    <div class="text-xs font-medium text-zinc-500 mb-1">IP Address</div>
+                                    <div class="text-sm font-medium text-white font-mono flex items-center gap-2">
+                                        @if (!string.IsNullOrEmpty(_device.IpAddress))
+                                        {
+                                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                            @_device.IpAddress
+                                        }
+                                        else
+                                        {
+                                            <div class="w-1.5 h-1.5 rounded-full bg-zinc-600"></div>
+                                            <span>Not connected yet</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                    <div class="text-xs font-medium text-zinc-500 mb-1">Last Seen</div>
+                                    <div class="text-sm font-medium text-white">
+                                        @(_device.LastSeen > DateTimeOffset.MinValue ? _device.LastSeen.ToLocalTime().ToString("MMM dd, yyyy - hh:mm tt") : "Never")
+                                    </div>
                                 </div>
                             </div>
                         }
@@ -121,7 +187,7 @@
                         {
                             foreach (var emp in _employees)
                             {
-                                <option value="@emp.EmployeeId">@emp.FirstName @emp.LastName</option>
+                                <option value="@emp.EmployeePk">@emp.FirstName @emp.LastName</option>
                             }
                         }
                     </select>
@@ -150,7 +216,7 @@
                                                 <p class="text-sm font-medium text-white">Fingerprint #@fp.FingerprintId</p>
                                                 <p class="text-xs text-zinc-500">Enrolled @fp.EnrolledAt.ToString("MMM dd, yyyy")</p>
                                             </div>
-                                            <button @onclick="() => DeleteFingerprint(fp.Id)" class="p-2 text-zinc-500 hover:text-red-400 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                            <button @onclick="() => PromptDeleteFingerprint(fp.Id, fp.FingerprintId)" class="p-2 text-zinc-500 hover:text-red-400 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
                                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                             </button>
                                         </li>
@@ -189,6 +255,29 @@
     </div>
 </div>
 
+@if (_showConfirmModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="p-6">
+                <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-white mb-2">@_confirmTitle</h3>
+                <p class="text-sm text-zinc-400 mb-6">@_confirmMessage</p>
+                <div class="flex gap-3">
+                    <button @onclick="CancelConfirm" class="flex-1 py-2.5 px-4 text-sm font-medium text-white bg-zinc-800 hover:bg-zinc-700 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button @onclick="ExecuteConfirm" class="flex-1 py-2.5 px-4 text-sm font-medium text-white bg-red-600 hover:bg-red-500 rounded-xl transition-colors">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool _isLoading = true;
     private DeviceDto _device = new();
@@ -216,10 +305,18 @@
     private bool _isSerialConnected = false;
     private string _wifiSsid = "";
     private string _wifiPassword = "";
-    private string _wifiServerIp = "";
+    private string _wifiServerIp = "192.168.1.100";
+    private bool _showWifiPassword = false;
+    private string _wifiProvisionStatus = "";
     private IJSObjectReference? _serialModule;
     private DotNetObjectReference<AttendanceSettings>? _dotNetRef;
     private HubConnection? _hubConnection;
+
+    // Modal state
+    private bool _showConfirmModal = false;
+    private string _confirmTitle = "";
+    private string _confirmMessage = "";
+    private Func<Task>? _confirmAction;
 
     protected override async Task OnInitializedAsync()
     {
@@ -259,6 +356,13 @@
             }
         });
 
+        _hubConnection.On<string?, DateTimeOffset>("ReceiveDeviceConnectionStatus", (ipAddress, lastSeen) =>
+        {
+            _device.IpAddress = ipAddress;
+            _device.LastSeen = lastSeen;
+            InvokeAsync(StateHasChanged);
+        });
+
         try { await _hubConnection.StartAsync(); } catch { }
     }
     
@@ -268,7 +372,7 @@
         {
             try
             {
-                _serialModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/webserial.js");
+                _serialModule = await JS.InvokeAsync<IJSObjectReference>("import", $"/js/webserial.js?v={Guid.NewGuid()}");
                 await _serialModule.InvokeVoidAsync("initSerial", _dotNetRef);
             }
             catch (Exception ex)
@@ -406,17 +510,38 @@
             }
             catch { }
         }
+        else if (_device.ConnectionType == 1)
+        {
+            try
+            {
+                await Http.PostAsync("/api/attendance/cancel-enroll", null);
+            }
+            catch { }
+        }
         
         StateHasChanged();
     }
 
-    private async Task DeleteFingerprint(int id)
+    private void PromptDeleteFingerprint(int id, int sensorSlot)
+    {
+        _confirmTitle = "Remove Fingerprint";
+        _confirmMessage = $"Are you sure you want to remove fingerprint #{sensorSlot}? This action cannot be undone.";
+        _confirmAction = async () => await DeleteFingerprint(id, sensorSlot);
+        _showConfirmModal = true;
+    }
+
+    private async Task DeleteFingerprint(int id, int sensorSlot)
     {
         try
         {
             var res = await Http.DeleteAsync($"/api/attendance/fingerprints/{id}");
             if (res.IsSuccessStatusCode)
             {
+                // Also delete from sensor memory if USB connected
+                if (_isSerialConnected && _serialModule != null)
+                {
+                    try { await _serialModule.InvokeVoidAsync("deleteModel", sensorSlot); } catch { }
+                }
                 ToastService.ShowSuccess("Fingerprint deleted.");
                 await LoadFingerprints();
             }
@@ -426,6 +551,69 @@
             }
         }
         catch { }
+    }
+
+    private void PromptWipeSensor()
+    {
+        if (_serialModule == null || !_isSerialConnected) return;
+        _confirmTitle = "Wipe All Sensor Data";
+        _confirmMessage = "Are you absolutely sure you want to wipe ALL fingerprints stored on the sensor? This cannot be undone and you will have to re-enroll everyone.";
+        _confirmAction = async () => await WipeSensor();
+        _showConfirmModal = true;
+    }
+
+    private async Task WipeSensor()
+    {
+        if (_serialModule == null || !_isSerialConnected) return;
+        try
+        {
+            await _serialModule.InvokeVoidAsync("wipeSensor");
+            ToastService.ShowSuccess("Wipe command sent to device.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Wipe failed: " + ex.Message);
+        }
+    }
+
+    private void PromptResetWifi()
+    {
+        if (_serialModule == null || !_isSerialConnected) return;
+        _confirmTitle = "Disconnect Wi-Fi?";
+        _confirmMessage = "Are you sure you want to erase the Wi-Fi credentials from the scanner? The scanner will reboot immediately and return to Wired Mode.";
+        _confirmAction = async () => await ResetWifi();
+        _showConfirmModal = true;
+    }
+
+    private async Task ResetWifi()
+    {
+        if (_serialModule == null || !_isSerialConnected) return;
+        try
+        {
+            await _serialModule.InvokeVoidAsync("resetWifi");
+            ToastService.ShowSuccess("Wi-Fi credentials erased. Scanner is rebooting.");
+            await DisconnectSerial();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Reset failed: " + ex.Message);
+        }
+    }
+
+    private void CancelConfirm()
+    {
+        _showConfirmModal = false;
+        _confirmAction = null;
+    }
+
+    private async Task ExecuteConfirm()
+    {
+        if (_confirmAction != null)
+        {
+            await _confirmAction();
+        }
+        _showConfirmModal = false;
+        _confirmAction = null;
     }
 
     // JS Interop calls from webserial.js
@@ -452,6 +640,13 @@
             _isEnrolling = false;
             ToastService.ShowError(status);
         }
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnSerialLog(string msg)
+    {
+        _wifiProvisionStatus = msg;
         StateHasChanged();
     }
 
@@ -513,7 +708,8 @@
             try
             {
                 await _serialModule.InvokeVoidAsync("sendWifiConfig", _wifiSsid, _wifiPassword, _wifiServerIp);
-                ToastService.ShowSuccess("Wi-Fi configuration sent! Device will reboot.");
+                ToastService.ShowSuccess("Wi-Fi configuration sent!");
+                _wifiProvisionStatus = "Configuration sent. Waiting for device reboot...";
                 _wifiSsid = "";
                 _wifiPassword = "";
                 _wifiServerIp = "";
@@ -546,12 +742,13 @@
         public int ConnectionType { get; set; }
         public string? IpAddress { get; set; }
         public bool IsActive { get; set; } = true;
+        public DateTimeOffset LastSeen { get; set; }
     }
 
     private class EmployeeDto
     {
         public string Id { get; set; } = string.Empty;         // ASP.NET User ID
-        public string EmployeeId { get; set; } = string.Empty; // Employee table PK (FK for fingerprints)
+        public string EmployeePk { get; set; } = string.Empty; // Employee table PK (FK for fingerprints)
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public bool IsActive { get; set; }

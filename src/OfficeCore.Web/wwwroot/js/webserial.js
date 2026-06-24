@@ -2,6 +2,8 @@ let port;
 let reader;
 let dotNetRef;
 let targetEnrollEmployeeId = null;
+let keepReading = true;
+let closedPromise = null;
 
 export async function initSerial(dotNetReference) {
     dotNetRef = dotNetReference;
@@ -47,6 +49,7 @@ export async function connectSerial() {
     }
     
     try {
+        keepReading = true;
         port = await navigator.serial.requestPort();
         await port.open({ baudRate: 9600 });
         
@@ -60,8 +63,12 @@ export async function connectSerial() {
 }
 
 export async function disconnectSerial() {
+    keepReading = false;
     if (reader) {
-        await reader.cancel();
+        await reader.cancel().catch(() => {});
+    }
+    if (closedPromise) {
+        await closedPromise.catch(() => {});
     }
     if (port) {
         await port.close();
@@ -95,6 +102,26 @@ export async function cancelEnrollment() {
     writer.releaseLock();
 }
 
+export async function wipeSensor() {
+    if (!port || !port.writable) {
+        throw new Error("Serial port not writable.");
+    }
+    const writer = port.writable.getWriter();
+    const encoder = new TextEncoder();
+    await writer.write(encoder.encode("WIPE_SENSOR\n"));
+    writer.releaseLock();
+}
+
+export async function deleteModel(slotId) {
+    if (!port || !port.writable) {
+        throw new Error("Serial port not writable.");
+    }
+    const writer = port.writable.getWriter();
+    const encoder = new TextEncoder();
+    await writer.write(encoder.encode(`DELETE_MODEL:${slotId}\n`));
+    writer.releaseLock();
+}
+
 export async function sendWifiConfig(ssid, password, serverIp) {
     if (!port || !port.writable) {
         throw new Error("Serial port not writable.");
@@ -107,10 +134,20 @@ export async function sendWifiConfig(ssid, password, serverIp) {
     writer.releaseLock();
 }
 
+export async function resetWifi() {
+    if (!port || !port.writable) {
+        throw new Error("Serial port not writable.");
+    }
+    const writer = port.writable.getWriter();
+    const encoder = new TextEncoder();
+    await writer.write(encoder.encode("RESET_WIFI\n"));
+    writer.releaseLock();
+}
+
 async function readLoop() {
-    while (port && port.readable) {
+    while (port && port.readable && keepReading) {
         const textDecoder = new TextDecoderStream();
-        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        closedPromise = port.readable.pipeTo(textDecoder.writable);
         reader = textDecoder.readable.getReader();
         
         try {
@@ -145,7 +182,15 @@ function processLine(line) {
     if (line.startsWith("ATTENDANCE:")) {
         let fingerprintId = parseInt(line.split(":")[1]);
         if (!isNaN(fingerprintId)) {
-            dotNetRef.invokeMethodAsync('OnSerialScanEvent', fingerprintId);
+            fetch('/api/attendance/scan-event', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fingerprintId: fingerprintId })
+            }).catch(e => console.error("WebSerial Fetch Error:", e));
+            
+            if (dotNetRef) {
+                dotNetRef.invokeMethodAsync('OnSerialScanEvent', fingerprintId).catch(()=>{});
+            }
         }
     }
     else if (line.startsWith("ENROLL_SUCCESS:")) {
@@ -156,14 +201,27 @@ function processLine(line) {
         }
     }
     else if (line.startsWith("INFO:") || line.startsWith("ERROR:") || line.startsWith("MODE:")) {
+        let msg = line.substring(line.indexOf(":") + 1).trim();
         if (targetEnrollEmployeeId) {
-            // e.g. "INFO: Waiting for valid finger" -> "Waiting for valid finger"
-            let msg = line.substring(line.indexOf(":") + 1).trim();
-            dotNetRef.invokeMethodAsync('OnSerialEnrollStatus', msg);
-            
+            if (dotNetRef) { dotNetRef.invokeMethodAsync('OnSerialEnrollStatus', msg).catch(()=>{}); }
             if (line.startsWith("ERROR:")) {
                 targetEnrollEmployeeId = null; // stop tracking if error
             }
+        } else {
+            if (dotNetRef) { dotNetRef.invokeMethodAsync('OnSerialLog', msg).catch(()=>{}); }
         }
     }
+}
+
+// Auto-connect when module is loaded globally
+if ("serial" in navigator) {
+    navigator.serial.getPorts().then(ports => {
+        if (ports.length > 0 && !port) {
+            port = ports[0];
+            port.open({ baudRate: 9600 }).then(() => {
+                console.log("WebSerial: Auto-connected in background.");
+                readLoop();
+            }).catch(e => console.warn("WebSerial Auto-connect failed:", e));
+        }
+    });
 }

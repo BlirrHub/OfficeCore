@@ -81,14 +81,27 @@ void loop() {
   delay(50);
 }
 
+unsigned long lastTcpRetry = 0;
+const unsigned long TCP_RETRY_INTERVAL = 5000;
+
 // Sends message to BOTH Serial and TCP server if connected
 void sendMessage(String msg) {
   Serial.println(msg); 
   
   if (wifiEnabled && WiFi.status() == WL_CONNECTED) {
     if (!client.connected()) {
-      client.connect(serverIp.c_str(), serverPort);
+      unsigned long currentMillis = millis();
+      if (currentMillis - lastTcpRetry > TCP_RETRY_INTERVAL || lastTcpRetry == 0) {
+        lastTcpRetry = currentMillis;
+        Serial.println("INFO: Attempting to connect to TCP Server " + serverIp + ":" + String(serverPort));
+        if (client.connect(serverIp.c_str(), serverPort)) {
+            Serial.println("INFO: TCP Connection established!");
+        } else {
+            Serial.println("ERROR: TCP Connection failed! Retrying in 5s.");
+        }
+      }
     }
+    
     if (client.connected()) {
       client.println(msg);
     }
@@ -103,6 +116,27 @@ void handleCommand(String command) {
     isEnrollMode = true;
     sendMessage("MODE:ENROLLING");
   } 
+  else if (command == "CANCEL") {
+    isEnrollMode = false;
+    sendMessage("INFO: Enrollment cancelled.");
+  }
+  else if (command == "WIPE_SENSOR") {
+    uint8_t p = finger.emptyDatabase();
+    if (p == FINGERPRINT_OK) {
+      sendMessage("INFO: Sensor wiped. All fingerprints deleted.");
+    } else {
+      sendMessage("ERROR: Failed to wipe sensor.");
+    }
+  }
+  else if (command.startsWith("DELETE_MODEL:")) {
+    int slotId = command.substring(13).toInt();
+    uint8_t p = finger.deleteModel(slotId);
+    if (p == FINGERPRINT_OK) {
+      sendMessage("INFO: Deleted fingerprint slot " + String(slotId));
+    } else {
+      sendMessage("ERROR: Failed to delete slot " + String(slotId));
+    }
+  }
   else if (command.startsWith("SET_WIFI:")) {
     // Expected format: SET_WIFI:MySSID,MyPassword,192.168.1.100
     String data = command.substring(9);
@@ -164,6 +198,9 @@ void checkAttendance() {
   if (p == FINGERPRINT_OK) {
     sendMessage("ATTENDANCE:" + String(finger.fingerID));
     delay(2000); // Wait so we don't trigger 10 times for one touch
+  } else if (p == FINGERPRINT_NOTFOUND) {
+    sendMessage("INFO: Fingerprint not recognized. Try again.");
+    delay(1000);
   }
 }
 
@@ -253,22 +290,33 @@ void enrollFingerprint() {
 
     if (!isEnrollMode) return; 
 
-    sendMessage("INFO: Second scan successful. Creating model...");
+    sendMessage("INFO: Processing...");
     p = finger.createModel();
     if (p == FINGERPRINT_OK) {
       p = finger.storeModel(id);
       if (p == FINGERPRINT_OK) {
+        sendMessage("INFO: Second scan successful. Fingerprint enrolled!");
         sendMessage("ENROLL_SUCCESS:" + String(id));
         isEnrollMode = false;
+        // Wait for finger to be removed so checkAttendance() doesn't fire immediately
+        sendMessage("INFO: Please remove your finger.");
+        p = 0;
+        while (p != FINGERPRINT_NOFINGER) {
+          p = finger.getImage();
+        }
+        delay(1000);
         return;
       } else {
         sendMessage("ERROR: Failed to store model.");
         isEnrollMode = false;
         return;
       }
-    } else {
+    } else if (p == FINGERPRINT_ENROLLMISMATCH) {
       sendMessage("INFO: Fingerprints did not match. Please try again.");
-      delay(2000);
+      delay(1500);
+    } else {
+      sendMessage("INFO: Could not create model (code " + String(p) + "). Try again.");
+      delay(1500);
     }
   }
 }

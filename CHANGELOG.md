@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — [2026-06-24]
+- **Fingerprint Scanner TCP & Wired Priority Fixes:**
+  - Added dynamic cache-busting to `webserial.js` import to ensure UI changes (like Disconnect Wi-Fi) bypass browser cache.
+  - Implemented TCP reconnect cooldown in ESP32 firmware to prevent blocking Serial communication when Wi-Fi/TCP drops, prioritizing Wired mode responsiveness.
+  - Added UI button and JS bindings to completely erase Wi-Fi credentials (`RESET_WIFI`) and switch the device back to purely Wired USB Mode.
+
 ### Changed — [2026-06-22]
 - **Attendance Settings UI Overhaul:**
   - Redesigned the Settings tab to match the professional minimalist style of other modules (dark `zinc-900` cards, standard inputs, no flashy gradients).
