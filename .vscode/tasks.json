@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Tailwind CSS",
+      "type": "shell",
+      "command": "npm run css:watch",
+      "options": {
+        "cwd": "${workspaceFolder}/src/OfficeCore.Web"
+      },
+      "isBackground": true,
+      "presentation": {
+        "group": "officecore",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Start API",
+      "type": "shell",
+      "command": "dotnet run",
+      "options": {
+        "cwd": "${workspaceFolder}/src/OfficeCore.Api"
+      },
+      "isBackground": true,
+      "presentation": {
+        "group": "officecore",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Start Web",
+      "type": "shell",
+      "command": "dotnet watch",
+      "options": {
+        "cwd": "${workspaceFolder}/src/OfficeCore.Web"
+      },
+      "isBackground": true,
+      "presentation": {
+        "group": "officecore",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Start All Services",
+      "dependsOn": ["Start Tailwind CSS", "Start API", "Start Web"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

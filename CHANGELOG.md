@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — [2026-06-26]
+- **Startup Cheat Keys:**
+  - Created VS Code `tasks.json` enabling the start of Tailwind CSS, API, and Web frontend either individually or all together via the integrated terminal (`Ctrl+Shift+B`).
+  - Created a root `package.json` for NPM with `start:css`, `start:api`, `start:web`, and a `start` script using `concurrently` to run all services simultaneously.
+  - Fixed syntax error in `AttendanceController` preventing API compilation.
+
 ### Changed — [2026-06-24]
 - **Fingerprint Scanner TCP & Wired Priority Fixes:**
   - Added dynamic cache-busting to `webserial.js` import to ensure UI changes (like Disconnect Wi-Fi) bypass browser cache.
