@@ -75,13 +75,13 @@
                 <div>
                     <label class="block text-sm font-medium text-zinc-400">First name</label>
                     <div class="mt-1">
-                        <input type="text" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" placeholder="First Name" value="@_firstName" disabled>
+                        <input type="text" @bind="_firstName" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" placeholder="First Name">
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-zinc-400">Last name</label>
                     <div class="mt-1">
-                        <input type="text" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" placeholder="Last Name" value="@_lastName" disabled>
+                        <input type="text" @bind="_lastName" class="block w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-white focus:border-fuchsia-500 focus:ring-fuchsia-500 sm:text-sm" placeholder="Last Name">
                     </div>
                 </div>
                 <div class="sm:col-span-2">
@@ -95,8 +95,15 @@
         </div>
         
         <div class="flex justify-end pt-4 border-t border-zinc-800">
-            <button type="button" class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
-                Save changes
+            <button type="button" @onclick="HandleUpdateProfile" disabled="@_isUpdatingProfile" class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
+                @if (_isUpdatingProfile)
+                {
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <span>Save changes</span>
+                }
             </button>
         </div>
     </div>
@@ -189,6 +196,7 @@
     private string _email = "";
     private string? _profilePictureUrl;
     private bool _isUploadingImage = false;
+    private bool _isUpdatingProfile = false;
 
     private PasswordForm _pwdModel = new();
     private bool _isChangingPassword;
@@ -207,6 +215,46 @@
         _email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
         _mustChangePassword = user.FindFirst("MustChangePassword")?.Value == "True";
         _profilePictureUrl = user.FindFirst("ProfilePictureUrl")?.Value;
+    }
+
+    private async Task HandleUpdateProfile()
+    {
+        if (string.IsNullOrWhiteSpace(_firstName) || string.IsNullOrWhiteSpace(_lastName))
+        {
+            ToastService.ShowWarning("First and Last name are required.");
+            return;
+        }
+
+        _isUpdatingProfile = true;
+        try
+        {
+            var response = await Http.PutAsJsonAsync("/api/auth/profile", new
+            {
+                firstName = _firstName,
+                lastName = _lastName
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Profile updated successfully!");
+                if (AuthProvider is OfficeCore.Web.Client.Auth.CookieAuthStateProvider cookieAuth)
+                {
+                    cookieAuth.NotifyAuthStateChanged();
+                }
+            }
+            else
+            {
+                ToastService.ShowError("Failed to update profile.");
+            }
+        }
+        catch
+        {
+            ToastService.ShowError("An error occurred while updating profile.");
+        }
+        finally
+        {
+            _isUpdatingProfile = false;
+        }
     }
 
     private async Task HandleProfilePictureSelected(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)

@@ -36,7 +36,8 @@ public class OrganizationsController : ControllerBase
         {
             Id = e.Organization!.Id,
             Name = e.Organization.Name,
-            JoinedAt = e.DateHired ?? e.Organization.CreatedAt
+            JoinedAt = e.DateHired ?? e.Organization.CreatedAt,
+            LogoUrl = e.Organization.LogoUrl
         });
 
         return Ok(result);
@@ -47,10 +48,18 @@ public class OrganizationsController : ControllerBase
     {
         if (Request.Cookies.TryGetValue("ActiveOrganizationId", out var activeOrgIdString) && Guid.TryParse(activeOrgIdString, out var activeOrgId))
         {
-            var org = await _context.Organizations.FindAsync(activeOrgId);
+            var org = await _context.Organizations
+                .Include(o => o.Phones)
+                .FirstOrDefaultAsync(o => o.Id == activeOrgId);
             if (org != null)
             {
-                return Ok(new { Id = org.Id, Name = org.Name });
+                return Ok(new { 
+                    Id = org.Id, 
+                    Name = org.Name,
+                    LogoUrl = org.LogoUrl,
+                    Address = org.Address,
+                    Phones = org.Phones.Select(p => new { p.Id, p.Number, p.Type })
+                });
             }
         }
         return NotFound("No active organization selected.");
@@ -175,6 +184,114 @@ public class OrganizationsController : ControllerBase
         });
 
         return Ok(new { message = "Organization selected", organizationId = id });
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateOrganization(Guid id, [FromBody] UpdateOrgRequest request)
+    {
+        var userId = _userManager.GetUserId(User);
+        if (userId == null) return Unauthorized();
+
+        var isAdmin = await _context.EmployeeRoles
+            .AnyAsync(er => er.Employee!.UserId == userId && er.Employee.OrganizationId == id && er.Role!.Name == "Admin");
+            
+        if (!isAdmin)
+            return Forbid("Only workspace admins can update the workspace profile.");
+
+        var org = await _context.Organizations
+            .Include(o => o.Phones)
+            .FirstOrDefaultAsync(o => o.Id == id);
+        if (org == null) return NotFound();
+
+        org.Name = request.Name;
+        org.Address = request.Address;
+
+        _context.OrganizationPhones.RemoveRange(org.Phones);
+        if (request.Phones != null)
+        {
+            foreach (var phone in request.Phones)
+            {
+                org.Phones.Add(new OrganizationPhone
+                {
+                    OrganizationId = org.Id,
+                    Number = phone.Number,
+                    Type = phone.Type
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Workspace updated successfully" });
+    }
+
+    [HttpPost("{id}/logo")]
+    public async Task<IActionResult> UploadLogo(Guid id, IFormFile file)
+    {
+        var userId = _userManager.GetUserId(User);
+        if (userId == null) return Unauthorized();
+
+        var isAdmin = await _context.EmployeeRoles
+            .AnyAsync(er => er.Employee!.UserId == userId && er.Employee.OrganizationId == id && er.Role!.Name == "Admin");
+            
+        if (!isAdmin)
+            return Forbid("Only workspace admins can update the workspace profile.");
+
+        var org = await _context.Organizations.FindAsync(id);
+        if (org == null) return NotFound();
+
+        if (file == null || file.Length == 0) return BadRequest("File is empty");
+
+        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "organizations");
+        Directory.CreateDirectory(uploadDir);
+
+        var fileName = $"{org.Id}_{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+        var filePath = Path.Combine(uploadDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        org.LogoUrl = $"/uploads/organizations/{fileName}";
+        await _context.SaveChangesAsync();
+
+        return Ok(new { logoUrl = org.LogoUrl });
+    }
+
+    public class DeleteOrgRequest
+    {
+        public string Password { get; set; } = string.Empty;
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteOrganization(Guid id, [FromBody] DeleteOrgRequest request)
+    {
+        var userId = _userManager.GetUserId(User);
+        if (userId == null) return Unauthorized();
+
+        var isAdmin = await _context.EmployeeRoles
+            .AnyAsync(er => er.Employee!.UserId == userId && er.Employee.OrganizationId == id && er.Role!.Name == "Admin");
+            
+        if (!isAdmin)
+            return Forbid("Only workspace admins can delete the workspace.");
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return Unauthorized();
+
+        var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+        if (!isPasswordValid)
+            return BadRequest("Invalid password.");
+
+        var org = await _context.Organizations.FindAsync(id);
+        if (org == null) return NotFound();
+
+        _context.Organizations.Remove(org);
+        await _context.SaveChangesAsync();
+
+        Response.Cookies.Delete("ActiveOrganizationId");
+
+        return Ok(new { message = "Workspace deleted successfully" });
     }
 
     [HttpPost("{id}/invite")]
@@ -354,6 +471,19 @@ public class OrganizationsController : ControllerBase
 public class CreateOrgRequest
 {
     public required string Name { get; set; }
+}
+
+public class UpdateOrgRequest
+{
+    public required string Name { get; set; }
+    public string? Address { get; set; }
+    public List<PhoneDto>? Phones { get; set; }
+}
+
+public class PhoneDto
+{
+    public required string Number { get; set; }
+    public required string Type { get; set; }
 }
 
 public class InviteRequest

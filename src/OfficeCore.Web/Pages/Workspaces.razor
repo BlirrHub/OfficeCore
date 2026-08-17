@@ -5,6 +5,7 @@
 @inject NavigationManager Nav
 @inject CookieAuthStateProvider AuthProvider
 @inject ToastService ToastService
+@inject IConfiguration Configuration
 
 <PageTitle>Your Workspaces - OfficeCore</PageTitle>
 
@@ -24,7 +25,7 @@
                     <div class="flex items-center gap-3 mr-4">
                         @if (!string.IsNullOrEmpty(_user.ProfilePictureUrl))
                         {
-                            <img src="@_user.ProfilePictureUrl" alt="@_user.FirstName" class="w-10 h-10 rounded-full object-cover border border-zinc-800" />
+                            <img src="@($"{Configuration["ApiBaseUrl"]}{_user.ProfilePictureUrl}")" alt="@_user.FirstName" class="w-10 h-10 rounded-full object-cover border border-zinc-800" />
                         }
                         else
                         {
@@ -76,9 +77,16 @@
                         <div @onclick="() => SelectOrganization(org.Id)" 
                              class="group relative bg-zinc-900 border border-zinc-800 rounded-2xl p-8 hover:border-zinc-700 hover:shadow-xl hover:shadow-black/50 transition-all cursor-pointer h-48 flex flex-col">
                             <div class="flex items-center gap-4 mb-auto">
-                                <div class="size-12 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                                    @GetInitials(org.Name)
-                                </div>
+                                @if (!string.IsNullOrEmpty(org.LogoUrl))
+                                {
+                                    <img src="@($"{Configuration["ApiBaseUrl"]}{org.LogoUrl}")" alt="@org.Name" class="size-12 rounded-xl object-cover shadow-lg" />
+                                }
+                                else
+                                {
+                                    <div class="size-12 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                                        @GetInitials(org.Name)
+                                    </div>
+                                }
                                 <div>
                                     <h3 class="text-lg font-semibold text-white group-hover:text-fuchsia-400 transition-colors">@org.Name</h3>
                                     <p class="text-sm text-zinc-500">Joined @org.JoinedAt.ToString("MMM yyyy")</p>
@@ -320,6 +328,7 @@
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public DateTime JoinedAt { get; set; }
+        public string? LogoUrl { get; set; }
     }
 
     private class InvitationDto

@@ -185,6 +185,21 @@ public class AuthController : ControllerBase
 
         return Ok(new { message = "Password changed successfully" });
     }
+
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Unauthorized();
+
+        user.FirstName = request.FirstName;
+        user.LastName = request.LastName;
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded) return BadRequest(result.Errors);
+
+        return Ok(new { message = "Profile updated successfully" });
+    }
 }
 
 public class LoginRequest
@@ -206,4 +221,10 @@ public class ChangePasswordRequest
 {
     public required string CurrentPassword { get; set; }
     public required string NewPassword { get; set; }
+}
+
+public class UpdateProfileRequest
+{
+    public required string FirstName { get; set; }
+    public required string LastName { get; set; }
 }

@@ -18,9 +18,9 @@
             <div class="relative">
                 <button @onclick="() => _isOrgDropdownOpen = !_isOrgDropdownOpen" class="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors">
                     <div class="size-6 rounded bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold">
-                        OC
+                        @GetInitials(_currentOrganization?.Name)
                     </div>
-                    <span class="text-sm font-medium text-zinc-300">Switch Workspace</span>
+                    <span class="text-sm font-medium text-zinc-300">@(_currentOrganization?.Name ?? "Switch Workspace")</span>
                     <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                 </button>
                 
@@ -78,6 +78,7 @@
     private bool _isSidebarCollapsed = false;
     private bool _isOrgDropdownOpen = false;
     private List<OrganizationDto>? _organizations;
+    private OrganizationDto? _currentOrganization;
 
     [Inject] private HttpClient Http { get; set; } = default!;
     [Inject] private Auth.CookieAuthStateProvider CookieAuthProvider { get; set; } = default!;
@@ -87,6 +88,7 @@
         Nav.LocationChanged += OnLocationChanged;
         await CheckPasswordResetGuard();
         await LoadOrganizations();
+        await LoadCurrentOrganization();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -117,6 +119,18 @@
         }
     }
 
+    private async Task LoadCurrentOrganization()
+    {
+        try
+        {
+            _currentOrganization = await Http.GetFromJsonAsync<OrganizationDto>("/api/organizations/current");
+        }
+        catch
+        {
+            _currentOrganization = null;
+        }
+    }
+
     private async Task SelectOrganization(Guid orgId)
     {
         _isOrgDropdownOpen = false;
@@ -128,7 +142,7 @@
         }
     }
 
-    private string GetInitials(string name)
+    private string GetInitials(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return "OC";
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);

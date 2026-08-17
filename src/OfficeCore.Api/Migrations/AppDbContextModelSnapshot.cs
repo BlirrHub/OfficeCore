@@ -1177,6 +1177,9 @@ namespace OfficeCore.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Address")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1244,6 +1247,30 @@ namespace OfficeCore.Api.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("OrganizationInvitations");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationPhone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("OrganizationPhones");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.OrganizationRole", b =>
@@ -2208,6 +2235,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.OrganizationPhone", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
+                        .WithMany("Phones")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.OrganizationRole", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
@@ -2417,6 +2455,8 @@ namespace OfficeCore.Api.Migrations
             modelBuilder.Entity("OfficeCore.Api.Models.Organization", b =>
                 {
                     b.Navigation("Employees");
+
+                    b.Navigation("Phones");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.OrganizationRole", b =>
