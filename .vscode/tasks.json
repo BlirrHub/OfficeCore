@@ -4,7 +4,7 @@
     {
       "label": "Start Tailwind CSS",
       "type": "shell",
-      "command": "npm run css:watch",
+      "command": "npm.cmd run css:watch",
       "options": {
         "cwd": "${workspaceFolder}/src/OfficeCore.Web"
       },

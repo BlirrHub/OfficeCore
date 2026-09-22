@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/OfficeCore.Api/OfficeCore.Api.csproj" />
+    <Project Path="src/OfficeCore.DesktopClient/OfficeCore.DesktopClient.csproj" />
   </Folder>
   <Folder Name="/src/OfficeCore.Web/">
     <Project Path="src/OfficeCore.Web/OfficeCore.Web.Client.csproj" />
