@@ -26,11 +26,30 @@ public partial class MainWindow : Window
     async void InitializeAsync()
     {
         await webView.EnsureCoreWebView2Async(null);
+        
+        webView.NavigationCompleted += WebView_NavigationCompleted;
+
         // Load saved IP if any
         if (System.IO.File.Exists("server_ip.txt"))
         {
             IpAddressInput.Text = System.IO.File.ReadAllText("server_ip.txt");
-            LoadServer();
+        }
+    }
+
+    private void WebView_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
+    {
+        if (e.IsSuccess)
+        {
+            // Successfully connected, hide the input and show the web view
+            InputPanel.Visibility = Visibility.Collapsed;
+            webView.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            // Failed to connect, show the input panel again
+            MessageBox.Show("Failed to connect to the server. Please check the IP address.", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            InputPanel.Visibility = Visibility.Visible;
+            webView.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -55,6 +74,9 @@ public partial class MainWindow : Window
 
         if (webView != null && webView.CoreWebView2 != null)
         {
+            // Hide input immediately to show it's loading, it will revert if it fails
+            InputPanel.Visibility = Visibility.Collapsed;
+            webView.Visibility = Visibility.Visible;
             webView.CoreWebView2.Navigate(ip);
         }
     }

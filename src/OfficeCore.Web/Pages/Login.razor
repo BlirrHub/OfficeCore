@@ -72,24 +72,32 @@
                         <a href="#" class="text-sm font-medium text-fuchsia-400 hover:text-fuchsia-300">Forgot password?</a>
                     </div>
 
-                    <button type="submit" disabled="@_isLoading"
-                            class="w-full rounded-xl bg-fuchsia-600 py-2.5 px-4 text-sm font-semibold text-white
-                                   hover:bg-fuchsia-500 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-fuchsia-900/30">
-                        @if (_isLoading)
-                        {
-                            <span class="flex items-center justify-center gap-2">
-                                <svg class="animate-spin size-4" viewBox="0 0 24 24" fill="none">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                                Signing in...
-                            </span>
-                        }
-                        else
-                        {
-                            <span>Sign in</span>
-                        }
-                    </button>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button type="submit" disabled="@_isLoading"
+                                class="w-full rounded-xl bg-fuchsia-600 py-2.5 px-4 text-sm font-semibold text-white
+                                       hover:bg-fuchsia-500 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-fuchsia-900/30">
+                            @if (_isLoading)
+                            {
+                                <span class="flex items-center justify-center gap-2">
+                                    <svg class="animate-spin size-4" viewBox="0 0 24 24" fill="none">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                    </svg>
+                                    Wait...
+                                </span>
+                            }
+                            else
+                            {
+                                <span>Sign in</span>
+                            }
+                        </button>
+
+                        <button type="button" @onclick="UseDemoAccount" disabled="@_isLoading"
+                                class="w-full rounded-xl bg-zinc-800 py-2.5 px-4 text-sm font-semibold text-white
+                                       hover:bg-zinc-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+                            Demo Account
+                        </button>
+                    </div>
                     
                     <div class="relative flex items-center py-2">
                         <div class="flex-grow border-t border-zinc-800"></div>
@@ -183,6 +191,14 @@
         {
             _isLoading = false;
         }
+    }
+
+    private async Task UseDemoAccount()
+    {
+        _model.Email = "demo@officecore.com";
+        _model.Password = "Password123!";
+        _model.RememberMe = true;
+        await HandleLogin();
     }
 
     private class LoginModel

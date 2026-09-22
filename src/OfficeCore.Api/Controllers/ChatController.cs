@@ -35,41 +35,79 @@ public class ChatController : ControllerBase
         
         var orgId = _tenant.GetActiveOrganizationId();
 
+        // SQLite cannot translate correlated sub-queries (LastMessage, UnreadCount) inside a .Select().
+        // Fetch all required data into memory first, then project.
         var rooms = await _context.ChatRooms
+            .Include(r => r.Members)
+                .ThenInclude(m => m.User)
+                    .ThenInclude(e => e.User)
             .Where(r => r.OrganizationId == orgId && r.Members.Any(m => m.UserId == employee.Id))
-            .Select(r => new
-            {
-                r.Id,
-                r.Name,
-                r.Type,
-                r.CreatedAt,
-                Members = r.Members.Select(m => new
-                {
-                    m.UserId,
-                    m.User.User.FirstName,
-                    m.User.User.LastName,
-                    m.User.User.ProfilePictureUrl,
-                    m.LastReadAt
-                }),
-                LastMessage = _context.ChatMessages
-                    .Where(m => m.ChatRoomId == r.Id)
-                    .OrderByDescending(m => m.CreatedAt)
-                    .Select(m => new
-                    {
-                        m.Id,
-                        m.SenderId,
-                        m.Content,
-                        m.CreatedAt
-                    })
-                    .FirstOrDefault(),
-                UnreadCount = _context.ChatMessages
-                    .Where(m => m.ChatRoomId == r.Id && m.CreatedAt > r.Members.First(me => me.UserId == employee.Id).LastReadAt)
-                    .Count()
-            })
-            .OrderByDescending(r => r.LastMessage != null ? r.LastMessage.CreatedAt : r.CreatedAt)
             .ToListAsync();
 
-        return Ok(rooms);
+        // Fetch last messages for each room in bulk (one query)
+        var roomIds = rooms.Select(r => r.Id).ToList();
+        var lastMessages = await _context.ChatMessages
+            .Where(m => roomIds.Contains(m.ChatRoomId))
+            .GroupBy(m => m.ChatRoomId)
+            .Select(g => g.OrderByDescending(m => m.CreatedAt).First())
+            .ToListAsync();
+
+        var lastMessageByRoom = lastMessages.ToDictionary(m => m.ChatRoomId);
+
+        // Fetch unread counts in bulk (one query)
+        var memberReadTimes = rooms
+            .SelectMany(r => r.Members)
+            .Where(m => m.UserId == employee.Id)
+            .ToDictionary(m => m.ChatRoomId, m => m.LastReadAt);
+
+        var unreadCounts = await _context.ChatMessages
+            .Where(m => roomIds.Contains(m.ChatRoomId))
+            .GroupBy(m => m.ChatRoomId)
+            .Select(g => new { RoomId = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        // Build unread count per room in-memory (comparing against LastReadAt)
+        var unreadByRoom = new Dictionary<Guid, int>();
+        foreach (var room in rooms)
+        {
+            var lastRead = room.Members.FirstOrDefault(m => m.UserId == employee.Id)?.LastReadAt;
+            unreadByRoom[room.Id] = await _context.ChatMessages
+                .CountAsync(m => m.ChatRoomId == room.Id && (lastRead == null || m.CreatedAt > lastRead));
+        }
+
+        var result = rooms
+            .Select(r =>
+            {
+                lastMessageByRoom.TryGetValue(r.Id, out var lastMsg);
+                unreadByRoom.TryGetValue(r.Id, out var unread);
+                return new
+                {
+                    r.Id,
+                    r.Name,
+                    r.Type,
+                    r.CreatedAt,
+                    Members = r.Members.Select(m => new
+                    {
+                        m.UserId,
+                        m.User.User.FirstName,
+                        m.User.User.LastName,
+                        m.User.User.ProfilePictureUrl,
+                        m.LastReadAt
+                    }),
+                    LastMessage = lastMsg == null ? null : new
+                    {
+                        lastMsg.Id,
+                        lastMsg.SenderId,
+                        lastMsg.Content,
+                        lastMsg.CreatedAt
+                    },
+                    UnreadCount = unread
+                };
+            })
+            .OrderByDescending(r => r.LastMessage != null ? r.LastMessage.CreatedAt : r.CreatedAt)
+            .ToList();
+
+        return Ok(result);
     }
 
     [HttpGet("rooms/{roomId}/messages")]

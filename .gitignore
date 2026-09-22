@@ -19,3 +19,10 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# SQLite temp files
+*.db-shm
+*.db-wal
+
+# Desktop Client local config
+**/server_ip.txt

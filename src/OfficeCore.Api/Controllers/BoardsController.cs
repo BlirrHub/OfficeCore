@@ -74,23 +74,31 @@ public class BoardsController : ControllerBase
         if (employee == null) return Forbid();
         var orgId = _tenant.GetActiveOrganizationId();
         
+        // SQLite EF Core provider does not support complex sub-queries inside Select.
+        // We fetch the entities with Includes first, then project in-memory.
         var boards = await _context.Boards
+            .Include(b => b.CreatedBy)
+                .ThenInclude(e => e.User)
+            .Include(b => b.Members)
+                .ThenInclude(m => m.User)
+                    .ThenInclude(e => e.User)
             .Where(b => b.OrganizationId == orgId && b.Members.Any(m => m.UserId == employee.Id))
-            .Select(b => new
-            {
-                b.Id,
-                b.Name,
-                b.Description,
-                b.CreatedAt,
-                b.CreatedById,
-                CreatorName = b.CreatedBy.User.FirstName + " " + b.CreatedBy.User.LastName,
-                MembersCount = b.Members.Count,
-                IsStarred = b.Members.FirstOrDefault(m => m.UserId == employee.Id)!.IsStarred,
-                MemberAvatars = b.Members.OrderByDescending(m => m.Role).Take(3).Select(m => m.User.User.ProfilePictureUrl).ToList()
-            })
             .ToListAsync();
 
-        return Ok(boards);
+        var result = boards.Select(b => new
+        {
+            b.Id,
+            b.Name,
+            b.Description,
+            b.CreatedAt,
+            b.CreatedById,
+            CreatorName = b.CreatedBy.User.FirstName + " " + b.CreatedBy.User.LastName,
+            MembersCount = b.Members.Count,
+            IsStarred = b.Members.FirstOrDefault(m => m.UserId == employee.Id)?.IsStarred ?? false,
+            MemberAvatars = b.Members.OrderByDescending(m => m.Role).Take(3).Select(m => m.User.User.ProfilePictureUrl).ToList()
+        });
+
+        return Ok(result);
     }
 
     [HttpGet("{id}")]

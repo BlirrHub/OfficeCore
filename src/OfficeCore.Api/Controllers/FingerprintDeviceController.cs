@@ -8,7 +8,7 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "RequireAttendance")]
 public class FingerprintDeviceController : ControllerBase
 {
     private readonly AppDbContext _context;

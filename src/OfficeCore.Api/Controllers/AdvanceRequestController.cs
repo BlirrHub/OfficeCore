@@ -45,25 +45,29 @@ public class AdvanceRequestController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
+        // Fetch first, then project in-memory to avoid SQLite string concat translation issues
         var requests = await _context.AdvanceRequests
             .Include(r => r.Employee)
                 .ThenInclude(e => e.User)
             .Where(r => r.OrganizationId == orgId)
             .OrderByDescending(r => r.RequestDate)
-            .Select(r => new {
-                r.Id,
-                r.Type,
-                r.RequestedAmount,
-                r.Note,
-                r.Status,
-                r.RequestDate,
-                r.RemainingBalance,
-                r.InstallmentAmount,
-                EmployeeName = r.Employee!.User.FirstName + " " + r.Employee.User.LastName
-            })
             .ToListAsync();
 
-        return Ok(requests);
+        var result = requests.Select(r => new {
+            r.Id,
+            r.Type,
+            r.RequestedAmount,
+            r.Note,
+            r.Status,
+            r.RequestDate,
+            r.RemainingBalance,
+            r.InstallmentAmount,
+            EmployeeName = r.Employee != null
+                ? $"{r.Employee.User?.FirstName} {r.Employee.User?.LastName}".Trim()
+                : "Unknown"
+        });
+
+        return Ok(result);
     }
 
     [HttpPost]

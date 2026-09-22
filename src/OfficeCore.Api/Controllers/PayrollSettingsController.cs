@@ -8,7 +8,7 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "RequirePayroll")]
 public class PayrollSettingsController : ControllerBase
 {
     private readonly AppDbContext _context;

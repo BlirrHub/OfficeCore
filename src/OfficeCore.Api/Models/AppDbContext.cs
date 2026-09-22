@@ -162,5 +162,50 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .WithMany()
             .HasForeignKey(bcl => bcl.LabelId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // SQLite stores decimal as REAL (float) by default, causing precision loss for financial values.
+        // Explicitly configure all financial decimal columns to use TEXT storage for exact precision.
+        builder.Entity<Employee>()
+            .Property(e => e.DailyRate)
+            .HasColumnType("TEXT");
+
+        builder.Entity<Payslip>(b =>
+        {
+            b.Property(p => p.BasicPay).HasColumnType("TEXT");
+            b.Property(p => p.TotalLeavePay).HasColumnType("TEXT");
+            b.Property(p => p.TotalOvertimePay).HasColumnType("TEXT");
+            b.Property(p => p.TotalHolidayPay).HasColumnType("TEXT");
+            b.Property(p => p.GrossPay).HasColumnType("TEXT");
+            b.Property(p => p.SssDeduction).HasColumnType("TEXT");
+            b.Property(p => p.PhilHealthDeduction).HasColumnType("TEXT");
+            b.Property(p => p.PagIbigDeduction).HasColumnType("TEXT");
+            b.Property(p => p.TaxDeduction).HasColumnType("TEXT");
+            b.Property(p => p.LateUndertimeDeduction).HasColumnType("TEXT");
+            b.Property(p => p.AdvancesDeduction).HasColumnType("TEXT");
+            b.Property(p => p.OtherAllowances).HasColumnType("TEXT");
+            b.Property(p => p.OtherDeductions).HasColumnType("TEXT");
+            b.Property(p => p.NetPay).HasColumnType("TEXT");
+        });
+
+        builder.Entity<GovernmentDeductionSetting>(b =>
+        {
+            b.Property(s => s.EmployeeShare).HasColumnType("TEXT");
+            b.Property(s => s.EmployerShare).HasColumnType("TEXT");
+        });
+
+        builder.Entity<GeneralPayrollSetting>()
+            .Property(s => s.Value)
+            .HasColumnType("TEXT");
+
+        builder.Entity<AdvanceRequest>(b =>
+        {
+            b.Property(a => a.RequestedAmount).HasColumnType("TEXT");
+            b.Property(a => a.RemainingBalance).HasColumnType("TEXT");
+            b.Property(a => a.InstallmentAmount).HasColumnType("TEXT");
+        });
+
+        builder.Entity<PayrollPeriod>()
+            .Property(p => p.DeductionMultiplier)
+            .HasColumnType("TEXT");
     }
 }

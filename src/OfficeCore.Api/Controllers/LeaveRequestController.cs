@@ -42,7 +42,7 @@ public class LeaveRequestController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,HR")]
+    [Authorize(Policy = "RequireLeaveApprovals")]
     public async Task<IActionResult> GetAllRequests()
     {
         var orgId = _tenant.GetActiveOrganizationId();
@@ -116,7 +116,7 @@ public class LeaveRequestController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
-    [Authorize(Roles = "Admin,HR")]
+    [Authorize(Policy = "RequireLeaveApprovals")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateLeaveStatusDto request)
     {
         var leaveRequest = await _context.LeaveRequests.FindAsync(id);
@@ -129,7 +129,7 @@ public class LeaveRequestController : ControllerBase
     }
 
     [HttpPost("admin-create")]
-    [Authorize(Roles = "Admin,HR")]
+    [Authorize(Policy = "RequireLeaveApprovals")]
     public async Task<IActionResult> AdminCreateRequest(AdminCreateLeaveRequestDto request)
     {
         var orgId = _tenant.GetActiveOrganizationId();
@@ -159,7 +159,7 @@ public class LeaveRequestController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,HR")]
+    [Authorize(Policy = "RequireLeaveApprovals")]
     public async Task<IActionResult> DeleteRequest(Guid id)
     {
         var leaveRequest = await _context.LeaveRequests.FindAsync(id);

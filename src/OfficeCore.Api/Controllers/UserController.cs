@@ -32,38 +32,44 @@ public class UserController : ControllerBase
         var org = await _context.Organizations.FindAsync(orgId);
         var createdByUserId = org?.CreatedByUserId;
 
+        // SQLite cannot translate a correlated sub-query for Roles inside a .Select().
+        // We use Include/ThenInclude to eagerly load the roles, then project in-memory.
         var employees = await _context.Employees
             .Include(e => e.User)
             .Include(e => e.GovernmentRecord)
+            .Include(e => e.EmployeeRoles)
+                .ThenInclude(er => er.Role)
             .Where(e => e.OrganizationId == orgId && e.UserId != createdByUserId)
-            .Select(e => new
-            {
-                e.User!.Id,
-                e.User.Email,
-                e.User.FirstName,
-                e.User.LastName,
-                e.EmployeeId,
-                EmployeePk = e.Id,  // Employee table PK — used as FK in EmployeeFingerprint
-                e.IsActive,
-                e.IsEmployee,
-                e.DailyRate,
-                e.UseCustomDailyRate,
-                e.DateHired,
-                e.ResignedDate,
-                e.IsEligibleForLeave,
-                e.WorkScheduleId,
-                GovernmentRecord = e.GovernmentRecord != null ? new
-                {
-                    e.GovernmentRecord.IsEligibleForDeductions,
-                    e.GovernmentRecord.SssNumber,
-                    e.GovernmentRecord.PagIbigNumber,
-                    e.GovernmentRecord.PhilHealthNumber,
-                    e.GovernmentRecord.TinNumber
-                } : null,
-                Roles = _context.EmployeeRoles.Where(er => er.EmployeeId == e.Id).Select(er => er.Role!.Name).ToList()
-            }).ToListAsync();
+            .ToListAsync();
 
-        return Ok(employees);
+        var result = employees.Select(e => new
+        {
+            e.User!.Id,
+            e.User.Email,
+            e.User.FirstName,
+            e.User.LastName,
+            e.EmployeeId,
+            EmployeePk = e.Id,
+            e.IsActive,
+            e.IsEmployee,
+            e.DailyRate,
+            e.UseCustomDailyRate,
+            e.DateHired,
+            e.ResignedDate,
+            e.IsEligibleForLeave,
+            e.WorkScheduleId,
+            GovernmentRecord = e.GovernmentRecord != null ? new
+            {
+                e.GovernmentRecord.IsEligibleForDeductions,
+                e.GovernmentRecord.SssNumber,
+                e.GovernmentRecord.PagIbigNumber,
+                e.GovernmentRecord.PhilHealthNumber,
+                e.GovernmentRecord.TinNumber
+            } : null,
+            Roles = e.EmployeeRoles.Select(er => er.Role?.Name).Where(n => n != null).ToList()
+        });
+
+        return Ok(result);
     }
 
     [HttpPost]

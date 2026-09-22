@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace OfficeCore.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class FixDecimalPrecision : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -707,13 +707,13 @@ namespace OfficeCore.Api.Migrations
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     EmployeeId = table.Column<string>(type: "TEXT", nullable: false),
                     Type = table.Column<int>(type: "INTEGER", nullable: false),
-                    RequestedAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    RequestedAmount = table.Column<decimal>(type: "TEXT", nullable: false),
                     Note = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
                     Status = table.Column<int>(type: "INTEGER", nullable: false),
                     RequestDate = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ResolutionDate = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    RemainingBalance = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    InstallmentAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    RemainingBalance = table.Column<decimal>(type: "TEXT", nullable: true),
+                    InstallmentAmount = table.Column<decimal>(type: "TEXT", nullable: true),
                     OrganizationId = table.Column<Guid>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>

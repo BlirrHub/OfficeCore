@@ -11,8 +11,8 @@ using OfficeCore.Api.Models;
 namespace OfficeCore.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260922031349_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260922124918_FixDecimalPrecision")]
+    partial class FixDecimalPrecision
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -133,7 +133,7 @@ namespace OfficeCore.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<decimal?>("InstallmentAmount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Note")
                         .IsRequired()
@@ -144,13 +144,13 @@ namespace OfficeCore.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<decimal?>("RemainingBalance")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("RequestDate")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("RequestedAmount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ResolutionDate")
                         .HasColumnType("TEXT");

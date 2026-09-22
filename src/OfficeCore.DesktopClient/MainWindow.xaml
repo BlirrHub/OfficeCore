@@ -6,19 +6,27 @@
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         xmlns:local="clr-namespace:OfficeCore.DesktopClient"
         mc:Ignorable="d"
-        Title="OfficeCore - Connect to Server" Height="720" Width="1280">
+        Title="OfficeCore" Height="720" Width="1280" Background="#F3F4F6" WindowStartupLocation="CenterScreen">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10">
-            <TextBlock Text="Server IP (e.g. 192.168.1.100): " VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <TextBox x:Name="IpAddressInput" Width="200" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <Button x:Name="ConnectButton" Content="Connect" Width="100" Click="ConnectButton_Click"/>
-        </StackPanel>
+        <!-- The WebView, hidden by default until connected -->
+        <wv2:WebView2 x:Name="webView" Visibility="Collapsed" />
 
-        <wv2:WebView2 x:Name="webView" Grid.Row="1" />
+        <!-- The Input Panel, centered on screen -->
+        <Border x:Name="InputPanel" VerticalAlignment="Center" HorizontalAlignment="Center" 
+                Background="White" Padding="40" CornerRadius="8">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="20" ShadowDepth="4"/>
+            </Border.Effect>
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="Connect to OfficeCore" FontSize="24" FontWeight="Bold" Margin="0,0,0,8" Foreground="#111827" HorizontalAlignment="Center"/>
+                <TextBlock Text="Enter the local server IP address to continue" FontSize="14" Foreground="#6B7280" Margin="0,0,0,24" HorizontalAlignment="Center"/>
+                
+                <TextBox x:Name="IpAddressInput" Width="300" Height="40" FontSize="16" Padding="8,6" Margin="0,0,0,16" 
+                         BorderBrush="#D1D5DB" BorderThickness="1"/>
+                
+                <Button x:Name="ConnectButton" Content="Connect" Width="300" Height="40" FontSize="16" 
+                        Background="#4F46E5" Foreground="White" BorderThickness="0" Cursor="Hand" Click="ConnectButton_Click"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

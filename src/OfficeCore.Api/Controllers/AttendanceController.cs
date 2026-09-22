@@ -153,7 +153,7 @@ public class AttendanceController : ControllerBase
 
         if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
 
-        var todayUtc = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+        var todayUtc = DateTime.UtcNow.Date;
         var tomorrowUtc = todayUtc.AddDays(1);
 
         var latestRecord = await _context.AttendanceRecords
