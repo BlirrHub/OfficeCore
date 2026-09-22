@@ -27,7 +27,9 @@
                 <span class="text-xl font-bold tracking-tight text-white">Office<span class="text-fuchsia-400">Core</span></span>
             </div>
             
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 sm:gap-4">
+                <ThemeToggle />
+
                 <AuthorizeView>
                     <Authorized>
                         <a href="/workspaces" class="text-sm font-medium px-5 py-2.5 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
@@ -36,8 +38,8 @@
                         </a>
                     </Authorized>
                     <NotAuthorized>
-                        <a href="/login" class="text-sm font-medium text-zinc-300 hover:text-white transition-colors">Log in</a>
-                        <a href="/register" class="text-sm font-medium px-5 py-2.5 rounded-full bg-white text-zinc-900 hover:bg-zinc-100 transition-colors shadow-lg shadow-white/10">Get Started</a>
+                        <a href="/login" class="text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors">Log in</a>
+                        <a href="/register" class="text-sm font-medium px-5 py-2.5 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">Get Started</a>
                     </NotAuthorized>
                 </AuthorizeView>
             </div>
@@ -46,12 +48,12 @@
 
     <!-- Hero Section -->
     <main class="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-24 text-center">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm text-zinc-300 mb-8 backdrop-blur-md">
+        <div class="home-badge inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm text-zinc-300 mb-8 backdrop-blur-md">
             <span class="w-2 h-2 rounded-full bg-fuchsia-500 animate-pulse"></span>
             OfficeCore 2.0 is now live
         </div>
         
-        <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-white to-zinc-500 mb-8 max-w-4xl mx-auto leading-tight">
+        <h1 class="home-hero-headline text-5xl md:text-7xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-white to-zinc-500 mb-8 max-w-4xl mx-auto leading-tight">
             The intelligent operating system for your company.
         </h1>
         

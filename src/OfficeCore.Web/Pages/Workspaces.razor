@@ -9,37 +9,47 @@
 
 <PageTitle>Your Workspaces - OfficeCore</PageTitle>
 
-<div class="min-h-screen bg-zinc-950 text-white selection:bg-fuchsia-500 selection:text-white p-6">
-    <div class="max-w-4xl mx-auto mt-16">
+<div class="min-h-screen bg-zinc-950 text-white selection:bg-fuchsia-500 selection:text-white p-4 sm:p-6 md:p-8 relative overflow-hidden">
+    <!-- Ambient Radial Glows -->
+    <div class="absolute -top-40 -left-40 size-96 rounded-full bg-fuchsia-600/10 blur-[130px] pointer-events-none"></div>
+    <div class="absolute -bottom-40 -right-40 size-96 rounded-full bg-violet-600/10 blur-[130px] pointer-events-none"></div>
+
+    <div class="max-w-5xl mx-auto mt-8 sm:mt-12 relative z-10">
         
         <!-- Header -->
-        <div class="flex items-center justify-between mb-12">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-6 border-b border-zinc-800/80">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight text-white">Your Workspaces</h1>
-                <p class="mt-1 text-zinc-400 text-sm">Select an organization to continue or create a new one.</p>
+                <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 text-xs font-medium mb-2">
+                    <span class="size-1.5 rounded-full bg-fuchsia-400 animate-pulse"></span>
+                    <span>Workspace Directory</span>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Your Workspaces</h1>
+                <p class="mt-1 text-zinc-400 text-xs sm:text-sm">Select an organization to enter or create a new one.</p>
             </div>
             
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+                <ThemeToggle />
+
                 @if (_user != null)
                 {
-                    <div class="flex items-center gap-3 mr-4">
+                    <div class="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
                         @if (!string.IsNullOrEmpty(_user.ProfilePictureUrl))
                         {
-                            <img src="@($"{Configuration["ApiBaseUrl"]}{_user.ProfilePictureUrl}")" alt="@_user.FirstName" class="w-10 h-10 rounded-full object-cover border border-zinc-800" />
+                            <img src="@($"{Configuration["ApiBaseUrl"]}{_user.ProfilePictureUrl}")" alt="@_user.FirstName" class="w-8 h-8 rounded-full object-cover border border-fuchsia-900/50" />
                         }
                         else
                         {
-                            <div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-medium border border-zinc-700">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-fuchsia-950 to-zinc-900 border border-fuchsia-500/30 flex items-center justify-center text-xs font-semibold text-fuchsia-400">
                                 @GetInitials($"{_user.FirstName} {_user.LastName}")
                             </div>
                         }
-                        <div class="hidden sm:block">
-                            <p class="text-sm font-medium text-white">@_user.FirstName @_user.LastName</p>
-                            <p class="text-xs text-zinc-500">@_user.Email</p>
+                        <div class="hidden sm:block text-left">
+                            <p class="text-xs font-semibold text-zinc-200">@_user.FirstName @_user.LastName</p>
+                            <p class="text-[10px] text-zinc-500">@_user.Email</p>
                         </div>
                     </div>
                 }
-                <button @onclick="Logout" class="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                <button @onclick="Logout" class="text-xs font-medium text-zinc-400 hover:text-white px-3 py-2 rounded-xl hover:bg-zinc-900 transition-colors">
                     Sign out
                 </button>
             </div>
@@ -48,25 +58,28 @@
         @if (_isLoading)
         {
             <div class="flex justify-center items-center py-24">
-                <svg class="animate-spin size-8 text-fuchsia-500" viewBox="0 0 24 24" fill="none">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
+                <div class="flex items-center gap-3 text-zinc-400 text-sm font-medium">
+                    <svg class="animate-spin size-5 text-fuchsia-500" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <span>Loading workspaces...</span>
+                </div>
             </div>
         }
         else
         {
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <!-- Create New Workspace Card -->
                 <div @onclick="OpenCreateModal" 
-                     class="group relative bg-zinc-900/50 border border-zinc-800 border-dashed rounded-2xl p-8 hover:bg-zinc-900 hover:border-fuchsia-500/50 transition-all cursor-pointer flex flex-col items-center justify-center text-center h-48">
-                    <div class="size-12 rounded-full bg-zinc-800 group-hover:bg-fuchsia-600/20 flex items-center justify-center mb-4 transition-colors">
-                        <svg class="size-6 text-zinc-400 group-hover:text-fuchsia-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                     class="group relative bg-zinc-900/30 border border-zinc-800 border-dashed rounded-2xl p-6 hover:bg-zinc-900/60 hover:border-fuchsia-500/50 transition-all cursor-pointer flex flex-col items-center justify-center text-center h-48">
+                    <div class="size-11 rounded-xl bg-zinc-800/80 group-hover:bg-fuchsia-600/20 group-hover:scale-105 flex items-center justify-center mb-3 transition-all">
+                        <svg class="size-5 text-zinc-400 group-hover:text-fuchsia-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
                     </div>
-                    <h3 class="text-lg font-medium text-white mb-1">Create new workspace</h3>
-                    <p class="text-sm text-zinc-500">Set up a new organization</p>
+                    <h3 class="text-sm font-semibold text-white mb-1">Create workspace</h3>
+                    <p class="text-xs text-zinc-500">Set up a new organization</p>
                 </div>
 
                 <!-- Existing Workspaces -->
@@ -75,28 +88,32 @@
                     @foreach (var org in _organizations)
                     {
                         <div @onclick="() => SelectOrganization(org.Id)" 
-                             class="group relative bg-zinc-900 border border-zinc-800 rounded-2xl p-8 hover:border-zinc-700 hover:shadow-xl hover:shadow-black/50 transition-all cursor-pointer h-48 flex flex-col">
-                            <div class="flex items-center gap-4 mb-auto">
+                             class="glass-card-interactive rounded-2xl p-6 cursor-pointer h-48 flex flex-col justify-between group">
+                            <div class="flex items-start gap-4">
                                 @if (!string.IsNullOrEmpty(org.LogoUrl))
                                 {
-                                    <img src="@($"{Configuration["ApiBaseUrl"]}{org.LogoUrl}")" alt="@org.Name" class="size-12 rounded-xl object-cover shadow-lg" />
+                                    <img src="@($"{Configuration["ApiBaseUrl"]}{org.LogoUrl}")" alt="@org.Name" class="size-11 rounded-xl object-cover border border-zinc-800 shadow-md shrink-0" />
                                 }
                                 else
                                 {
-                                    <div class="size-12 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                                    <div class="size-11 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-fuchsia-900/30 shrink-0">
                                         @GetInitials(org.Name)
                                     </div>
                                 }
-                                <div>
-                                    <h3 class="text-lg font-semibold text-white group-hover:text-fuchsia-400 transition-colors">@org.Name</h3>
-                                    <p class="text-sm text-zinc-500">Joined @org.JoinedAt.ToString("MMM yyyy")</p>
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="text-sm font-semibold text-white group-hover:text-fuchsia-300 transition-colors truncate">@org.Name</h3>
+                                    <p class="text-xs text-zinc-500 mt-0.5">Joined @org.JoinedAt.ToString("MMM yyyy")</p>
                                 </div>
                             </div>
-                            <div class="mt-4 flex items-center text-sm font-medium text-fuchsia-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                Enter workspace
-                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                </svg>
+                            
+                            <div class="flex items-center justify-between pt-3 border-t border-zinc-800/60 text-xs">
+                                <span class="text-zinc-500 font-medium">Workspace Active</span>
+                                <span class="text-fuchsia-400 font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                                    <span>Enter</span>
+                                    <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                    </svg>
+                                </span>
                             </div>
                         </div>
                     }
