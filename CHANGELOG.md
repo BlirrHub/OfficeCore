@@ -6,6 +6,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Changed — [2026-09-23] (Multi-Scenario Employee Seeding, Work Schedule & Payroll Engine Enhancements)
+- **Work Schedule & Unpaid Break Configuration (`DbSeeder.cs`):**
+  - Standardized the default organization schedule to **8:00 AM – 5:00 PM** across Monday through Friday (8 working hours/day) with Saturday and Sunday designated as rest days.
+  - Configured a 1-hour unpaid lunch break from **12:00 PM – 1:00 PM** (`WorkScheduleBreak`) and assigned all employees to this schedule.
+- **Multi-Role Employee Accounts & Distinct Capabilities (`DbSeeder.cs`):**
+  - Expanded company roster to 3 distinct test employees with tailored roles and capabilities:
+    1. **Alex Staff** (`EMP-002`, `employee@officecore.com`): Daily rate ₱800.00 (₱100.00/hr), assigned standard **Employee** role with ESS self-service claims (`Dashboard`, `Boards`, `MyLeaves`, `Advances`).
+    2. **Beatriz Ramos** (`EMP-003`, `beatriz.ramos@officecore.com`): Daily rate ₱1,200.00 (₱150.00/hr), assigned new **HR Manager** role with operational & managerial claims (`Attendance`, `Users`, `LeaveApprovals`, `TimeOff`, `WorkSchedules`, `Advances`, etc.).
+    3. **Carlos Mendoza** (`EMP-004`, `carlos.mendoza@officecore.com`): Daily rate ₱1,000.00 (₱125.00/hr), assigned new **Finance Specialist** role with financial & accounting claims (`Payroll`, `Ledger`, `Invoices`, `Advances`, `MyLeaves`).
+  - Ensured all 3 employees have `EmployeeGovernmentRecord` entries with deduction eligibility enabled (`IsEligibleForDeductions = true`) and default `GovernmentDeductionSettings` (SSS, PhilHealth, Pag-IBIG).
+- **1-Week Attendance Scenarios for Payroll Generation Testing (`DbSeeder.cs`):**
+  - Seeded 1 full work week of attendance logs (Monday Sept 21 to Friday Sept 25, 2026) testing three specific payroll edge cases:
+    - **Scenario 1 (Alex Staff - Early Bird / Perfect Attendance):** Punched in early every morning (between 7:30 AM and 7:50 AM) and punched out at or shortly after 5:00 PM across all 5 working days (40.53 net hours, 5 days present).
+    - **Scenario 2 (Beatriz Ramos - Irregular Attendance / Absent & Mid-Day Lunch Punch):** Late arrivals (9:30 AM on Monday, 8:45 AM on Thursday), mid-day punch at 12:45 PM during lunch break (Tuesday) with auto-overlap deduction, and 1 day absent on Wednesday (25.75 net hours, 4 days present).
+    - **Scenario 3 (Carlos Mendoza - Overtime & Undertime Variations):** Extended evening overtime until 7:30 PM on Monday and 6:00 PM on Friday, early departure / undertime at 3:00 PM on Tuesday, and late+early departure on Thursday (40.50 net hours, 5 days present).
+  - Seeded ready-to-compute Draft `PayrollPeriod` for September 21–27, 2026 with 25% weekly deduction multiplier (`DeductionMultiplier: 0.25`).
+- **Payroll Computation Engine Timezone & Pre-Shift Enhancements (`PayrollComputationService.cs`):**
+  - Fixed timezone clipping bug: Converted local `period.StartDate` and `period.EndDate` to UTC bounds so early morning punches in positive UTC offsets (e.g. UTC+8) are never clipped at 00:00 UTC.
+  - Implemented pre-shift cap: Capped early morning clock-ins before scheduled shift start time (8:00 AM) when `IncludeTimeTrackedBeforeScheduledStartTime` is false, ensuring early arrivals are counted as on-time standard attendance rather than unapproved overtime.
+
+
+### Added & Changed — [2026-09-23] (Attendance UI Bug Fixes, Tab Isolation & Multi-Account Role Testing)
+- **Attendance UI Razor Bug Fix & Strict Tab Isolation (`Attendance.razor` & `AttendanceSettings.razor`):**
+  - Resolved Razor template rendering issue where `else if` statements separated by HTML comments lacked the `@` prefix, causing raw C# code (`else if (_canManageAttendance && _activeTab == "company") {`) to be rendered directly into the DOM and causing all tabs (My Attendance, Company Records, Device Settings) to leak and render simultaneously.
+  - Converted tab sections to isolated, independent `@if` blocks (`@if (_activeTab == "my")`, `@if (_canManageAttendance && _activeTab == "company")`, and `@if (_canManageAttendance && _activeTab == "settings")`), strictly isolating UI views based on the active tab and user permissions.
+  - Cleaned up the embedded `AttendanceSettings.razor` component by removing redundant outer `max-w-7xl mx-auto p-6` containers and duplicate `<h1>` headers for a seamless fit under the Device Settings tab.
+  - Adjusted shift text display on the Scheduled Shift metric card (`text-base font-bold` with tooltip) to prevent truncated shift schedules (`09:00 AM - 06:00 PM`).
+- **Multi-Role Demo Accounts & Fast Demo Access (`DbSeeder.cs` & `Login.razor`):**
+  - Provisioned standard Employee demo account (`employee@officecore.com` / `Password123!`) assigned to "Alex Staff" (`EMP-002`, standard Employee/Member role, flexible work schedule).
+  - Updated the Login page (`Login.razor`) with dual Quick Demo Access buttons:
+    - `👑 Admin Demo` (populates `demo@officecore.com` with administrative privileges).
+    - `👤 Employee Demo` (populates `employee@officecore.com` with standard employee privileges).
+  - Verified role-based UI security in Chrome: Standard employees see only the personal Workstation Time Clock hub and their personal attendance log, with administrative tabs (`Company Records`, `Device Settings`) and the `+ Manual Entry` button completely hidden.
+
 ### Added & Changed — [2026-09-23] (Tiered Attendance System & Employee Self-Service)
 - **Employee Self-Service (ESS) Personal Attendance Hub (`AttendanceController.cs` & `Attendance.razor`):**
   - Implemented `GET /api/attendance/my` under standard `[Authorize]` allowing all active employees to access their personal attendance history, shift schedule, today's elapsed hours, and monthly stats without needing administrative claims.

@@ -52,8 +52,11 @@ public class PayrollComputationService : IPayrollComputationService
 
         var payslips = new List<Payslip>();
 
-        var periodStartDt = DateTime.SpecifyKind(period.StartDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-        var periodEndDt = DateTime.SpecifyKind(period.EndDate.ToDateTime(TimeOnly.MaxValue), DateTimeKind.Utc);
+        // Convert local start of day (00:00:00) and local end of day (23:59:59.999) to UTC so that early morning punches in positive UTC offsets (e.g., UTC+8) are not clipped
+        var localStart = period.StartDate.ToDateTime(TimeOnly.MinValue);
+        var localEnd = period.EndDate.ToDateTime(TimeOnly.MaxValue);
+        var periodStartDt = new DateTimeOffset(localStart, TimeZoneInfo.Local.GetUtcOffset(localStart)).UtcDateTime;
+        var periodEndDt = new DateTimeOffset(localEnd, TimeZoneInfo.Local.GetUtcOffset(localEnd)).UtcDateTime;
         
         // Use the explicitly defined DeductionMultiplier for government deductions
         decimal proportionMultiplier = period.DeductionMultiplier;
@@ -123,6 +126,16 @@ public class PayrollComputationService : IPayrollComputationService
                             daysWithAttendance++;
                             var timeIn = clockIn.Timestamp.ToLocalTime().TimeOfDay;
                             var timeOut = clockOut.Timestamp.ToLocalTime().TimeOfDay;
+
+                            // If schedule does not include time tracked before scheduled start time, cap timeIn to scheduled start time
+                            if (emp.WorkSchedule != null && !emp.WorkSchedule.IncludeTimeTrackedBeforeScheduledStartTime)
+                            {
+                                var schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == clockIn.Timestamp.ToLocalTime().DayOfWeek);
+                                if (schedDay != null && schedDay.StartTime.HasValue && timeIn < schedDay.StartTime.Value)
+                                {
+                                    timeIn = schedDay.StartTime.Value;
+                                }
+                            }
 
                             double dailyHours = (timeOut - timeIn).TotalHours;
 
