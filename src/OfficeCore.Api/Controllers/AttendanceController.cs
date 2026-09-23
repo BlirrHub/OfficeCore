@@ -9,35 +9,255 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "RequireAttendance")]
+[Authorize]
 public class AttendanceController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly FingerprintDeviceService _deviceService;
-    private readonly Microsoft.AspNetCore.SignalR.IHubContext<OfficeCore.Api.Hubs.AttendanceHub> _hubContext;
+    private readonly IHubContext<OfficeCore.Api.Hubs.AttendanceHub> _hubContext;
+    private readonly TenantService _tenant;
 
-    public AttendanceController(AppDbContext context, FingerprintDeviceService deviceService, Microsoft.AspNetCore.SignalR.IHubContext<OfficeCore.Api.Hubs.AttendanceHub> hubContext)
+    public AttendanceController(
+        AppDbContext context, 
+        FingerprintDeviceService deviceService, 
+        IHubContext<OfficeCore.Api.Hubs.AttendanceHub> hubContext,
+        TenantService tenant)
     {
         _context = context;
         _deviceService = deviceService;
         _hubContext = hubContext;
+        _tenant = tenant;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetAttendanceRecords()
+    // =========================================================================
+    // EMPLOYEE SELF-SERVICE (ESS) ENDPOINTS
+    // =========================================================================
+
+    [HttpGet("my")]
+    public async Task<IActionResult> GetMyAttendance()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Unauthorized("Employee profile not found in active workspace.");
+
+        var todayUtc = DateTime.UtcNow.Date;
+        var tomorrowUtc = todayUtc.AddDays(1);
+
+        // Fetch employee with work schedule
+        var empWithSchedule = await _context.Employees
+            .Include(e => e.WorkSchedule)
+                .ThenInclude(ws => ws!.Days)
+            .FirstOrDefaultAsync(e => e.Id == employee.Id && e.OrganizationId == orgId.Value);
+
+        // Fetch personal attendance records
         var records = await _context.AttendanceRecords
+            .Where(a => a.OrganizationId == orgId.Value && a.EmployeeId == employee.Id)
+            .OrderByDescending(a => a.Timestamp)
+            .Take(200)
+            .ToListAsync();
+
+        // Calculate today's status
+        var todayRecords = records
+            .Where(a => a.Timestamp.UtcDateTime >= todayUtc && a.Timestamp.UtcDateTime < tomorrowUtc)
+            .OrderBy(a => a.Timestamp)
+            .ToList();
+
+        var latestTodayRecord = todayRecords.LastOrDefault();
+        bool isClockedIn = latestTodayRecord != null && latestTodayRecord.Type == AttendanceType.ClockIn;
+        DateTimeOffset? lastPunchTime = latestTodayRecord?.Timestamp;
+
+        // Calculate hours worked today by pairing ClockIn and ClockOut
+        double todayTotalHours = 0;
+        DateTimeOffset? currentClockIn = null;
+        foreach (var r in todayRecords)
+        {
+            if (r.Type == AttendanceType.ClockIn)
+            {
+                currentClockIn = r.Timestamp;
+            }
+            else if (r.Type == AttendanceType.ClockOut && currentClockIn.HasValue)
+            {
+                todayTotalHours += (r.Timestamp - currentClockIn.Value).TotalHours;
+                currentClockIn = null;
+            }
+        }
+        if (currentClockIn.HasValue)
+        {
+            todayTotalHours += Math.Max(0, (DateTimeOffset.UtcNow - currentClockIn.Value).TotalHours);
+        }
+
+        // Scheduled shift for today
+        var localNow = DateTime.Now;
+        var dayOfWeek = localNow.DayOfWeek;
+        string scheduledShiftText = "Flexible Schedule";
+        TimeSpan? scheduledStartTime = null;
+        TimeSpan? scheduledEndTime = null;
+
+        if (empWithSchedule?.WorkSchedule?.Days != null)
+        {
+            var todaySched = empWithSchedule.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == dayOfWeek);
+            if (todaySched != null)
+            {
+                if (todaySched.IsRestDay)
+                {
+                    scheduledShiftText = "Rest Day";
+                }
+                else
+                {
+                    scheduledStartTime = todaySched.StartTime;
+                    scheduledEndTime = todaySched.EndTime;
+                    if (todaySched.StartTime.HasValue && todaySched.EndTime.HasValue)
+                    {
+                        scheduledShiftText = $"{DateTime.Today.Add(todaySched.StartTime.Value):hh:mm tt} - {DateTime.Today.Add(todaySched.EndTime.Value):hh:mm tt}";
+                    }
+                    else
+                    {
+                        scheduledShiftText = "Flexible Schedule";
+                    }
+                }
+            }
+        }
+
+        // Month-to-date stats
+        var startOfMonth = new DateTime(localNow.Year, localNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var monthRecords = records
+            .Where(a => a.Timestamp.UtcDateTime >= startOfMonth)
+            .OrderBy(a => a.Timestamp)
+            .ToList();
+
+        int daysPresent = monthRecords.Select(r => r.Timestamp.ToLocalTime().Date).Distinct().Count();
+
+        double monthTotalHours = 0;
+        DateTimeOffset? monthClockIn = null;
+        foreach (var r in monthRecords)
+        {
+            if (r.Type == AttendanceType.ClockIn)
+            {
+                monthClockIn = r.Timestamp;
+            }
+            else if (r.Type == AttendanceType.ClockOut && monthClockIn.HasValue)
+            {
+                monthTotalHours += (r.Timestamp - monthClockIn.Value).TotalHours;
+                monthClockIn = null;
+            }
+        }
+
+        var recordDtos = records.Select(a => new
+        {
+            a.Id,
+            a.Timestamp,
+            Type = a.Type.ToString(),
+            Source = a.Source.ToString()
+        }).ToList();
+
+        return Ok(new
+        {
+            IsClockedIn = isClockedIn,
+            LastPunchTime = lastPunchTime,
+            TodayTotalHours = Math.Round(todayTotalHours, 2),
+            ScheduledShiftText = scheduledShiftText,
+            ScheduledStartTime = scheduledStartTime,
+            ScheduledEndTime = scheduledEndTime,
+            DaysPresent = daysPresent,
+            MonthTotalHours = Math.Round(monthTotalHours, 2),
+            Records = recordDtos
+        });
+    }
+
+    [HttpPost("punch")]
+    public async Task<IActionResult> Punch()
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Unauthorized("Employee profile not found in active workspace.");
+
+        var todayUtc = DateTime.UtcNow.Date;
+        var tomorrowUtc = todayUtc.AddDays(1);
+
+        var latestRecord = await _context.AttendanceRecords
+            .Where(a => a.OrganizationId == orgId.Value
+                     && a.EmployeeId == employee.Id
+                     && a.Timestamp >= todayUtc
+                     && a.Timestamp < tomorrowUtc)
+            .OrderByDescending(a => a.Timestamp)
+            .FirstOrDefaultAsync();
+
+        var type = AttendanceType.ClockIn;
+        if (latestRecord != null && latestRecord.Type == AttendanceType.ClockIn)
+        {
+            type = AttendanceType.ClockOut;
+        }
+
+        var record = new AttendanceRecord
+        {
+            Id = Guid.NewGuid(),
+            EmployeeId = employee.Id,
+            Timestamp = DateTimeOffset.UtcNow,
+            Type = type,
+            Source = AttendanceSource.Web,
+            OrganizationId = orgId.Value
+        };
+
+        _context.AttendanceRecords.Add(record);
+        await _context.SaveChangesAsync();
+
+        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+
+        var actionText = type == AttendanceType.ClockIn ? "Clocked In" : "Clocked Out";
+        return Ok(new
+        {
+            message = $"Successfully {actionText} at {record.Timestamp.ToLocalTime():hh:mm tt}.",
+            type = type.ToString(),
+            timestamp = record.Timestamp
+        });
+    }
+
+    // =========================================================================
+    // MANAGEMENT SELF-SERVICE (MSS) ENDPOINTS — Policy: RequireAttendance
+    // =========================================================================
+
+    [HttpGet]
+    [Authorize(Policy = "RequireAttendance")]
+    public async Task<IActionResult> GetAttendanceRecords([FromQuery] string? employeeId = null, [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        var query = _context.AttendanceRecords
             .Include(a => a.Employee)
                 .ThenInclude(e => e!.User)
             .Include(a => a.Employee)
                 .ThenInclude(e => e!.WorkSchedule)
                     .ThenInclude(ws => ws!.Days)
+            .Where(a => a.OrganizationId == orgId.Value);
+
+        if (!string.IsNullOrWhiteSpace(employeeId))
+        {
+            query = query.Where(a => a.EmployeeId == employeeId);
+        }
+
+        if (startDate.HasValue)
+        {
+            var startUtc = DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc);
+            query = query.Where(a => a.Timestamp >= startUtc);
+        }
+
+        if (endDate.HasValue)
+        {
+            var endUtc = DateTime.SpecifyKind(endDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            query = query.Where(a => a.Timestamp < endUtc);
+        }
+
+        var records = await query
             .OrderByDescending(a => a.Timestamp)
-            .Take(100)
+            .Take(250)
             .ToListAsync();
 
         var dtos = records.Select(a => {
-            // Find schedule for this day
             var localTime = a.Timestamp.ToLocalTime();
             var dayOfWeek = localTime.DayOfWeek;
             
@@ -57,7 +277,7 @@ public class AttendanceController : ControllerBase
             return new
             {
                 a.Id,
-                EmployeeName = a.Employee != null ? $"{a.Employee.User.FirstName} {a.Employee.User.LastName}" : "Unknown",
+                EmployeeName = a.Employee?.User != null ? $"{a.Employee.User.FirstName} {a.Employee.User.LastName}" : "Unknown",
                 a.EmployeeId,
                 a.Timestamp,
                 Type = a.Type.ToString(),
@@ -70,7 +290,61 @@ public class AttendanceController : ControllerBase
         return Ok(dtos);
     }
 
+    [HttpPost("admin-create")]
+    [Authorize(Policy = "RequireAttendance")]
+    public async Task<IActionResult> AdminCreateAttendanceRecord([FromBody] AdminCreateAttendanceDto dto)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        var employee = await _context.Employees
+            .Include(e => e.User)
+            .FirstOrDefaultAsync(e => e.Id == dto.EmployeeId && e.OrganizationId == orgId.Value);
+            
+        if (employee == null) return BadRequest("Employee not found in active workspace.");
+
+        var record = new AttendanceRecord
+        {
+            Id = Guid.NewGuid(),
+            EmployeeId = dto.EmployeeId,
+            Timestamp = new DateTimeOffset(DateTime.SpecifyKind(dto.Timestamp, DateTimeKind.Local)).ToUniversalTime(),
+            Type = dto.Type,
+            Source = AttendanceSource.ManualAdjustment,
+            OrganizationId = orgId.Value
+        };
+
+        _context.AttendanceRecords.Add(record);
+        await _context.SaveChangesAsync();
+
+        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+
+        return Ok(new { message = "Attendance record created." });
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Policy = "RequireAttendance")]
+    public async Task<IActionResult> DeleteAttendanceRecord(Guid id)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        var record = await _context.AttendanceRecords.FirstOrDefaultAsync(a => a.Id == id && a.OrganizationId == orgId.Value);
+        if (record == null) return NotFound("Attendance record not found.");
+
+        _context.AttendanceRecords.Remove(record);
+        await _context.SaveChangesAsync();
+
+        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+
+        return Ok(new { message = "Attendance record deleted." });
+    }
+
+    // =========================================================================
+    // BIOMETRIC SCANNER & ENROLLMENT ENDPOINTS
+    // =========================================================================
+
     [HttpPost("enroll/{employeeId}")]
+    [Authorize(Policy = "RequireAttendance")]
     public IActionResult StartEnrollment(string employeeId)
     {
         var started = _deviceService.StartEnrollment(employeeId);
@@ -83,6 +357,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("cancel-enroll")]
+    [Authorize(Policy = "RequireAttendance")]
     public IActionResult CancelEnrollment()
     {
         _deviceService.CancelEnrollment();
@@ -90,6 +365,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("fingerprints/{employeeId}")]
+    [Authorize(Policy = "RequireAttendance")]
     public async Task<IActionResult> GetEmployeeFingerprints(string employeeId)
     {
         var prints = await _context.EmployeeFingerprints
@@ -101,6 +377,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpDelete("fingerprints/{id}")]
+    [Authorize(Policy = "RequireAttendance")]
     public async Task<IActionResult> DeleteFingerprint(int id)
     {
         var fp = await _context.EmployeeFingerprints.FindAsync(id);
@@ -108,85 +385,12 @@ public class AttendanceController : ControllerBase
 
         _context.EmployeeFingerprints.Remove(fp);
         await _context.SaveChangesAsync();
-
-        // Optional: We could also send a DELETE command to the ESP32 here to free up the slot in the sensor memory!
         
         return Ok(new { message = "Fingerprint mapping deleted." });
     }
 
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteAttendanceRecord(Guid id)
-    {
-        var record = await _context.AttendanceRecords.FindAsync(id);
-        if (record == null) return NotFound();
-
-        _context.AttendanceRecords.Remove(record);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Attendance record deleted." });
-    }
-
-    [HttpPost("admin-create")]
-    public async Task<IActionResult> AdminCreateAttendanceRecord([FromBody] AdminCreateAttendanceDto dto)
-    {
-        var employee = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.EmployeeId);
-        if (employee == null) return BadRequest("Employee not found");
-
-        var record = new AttendanceRecord
-        {
-            EmployeeId = dto.EmployeeId,
-            Timestamp = new DateTimeOffset(DateTime.SpecifyKind(dto.Timestamp, DateTimeKind.Local)).ToUniversalTime(),
-            Type = dto.Type,
-            Source = AttendanceSource.ManualAdjustment
-        };
-
-        _context.AttendanceRecords.Add(record);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Attendance record created." });
-    }
-    [HttpPost("scan-event")]
-    public async Task<IActionResult> LogScanEvent([FromBody] ScanEventDto dto)
-    {
-        var mapping = await _context.EmployeeFingerprints
-            .FirstOrDefaultAsync(f => f.FingerprintId == dto.FingerprintId);
-
-        if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
-
-        var todayUtc = DateTime.UtcNow.Date;
-        var tomorrowUtc = todayUtc.AddDays(1);
-
-        var latestRecord = await _context.AttendanceRecords
-            .Where(a => a.EmployeeId == mapping.EmployeeId
-                     && a.Timestamp >= todayUtc
-                     && a.Timestamp < tomorrowUtc)
-            .OrderByDescending(a => a.Timestamp)
-            .FirstOrDefaultAsync();
-
-        var type = AttendanceType.ClockIn;
-        if (latestRecord != null && latestRecord.Type == AttendanceType.ClockIn)
-        {
-            type = AttendanceType.ClockOut;
-        }
-
-        var record = new AttendanceRecord
-        {
-            EmployeeId = mapping.EmployeeId,
-            Timestamp = DateTimeOffset.UtcNow,
-            Type = type,
-            Source = AttendanceSource.Device,
-            OrganizationId = mapping.OrganizationId
-        };
-
-        _context.AttendanceRecords.Add(record);
-        await _context.SaveChangesAsync();
-
-        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
-
-        return Ok(new { message = "Attendance logged.", type = type.ToString() });
-    }
-
     [HttpPost("enroll-success")]
+    [Authorize(Policy = "RequireAttendance")]
     public async Task<IActionResult> EnrollSuccess([FromBody] EnrollSuccessDto dto)
     {
         var employee = await _context.Employees.FindAsync(dto.EmployeeId);
@@ -201,6 +405,51 @@ public class AttendanceController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok(new { message = "Fingerprint enrolled successfully." });
+    }
+
+    // Hardware Scanner scan callback endpoint
+    [HttpPost("scan-event")]
+    [AllowAnonymous] // ESP32 Wi-Fi hardware posts directly to this endpoint
+    public async Task<IActionResult> LogScanEvent([FromBody] ScanEventDto dto)
+    {
+        var mapping = await _context.EmployeeFingerprints
+            .FirstOrDefaultAsync(f => f.FingerprintId == dto.FingerprintId);
+
+        if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
+
+        var todayUtc = DateTime.UtcNow.Date;
+        var tomorrowUtc = todayUtc.AddDays(1);
+
+        var latestRecord = await _context.AttendanceRecords
+            .Where(a => a.OrganizationId == mapping.OrganizationId
+                     && a.EmployeeId == mapping.EmployeeId
+                     && a.Timestamp >= todayUtc
+                     && a.Timestamp < tomorrowUtc)
+            .OrderByDescending(a => a.Timestamp)
+            .FirstOrDefaultAsync();
+
+        var type = AttendanceType.ClockIn;
+        if (latestRecord != null && latestRecord.Type == AttendanceType.ClockIn)
+        {
+            type = AttendanceType.ClockOut;
+        }
+
+        var record = new AttendanceRecord
+        {
+            Id = Guid.NewGuid(),
+            EmployeeId = mapping.EmployeeId,
+            Timestamp = DateTimeOffset.UtcNow,
+            Type = type,
+            Source = AttendanceSource.Device,
+            OrganizationId = mapping.OrganizationId
+        };
+
+        _context.AttendanceRecords.Add(record);
+        await _context.SaveChangesAsync();
+
+        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+
+        return Ok(new { message = "Attendance logged.", type = type.ToString() });
     }
 }
 

@@ -152,7 +152,8 @@ public static class DbSeeder
                 });
             }
 
-            if (module is "Dashboard" or "Attendance" or "Boards" or "MyLeaves" or "Advances")
+            // Attendance management claim is restricted to Admins/Managers. Standard members use [Authorize] self-service.
+            if (module is "Dashboard" or "Boards" or "MyLeaves" or "Advances")
             {
                 if (!memberOrgRole.Claims.Any(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == module))
                 {
@@ -163,6 +164,15 @@ public static class DbSeeder
                         ClaimType = "ModuleAccess",
                         ClaimValue = module
                     });
+                }
+            }
+            else if (module == "Attendance")
+            {
+                var existingMemberAttendanceClaim = memberOrgRole.Claims
+                    .FirstOrDefault(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == "Attendance");
+                if (existingMemberAttendanceClaim != null)
+                {
+                    context.OrganizationRoleClaims.Remove(existingMemberAttendanceClaim);
                 }
             }
         }

@@ -12,7 +12,8 @@ public enum AttendanceType
 public enum AttendanceSource
 {
     Device,
-    ManualAdjustment
+    ManualAdjustment,
+    Web
 }
 
 public class AttendanceRecord : ITenantEntity{

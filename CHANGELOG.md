@@ -6,6 +6,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Changed — [2026-09-23] (Tiered Attendance System & Employee Self-Service)
+- **Employee Self-Service (ESS) Personal Attendance Hub (`AttendanceController.cs` & `Attendance.razor`):**
+  - Implemented `GET /api/attendance/my` under standard `[Authorize]` allowing all active employees to access their personal attendance history, shift schedule, today's elapsed hours, and monthly stats without needing administrative claims.
+  - Implemented `POST /api/attendance/punch` allowing employees to clock in and clock out directly from their workstation or web browser with automatic punch-type detection (Clock In vs Clock Out) and SignalR broadcast.
+  - Added `Web` value to `AttendanceSource` enum to distinguish browser-based workstation punches from hardware fingerprint scanner scans and manual adjustments.
+  - Redesigned `/attendance` as a unified role-aware hub:
+    - **Personal Attendance Hub (For all employees):** Live digital clock with date, real-time clock-in status badge (with animated green pulse when active), scheduled shift indicator, big responsive 1-click punch button, 4 quick stat cards (Hours Worked Today, Scheduled Shift, Hours This Month, Days Present), and personal read-only attendance log table with date filtering.
+    - **Management Hub (For users with `Attendance` module claim):** Top tabs to toggle between "My Attendance", "Company Records" (searchable, filterable company logs with manual entry modal and deletion modal), and "Device Settings" (USB COM & TCP Wi-Fi scanner management).
+- **Attendance Multi-Tenancy Hardening & Security Scoping (`AttendanceController.cs`):**
+  - Fixed cross-tenant data leak by strictly scoping `GET /api/attendance` queries to `Where(a => a.OrganizationId == orgId.Value)`.
+  - Fixed identity mapping in `POST /api/attendance/admin-create` to resolve against `_context.Employees` (instead of `_context.Users`) and explicitly assign `OrganizationId`.
+  - Restricted company records, manual adjustments, deletions, and biometric scanner endpoints under `[Authorize(Policy = "RequireAttendance")]`.
+- **Role Permissions & Navigation Alignment (`DbSeeder.cs` & `NavMenu.razor`):**
+  - Updated `DbSeeder.cs` to restrict the management `Attendance` claim to Admins and Managers, removing it from default standard `Member`/`Employee` roles while ensuring employees have access to personal attendance.
+  - Updated `NavMenu.razor` to ensure the "Attendance" navigation link under "Main" is universally accessible to all authenticated workspace members.
+
 ### Added & Changed — [2026-09-23] (PostgreSQL 18 Migration & POS-Style Desktop Hub)
 - **Database Migration to PostgreSQL 18 (`OfficeCore.Api`):**
   - Reverted database engine from SQLite to PostgreSQL 18 via `Npgsql.EntityFrameworkCore.PostgreSQL` (`v9.0.3`) for robust enterprise concurrency, multi-client LAN stability, and scalability.
