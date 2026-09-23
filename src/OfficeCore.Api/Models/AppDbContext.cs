@@ -163,49 +163,49 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .HasForeignKey(bcl => bcl.LabelId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // SQLite stores decimal as REAL (float) by default, causing precision loss for financial values.
-        // Explicitly configure all financial decimal columns to use TEXT storage for exact precision.
+        // PostgreSQL stores decimal as native numeric type with arbitrary precision.
+        // Configure standard precision for currency and multiplier columns.
         builder.Entity<Employee>()
             .Property(e => e.DailyRate)
-            .HasColumnType("TEXT");
+            .HasPrecision(18, 2);
 
         builder.Entity<Payslip>(b =>
         {
-            b.Property(p => p.BasicPay).HasColumnType("TEXT");
-            b.Property(p => p.TotalLeavePay).HasColumnType("TEXT");
-            b.Property(p => p.TotalOvertimePay).HasColumnType("TEXT");
-            b.Property(p => p.TotalHolidayPay).HasColumnType("TEXT");
-            b.Property(p => p.GrossPay).HasColumnType("TEXT");
-            b.Property(p => p.SssDeduction).HasColumnType("TEXT");
-            b.Property(p => p.PhilHealthDeduction).HasColumnType("TEXT");
-            b.Property(p => p.PagIbigDeduction).HasColumnType("TEXT");
-            b.Property(p => p.TaxDeduction).HasColumnType("TEXT");
-            b.Property(p => p.LateUndertimeDeduction).HasColumnType("TEXT");
-            b.Property(p => p.AdvancesDeduction).HasColumnType("TEXT");
-            b.Property(p => p.OtherAllowances).HasColumnType("TEXT");
-            b.Property(p => p.OtherDeductions).HasColumnType("TEXT");
-            b.Property(p => p.NetPay).HasColumnType("TEXT");
+            b.Property(p => p.BasicPay).HasPrecision(18, 2);
+            b.Property(p => p.TotalLeavePay).HasPrecision(18, 2);
+            b.Property(p => p.TotalOvertimePay).HasPrecision(18, 2);
+            b.Property(p => p.TotalHolidayPay).HasPrecision(18, 2);
+            b.Property(p => p.GrossPay).HasPrecision(18, 2);
+            b.Property(p => p.SssDeduction).HasPrecision(18, 2);
+            b.Property(p => p.PhilHealthDeduction).HasPrecision(18, 2);
+            b.Property(p => p.PagIbigDeduction).HasPrecision(18, 2);
+            b.Property(p => p.TaxDeduction).HasPrecision(18, 2);
+            b.Property(p => p.LateUndertimeDeduction).HasPrecision(18, 2);
+            b.Property(p => p.AdvancesDeduction).HasPrecision(18, 2);
+            b.Property(p => p.OtherAllowances).HasPrecision(18, 2);
+            b.Property(p => p.OtherDeductions).HasPrecision(18, 2);
+            b.Property(p => p.NetPay).HasPrecision(18, 2);
         });
 
         builder.Entity<GovernmentDeductionSetting>(b =>
         {
-            b.Property(s => s.EmployeeShare).HasColumnType("TEXT");
-            b.Property(s => s.EmployerShare).HasColumnType("TEXT");
+            b.Property(s => s.EmployeeShare).HasPrecision(18, 2);
+            b.Property(s => s.EmployerShare).HasPrecision(18, 2);
         });
 
         builder.Entity<GeneralPayrollSetting>()
             .Property(s => s.Value)
-            .HasColumnType("TEXT");
+            .HasPrecision(18, 2);
 
         builder.Entity<AdvanceRequest>(b =>
         {
-            b.Property(a => a.RequestedAmount).HasColumnType("TEXT");
-            b.Property(a => a.RemainingBalance).HasColumnType("TEXT");
-            b.Property(a => a.InstallmentAmount).HasColumnType("TEXT");
+            b.Property(a => a.RequestedAmount).HasPrecision(18, 2);
+            b.Property(a => a.RemainingBalance).HasPrecision(18, 2);
+            b.Property(a => a.InstallmentAmount).HasPrecision(18, 2);
         });
 
         builder.Entity<PayrollPeriod>()
             .Property(p => p.DeductionMultiplier)
-            .HasColumnType("TEXT");
+            .HasPrecision(18, 4);
     }
 }

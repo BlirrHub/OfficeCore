@@ -9,7 +9,7 @@ This document establishes the architecture rules, project conventions, technical
 **OfficeCore** is a modern, monolithic enterprise platform integrating human resource management, multi-tenant workspace isolation, automated biometric attendance, time-tracked payroll, Kanban project management, real-time messaging, and client invoicing.
 
 ### Core Philosophy
-- **Zero-Friction Local Development:** Self-contained with SQLite (`officecore.db`), requiring no external database services (PostgreSQL, Docker, etc.) to develop or test locally.
+- **On-Premises & Local Office First:** Built for private organizational use with a Point-of-Sale (POS)-style Desktop Hub. A primary computer acts as the Server Station (hosting PostgreSQL and the API), while other office workstations connect seamlessly as Client Terminals.
 - **Strict Tenant Isolation:** Data across workspaces must never bleed. Every multi-tenant entity and query is strictly scoped to the active organization.
 - **Role-Based Granular Access:** Distinct separation between Employee Self-Service (ESS) and Management Self-Service (MSS) via dynamic claims transformation.
 - **Aesthetic Excellence:** Modern, ultra-premium interface with glassmorphism, responsive navigation drawers, and seamless zero-flicker Dark and Light mode themes.
@@ -20,11 +20,11 @@ This document establishes the architecture rules, project conventions, technical
 
 | Layer | Technology | Details |
 |---|---|---|
-| **Backend API** | ASP.NET Core 9 Web API | Target framework `net9.0`, C# 13 |
-| **Database & ORM** | SQLite + EF Core 9 | `Microsoft.EntityFrameworkCore.Sqlite`, database file `officecore.db` |
+| **Backend API** | ASP.NET Core 9 Web API | Target framework `net9.0`, C# 13, unified single-port host on port `5026` |
+| **Database & ORM** | PostgreSQL 18 + EF Core 9 | `Npgsql.EntityFrameworkCore.PostgreSQL`, database `OfficeCoreDb` on port `5432` |
 | **Identity & Auth** | ASP.NET Core Identity | Cookie-based authentication with custom claims transformation |
-| **Frontend Web** | Blazor WebAssembly | Standalone client-side WASM hosted on ASP.NET Core static files |
-| **Desktop Client** | WPF + Edge WebView2 | Microsoft Edge WebView2 wrapper in `OfficeCore.DesktopClient` |
+| **Frontend Web** | Blazor WebAssembly | Client-side WASM hosted and served directly by ASP.NET Core API |
+| **Desktop Client** | WPF + Edge WebView2 | `OfficeCore.DesktopClient` dual-mode POS hub (Server Station & Client Terminal) |
 | **Styling** | Tailwind CSS v4 | `@tailwindcss/cli` v4.3.1, custom CSS variable token design system |
 | **Real-Time** | ASP.NET Core SignalR | `ChatHub`, `AttendanceHub`, `BoardHub` |
 | **Hardware** | Web Serial API + ESP32 | Biometric fingerprint scanner over USB Serial (browser) or TCP (Wi-Fi) |
@@ -44,15 +44,14 @@ OfficeCore/
 ├── hardware/
 │   └── ESP32_Fingerprint_Device/           # C++ Arduino firmware for biometric scanners
 └── src/
-    ├── OfficeCore.Api/                     # ASP.NET Core Web API backend
+    ├── OfficeCore.Api/                     # ASP.NET Core Web API & Blazor WASM host
     │   ├── Controllers/                    # REST API endpoints (Auth, Attendance, Boards, Payroll, etc.)
     │   ├── Data/                           # DbSeeder.cs (Demo account & organization seeder)
     │   ├── Models/                         # Domain entities & AppDbContext
-    │   ├── Migrations/                     # EF Core migration history
+    │   ├── Migrations/                     # EF Core PostgreSQL migration history
     │   ├── Services/                       # TenantService, ClaimsTransformation, FingerprintService
     │   ├── Hubs/                           # SignalR Hubs (ChatHub, BoardHub, AttendanceHub)
-    │   ├── Uploads/                        # File storage (profile avatars, org logos)
-    │   └── officecore.db                   # SQLite database file
+    │   └── Uploads/                        # File storage (profile avatars, org logos)
     ├── OfficeCore.Web/                     # Blazor WebAssembly frontend
     │   ├── Layout/                         # MainLayout.razor, NavMenu.razor, EmptyLayout.razor
     │   ├── Pages/                          # Blazor feature pages (Settings, Dashboard, Attendance, etc.)
@@ -63,9 +62,12 @@ OfficeCore/
     │   │   ├── app.css                     # Compiled CSS (DO NOT EDIT DIRECTLY)
     │   │   └── js/themeInterop.js          # JavaScript theme helper (light/dark mode toggle)
     │   └── package.json                    # Tailwind build scripts (css:build, css:watch)
-    └── OfficeCore.DesktopClient/           # Windows Desktop Client
-        ├── MainWindow.xaml                 # WPF Window with Edge WebView2
-        └── MainWindow.xaml.cs              # Host connection UI and navigation logic
+    └── OfficeCore.DesktopClient/           # Windows Desktop Client (POS-Style Server & Client Hub)
+        ├── MainWindow.xaml                 # Mode selection, Server dashboard, and Client view
+        ├── MainWindow.xaml.cs              # View routing, server process orchestration, and WebView2
+        ├── ServerProcessManager.cs         # API lifecycle manager with live log streaming
+        ├── NetworkHelper.cs                # LAN IP auto-detection
+        └── DesktopConfigService.cs         # Local config persistence (desktop_config.json)
 ```
 
 ---
@@ -199,30 +201,21 @@ OfficeCore features a dual-theme system (Dark Mode by default, Light Mode via `.
 
 ---
 
-## 8. Database & SQLite Query Conventions
+## 8. Database & PostgreSQL Query Conventions
 
-The database engine is **SQLite** via `Microsoft.EntityFrameworkCore.Sqlite`.
+The database engine is **PostgreSQL 18** via `Npgsql.EntityFrameworkCore.PostgreSQL`.
 
-### SQLite Specific Guidelines:
-1. **Date/Time Arithmetic:**
-   - SQLite does **not** translate complex LINQ date calculations (e.g. `.Where(x => x.Date.AddDays(7) > DateTime.UtcNow)`) into SQL.
-   - **Rule:** Compute date thresholds in C# memory before executing the query:
-     ```csharp
-     var cutoffDate = DateTime.UtcNow.AddDays(-30);
-     var logs = await _context.AttendanceRecords
-         .Where(a => a.Timestamp >= cutoffDate)
-         .ToListAsync();
-     ```
+### PostgreSQL Guidelines:
+1. **Date/Time Handling:**
+   - PostgreSQL `timestamp with time zone` (or `timestamp without time zone`) requires UTC `DateTime` values (`DateTime.UtcNow`).
+   - When writing date comparisons, ensure timestamps are properly mapped to UTC to avoid Npgsql `Cannot write DateTime with Kind=Unspecified` errors.
 2. **High-Precision Decimals:**
-   - SQLite has no native `decimal` type (it defaults to 64-bit IEEE floating point, risking rounding errors).
-   - All monetary fields, payroll rates, and deduction percentages must be mapped as `TEXT` in `AppDbContext.cs`:
-     ```csharp
-     modelBuilder.Entity<Employee>()
-         .Property(e => e.DailyRate)
-         .HasColumnType("TEXT");
-     ```
+   - PostgreSQL provides first-class arbitrary-precision arithmetic via `numeric(precision, scale)`.
+   - All financial rates, tax brackets, payroll deductions, and hourly values are explicitly configured in `AppDbContext.cs`:
+     - Standard currency fields: `.HasColumnType("numeric(18,2)")`
+     - Precision rate / multiplier fields: `.HasColumnType("numeric(18,4)")`
 3. **Database Seeding (`DbSeeder.cs`):**
-   - Automatically migrates and seeds the database on API startup.
+   - Automatically migrates and seeds the database on API startup via `await context.Database.MigrateAsync()`.
    - Default seeded credentials:
      - **Email:** `demo@officecore.com`
      - **Password:** `Password123!`

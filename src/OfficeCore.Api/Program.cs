@@ -21,7 +21,7 @@ builder.Services.AddCors(opt =>
 
 // Add services to the container.
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
@@ -88,6 +88,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 app.UseCors("BlazorPolicy");
 app.UseAuthentication();
@@ -97,5 +98,6 @@ app.MapControllers();
 app.MapHub<OfficeCore.Api.Hubs.AttendanceHub>("/attendanceHub");
 app.MapHub<OfficeCore.Api.Hubs.BoardHub>("/hubs/boards");
 app.MapHub<OfficeCore.Api.Hubs.ChatHub>("/hubs/chat");
+app.MapFallbackToFile("index.html");
 
 app.Run();

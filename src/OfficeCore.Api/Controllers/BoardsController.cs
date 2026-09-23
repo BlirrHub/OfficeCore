@@ -19,13 +19,20 @@ public class BoardsController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<BoardHub> _hubContext;
     private readonly TenantService _tenant;
+    private readonly IWebHostEnvironment _env;
 
-    public BoardsController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<BoardHub> hubContext, TenantService tenant)
+    public BoardsController(
+        AppDbContext context, 
+        UserManager<ApplicationUser> userManager, 
+        IHubContext<BoardHub> hubContext, 
+        TenantService tenant,
+        IWebHostEnvironment env)
     {
         _context = context;
         _userManager = userManager;
         _hubContext = hubContext;
         _tenant = tenant;
+        _env = env;
     }
 
     [HttpDelete("{id}")]
@@ -763,66 +770,116 @@ public class BoardsController : ControllerBase
     [HttpPost("cards/{cardId}/attachments")]
     public async Task<IActionResult> AddAttachment(Guid cardId, IFormFile file)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
-        var userId = employee.Id;
-        var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId);
-        if (card == null) return NotFound();
 
-        if (file == null || file.Length == 0) return BadRequest("File is empty");
+        var card = await _context.BoardCards
+            .Include(c => c.List)
+                .ThenInclude(l => l.Board)
+                    .ThenInclude(b => b.Members)
+            .FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
 
-        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "boards");
+        if (card == null) return NotFound("Card not found.");
+
+        // Check if user is a member of the board and has editing privileges (not a Viewer)
+        var member = card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer)
+            return Forbid();
+
+        if (file == null || file.Length == 0) return BadRequest("File is empty.");
+
+        // Limit file size to 20MB
+        if (file.Length > 20 * 1024 * 1024)
+            return BadRequest("File size exceeds the 20MB limit.");
+
+        var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var uploadDir = Path.Combine(webRoot, "uploads", "boards");
         Directory.CreateDirectory(uploadDir);
 
-        var fileName = $"{Guid.NewGuid()}_{file.FileName}";
-        var filePath = Path.Combine(uploadDir, fileName);
+        var sanitizedFileName = Path.GetFileName(file.FileName);
+        var uniqueFileName = $"{Guid.NewGuid()}_{sanitizedFileName}";
+        var filePath = Path.Combine(uploadDir, uniqueFileName);
 
         using (var stream = new FileStream(filePath, FileMode.Create))
         {
             await file.CopyToAsync(stream);
         }
 
-        var orgId = _tenant.GetActiveOrganizationId();
-
         var attachment = new BoardCardAttachment
         {
             Id = Guid.NewGuid(),
             CardId = cardId,
-            UserId = userId!,
-            FileName = file.FileName,
-            FilePath = $"/uploads/boards/{fileName}",
+            UserId = employee.Id,
+            FileName = sanitizedFileName,
+            FilePath = $"/uploads/boards/{uniqueFileName}",
             FileSize = file.Length,
             UploadedAt = DateTime.UtcNow,
-            OrganizationId = orgId!.Value
+            OrganizationId = orgId.Value
         };
 
         _context.BoardCardAttachments.Add(attachment);
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(card.List.BoardId);
 
-        return Ok(attachment);
+        return Ok(new
+        {
+            attachment.Id,
+            attachment.FileName,
+            attachment.FilePath,
+            attachment.FileSize,
+            attachment.UploadedAt
+        });
     }
 
     [HttpDelete("attachments/{attachmentId}")]
     public async Task<IActionResult> DeleteAttachment(Guid attachmentId)
     {
-        var attachment = await _context.BoardCardAttachments
-            .Include(a => a.Card).ThenInclude(c => c.List)
-            .FirstOrDefaultAsync(a => a.Id == attachmentId);
-            
-        if (attachment == null) return NotFound();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
 
-        var physicalPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", attachment.FilePath.TrimStart('/'));
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var attachment = await _context.BoardCardAttachments
+            .Include(a => a.Card)
+                .ThenInclude(c => c.List)
+                    .ThenInclude(l => l.Board)
+                        .ThenInclude(b => b.Members)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.OrganizationId == orgId.Value);
+            
+        if (attachment == null) return NotFound("Attachment not found.");
+
+        var boardMember = attachment.Card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        var isUploader = attachment.UserId == employee.Id;
+        var isBoardOwner = boardMember?.Role == BoardRole.Owner;
+
+        // Only the uploader or the board owner can delete an attachment
+        if (!isUploader && !isBoardOwner)
+            return Forbid();
+
+        var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var physicalPath = Path.Combine(webRoot, attachment.FilePath.TrimStart('/'));
         if (System.IO.File.Exists(physicalPath))
         {
-            System.IO.File.Delete(physicalPath);
+            try
+            {
+                System.IO.File.Delete(physicalPath);
+            }
+            catch (Exception)
+            {
+                // File deletion failure shouldn't block database record removal
+            }
         }
 
+        var boardId = attachment.Card.List.BoardId;
         _context.BoardCardAttachments.Remove(attachment);
         await _context.SaveChangesAsync();
-        await NotifyBoardUpdated(attachment.Card.List.BoardId);
+        await NotifyBoardUpdated(boardId);
 
-        return Ok();
+        return Ok(new { message = "Attachment deleted successfully." });
     }
 
 }

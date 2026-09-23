@@ -6,6 +6,6 @@
     "start:css": "cd src/OfficeCore.Web && npm run css:watch",
     "start:api": "cd src/OfficeCore.Api && dotnet run",
     "start:web": "cd src/OfficeCore.Web && dotnet watch",
-    "start": "npx concurrently -k -c \"blue,green,magenta\" \"npm run start:css\" \"npm run start:api\" \"npm run start:web\""
+    "start": "npx -y concurrently -k -c \"blue,green,magenta\" \"npm run start:css\" \"npm run start:api\" \"npm run start:web\""
   }
 }

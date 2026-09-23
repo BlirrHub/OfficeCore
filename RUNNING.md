@@ -7,352 +7,251 @@ This guide walks you through everything needed to get the OfficeCore system runn
 ## Table of Contents
 
 1. [Prerequisites](#1-prerequisites)
-2. [Project Structure](#2-project-structure)
-3. [PostgreSQL Setup](#3-postgresql-setup)
-4. [Configure the Connection String](#4-configure-the-connection-string)
-5. [Running the API](#5-running-the-api)
-6. [Running the Blazor Frontend](#6-running-the-blazor-frontend)
-7. [Running Both Together](#7-running-both-together)
-8. [Default Login Credentials](#8-default-login-credentials)
-9. [Port Reference](#9-port-reference)
-10. [Troubleshooting](#10-troubleshooting)
+2. [Project Architecture & Structure](#2-project-architecture--structure)
+3. [Database Configuration (PostgreSQL 18)](#3-database-configuration-postgresql-18)
+4. [Running the Application](#4-running-the-application)
+   - [Option A: Desktop Hub (Recommended for On-Premises & POS Deployment)](#option-a-desktop-hub-recommended-for-on-premises--pos-deployment)
+   - [Option B: Development Mode (CLI / Concurrently)](#option-b-development-mode-cli--concurrently)
+   - [Option C: Start Services Individually](#option-c-start-services-individually)
+5. [Default Login Credentials](#5-default-login-credentials)
+6. [Desktop Client: Server & Client Terminal Modes](#6-desktop-client-server--client-terminal-modes)
+7. [Hardware Integrations (ESP32 Biometrics)](#7-hardware-integrations-esp32-biometrics)
+8. [Port Reference](#8-port-reference)
+9. [Troubleshooting & FAQ](#9-troubleshooting--faq)
 
 ---
 
 ## 1. Prerequisites
 
-Make sure the following are installed on your machine before proceeding.
+Make sure the following are installed on your machine before proceeding:
 
-| Tool | Minimum Version | Check Command |
-|---|---|---|
-| .NET SDK | 10.0 | `dotnet --version` |
-| Node.js | 18+ | `node --version` |
-| npm | 9+ | `npm --version` |
-| PostgreSQL | 14+ | `psql --version` |
+| Tool | Minimum Version | Check Command | Purpose |
+|---|---|---|---|
+| **.NET SDK** | `9.0 LTS` | `dotnet --version` | Backend API & Blazor WebAssembly compilation |
+| **PostgreSQL** | `17+ / 18` | `Get-Service postgresql*` or `psql --version` | Enterprise relational database storage |
+| **Node.js** | `18+` | `node -v` | Root runner and Tailwind CSS CLI v4 |
+| **npm** | `9+` | `npm -v` | Dependency scripts and build runners |
 
-> You can download PostgreSQL from https://www.postgresql.org/download/. The installer also includes **pgAdmin** (a GUI tool) which makes database management easier.
+> 🐘 **Database Server:** OfficeCore uses **PostgreSQL 18** (Windows service `postgresql-x64-18` running on default port `5432`). Default database: `OfficeCoreDb`.
 
 ---
 
-## 2. Project Structure
+## 2. Project Architecture & Structure
 
 ```
 OfficeCore/
-├── OfficeCore.slnx               ← Solution file (open this in your IDE)
+├── OfficeCore.slnx                         # Solution file (.NET 9)
+├── package.json                            # Root runner scripts (concurrently)
+├── PROJECT_STATUS.md                       # High-level architecture & feature status
+├── RUNNING.md                              # This document
+├── agent.md                                # AI agent engineering guidelines & standards
+├── CHANGELOG.md                            # Complete version history
+├── hardware/
+│   └── ESP32_Fingerprint_Device/           # Arduino C++ firmware for optical biometric scanner
 └── src/
-    ├── OfficeCore.Api/           ← ASP.NET Core Web API (backend)
-    │   ├── appsettings.json      ← ⚙️  Connection string lives here
-    │   ├── Controllers/
-    │   └── Data/DbSeeder.cs      ← Seeds DB with default admin on first run
-    └── OfficeCore.Web/
-        ├── OfficeCore.Web/       ← Blazor Server (frontend host)
-        │   ├── appsettings.json  ← ⚙️  API URL lives here
-        │   ├── Styles/app.css    ← Tailwind CSS source (edit this)
-        │   ├── wwwroot/app.css   ← Compiled Tailwind CSS (auto-generated)
-        │   └── package.json      ← npm / Tailwind scripts
-        └── OfficeCore.Web.Client/ ← Blazor WASM client
+    ├── OfficeCore.Api/                     # ASP.NET Core 9 Web API
+    │   ├── Controllers/                    # REST endpoints (Auth, Boards, Payroll, Leaves, etc.)
+    │   ├── Data/DbSeeder.cs                # Automatic migration & demo account seeder
+    │   ├── Hubs/                           # SignalR hubs (BoardHub, ChatHub, AttendanceHub)
+    │   ├── Services/                       # TenantService, ClaimsTransformation, FingerprintService
+    │   ├── Uploads/                        # File storage (avatars, logos, leave proof, board attachments)
+    ├── OfficeCore.Api/                     # ASP.NET Core 9 Web API & Blazor WASM Host
+    │   ├── Controllers/                    # REST endpoints (Auth, Boards, Payroll, Leaves, etc.)
+    │   ├── Data/DbSeeder.cs                # Automatic migration & demo account seeder
+    │   ├── Hubs/                           # SignalR hubs (BoardHub, ChatHub, AttendanceHub)
+    │   ├── Models/AppDbContext.cs          # EF Core DbContext with PostgreSQL precision
+    │   ├── Services/                       # TenantService, ClaimsTransformation, FingerprintService
+    │   └── Uploads/                        # File storage (avatars, logos, leave proof, board attachments)
+    ├── OfficeCore.Web/                     # Blazor WebAssembly client
+    │   ├── Pages/                          # Feature pages (Dashboard, Boards, Payroll, Settings, etc.)
+    │   ├── Styles/app.css                  # Tailwind CSS v4 design system source (EDIT THIS FILE)
+    │   ├── wwwroot/                        # Static assets, compiled app.css, and JS interop
+    │   └── package.json                    # Tailwind build scripts (css:build, css:watch)
+    └── OfficeCore.DesktopClient/           # Windows Desktop Client (WPF + Edge WebView2)
+        ├── MainWindow.xaml                 # Startup mode selection, Server dashboard, and Client view
+        ├── MainWindow.xaml.cs              # View routing, server process orchestration, and WebView2
+        ├── ServerProcessManager.cs         # API lifecycle manager with live log stream
+        ├── NetworkHelper.cs                # LAN IP auto-detection
+        └── DesktopConfigService.cs         # Local config persistence (desktop_config.json)
 ```
 
 ---
 
-## 3. PostgreSQL Setup
+## 3. Database Configuration (PostgreSQL 18)
 
-### Step 1 — Make sure PostgreSQL is running
+OfficeCore uses PostgreSQL as its primary database.
 
-Open **Services** (Windows: `services.msc`) and confirm `postgresql-x64-XX` is **Running**.
-Or via PowerShell:
-
-```powershell
-Get-Service -Name postgresql*
-```
-
-### Step 2 — Find or reset your postgres password
-
-The default connection string expects the user `postgres` with the password `postgres`.
-If your installation uses a different password, you have two options:
-
-**Option A — Update the connection string** *(recommended, see Section 4)*
-
-**Option B — Reset the postgres password** (if you forgot it):
-
-1. Open **SQL Shell (psql)** from the Start Menu, or use `psql -U postgres`.
-2. Log in (you may be prompted for the current password).
-3. Run:
-   ```sql
-   ALTER USER postgres WITH PASSWORD 'postgres';
-   ```
-
-### Step 3 — Create the database (optional)
-
-The application **automatically creates and migrates the database** on startup via `DbSeeder`. You do **not** need to create it manually. However, if you prefer to do it yourself:
-
-```sql
-CREATE DATABASE "OfficeCoreDb";
-```
-
----
-
-## 4. Configure the Connection String
-
-> ⚠️ **Most common reason the API fails to start.** Update this before running.
-
-Open the API's settings file:
-
-**`src/OfficeCore.Api/appsettings.json`**
-
+### Default Connection String
+Configured in `src/OfficeCore.Api/appsettings.json`:
 ```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=OfficeCoreDb;Username=postgres;Password=YOUR_PASSWORD_HERE"
-  }
+"ConnectionStrings": {
+  "DefaultConnection": "Host=localhost;Port=5432;Database=OfficeCoreDb;Username=postgres;Password=password;Include Error Detail=true"
 }
 ```
 
-Replace `YOUR_PASSWORD_HERE` with your actual PostgreSQL password.
+### Auto-Migration & Seeding
+1. **Auto-Migration:** On API startup, `DbSeeder.SeedAsync()` automatically applies all pending EF Core migrations to PostgreSQL. If the database `OfficeCoreDb` does not exist yet, running `dotnet ef database update --project src/OfficeCore.Api` creates it.
+2. **Auto-Seeding:** If the database is blank, it automatically seeds:
+   - Default Global Admin Account: `demo@officecore.com` / `Password123!`
+   - Default Workspace Organization: **Demo Corp**
+   - Standard Organization Roles (`Admin`, `Employee`) and module permission claims
+   - Default Work Schedule with break rules
+   - Default sample Kanban Board with lists and cards
 
-> 🔒 **Security tip**: Never commit real passwords to Git. For team environments, use **User Secrets** instead:
-> ```powershell
-> dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Database=OfficeCoreDb;Username=postgres;Password=yourpassword" --project src/OfficeCore.Api
-> ```
-> User Secrets are stored outside the project folder and never committed.
+### PostgreSQL Windows Service Check
+To ensure PostgreSQL is running:
+```powershell
+Get-Service postgresql*
+# To start if stopped:
+Start-Service postgresql-x64-18
+```
 
 ---
 
-## 5. Running the API
+## 4. Running the Application
 
-The API must be started **first** — the Blazor frontend calls it for authentication and data.
+### Option A: Desktop Hub (Recommended for On-Premises & POS Deployment)
 
-### Step 1 — Run from the repo root
+Launch the desktop client:
+```powershell
+dotnet run --project src/OfficeCore.DesktopClient
+```
+1. Select **"Setup as Server Station"** on the main host computer.
+2. The Server Dashboard will check your PostgreSQL connection, start `OfficeCore.Api` on port `5026`, and display your LAN IP (e.g. `http://192.168.1.15:5026`).
+3. Click **"Launch OfficeCore Locally"** to use the system directly on the host machine.
+4. On other office computers, run the Desktop Client, choose **"Connect as Client Terminal"**, and enter the Server's URL!
 
+---
+
+### Option B: Development Mode (CLI / Concurrently)
+
+From the **repository root**, run:
+
+```powershell
+npm.cmd start
+```
+
+> Or use the VS Code task: Press `Ctrl+Shift+B` and select **"Start All Services"**.
+
+This launches:
+1. **Tailwind CSS Watcher** (auto-compiles `Styles/app.css` to `wwwroot/app.css` on changes)
+2. **ASP.NET Core Web API** (`http://localhost:5026` / `https://localhost:7174`)
+3. **Blazor WebAssembly Frontend** (`http://localhost:5261`)
+
+---
+
+### Option C: Start Services Individually
+
+If you prefer dedicated terminal windows:
+
+#### Terminal 1 — Tailwind CSS Compilation
+```powershell
+cd src/OfficeCore.Web
+npm.cmd run css:watch
+```
+
+#### Terminal 2 — Web API Backend (Unified Host on 5026)
 ```powershell
 dotnet run --project src/OfficeCore.Api
 ```
+> Browsing to `http://localhost:5026` serves both the API and the Blazor client!
 
-### Step 2 — Verify it's running
-
-You should see output similar to:
-
+#### Terminal 3 — Blazor Frontend (Optional standalone dev server)
+```powershell
+dotnet run --project src/OfficeCore.Web
 ```
-info: Microsoft.Hosting.Lifetime[14]
-      Now listening on: https://localhost:7001
-info: Microsoft.Hosting.Lifetime[14]
-      Now listening on: http://localhost:5001
-```
-
-The API also runs the **database seeder** on first start:
-- Creates the `OfficeCoreDb` database schema automatically via EF Core migrations.
-- Creates the `Admin` role with all 10 module access claims.
-- Creates the default admin user (`admin@company.com` / `Admin123!`).
-
-On subsequent runs, the seeder detects that migrations and the admin account already exist and skips silently.
-
-### Step 3 — (Optional) Explore the API docs
-
-Open your browser to:
-- **OpenAPI / Scalar**: `https://localhost:7001/openapi` *(Development mode only)*
 
 ---
 
-## 6. Running the Blazor Frontend
+## 5. Default Login Credentials
 
-You need **two terminal windows** for the frontend: one for .NET hot reload and one for Tailwind CSS compilation.
-
-### Terminal 1 — Compile Tailwind CSS
-
-Navigate to the Blazor server project and start the Tailwind watch process:
-
-```powershell
-cd src/OfficeCore.Web/OfficeCore.Web
-npm install        # First time only — installs Tailwind
-npm run css:watch  # Watches for class changes and recompiles
-```
-
-Leave this terminal running. Tailwind scans your `.razor` files and regenerates `wwwroot/app.css` automatically whenever you add new classes.
-
-> **One-time build** (no live reload): `npm run css:build`
-
-### Terminal 2 — Run the Blazor App
-
-From the repository root:
-
-```powershell
-dotnet watch --project src/OfficeCore.Web/OfficeCore.Web
-```
-
-You should see:
-
-```
-Now listening on: https://localhost:7057
-Now listening on: http://localhost:5057
-```
-
-Open your browser at **`https://localhost:7057`** — you'll be redirected to the login page.
-
----
-
-## 7. Running Both Together
-
-Full startup sequence in one view:
-
-**Terminal 1 — API**
-```powershell
-dotnet run --project src/OfficeCore.Api
-```
-
-**Terminal 2 — CSS Watcher**
-```bash
-cd src/OfficeCore.Web
-npm run css:watch
-```
-
-**Terminal 3 — Blazor Frontend**
-```bash
-cd src/OfficeCore.Web
-dotnet watch
-```
-
-> **Tip**: Use Windows Terminal with multiple tabs for a clean experience.
-
----
-
-## 8. Default Login Credentials
-
-On the very first run, the seeder creates a default admin account:
+Use the pre-seeded credentials to log in:
 
 | Field | Value |
 |---|---|
-| **Email** | `admin@company.com` |
-| **Password** | `Admin123!` |
-| **Role** | Admin (full access to all modules) |
-
-> ⚠️ **Change the default admin password** immediately after your first login in any shared or production environment.
+| **Server Station / Unified URL** | `http://localhost:5026` |
+| **Standalone Dev Server URL** | `http://localhost:5261` |
+| **Email** | `demo@officecore.com` |
+| **Password** | `Password123!` |
+| **Workspace** | **Demo Corp** (auto-selected upon login) |
 
 ---
 
-## 9. Port Reference
+## 6. Desktop Client: Server & Client Terminal Modes
 
-| Service | HTTPS Port | HTTP Port |
+`OfficeCore.DesktopClient` provides a streamlined Point-of-Sale (POS) experience tailored for local network environments:
+
+### 1. Server Station (Host Machine)
+- **Port Testing:** Automatically pings PostgreSQL on port `5432` to confirm readiness before launching the backend.
+- **Process Management:** Launches and manages `OfficeCore.Api` as a child process.
+- **LAN IP Display:** Discovers your non-virtual IPv4 LAN address and provides a ready-to-share URL (e.g. `http://192.168.1.50:5026`) with a 1-click **Copy** button for terminal workstations.
+- **Live Logs:** Real-time stdout/stderr log console embedded in the dashboard for monitoring requests, migrations, and errors.
+- **Embedded Web View:** Click **Launch OfficeCore Locally** to switch directly into the application via Microsoft Edge WebView2.
+
+### 2. Client Terminal (Workstation PCs)
+- Requires only the Server URL or LAN IP address.
+- Validates network connection to the server before loading.
+- Stores server address in `desktop_config.json` for instant subsequent connections.
+- Renders the full OfficeCore application with full offline LAN speed and zero local database setup.
+
+---
+
+## 7. Hardware Integrations (ESP32 Biometrics)
+
+OfficeCore features a hybrid device architecture for the **ESP32 + Optical Fingerprint Scanner (AS608)**:
+
+1. **Wired Mode (Web Serial API):**
+   - Connect the ESP32 to your PC via USB.
+   - Navigate to `/attendance` → **Settings** tab.
+   - Click **Connect USB Scanner**. Select the COM port at `9600` baud.
+   - You can enroll fingerprints or clock in/out directly through the browser!
+2. **Wi-Fi Mode (TCP Socket):**
+   - Configure your Wi-Fi credentials in `hardware/ESP32_Fingerprint_Device/ESP32_Fingerprint_Device.ino`.
+   - The device connects directly to the API's TCP listener on port `9000` via [FingerprintDeviceService.cs](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Api/Services/FingerprintDeviceService.cs).
+
+---
+
+## 8. Port Reference
+
+| Service | Protocol / Port | Purpose |
 |---|---|---|
-| **API** (`OfficeCore.Api`) | `7001` | `5001` |
-| **Blazor Frontend** (`OfficeCore.Web`) | `7057` | `5057` |
-
-### Changing Ports
-
-Edit the `launchSettings.json` for each project:
-
-- **API**: `src/OfficeCore.Api/Properties/launchSettings.json`
-- **Blazor**: `src/OfficeCore.Web/OfficeCore.Web/Properties/launchSettings.json`
-
-If you change the API port, also update:
-- `src/OfficeCore.Web/OfficeCore.Web/appsettings.json` → `"ApiBaseUrl"`
-- `src/OfficeCore.Api/appsettings.json` → `"BlazorOrigin"`
+| **PostgreSQL Database** | `localhost:5432` | Relational database storage |
+| **Unified Web & API** | `http://localhost:5026` | Unified REST API, SignalR Hubs, static uploads & Blazor WASM files |
+| **Blazor Standalone Dev**| `http://localhost:5261` | Optional standalone Blazor WebAssembly dev server |
+| **Biometric TCP Socket** | `TCP 0.0.0.0:9000` | Wi-Fi ESP32 fingerprint scanner connection |
 
 ---
 
-## 10. Troubleshooting
+## 9. Troubleshooting & FAQ
+
+### ❌ `Npgsql.NpgsqlException: Failed to connect to localhost:5432`
+PostgreSQL Windows service is not running.
+**Fix:**
+```powershell
+Start-Service postgresql-x64-18
+```
 
 ### ❌ `28P01: password authentication failed for user "postgres"`
+The password in `appsettings.json` does not match your PostgreSQL installation.
+**Fix:** Update `Password=your_password` in `src/OfficeCore.Api/appsettings.json` (or configure via the Desktop Client Server settings).
 
-Your PostgreSQL password doesn't match the connection string.
+### ❌ `npm : File ... cannot be loaded because running scripts is disabled`
+PowerShell execution policy blocks `.ps1` wrappers for Node.js tools.
+**Fix:** Always use the `.cmd` extension on Windows PowerShell:
+- Use `npm.cmd start` instead of `npm start`
+- Use `npm.cmd run css:build` instead of `npm run css:build`
 
-**Fix**: Update `src/OfficeCore.Api/appsettings.json`:
-```json
-"DefaultConnection": "Host=localhost;Database=OfficeCoreDb;Username=postgres;Password=YOUR_ACTUAL_PASSWORD"
-```
-
----
-
-### ❌ `Connection refused` on port 5432
-
-PostgreSQL is not running.
-
-**Fix**:
+### ❌ Blazor styles look unstyled or broken
+Tailwind CSS has not been compiled yet.
+**Fix:**
 ```powershell
-# Check service status
-Get-Service -Name postgresql*
-
-# Start the service (adjust version number to match yours)
-Start-Service -Name "postgresql-x64-17"
+cd src/OfficeCore.Web
+npm.cmd run css:build
 ```
 
----
-
-### ❌ `npm error code ENOENT` when running `css:watch`
-
-Running the npm command from the wrong directory.
-
-**Fix**: You must be inside the Blazor server project folder:
+### ❌ Client Terminal cannot connect to Server Station URL
+Windows Firewall may block incoming connections on port `5026`.
+**Fix:** On the Server Station PC, allow inbound TCP port `5026` through Windows Defender Firewall:
 ```powershell
-cd src/OfficeCore.Web/OfficeCore.Web
-npm run css:watch
-```
-
----
-
-### ❌ Blazor app loads but shows no styles
-
-Tailwind CSS hasn't been compiled yet.
-
-**Fix**: Run `npm run css:build` once inside `src/OfficeCore.Web/OfficeCore.Web`.
-
----
-
-### ❌ Login fails with "Unable to connect"
-
-The API is not running, or the Blazor app is pointing to the wrong URL.
-
-**Fix**:
-1. Confirm the API is running at `https://localhost:7001`.
-2. Check `src/OfficeCore.Web/OfficeCore.Web/appsettings.json`:
-   ```json
-   "ApiBaseUrl": "https://localhost:7001"
-   ```
-
----
-
-### ❌ After login, browser loops back to `/login`
-
-The auth cookie isn't being recognized.
-
-**Fix**: Make sure both services are running on `localhost` (not `127.0.0.1`), and that `BlazorOrigin` in `src/OfficeCore.Api/appsettings.json` exactly matches the Blazor URL (including port):
-```json
-"BlazorOrigin": "https://localhost:7057"
-```
-
----
-
-### ❌ `dotnet ef` command not found
-
-EF Core tools aren't installed globally.
-
-**Fix**:
-```powershell
-dotnet tool install --global dotnet-ef
-```
-
----
-
-## Quick Reference
-
-```
-# Step 1 — Update DB password
-#  Edit: src/OfficeCore.Api/appsettings.json → DefaultConnection
-
-# Step 2 — Start PostgreSQL service
-
-# Step 3 — Terminal A: Run the API
-dotnet run --project src/OfficeCore.Api
-
-# Step 4 — Terminal B: Start CSS watcher
-cd src/OfficeCore.Web/OfficeCore.Web && npm run css:watch
-
-# Step 5 — Terminal C: Run Blazor
-dotnet watch --project src/OfficeCore.Web/OfficeCore.Web
-
-# Step 6 — Open browser
-#   https://localhost:7057
-
-# Step 7 — Login with default credentials
-#   Email:    admin@company.com
-#   Password: Admin123!
+New-NetFirewallRule -DisplayName "OfficeCore Server" -Direction Inbound -LocalPort 5026 -Protocol TCP -Action Allow
 ```

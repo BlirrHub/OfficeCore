@@ -49,11 +49,19 @@ public class FingerprintDeviceService : BackgroundService
                 }
             }
 
-            _listener = new TcpListener(IPAddress.Any, port);
-            _listener.Start();
-            _logger.LogInformation("TCP Listener started for Wi-Fi Fingerprint Devices on port {Port}.", port);
+            try
+            {
+                _listener = new TcpListener(IPAddress.Any, port);
+                _listener.Start();
+                _logger.LogInformation("TCP Listener started for Wi-Fi Fingerprint Devices on port {Port}.", port);
+            }
+            catch (SocketException ex)
+            {
+                _logger.LogWarning(ex, "Could not start TCP Listener for Fingerprint Devices on port {Port}. The port may already be in use.", port);
+                _listener = null;
+            }
 
-            while (!stoppingToken.IsCancellationRequested)
+            while (!stoppingToken.IsCancellationRequested && _listener != null)
             {
                 if (_listener.Pending())
                 {

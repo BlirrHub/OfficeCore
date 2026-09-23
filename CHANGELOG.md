@@ -6,6 +6,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Changed — [2026-09-23] (PostgreSQL 18 Migration & POS-Style Desktop Hub)
+- **Database Migration to PostgreSQL 18 (`OfficeCore.Api`):**
+  - Reverted database engine from SQLite to PostgreSQL 18 via `Npgsql.EntityFrameworkCore.PostgreSQL` (`v9.0.3`) for robust enterprise concurrency, multi-client LAN stability, and scalability.
+  - Configured PostgreSQL connection string in `appsettings.json` (`Host=localhost;Port=5432;Database=OfficeCoreDb;Username=postgres;Password=password;Include Error Detail=true`).
+  - Switched `Program.cs` to `options.UseNpgsql(...)`.
+  - Updated `AppDbContext.cs` entity model mappings: Replaced SQLite `.HasColumnType("TEXT")` with native PostgreSQL high-precision arbitrary arithmetic types: `.HasColumnType("numeric(18,2)")` for currencies/balances and `.HasColumnType("numeric(18,4)")` for rates and percentage multipliers.
+  - Generated clean initial migration `20260923014612_InitialPostgreSql` and executed `dotnet ef database update`, creating `OfficeCoreDb` on PostgreSQL 18 and establishing all 40+ tables, relations, and indexes.
+  - Verified `DbSeeder.cs` runs cleanly against PostgreSQL on API startup, auto-migrating and populating default accounts (`demo@officecore.com`), "Demo Corp" organization, roles, work schedule days, and sample boards.
+- **Unified Single-Port Web Hosting (`OfficeCore.Api` & `OfficeCore.Web.Client`):**
+  - Configured `OfficeCore.Api` to reference `OfficeCore.Web.Client.csproj` and serve Blazor WebAssembly static assets directly on unified port `5026` via `app.UseBlazorFrameworkFiles()` and `app.MapFallbackToFile("index.html")`.
+  - Enables workstation terminals to connect to `http://<SERVER_IP>:5026` for both the application interface and REST/SignalR APIs without running a separate web server process.
+- **POS-Style Desktop Hub & Terminal Workstations (`OfficeCore.DesktopClient`):**
+  - Transformed the WPF desktop client into an on-premises deployment hub supporting two startup modes:
+    - **Server Station (Primary Host):** Automatically discovers the server PC's primary non-virtual LAN IPv4 address (via `NetworkHelper.cs`), tests PostgreSQL connection on port `5432`, launches and manages `OfficeCore.Api` as a child process (via `ServerProcessManager.cs`), displays real-time stdout/stderr log stream, and features a "Launch OfficeCore Locally" button embedding WebView2.
+    - **Client Terminal (Workstation):** Lightweight workstation mode for other office PCs to input the host server's LAN IP or URL, validate connectivity, and render the application in a dedicated full-screen desktop WebView2 frame.
+  - Added `DesktopConfigService.cs` to persist startup mode preferences, connection strings, and server URLs in `desktop_config.json`.
+  - Redesigned `MainWindow.xaml` with modern dark theme styling (`#0C0A09` / `#121215`) matching OfficeCore aesthetics.
+  - **Collapsible WebView Controls & Screen Real-Estate Optimization:**
+    - Automatically hides the main window header bar (`WindowTopHeader`) when viewing the web application to eliminate double-header clutter.
+    - Consolidated web navigation into a single ultra-slim (34px) bar with `← Server Dashboard` / `← Disconnect`, `🔄 Reload`, `⚙️ Switch Mode`, and live connection indicator.
+    - Added a collapsible mini floating tab (`[ 🖥️ Host Controls ▾ ]` / `[ 💻 Terminal Controls ▾ ]`) that reduces toolbar footprint to 22px when minimized, maximizing workspace space for the web application.
+- **Process Resilience & Socket Hardening:**
+  - Added port collision detection in `ServerProcessManager.cs` to seamlessly adopt already-running `OfficeCore.Api` instances on port `5026` rather than crashing on duplicate socket binds.
+  - Added premature process exit detection in `PollHealthAsync` and external process cleanup in `StopServer()`.
+  - Hardened `FingerprintDeviceService.cs` with graceful `try/catch` exception handling on TCP listener port 9000 to prevent startup crashes in case of port contention.
+  - Added `-y` flag to `npx concurrently` in root `package.json` for non-interactive runner execution.
+
+### Added & Changed — [2026-09-23]
+- **Documentation Synchronization (`PROJECT_STATUS.md` & `RUNNING.md`):**
+  - Updated `PROJECT_STATUS.md` to accurately document the current system architecture: C# .NET 9 LTS Web API, SQLite (`officecore.db`) with high-precision financial decimal mapping, Blazor WebAssembly with Tailwind CSS v4, hybrid ESP32 fingerprint biometric scanner (Web Serial at 9600 baud + TCP socket on port 9000), and WPF Edge WebView2 desktop client.
+  - Formally documented the completion of the Leave Management (PTO) system (Employee Self-Service requests with medical/proof attachments, Management Self-Service review/approval dashboard, and automatic integration with the Payroll computation engine).
+  - Overhauled `RUNNING.md` to remove legacy PostgreSQL instructions and replace them with zero-friction SQLite setup, npm start concurrently runner, port bindings, and ESP32 hardware connection guide.
+- **Board Card Attachments API Hardening & Scoping (`BoardsController.cs`):**
+  - Refactored `POST /api/boards/cards/{cardId}/attachments` to strictly enforce multi-tenant isolation (`c.OrganizationId == orgId.Value`), board membership verification (excluding Viewers from uploads), file size validation (20MB limit), and safe path sanitization via `IWebHostEnvironment`.
+  - Refactored `DELETE /api/boards/attachments/{id}` to enforce tenant isolation and authorize deletions strictly to the original uploader or board Owners.
+  - Standardized JSON responses to return clean DTO projections matching `BoardCardAttachmentDto` (`Id`, `FileName`, `FilePath`, `FileSize`, `UploadedAt`).
+
 ### Added & Changed — [2026-09-22]
 - **UI/UX Modernization, Unified Settings & Light Mode System:**
   - **Unified Settings Page (`Settings.razor`):** Consolidated separate `Profile.razor` and `CompanyProfile.razor` into a single `/settings` page supporting `/settings`, `/profile`, `/organization`, and query-string tabs (`?tab=profile`, `?tab=company`). Features role-aware tab access, profile avatar uploads, password changes, organization branding, address settings, dynamic phone number management, and workspace deletion.
