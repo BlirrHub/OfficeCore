@@ -110,16 +110,22 @@ Start-Service postgresql-x64-18
 
 ## 4. Running the Application
 
-### Option A: Desktop Hub (Recommended for On-Premises & POS Deployment)
+### Option A: Dedicated Desktop Applications (Server Station & Workstation Client)
 
-Launch the desktop client:
+#### 1. Server Station (Host Computer)
+Dedicated server host orchestrator with live logs, LAN IP auto-detection, PostgreSQL configuration, and local app access:
 ```powershell
-dotnet run --project src/OfficeCore.DesktopClient
+dotnet run --project src/OfficeCore.Desktop.Server
 ```
-1. Select **"Setup as Server Station"** on the main host computer.
-2. The Server Dashboard will check your PostgreSQL connection, start `OfficeCore.Api` on port `5026`, and display your LAN IP (e.g. `http://192.168.1.15:5026`).
-3. Click **"Launch OfficeCore Locally"** to use the system directly on the host machine.
-4. On other office computers, run the Desktop Client, choose **"Connect as Client Terminal"**, and enter the Server's URL!
+* Or run portable executable: `dist/OfficeCore-ServerStation-Portable/OfficeCore.ServerStation.exe`
+
+#### 2. Client Terminal (Employee Workstations)
+Lightweight workstation terminal with zero local database requirements:
+```powershell
+dotnet run --project src/OfficeCore.Desktop.Client
+```
+* **Installer for Other PCs:** `dist/Setup-OfficeCore-Client.exe` (1-click installer that sets up Desktop & Start Menu shortcuts).
+* **Portable Executable:** `dist/OfficeCore-Client-Portable/OfficeCore.Client.exe` (runs directly without installation).
 
 ---
 

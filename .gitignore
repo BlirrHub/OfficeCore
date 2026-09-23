@@ -24,5 +24,11 @@ Thumbs.db
 *.db-shm
 *.db-wal
 
+# Build distribution
+dist/
+
 # Desktop Client local config
 **/server_ip.txt
+**/client_config.json
+**/server_config.json
+**/desktop_config.json

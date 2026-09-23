@@ -1,0 +1,101 @@
+<Window x:Class="OfficeCore.Client.Installer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="OfficeCore Workstation Setup" Height="480" Width="620" ResizeMode="NoResize"
+        Background="#09090B" WindowStartupLocation="CenterScreen" Foreground="#F4F4F5">
+
+    <Window.Resources>
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#18181B"/>
+            <Setter Property="Foreground" Value="#F4F4F5"/>
+            <Setter Property="BorderBrush" Value="#27272A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Header -->
+            <RowDefinition Height="*"/>    <!-- Content -->
+            <RowDefinition Height="Auto"/> <!-- Footer -->
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#0C0C0E" BorderBrush="#27272A" BorderThickness="0,0,0,1" Padding="24,18">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Width="44" Height="44" CornerRadius="10" Background="#2563EB" Margin="0,0,16,0">
+                    <TextBlock Text="OC" FontWeight="Bold" FontSize="18" Foreground="White" 
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="OfficeCore Workstation Setup" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Install workstation terminal to connect to your OfficeCore server" FontSize="12" Foreground="#A1A1AA" Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Body -->
+        <Grid Grid.Row="1" Margin="28,20">
+            <StackPanel VerticalAlignment="Center">
+                <!-- Install Location -->
+                <TextBlock Text="Installation Location:" FontSize="13" FontWeight="SemiBold" Foreground="#E4E4E7" Margin="0,0,0,6"/>
+                <TextBox x:Name="InstallPathBox" Style="{StaticResource ModernTextBox}" IsReadOnly="True" Margin="0,0,0,18"/>
+
+                <!-- Options -->
+                <TextBlock Text="Options:" FontSize="13" FontWeight="SemiBold" Foreground="#E4E4E7" Margin="0,0,0,8"/>
+                <CheckBox x:Name="DesktopShortcutCheckBox" Content="Create a Desktop Shortcut" IsChecked="True" 
+                          Foreground="#D4D4D8" FontSize="13" Cursor="Hand" Margin="0,0,0,8"/>
+                <CheckBox x:Name="StartMenuShortcutCheckBox" Content="Create a Start Menu Shortcut" IsChecked="True" 
+                          Foreground="#D4D4D8" FontSize="13" Cursor="Hand" Margin="0,0,0,8"/>
+                <CheckBox x:Name="LaunchAfterCheckBox" Content="Launch OfficeCore Workstation after installation" IsChecked="True" 
+                          Foreground="#D4D4D8" FontSize="13" Cursor="Hand" Margin="0,0,0,18"/>
+
+                <!-- Progress Section (Hidden until install starts) -->
+                <ProgressBar x:Name="InstallProgressBar" Height="8" Minimum="0" Maximum="100" Value="0" 
+                             Background="#18181B" Foreground="#2563EB" Margin="0,0,0,8" Visibility="Collapsed"/>
+                <TextBlock x:Name="StatusMessageText" Text="Ready to install." FontSize="12" Foreground="#71717A" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Footer Buttons -->
+        <Border Grid.Row="2" Background="#0C0C0E" BorderBrush="#27272A" BorderThickness="0,1,0,0" Padding="24,14">
+            <Grid>
+                <TextBlock Text="Version 1.0.0 (win-x64)" FontSize="11" Foreground="#52525B" VerticalAlignment="Center"/>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="CancelButton" Content="Cancel" Click="CancelButton_Click" 
+                            Background="#18181B" Foreground="#A1A1AA" BorderBrush="#27272A" BorderThickness="1"
+                            Padding="16,8" FontSize="13" Cursor="Hand" Margin="0,0,10,0">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="6"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+
+                    <Button x:Name="InstallButton" Content="Install Now" Click="InstallButton_Click" 
+                            Background="#2563EB" Foreground="White" FontWeight="Bold" BorderThickness="0"
+                            Padding="22,8" FontSize="13" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="6"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
