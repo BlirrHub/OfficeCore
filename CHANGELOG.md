@@ -6,6 +6,37 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Changed — [2026-09-22]
+- **UI/UX Modernization, Unified Settings & Light Mode System:**
+  - **Unified Settings Page (`Settings.razor`):** Consolidated separate `Profile.razor` and `CompanyProfile.razor` into a single `/settings` page supporting `/settings`, `/profile`, `/organization`, and query-string tabs (`?tab=profile`, `?tab=company`). Features role-aware tab access, profile avatar uploads, password changes, organization branding, address settings, dynamic phone number management, and workspace deletion.
+  - **Sidebar Navigation Optimization:** Removed the redundant "Company Profile" button from the main sidebar navigation. All personal and organizational settings are now consolidated in the sidebar footer user profile card.
+  - **Full Light Mode System:**
+    - Implemented a complete Light Mode theme cascading across the entire application via Tailwind CSS v4 CSS variables (`--color-zinc-950`, `--color-zinc-900`, etc.) mapped under `html.light` in `Styles/app.css`.
+    - Zero-flicker anti-FOUC script in `index.html` synchronously reading `localStorage` before page rendering.
+    - Added JavaScript theme interop service (`themeInterop.js`) for theme toggling, storage, and system color-scheme preference syncing.
+    - Created `ThemeToggle.razor` with animated SVG Sun/Moon icons, integrated beside the notification bell in `MainLayout`, and in the top headers of `Home.razor`, `Login.razor`, `SignUp.razor`, and `Workspaces.razor`.
+    - Preserved high-contrast button styling (`.keep-white`) across primary buttons and gradients.
+  - **Responsive Shell & Typography:** Upgraded mobile layout with an off-canvas slide-out navigation drawer in `MainLayout.razor`, integrated Google Font Inter typography, and refined glassmorphic cards (`.glass-card`).
+
+- **SQLite EF Core Compatibility, High-Precision Decimals & Demo Account:**
+  - **EF Core SQLite Compatibility Fixes:** Resolved query translation issues specific to SQLite across `AdvanceRequestController`, `AttendanceController`, `BoardsController`, `ChatController`, and `UserController` (avoiding unsupported LINQ date/time operations).
+  - **High-Precision Decimal Mappings:** Mapped financial rates, loan balances, and government deduction fields to SQLite `TEXT` columns in `AppDbContext` to avoid floating-point inaccuracies (`20260922124918_FixDecimalPrecision`).
+  - **Policy Enforcement:** Corrected authorization policies on `LeaveRequestController`, `PayrollSettingsController`, and `FingerprintDeviceController`.
+  - **Automated Demo Account & Workspace Seeding:** Enhanced `DbSeeder.cs` to automatically provision a preconfigured demo account (`demo@officecore.com` / `Password123!`), a "Demo Corp" organization workspace, standard roles (`Admin`, `Employee`), default work schedule with break rules, and a sample Kanban board.
+  - **Desktop Client UI Polish:** Added a centered glassmorphic server URL connection screen that auto-hides once connected to the Web API.
+
+- **SQLite Database Migration, .NET 9 LTS Standardization & Desktop Client:**
+  - **Database Migration to SQLite:** Migrated primary database from PostgreSQL to SQLite (`Microsoft.EntityFrameworkCore.Sqlite`), providing a zero-dependency, self-contained local database file (`officecore.db`) with a unified initial migration.
+  - **.NET 9 LTS Standardization:** Downgraded target framework across all projects from .NET 10 preview to .NET 9 LTS (`net9.0`) for long-term support and tooling stability.
+  - **Desktop Client (`OfficeCore.DesktopClient`):** Created a WPF-based Windows desktop client wrapping Blazor WebAssembly via Microsoft Edge WebView2, supporting native desktop window framing.
+
+### Added & Changed — [2026-08-17]
+- **Organization Profile Enhancements & Secure Deletion:**
+  - **Organization Logo & Branding:** Added logo upload capabilities with physical disk storage in `Uploads/` and database URL association.
+  - **Address & Dynamic Phone Management:** Added `Address` to `Organization` and introduced `OrganizationPhone` entity supporting multiple contact numbers (Phone, Mobile, Fax, Toll-Free) with primary designation.
+  - **Password-Protected Organization Deletion:** Secured `DELETE /api/organizations/{id}` to require the active admin's account password verification via ASP.NET Identity before purging the workspace.
+  - **Company Profile UI:** Rich company profile editor with logo dropzone, phone number manager, address inputs, and dangerous zone deletion modal with password prompt.
+
 ### Added — [2026-06-26]
 - **Startup Cheat Keys:**
   - Created VS Code `tasks.json` enabling the start of Tailwind CSS, API, and Web frontend either individually or all together via the integrated terminal (`Ctrl+Shift+B`).
