@@ -20,26 +20,37 @@ window.OfficeCoreMap = {
             var lng = initialLng || 120.9842;
             var zoom = zoomLevel || 13;
 
+            // Disable default zoom control — we'll add it to bottomright to avoid overlay conflicts
             this.mapInstance = L.map(elementId, {
                 center: [lat, lng],
                 zoom: zoom,
-                zoomControl: true,
+                zoomControl: false,
                 attributionControl: true
             });
 
-            // Dark-themed CartoDB Voyager tiles
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-                subdomains: 'abcd',
-                maxZoom: 20
+            // Place zoom control at bottom-right so it doesn't clash with staff count pill
+            L.control.zoom({ position: 'bottomright' }).addTo(this.mapInstance);
+
+            // ── Free OpenStreetMap tiles — no API key required ──
+            // We apply a CSS dark filter on the tile layer container to get a dark map look.
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 20,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
             }).addTo(this.mapInstance);
+
+            // Apply dark CSS invert filter to tile pane after a short delay
+            setTimeout(function () {
+                var tilePanes = document.querySelectorAll('#' + elementId + ' .leaflet-tile-pane');
+                tilePanes.forEach(function (pane) {
+                    pane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(90%) contrast(88%) saturate(0.7)';
+                });
+            }, 200);
 
             this.markersLayer = L.layerGroup().addTo(this.mapInstance);
 
-            // Ensure correct render size after container layout settles
             var self = this;
-            setTimeout(function () { if (self.mapInstance) self.mapInstance.invalidateSize(); }, 100);
-            setTimeout(function () { if (self.mapInstance) self.mapInstance.invalidateSize(); }, 500);
+            setTimeout(function () { if (self.mapInstance) self.mapInstance.invalidateSize(); }, 150);
+            setTimeout(function () { if (self.mapInstance) self.mapInstance.invalidateSize(); }, 600);
 
             return true;
         } catch (err) {
@@ -100,10 +111,7 @@ window.OfficeCoreMap = {
             `;
 
             var marker = L.marker([lat, lng], { icon: customIcon })
-                .bindPopup(popupContent, {
-                    className: 'oc-popup',
-                    maxWidth: 260
-                });
+                .bindPopup(popupContent, { className: 'oc-popup', maxWidth: 260 });
 
             OfficeCoreMap.markersLayer.addLayer(marker);
         });
@@ -126,7 +134,12 @@ window.OfficeCoreMap = {
         if (!query || query.trim().length < 2) return;
         try {
             var url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`;
-            var resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+            var resp = await fetch(url, {
+                headers: {
+                    'Accept-Language': 'en',
+                    'User-Agent': 'OfficeCoreApp/1.0'
+                }
+            });
             if (!resp.ok) {
                 await dotNetHelper.invokeMethodAsync('OnSearchResults', []);
                 return;
@@ -155,14 +168,13 @@ window.OfficeCoreMap = {
         var pinIcon = L.divIcon({
             className: '',
             html: `
-                <div style="display:flex;flex-direction:column;align-items:center;">
-                    <div style="width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:linear-gradient(135deg,#a855f7,#7c3aed);border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.5);"></div>
-                    <div style="width:6px;height:6px;border-radius:50%;background:#a855f7;margin-top:2px;box-shadow:0 0 6px #a855f7;"></div>
+                <div style="display:flex;flex-direction:column;align-items:center;filter:invert(100%) hue-rotate(180deg);">
+                    <div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:linear-gradient(135deg,#a855f7,#7c3aed);border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.5);"></div>
                 </div>
             `,
-            iconSize: [32, 42],
-            iconAnchor: [16, 42],
-            popupAnchor: [0, -44]
+            iconSize: [30, 40],
+            iconAnchor: [15, 40],
+            popupAnchor: [0, -42]
         });
 
         this.searchMarker = L.marker([lat, lng], { icon: pinIcon })
@@ -178,7 +190,7 @@ window.OfficeCoreMap = {
     }
 };
 
-// Ping animation keyframe injection
+// Inject CSS for ping animation and dark popup styles
 (function () {
     if (!document.getElementById('oc-map-styles')) {
         var style = document.createElement('style');
@@ -200,14 +212,23 @@ window.OfficeCoreMap = {
             }
             .leaflet-container {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: #09090b;
             }
             .leaflet-control-attribution {
-                background: rgba(9,9,11,0.7) !important;
+                background: rgba(9,9,11,0.75) !important;
                 color: #52525b !important;
                 font-size: 9px !important;
+                border-radius: 6px 0 0 0 !important;
             }
-            .leaflet-control-attribution a {
-                color: #71717a !important;
+            .leaflet-control-attribution a { color: #71717a !important; }
+            .leaflet-control-zoom a {
+                background: #18181b !important;
+                color: #d4d4d8 !important;
+                border-color: #27272a !important;
+            }
+            .leaflet-control-zoom a:hover {
+                background: #27272a !important;
+                color: #fff !important;
             }
         `;
         document.head.appendChild(style);
