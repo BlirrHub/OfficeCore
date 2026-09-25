@@ -67,12 +67,11 @@ OfficeCore/
     │   ├── Styles/app.css                  # Tailwind CSS v4 design system source (EDIT THIS FILE)
     │   ├── wwwroot/                        # Static assets, compiled app.css, and JS interop
     │   └── package.json                    # Tailwind build scripts (css:build, css:watch)
-    └── OfficeCore.DesktopClient/           # Windows Desktop Client (WPF + Edge WebView2)
-        ├── MainWindow.xaml                 # Startup mode selection, Server dashboard, and Client view
-        ├── MainWindow.xaml.cs              # View routing, server process orchestration, and WebView2
-        ├── ServerProcessManager.cs         # API lifecycle manager with live log stream
-        ├── NetworkHelper.cs                # LAN IP auto-detection
-        └── DesktopConfigService.cs         # Local config persistence (desktop_config.json)
+    ├── OfficeCore.Desktop.Server/          # WPF Server Station (host machine orchestrator)
+    │   └── ...
+    ├── OfficeCore.Desktop.Client/          # WPF Client Terminal (workstation WebView2 shell)
+    │   └── ...
+    └── OfficeCore.Client.Installer/        # WPF setup wizard for Client Terminal deployment
 ```
 
 ---
@@ -183,22 +182,23 @@ Use the pre-seeded credentials to log in:
 
 ---
 
-## 6. Desktop Client: Server & Client Terminal Modes
+## 6. Desktop Deployment: Server Station & Client Terminal
 
-`OfficeCore.DesktopClient` provides a streamlined Point-of-Sale (POS) experience tailored for local network environments:
+OfficeCore uses a dedicated two-project desktop deployment model for POS-style local network environments.
+See **Section 4, Option A** above for the full usage guide.
 
-### 1. Server Station (Host Machine)
-- **Port Testing:** Automatically pings PostgreSQL on port `5432` to confirm readiness before launching the backend.
+### Server Station (`OfficeCore.Desktop.Server`)
 - **Process Management:** Launches and manages `OfficeCore.Api` as a child process.
-- **LAN IP Display:** Discovers your non-virtual IPv4 LAN address and provides a ready-to-share URL (e.g. `http://192.168.1.50:5026`) with a 1-click **Copy** button for terminal workstations.
-- **Live Logs:** Real-time stdout/stderr log console embedded in the dashboard for monitoring requests, migrations, and errors.
-- **Embedded Web View:** Click **Launch OfficeCore Locally** to switch directly into the application via Microsoft Edge WebView2.
+- **Port Testing:** Pings PostgreSQL on port `5432` before starting the backend.
+- **LAN IP Display:** Discovers your non-virtual IPv4 address and displays a ready-to-share URL (e.g. `http://192.168.1.50:5026`) with a 1-click **Copy** button.
+- **Live Logs:** Real-time stdout/stderr log console embedded in the dashboard.
+- **Embedded WebView:** Click **Launch OfficeCore Locally** to open the application via Edge WebView2.
 
-### 2. Client Terminal (Workstation PCs)
+### Client Terminal (`OfficeCore.Desktop.Client`)
 - Requires only the Server URL or LAN IP address.
-- Validates network connection to the server before loading.
-- Stores server address in `desktop_config.json` for instant subsequent connections.
-- Renders the full OfficeCore application with full offline LAN speed and zero local database setup.
+- Validates network connection before loading.
+- Stores server address in `client_config.json` for instant subsequent connections.
+- Renders the full OfficeCore application at LAN speed with zero local database setup.
 
 ---
 

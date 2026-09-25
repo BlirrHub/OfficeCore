@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 
@@ -30,16 +31,21 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null || !user.IsActive)
             return Unauthorized(new { message = "Invalid login attempt or account disabled." });
 
-        var result = await _signInManager.PasswordSignInAsync(user, request.Password, request.RememberMe, lockoutOnFailure: false);
+        // lockoutOnFailure: true activates the 5-attempt / 5-minute lockout configured in Identity options
+        var result = await _signInManager.PasswordSignInAsync(user, request.Password, request.RememberMe, lockoutOnFailure: true);
         
         if (result.Succeeded)
             return Ok(new { message = "Login successful" });
+
+        if (result.IsLockedOut)
+            return StatusCode(429, new { message = "Account locked due to too many failed attempts. Please try again in 5 minutes." });
 
         return Unauthorized(new { message = "Invalid login attempt." });
     }

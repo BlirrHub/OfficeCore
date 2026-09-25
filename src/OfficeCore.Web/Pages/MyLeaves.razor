@@ -2,6 +2,9 @@
 @attribute [Authorize]
 @inject HttpClient Http
 @inject OfficeCore.Web.Services.ToastService ToastService
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.SignalR.Client
 
 <PageTitle>My Leaves - OfficeCore</PageTitle>
 
@@ -195,9 +198,41 @@
     private CreateForm _newRequest = new() { StartDate = DateTime.Now, EndDate = DateTime.Now };
     private IBrowserFile? _selectedFile;
 
+    // SignalR
+    private HubConnection? _hubConnection;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadRequests();
+        await ConnectToHub();
+    }
+
+    private async Task ConnectToHub()
+    {
+        var apiBase = Navigation.BaseUri.TrimEnd('/');
+        var uri = new Uri(apiBase);
+        var hubUrl = $"{uri.Scheme}://{uri.Host}:5026/hubs/notifications";
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl, opts => opts.UseDefaultCredentials = true)
+            .WithAutomaticReconnect()
+            .Build();
+
+        // When the admin approves/rejects, update the personal leave list
+        _hubConnection.On("LeaveRequestUpdated", async () =>
+        {
+            await LoadRequests();
+            await InvokeAsync(StateHasChanged);
+            ToastService.ShowSuccess("Your leave request status was updated.");
+        });
+
+        try { await _hubConnection.StartAsync(); } catch { /* Hub is optional; page works without it */ }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+            await _hubConnection.DisposeAsync();
     }
 
     private async Task LoadRequests()

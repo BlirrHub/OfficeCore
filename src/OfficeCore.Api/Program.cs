@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using OfficeCore.Api.Data;
 using OfficeCore.Api.Models;
 
@@ -11,18 +13,56 @@ CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS – allow the Blazor frontend
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+// Restrict to known origins. In production, add your real domain(s) to
+// "AllowedOrigins" in appsettings.json. Dev origins are always included.
+var allowedOrigins = builder.Configuration
+    .GetSection("AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
+var devOrigins = new[]
+{
+    "http://localhost:5261",
+    "https://localhost:5261",
+    "http://localhost:5026",
+    "https://localhost:7174",
+};
+
+var allOrigins = allowedOrigins.Union(devOrigins).ToArray();
+
 builder.Services.AddCors(opt =>
     opt.AddPolicy("BlazorPolicy", p => p
-        .SetIsOriginAllowed(origin => true)
+        .WithOrigins(allOrigins)
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()));
 
-// Add services to the container.
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+// Fixed-window rate limit for the login endpoint: 5 attempts per minute per IP.
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("LoginPolicy", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, _) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsync(
+            "{\"message\":\"Too many login attempts. Please wait a minute and try again.\"}");
+    };
+});
+
+// ─── Database ─────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// ─── Identity ─────────────────────────────────────────────────────────────────
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
     options.Password.RequireDigit = false;
@@ -30,6 +70,11 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = false;
     options.Password.RequiredLength = 6;
+
+    // Enable account lockout after 5 failed attempts for 5 minutes
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
 })
 .AddRoles<AppRole>()
 .AddEntityFrameworkStores<AppDbContext>()
@@ -58,6 +103,7 @@ builder.Services.AddAuthorization(options =>
     }
 });
 
+// ─── Services ─────────────────────────────────────────────────────────────────
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -76,6 +122,7 @@ builder.Services.AddScoped<OfficeCore.Api.Services.TenantService>();
 builder.Services.AddScoped<OfficeCore.Api.Services.IPayrollComputationService, OfficeCore.Api.Services.PayrollComputationService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, OfficeCore.Api.Services.OrganizationClaimsTransformation>();
 
+// ─── Build ────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
 // Seed the database
@@ -91,6 +138,7 @@ app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 app.UseCors("BlazorPolicy");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -98,6 +146,7 @@ app.MapControllers();
 app.MapHub<OfficeCore.Api.Hubs.AttendanceHub>("/attendanceHub");
 app.MapHub<OfficeCore.Api.Hubs.BoardHub>("/hubs/boards");
 app.MapHub<OfficeCore.Api.Hubs.ChatHub>("/hubs/chat");
+app.MapHub<OfficeCore.Api.Hubs.NotificationHub>("/hubs/notifications");
 app.MapFallbackToFile("index.html");
 
 app.Run();

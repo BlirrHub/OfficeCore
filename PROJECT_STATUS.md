@@ -9,9 +9,9 @@
 - **Web Hosting:** Unified single-port hosting (`OfficeCore.Api` serves REST API, SignalR WebSockets, and Blazor WebAssembly client files on port `5026`)
 - **Real-Time Communication:** SignalR WebSockets (`BoardHub`, `AttendanceHub`, `ChatHub`)
 - **Frontend Framework:** Blazor WebAssembly (Served via API fallback to `index.html`)
-- **Desktop Client:** Windows WPF Client (`OfficeCore.DesktopClient`) with Edge WebView2, supporting dual-role POS-style deployment:
-  - **Server Station Mode:** Manages local PostgreSQL connection, starts `OfficeCore.Api`, displays LAN IP broadcast for office workstations, streams live console output, and provides a direct local WebView2 client.
-  - **Client Terminal Mode:** Lightweight workstation client that connects to the host server IP/URL over the local office network.
+- **Desktop Client:** Two dedicated WPF applications using Edge WebView2 for POS-style local network deployment:
+  - **`OfficeCore.Desktop.Server`** — Server Station: manages PostgreSQL connection, starts `OfficeCore.Api`, displays LAN IP broadcast for workstations, streams live console output, and provides a direct local WebView2 client.
+  - **`OfficeCore.Desktop.Client`** — Client Terminal: lightweight workstation client that connects to the host server IP/URL over the local office network.
 - **Styling & Theming:** Tailwind CSS v4 with dual-theme system (Dark default + Light mode via `.light` CSS variables)
 - **Hardware Integrations:** ESP32 + Optical Fingerprint Scanner (AS608) via Web Serial API (USB) and TCP Socket Listener (Wi-Fi on port 9000)
 

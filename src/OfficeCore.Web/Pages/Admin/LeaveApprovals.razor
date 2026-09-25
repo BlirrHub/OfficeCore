@@ -2,6 +2,9 @@
 @attribute [Authorize(Roles = "Admin,HR")]
 @inject HttpClient Http
 @inject OfficeCore.Web.Services.ToastService ToastService
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.SignalR.Client
 
 <PageTitle>Leave Approvals - OfficeCore</PageTitle>
 
@@ -371,6 +374,7 @@
 }
 
 @code {
+
     private List<LeaveRequestAdminDto>? _requests;
     private string _searchQuery = "";
     private int _statusFilter = -1;
@@ -386,6 +390,9 @@
     
     // Delete State
     private LeaveRequestAdminDto? _requestToDelete;
+
+    // SignalR
+    private HubConnection? _hubConnection;
 
     private void ConfirmDelete(LeaveRequestAdminDto request)
     {
@@ -419,6 +426,50 @@
     {
         await LoadRequests();
         await LoadEmployees();
+        await ConnectToHub();
+    }
+
+    private async Task ConnectToHub()
+    {
+        // Build the hub URL against the API host (port 5026)
+        var apiBase = Navigation.BaseUri.TrimEnd('/');
+        var uri = new Uri(apiBase);
+        var hubUrl = $"{uri.Scheme}://{uri.Host}:5026/hubs/notifications";
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl, opts => opts.UseDefaultCredentials = true)
+            .WithAutomaticReconnect()
+            .Build();
+
+        // Reload when any employee submits a new leave request
+        _hubConnection.On("LeaveRequestCreated", async () =>
+        {
+            await LoadRequests();
+            await InvokeAsync(StateHasChanged);
+            ToastService.ShowSuccess("New leave request received.");
+        });
+
+        // Reload when a status change happens (another admin approved/rejected)
+        _hubConnection.On("LeaveRequestUpdated", async () =>
+        {
+            await LoadRequests();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        // Reload when a leave is deleted
+        _hubConnection.On("LeaveRequestDeleted", async () =>
+        {
+            await LoadRequests();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        try { await _hubConnection.StartAsync(); } catch { /* Hub is optional; page works without it */ }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+            await _hubConnection.DisposeAsync();
     }
 
     private async Task LoadEmployees()

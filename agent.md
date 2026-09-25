@@ -24,9 +24,9 @@ This document establishes the architecture rules, project conventions, technical
 | **Database & ORM** | PostgreSQL 18 + EF Core 9 | `Npgsql.EntityFrameworkCore.PostgreSQL`, database `OfficeCoreDb` on port `5432` |
 | **Identity & Auth** | ASP.NET Core Identity | Cookie-based authentication with custom claims transformation |
 | **Frontend Web** | Blazor WebAssembly | Client-side WASM hosted and served directly by ASP.NET Core API |
-| **Desktop Client** | WPF + Edge WebView2 | `OfficeCore.DesktopClient` dual-mode POS hub (Server Station & Client Terminal) |
+| **Desktop Client** | WPF + Edge WebView2 | `OfficeCore.Desktop.Server` (host station) + `OfficeCore.Desktop.Client` (workstation terminal) |
 | **Styling** | Tailwind CSS v4 | `@tailwindcss/cli` v4.3.1, custom CSS variable token design system |
-| **Real-Time** | ASP.NET Core SignalR | `ChatHub`, `AttendanceHub`, `BoardHub` |
+| **Real-Time** | ASP.NET Core SignalR | `ChatHub`, `AttendanceHub`, `BoardHub`, `NotificationHub` |
 | **Hardware** | Web Serial API + ESP32 | Biometric fingerprint scanner over USB Serial (browser) or TCP (Wi-Fi) |
 
 ---
@@ -62,12 +62,15 @@ OfficeCore/
     │   │   ├── app.css                     # Compiled CSS (DO NOT EDIT DIRECTLY)
     │   │   └── js/themeInterop.js          # JavaScript theme helper (light/dark mode toggle)
     │   └── package.json                    # Tailwind build scripts (css:build, css:watch)
-    └── OfficeCore.DesktopClient/           # Windows Desktop Client (POS-Style Server & Client Hub)
-        ├── MainWindow.xaml                 # Mode selection, Server dashboard, and Client view
-        ├── MainWindow.xaml.cs              # View routing, server process orchestration, and WebView2
-        ├── ServerProcessManager.cs         # API lifecycle manager with live log streaming
-        ├── NetworkHelper.cs                # LAN IP auto-detection
-        └── DesktopConfigService.cs         # Local config persistence (desktop_config.json)
+    ├── OfficeCore.Desktop.Server/          # WPF Server Station — orchestrates API process, LAN IP display, live logs
+    │   ├── MainWindow.xaml/cs              # PostgreSQL config UI + API process management
+    │   ├── ServerProcessManager.cs         # API lifecycle with stdout/stderr log streaming
+    │   ├── ServerConfigService.cs          # Local config persistence
+    │   └── NetworkHelper.cs               # LAN IP auto-detection
+    ├── OfficeCore.Desktop.Client/          # WPF Client Terminal — lightweight workstation WebView2 shell
+    │   ├── MainWindow.xaml/cs              # Server URL input + WebView2 browser host
+    │   └── ClientConfigService.cs          # Server address persistence
+    └── OfficeCore.Client.Installer/        # WPF setup wizard for deploying the Client Terminal
 ```
 
 ---

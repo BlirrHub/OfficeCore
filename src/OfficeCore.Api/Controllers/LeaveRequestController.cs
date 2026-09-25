@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using System.Security.Claims;
 using OfficeCore.Api.Services;
+using OfficeCore.Api.Hubs;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -17,13 +19,15 @@ public class LeaveRequestController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _env;
     private readonly TenantService _tenant;
+    private readonly IHubContext<NotificationHub> _hub;
 
-    public LeaveRequestController(AppDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, TenantService tenant)
+    public LeaveRequestController(AppDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, TenantService tenant, IHubContext<NotificationHub> hub)
     {
         _context = context;
         _userManager = userManager;
         _env = env;
         _tenant = tenant;
+        _hub = hub;
     }
 
     [HttpGet("my")]
@@ -112,6 +116,18 @@ public class LeaveRequestController : ControllerBase
         _context.LeaveRequests.Add(leaveRequest);
         await _context.SaveChangesAsync();
 
+        // Notify admins in this org so the Leave Approvals page updates live
+        await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestCreated", new
+        {
+            leaveRequest.Id,
+            leaveRequest.EmployeeId,
+            leaveRequest.Type,
+            leaveRequest.StartDate,
+            leaveRequest.EndDate,
+            leaveRequest.Status,
+            leaveRequest.CreatedAt
+        });
+
         return Ok(leaveRequest);
     }
 
@@ -119,11 +135,22 @@ public class LeaveRequestController : ControllerBase
     [Authorize(Policy = "RequireLeaveApprovals")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateLeaveStatusDto request)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
         var leaveRequest = await _context.LeaveRequests.FindAsync(id);
         if (leaveRequest == null) return NotFound();
 
         leaveRequest.Status = request.Status;
         await _context.SaveChangesAsync();
+
+        // Notify all org members so the employee sees the status change live
+        if (orgId.HasValue)
+        {
+            await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestUpdated", new
+            {
+                Id = id,
+                leaveRequest.Status
+            });
+        }
 
         return Ok(new { message = "Status updated successfully" });
     }
@@ -155,6 +182,18 @@ public class LeaveRequestController : ControllerBase
         _context.LeaveRequests.Add(leaveRequest);
         await _context.SaveChangesAsync();
 
+        // Notify org members of the newly approved leave
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated", new
+        {
+            leaveRequest.Id,
+            leaveRequest.EmployeeId,
+            leaveRequest.Type,
+            leaveRequest.StartDate,
+            leaveRequest.EndDate,
+            leaveRequest.Status,
+            leaveRequest.CreatedAt
+        });
+
         return Ok(leaveRequest);
     }
 
@@ -165,8 +204,12 @@ public class LeaveRequestController : ControllerBase
         var leaveRequest = await _context.LeaveRequests.FindAsync(id);
         if (leaveRequest == null) return NotFound();
 
+        var orgId = leaveRequest.OrganizationId;
         _context.LeaveRequests.Remove(leaveRequest);
         await _context.SaveChangesAsync();
+
+        // Notify org members so the list updates live
+        await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestDeleted", id);
 
         return Ok(new { message = "Leave request deleted successfully" });
     }

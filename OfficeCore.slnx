@@ -1,7 +1,6 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/OfficeCore.Api/OfficeCore.Api.csproj" />
-    <Project Path="src/OfficeCore.DesktopClient/OfficeCore.DesktopClient.csproj" />
     <Project Path="src/OfficeCore.Desktop.Client/OfficeCore.Desktop.Client.csproj" />
     <Project Path="src/OfficeCore.Desktop.Server/OfficeCore.Desktop.Server.csproj" />
     <Project Path="src/OfficeCore.Client.Installer/OfficeCore.Client.Installer.csproj" />

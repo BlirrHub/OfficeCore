@@ -6,7 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added & Changed — [2026-09-23] (Multi-Scenario Employee Seeding, Work Schedule & Payroll Engine Enhancements)
+### Added & Changed — [2026-09-25] (Security Hardening, Real-Time Notifications, Legacy Project Removal)
+
+- **Removed `OfficeCore.DesktopClient` (Legacy Dual-Mode Desktop):**
+  - Deleted the legacy `OfficeCore.DesktopClient` project and its source directory, which combined Server Station and Client Terminal into a single monolithic WPF app.
+  - The canonical desktop deployment now uses the split `OfficeCore.Desktop.Server` (host station) + `OfficeCore.Desktop.Client` (workstation terminal) projects.
+  - Removed project entry from `OfficeCore.slnx`. Updated `RUNNING.md`, `agent.md`, and `PROJECT_STATUS.md` to reflect the current two-project architecture.
+
+- **CORS Security Hardening (`Program.cs`):**
+  - Replaced `SetIsOriginAllowed(origin => true)` (allow-all) with `WithOrigins(allowedOrigins)` scoped to known dev ports (`5026`, `5261`, `7174`).
+  - Production deployments can add custom origins via `AllowedOrigins` array in `appsettings.json`.
+
+- **Login Rate Limiting & Account Lockout (`Program.cs`, `AuthController.cs`):**
+  - Added `.NET 9` `AddRateLimiter` fixed-window policy `LoginPolicy`: **5 attempts per IP per minute**, returns HTTP 429 with a user-friendly message on rejection.
+  - Enabled ASP.NET Identity account lockout: **5 failed attempts → 5-minute lockout** (`lockoutOnFailure: true`).
+  - `POST /api/auth/login` decorated with `[EnableRateLimiting("LoginPolicy")]`; returns `HTTP 429` with a specific locked-out message when the Identity lockout activates.
+
+- **Real-Time SignalR Notifications for Leave & Advance/ELoan (`NotificationHub`, controllers, Razor pages):**
+  - Added new `NotificationHub` (mapped at `/hubs/notifications`). On connect, each user joins an `org_{orgId}` group for org-scoped event delivery.
+  - `LeaveRequestController` now broadcasts `LeaveRequestCreated`, `LeaveRequestUpdated`, and `LeaveRequestDeleted` events to the org group after every mutating action (submit, approve/reject, admin-create, delete).
+  - `AdvanceRequestController` now broadcasts `AdvanceRequestCreated`, `AdvanceRequestUpdated`, and `AdvanceRequestDeleted` events after every mutating action (create, approve, reject, cancel, admin-create, delete).
+  - **`LeaveApprovals.razor` (admin):** Connects to `NotificationHub`; auto-reloads the approvals table and shows a toast notification when any employee submits a new leave request. Also reloads on status changes and deletions from other sessions.
+  - **`MyLeaves.razor` (employee):** Connects to `NotificationHub`; status badge updates live (no page refresh needed) when an admin approves or rejects the employee's leave request.
+  - **`Ledger.razor` (admin):** Connects to `NotificationHub`; advance/loan approvals table refreshes live when employees submit, cancel, or modify requests.
+  - **`Advances.razor` (employee):** Connects to `NotificationHub`; request status updates live when an admin approves or rejects.
+  - All hub connections use `WithAutomaticReconnect()` and graceful error handling so pages remain functional if SignalR is unavailable.
+
 - **Work Schedule & Unpaid Break Configuration (`DbSeeder.cs`):**
   - Standardized the default organization schedule to **8:00 AM – 5:00 PM** across Monday through Friday (8 working hours/day) with Saturday and Sunday designated as rest days.
   - Configured a 1-hour unpaid lunch break from **12:00 PM – 1:00 PM** (`WorkScheduleBreak`) and assigned all employees to this schedule.
@@ -67,7 +92,7 @@ All notable changes to this project will be documented in this file.
 - **Unified Single-Port Web Hosting (`OfficeCore.Api` & `OfficeCore.Web.Client`):**
   - Configured `OfficeCore.Api` to reference `OfficeCore.Web.Client.csproj` and serve Blazor WebAssembly static assets directly on unified port `5026` via `app.UseBlazorFrameworkFiles()` and `app.MapFallbackToFile("index.html")`.
   - Enables workstation terminals to connect to `http://<SERVER_IP>:5026` for both the application interface and REST/SignalR APIs without running a separate web server process.
-- **POS-Style Desktop Hub & Terminal Workstations (`OfficeCore.DesktopClient`):**
+- **POS-Style Desktop Hub & Terminal Workstations (`OfficeCore.Desktop.Server` + `OfficeCore.Desktop.Client`):**
   - Transformed the WPF desktop client into an on-premises deployment hub supporting two startup modes:
     - **Server Station (Primary Host):** Automatically discovers the server PC's primary non-virtual LAN IPv4 address (via `NetworkHelper.cs`), tests PostgreSQL connection on port `5432`, launches and manages `OfficeCore.Api` as a child process (via `ServerProcessManager.cs`), displays real-time stdout/stderr log stream, and features a "Launch OfficeCore Locally" button embedding WebView2.
     - **Client Terminal (Workstation):** Lightweight workstation mode for other office PCs to input the host server's LAN IP or URL, validate connectivity, and render the application in a dedicated full-screen desktop WebView2 frame.
@@ -115,7 +140,7 @@ All notable changes to this project will be documented in this file.
 - **SQLite Database Migration, .NET 9 LTS Standardization & Desktop Client:**
   - **Database Migration to SQLite:** Migrated primary database from PostgreSQL to SQLite (`Microsoft.EntityFrameworkCore.Sqlite`), providing a zero-dependency, self-contained local database file (`officecore.db`) with a unified initial migration.
   - **.NET 9 LTS Standardization:** Downgraded target framework across all projects from .NET 10 preview to .NET 9 LTS (`net9.0`) for long-term support and tooling stability.
-  - **Desktop Client (`OfficeCore.DesktopClient`):** Created a WPF-based Windows desktop client wrapping Blazor WebAssembly via Microsoft Edge WebView2, supporting native desktop window framing.
+  - **Desktop Client (`OfficeCore.Desktop.Server` + `OfficeCore.Desktop.Client`):** Created two dedicated WPF applications — a Server Station host and a Client Terminal — each wrapping Blazor WebAssembly via Microsoft Edge WebView2.
 
 ### Added & Changed — [2026-08-17]
 - **Organization Profile Enhancements & Secure Deletion:**
