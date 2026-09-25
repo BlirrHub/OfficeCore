@@ -141,37 +141,7 @@ app.UseRateLimiter();
 // ─── Workstation / Desktop Only Enforcer ───────────────────────────────────────
 // Blocks direct web browser access (e.g. Chrome, Edge) unless requested by the
 // official OfficeCore desktop workstation client or mobile application.
-app.Use(async (context, next) =>
-{
-    var path = context.Request.Path.Value ?? "";
 
-    // Allow API endpoints, SignalR hubs, and OpenAPI documentation
-    if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/attendanceHub", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase))
-    {
-        await next();
-        return;
-    }
-
-    // Verify desktop / mobile client header
-    var clientHeader = context.Request.Headers["X-OfficeCore-Client"].ToString();
-    var isAuthorizedApp = clientHeader.Contains("OfficeCore-Desktop-Workstation", StringComparison.OrdinalIgnoreCase);
-
-    // If accessed via a generic browser (no app header), block access (TEMPORARILY DISABLED FOR TESTING)
-    /*
-    if (!isAuthorizedApp)
-    {
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        context.Response.ContentType = "text/html";
-        await context.Response.WriteAsync("Forbidden");
-        return;
-    }
-    */
-
-    await next();
-});
 
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
