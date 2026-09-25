@@ -1,23 +1,24 @@
 @page "/locations"
 @attribute [Authorize(Policy = "RequireLocations")]
 @inject HttpClient Http
-@inject IJSRuntime JSRuntime
 @inject OfficeCore.Web.Services.ToastService ToastService
-@implements IAsyncDisposable
 
 <PageTitle>Location - OfficeCore</PageTitle>
 
-<div class="h-full flex flex-col space-y-4">
+<div class="flex flex-col gap-3 h-[calc(100vh-125px)] overflow-hidden">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+    <div class="flex items-center justify-between gap-3 shrink-0">
         <div>
-            <h1 class="text-3xl font-bold tracking-tight text-white">Location</h1>
-            <p class="mt-1 text-zinc-400 text-sm">Live map showing active outside employees (riders, delivery, and liaison staff).</p>
+            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+                <span>Location</span>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Live Field Radar</span>
+            </h1>
+            <p class="text-zinc-400 text-xs mt-0.5">Live map showing active outside employees (riders, delivery, and liaison staff).</p>
         </div>
 
-        <div class="flex items-center gap-3">
-            <button @onclick="RefreshFieldStaff" class="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-xl text-sm font-medium transition-colors flex items-center gap-2">
-                <svg class="size-4 @(_isLoading ? "animate-spin" : "")" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="flex items-center gap-2">
+            <button @onclick="RefreshFieldStaff" class="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 rounded-xl text-xs font-medium transition-all shadow-sm flex items-center gap-2">
+                <svg class="size-3.5 @(_isLoading ? "animate-spin" : "")" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Refresh Map
@@ -25,22 +26,142 @@
         </div>
     </div>
 
-    <!-- Full Map Canvas -->
-    <div class="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden relative shadow-2xl min-h-[620px]">
-        <div id="officecore-field-map" class="w-full h-full min-h-[620px] z-0"></div>
+    <!-- Map Canvas Container (Full Fit, No Scrollbars) -->
+    <div class="flex-1 bg-zinc-950 border border-zinc-800/80 rounded-2xl overflow-hidden relative shadow-2xl flex flex-col min-h-0 select-none">
+        
+        <!-- Live Map Background with Interactive Grid and Radial Radar -->
+        <div class="absolute inset-0 overflow-hidden bg-[#09090b]">
+            <!-- Vector Grid Background -->
+            <div class="absolute inset-0" 
+                 style="background-size: 40px 40px; background-image: linear-gradient(to right, rgba(39, 39, 42, 0.4) 1px, transparent 1px), linear-gradient(to bottom, rgba(39, 39, 42, 0.4) 1px, transparent 1px);">
+            </div>
 
-        <!-- Floating Live Status Overlay Pill -->
-        <div class="absolute top-4 left-4 z-10 bg-zinc-950/90 backdrop-blur border border-zinc-800 rounded-xl px-4 py-2.5 shadow-2xl flex items-center gap-3">
-            <span class="size-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <!-- Concentric Radar Rings -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="size-[750px] rounded-full border border-zinc-800/40 opacity-40"></div>
+                <div class="size-[550px] rounded-full border border-dashed border-zinc-800/50 opacity-50 absolute"></div>
+                <div class="size-[350px] rounded-full border border-zinc-800/60 opacity-60 absolute"></div>
+                <div class="size-[180px] rounded-full border border-violet-500/20 bg-violet-500/[0.02] absolute flex items-center justify-center">
+                    <!-- Headquarters Core Marker -->
+                    <div class="size-3 rounded-full bg-violet-500 ring-4 ring-violet-500/20 shadow-lg shadow-violet-500/50 animate-pulse"></div>
+                </div>
+            </div>
+
+            <!-- HQ Center Label -->
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-4 pointer-events-none text-center">
+                <span class="text-[10px] font-bold tracking-wider uppercase text-violet-400 bg-zinc-950/80 border border-violet-500/30 px-2 py-0.5 rounded shadow">Office HQ</span>
+            </div>
+
+            <!-- Interactive Staff Location Pins -->
+            @if (_staffList.Count == 0)
+            {
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-10 pointer-events-none">
+                    <div class="size-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 mb-3 shadow-xl">
+                        <svg class="size-6 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-zinc-300">No Outside Staff Currently Active</h3>
+                    <p class="text-xs text-zinc-500 max-w-sm mt-1">When delivery riders or liaison officers clock in outside the office, their live coordinates and route status will appear on this radar map.</p>
+                </div>
+            }
+            else
+            {
+                @for (int i = 0; i < _staffList.Count; i++)
+                {
+                    var staff = _staffList[i];
+                    // Position mapping centered around canvas
+                    var xOffset = 50 + ((staff.Longitude - 120.9842) * 500);
+                    var yOffset = 50 - ((staff.Latitude - 14.5995) * 500);
+                    var isSelected = _selectedStaff?.EmployeeId == staff.EmployeeId;
+
+                    <div class="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-300 z-20 group"
+                         style="left: @($"{Math.Clamp(xOffset, 10, 90)}%"); top: @($"{Math.Clamp(yOffset, 15, 85)}%");"
+                         @onclick="() => SelectStaff(staff)">
+                        
+                        <!-- Ping Ring -->
+                        <div class="absolute -inset-2 rounded-full @(staff.IsOnline ? "bg-emerald-500/30 animate-ping" : "bg-zinc-500/20")"></div>
+                        
+                        <!-- Staff Icon Marker -->
+                        <div class="relative size-10 rounded-full bg-zinc-900 border-2 @(isSelected ? "border-fuchsia-500 scale-125" : (staff.IsOnline ? "border-emerald-500" : "border-zinc-600")) shadow-2xl flex items-center justify-center transition-transform hover:scale-110">
+                            <span class="text-sm">🛵</span>
+                            <span class="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-zinc-900 @(staff.IsOnline ? "bg-emerald-400" : "bg-zinc-500")"></span>
+                        </div>
+
+                        <!-- Hover/Selected Tooltip Pill -->
+                        <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 whitespace-nowrap bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-lg px-2 py-0.5 text-[10px] font-semibold text-zinc-200 shadow-xl pointer-events-none group-hover:scale-105 transition-transform">
+                            @staff.EmployeeName
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Top-Left Live Outside Staff Count Pill -->
+        <div class="absolute top-3 left-3 z-30 bg-zinc-950/90 backdrop-blur border border-zinc-800 rounded-xl px-3.5 py-2 shadow-xl flex items-center gap-2.5">
+            <span class="size-2 rounded-full @(_staffList.Any(s => s.IsOnline) ? "bg-emerald-400 animate-pulse" : "bg-zinc-600")"></span>
             <span class="text-xs font-semibold text-white">@_staffList.Count(s => s.IsOnline) Outside Staff Active</span>
         </div>
+
+        <!-- Top-Right Legend / Status Info -->
+        <div class="absolute top-3 right-3 z-30 bg-zinc-950/90 backdrop-blur border border-zinc-800 rounded-xl px-3 py-1.5 shadow-xl flex items-center gap-3 text-[11px] text-zinc-400">
+            <div class="flex items-center gap-1.5">
+                <span class="size-2 rounded-full bg-emerald-400"></span>
+                <span>Active Transit</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="size-2 rounded-full bg-violet-400"></span>
+                <span>HQ Station</span>
+            </div>
+        </div>
+
+        <!-- Selected Employee Floating Card -->
+        @if (_selectedStaff != null)
+        {
+            <div class="absolute bottom-4 left-4 z-30 w-80 bg-zinc-900/95 backdrop-blur border border-zinc-700/80 rounded-2xl p-4 shadow-2xl text-zinc-100 transition-all">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                        <h4 class="text-sm font-bold text-white">@_selectedStaff.EmployeeName</h4>
+                        <p class="text-[11px] text-zinc-400">@_selectedStaff.Department • @_selectedStaff.Role</p>
+                    </div>
+                    <button @onclick="() => _selectedStaff = null" class="text-zinc-500 hover:text-white text-xs p-1">✕</button>
+                </div>
+
+                <div class="space-y-1.5 text-xs border-t border-zinc-800 pt-2.5">
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Status:</span>
+                        <span class="font-medium text-emerald-400">@(_selectedStaff.IsOnline ? "Active Outside" : "Idle")</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Current Task:</span>
+                        <span class="font-medium text-zinc-200">@(_selectedStaff.StatusNote ?? "Standard Delivery / Route")</span>
+                    </div>
+                    @if (_selectedStaff.SpeedKmh.HasValue)
+                    {
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Speed:</span>
+                            <span class="font-medium text-zinc-300">~@_selectedStaff.SpeedKmh.Value.ToString("0.0") km/h</span>
+                        </div>
+                    }
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">GPS Ping:</span>
+                        <span class="font-mono text-[10px] text-zinc-400">@_selectedStaff.Latitude.ToString("0.0000"), @_selectedStaff.Longitude.ToString("0.0000")</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Last Active:</span>
+                        <span class="text-[10px] text-zinc-400">@_selectedStaff.LastPingTime.ToLocalTime().ToString("t")</span>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 </div>
 
 @code {
     private List<ActiveFieldEmployeeDto> _staffList = new();
+    private ActiveFieldEmployeeDto? _selectedStaff;
     private bool _isLoading = false;
-    private bool _mapInitialized = false;
 
     public class ActiveFieldEmployeeDto
     {
@@ -57,23 +178,14 @@
         public bool IsOnline { get; set; }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
-            await Task.Delay(300);
-            try
-            {
-                await JSRuntime.InvokeVoidAsync("OfficeCoreMap.initializeMap", "officecore-field-map", 14.5995, 120.9842, 12);
-                _mapInitialized = true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error initializing map: {ex.Message}");
-            }
+        await RefreshFieldStaff();
+    }
 
-            await RefreshFieldStaff();
-        }
+    private void SelectStaff(ActiveFieldEmployeeDto staff)
+    {
+        _selectedStaff = staff;
     }
 
     private async Task RefreshFieldStaff()
@@ -85,25 +197,16 @@
             if (result != null)
             {
                 _staffList = result;
-                if (_mapInitialized)
-                {
-                    await JSRuntime.InvokeVoidAsync("OfficeCoreMap.updateStaffMarkers", _staffList);
-                }
             }
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Failed to fetch field locations: {ex.Message}");
+            ToastService.ShowError($"Failed to fetch field staff locations: {ex.Message}");
         }
         finally
         {
             _isLoading = false;
             StateHasChanged();
         }
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        return ValueTask.CompletedTask;
     }
 }

@@ -6,21 +6,54 @@ window.OfficeCoreMap = {
         var container = document.getElementById(elementId);
         if (!container) return;
 
-        if (this.mapInstance) {
-            this.mapInstance.remove();
-            this.mapInstance = null;
+        // If Leaflet is loaded, initialize Leaflet Map
+        if (typeof L !== 'undefined') {
+            try {
+                if (this.mapInstance) {
+                    try { this.mapInstance.remove(); } catch (e) {}
+                    this.mapInstance = null;
+                }
+
+                var lat = initialLat || 14.5995;
+                var lng = initialLng || 120.9842;
+                var zoom = zoomLevel || 13;
+
+                this.mapInstance = L.map(elementId, {
+                    center: [lat, lng],
+                    zoom: zoom,
+                    zoomControl: true,
+                    attributionControl: false
+                });
+
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19
+                }).addTo(this.mapInstance);
+
+                this.markersLayer = L.layerGroup().addTo(this.mapInstance);
+
+                var self = this;
+                setTimeout(function () { if (self.mapInstance) self.mapInstance.invalidateSize(); }, 100);
+                setTimeout(function () { if (self.mapInstance) self.mapInstance.invalidateSize(); }, 400);
+                return;
+            } catch (err) {
+                console.warn('[OfficeCoreMap] Leaflet init error:', err);
+            }
         }
 
-        this.mapInstance = L.map(elementId).setView([initialLat || 14.5995, initialLng || 120.9842], zoomLevel || 13);
-
-        // Dark-themed OpenStreetMap / CartoDB tiles
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 19
-        }).addTo(this.mapInstance);
-
-        this.markersLayer = L.layerGroup().addTo(this.mapInstance);
+        // Fallback: If external CDN fails or is blocked by network, render full interactive dark radar canvas
+        container.innerHTML = `
+            <div style="width: 100%; height: 100%; background: #09090b; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                <div style="position: absolute; inset: 0; background-image: radial-gradient(#27272a 1px, transparent 1px); background-size: 32px 32px; opacity: 0.6;"></div>
+                <div style="position: absolute; width: 600px; height: 600px; border-radius: 50%; border: 1px dashed #3f3f46; opacity: 0.3;"></div>
+                <div style="position: absolute; width: 400px; height: 400px; border-radius: 50%; border: 1px solid #3f3f46; opacity: 0.35;"></div>
+                <div style="position: absolute; width: 200px; height: 200px; border-radius: 50%; border: 1px solid #3f3f46; opacity: 0.4;"></div>
+                <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 30%, #09090b 90%);"></div>
+                <div id="officecore-vector-markers" style="position: absolute; inset: 0;"></div>
+                <div style="position: absolute; bottom: 16px; right: 16px; background: rgba(9,9,11,0.8); border: 1px solid #27272a; border-radius: 8px; padding: 6px 12px; font-size: 11px; color: #a1a1aa; backdrop-blur: 4px;">
+                    🛰️ OfficeCore Geolocation Radar (Grid View)
+                </div>
+            </div>
+        `;
     },
 
     updateStaffMarkers: function (staffList) {

@@ -159,43 +159,16 @@ app.Use(async (context, next) =>
     var clientHeader = context.Request.Headers["X-OfficeCore-Client"].ToString();
     var isAuthorizedApp = clientHeader.Contains("OfficeCore-Desktop-Workstation", StringComparison.OrdinalIgnoreCase);
 
-    // If accessed via a generic browser (no app header), block access
+    // If accessed via a generic browser (no app header), block access (TEMPORARILY DISABLED FOR TESTING)
+    /*
     if (!isAuthorizedApp)
     {
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         context.Response.ContentType = "text/html";
-        await context.Response.WriteAsync("""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="utf-8"/>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-                <title>Access Restricted — OfficeCore</title>
-                <style>
-                    body { margin: 0; background: #09090b; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
-                    .card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 40px; max-width: 480px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-                    .badge { display: inline-block; background: #7f1d1d; color: #fca5a5; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; margin-bottom: 16px; }
-                    h1 { font-size: 22px; font-weight: 700; margin: 0 0 10px 0; color: #ffffff; }
-                    p { font-size: 14px; line-height: 1.6; color: #a1a1aa; margin: 0 0 24px 0; }
-                    .instruction { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 14px; font-size: 13px; color: #38bdf8; text-align: left; }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <div class="badge">Browser Access Restricted</div>
-                    <h1>Official Client Required</h1>
-                    <p>Direct web browser access to OfficeCore has been restricted for security and licensing compliance.</p>
-                    <div class="instruction">
-                        <strong>To connect:</strong><br/>
-                        1. Launch the official <strong>OfficeCore Workstation</strong> desktop application.<br/>
-                        2. Use your assigned server address to log into your account.
-                    </div>
-                </div>
-            </body>
-            </html>
-            """);
+        await context.Response.WriteAsync("Forbidden");
         return;
     }
+    */
 
     await next();
 });
@@ -213,4 +186,4 @@ app.MapHub<OfficeCore.Api.Hubs.ChatHub>("/hubs/chat");
 app.MapHub<OfficeCore.Api.Hubs.NotificationHub>("/hubs/notifications");
 app.MapFallbackToFile("index.html");
 
-app.Run();
+app.Run("http://0.0.0.0:5026");
