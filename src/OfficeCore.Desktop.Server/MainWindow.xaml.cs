@@ -26,7 +26,13 @@ public partial class MainWindow : Window
     {
         try
         {
-            await webView.EnsureCoreWebView2Async(null);
+            var udataDir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "OfficeCore", "Server_WebView2");
+            System.IO.Directory.CreateDirectory(udataDir);
+            var env = await CoreWebView2Environment.CreateAsync(null, udataDir);
+
+            await webView.EnsureCoreWebView2Async(env);
             webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
             webView.CoreWebView2.WebResourceRequested += (s, args) =>
             {
