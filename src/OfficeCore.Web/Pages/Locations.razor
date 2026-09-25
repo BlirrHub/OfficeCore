@@ -3,6 +3,8 @@
 @inject HttpClient Http
 @inject OfficeCore.Web.Services.ToastService ToastService
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthProvider
+@inject IConfiguration Configuration
 @implements IAsyncDisposable
 
 <PageTitle>Location - OfficeCore</PageTitle>
@@ -93,7 +95,7 @@
         <div class="flex items-center gap-2">
             <!-- My Location button -->
             <button @onclick="ShowMyLocation"
-                    class="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-blue-400 border border-blue-500/30
+                    class="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-fuchsia-400 border border-fuchsia-500/30
                            rounded-xl text-xs font-medium transition-all shadow-sm flex items-center gap-1.5">
                 <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="3" stroke-width="2"/>
@@ -261,7 +263,7 @@
                         <span>Idle</span>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="size-1.5 rounded-full bg-blue-400"></span>
+                        <span class="size-1.5 rounded-full bg-fuchsia-400"></span>
                         <span>You</span>
                     </div>
                     <div class="flex items-center gap-1.5">
@@ -353,7 +355,52 @@
     private async Task ShowMyLocation()
     {
         if (!_mapReady) return;
-        await JS.InvokeVoidAsync("OfficeCoreMap.showUserLocation");
+
+        string? profilePic = null;
+        string initials = "ME";
+        string displayName = "You";
+
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var rawPic = user.FindFirst("ProfilePictureUrl")?.Value;
+                if (!string.IsNullOrEmpty(rawPic))
+                {
+                    profilePic = rawPic.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                        ? rawPic
+                        : (Configuration["ApiBaseUrl"] + rawPic);
+                }
+
+                var firstName = user.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value;
+                var lastName = user.FindFirst(System.Security.Claims.ClaimTypes.Surname)?.Value;
+                var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+
+                if (!string.IsNullOrWhiteSpace(firstName) && !string.IsNullOrWhiteSpace(lastName))
+                {
+                    displayName = $"{firstName} {lastName}".Trim();
+                    initials = $"{firstName[0]}{lastName[0]}".ToUpper();
+                }
+                else if (!string.IsNullOrWhiteSpace(firstName))
+                {
+                    displayName = firstName.Trim();
+                    initials = firstName.Length >= 2 ? firstName[..2].ToUpper() : firstName[..1].ToUpper();
+                }
+                else if (!string.IsNullOrWhiteSpace(email))
+                {
+                    displayName = email;
+                    initials = email.Length >= 2 ? email[..2].ToUpper() : "U";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Locations] Error retrieving user profile: {ex.Message}");
+        }
+
+        await JS.InvokeVoidAsync("OfficeCoreMap.showUserLocation", profilePic, initials, displayName);
     }
 
     private async Task RefreshFieldStaff()

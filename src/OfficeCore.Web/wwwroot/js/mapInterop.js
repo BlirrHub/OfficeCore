@@ -60,11 +60,13 @@ window.OfficeCoreMap = {
         }
     },
 
-    showUserLocation: function () {
+    showUserLocation: function (profilePictureUrl, initials, displayName) {
         if (!this.mapInstance) return;
         if (!navigator.geolocation) return;
 
         var self = this;
+        var userInitials = (initials || 'ME').toUpperCase();
+        var nameLabel = displayName || 'You';
 
         navigator.geolocation.getCurrentPosition(function (pos) {
             var lat = pos.coords.latitude;
@@ -75,29 +77,47 @@ window.OfficeCoreMap = {
                 self.userMarker = null;
             }
 
+            var avatarInner = profilePictureUrl
+                ? `<img src="${profilePictureUrl}"
+                        style="width:32px;height:32px;border-radius:50%;object-fit:cover;display:block;"
+                        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                   <div style="display:none;width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#581c87,#18181b);align-items:center;justify-content:center;color:#e879f9;font-weight:700;font-size:12px;font-family:system-ui,sans-serif;letter-spacing:0.5px;">${userInitials}</div>`
+                : `<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#581c87,#18181b);display:flex;align-items:center;justify-content:center;color:#e879f9;font-weight:700;font-size:12px;font-family:system-ui,sans-serif;letter-spacing:0.5px;">${userInitials}</div>`;
+
             var userIcon = L.divIcon({
                 className: '',
                 html: `
-                    <div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
-                        <div style="position:absolute;width:36px;height:36px;border-radius:50%;background:#3b82f6;opacity:0.3;animation:oc-ping 2s cubic-bezier(0,0,0.2,1) infinite;"></div>
-                        <div style="position:relative;width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 2px #3b82f6, 0 4px 12px rgba(59,130,246,0.6);"></div>
+                    <div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;">
+                        <div style="position:absolute;width:44px;height:44px;border-radius:50%;background:#c084fc;opacity:0.35;animation:oc-ping 2s cubic-bezier(0,0,0.2,1) infinite;"></div>
+                        <div style="position:relative;width:34px;height:34px;border-radius:50%;border:2.5px solid #a855f7;box-shadow:0 0 14px rgba(168,85,247,0.6), 0 4px 12px rgba(0,0,0,0.8);background:#18181b;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                            ${avatarInner}
+                        </div>
+                        <span style="position:absolute;bottom:0px;right:0px;width:11px;height:11px;border-radius:50%;background:#a855f7;border:2px solid #09090b;box-shadow:0 0 6px #a855f7;"></span>
                     </div>
                 `,
-                iconSize: [36, 36],
-                iconAnchor: [18, 18],
-                popupAnchor: [0, -20]
+                iconSize: [44, 44],
+                iconAnchor: [22, 22],
+                popupAnchor: [0, -24]
             });
 
             var acc = pos.coords.accuracy ? Math.round(pos.coords.accuracy) + 'm' : 'unknown';
 
             self.userMarker = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 1000 })
                 .bindPopup(`
-                    <div style="font-family:system-ui,sans-serif;min-width:160px;">
-                        <div style="font-weight:700;font-size:13px;color:#f4f4f5;margin-bottom:4px;">📍 You are here</div>
+                    <div style="font-family:system-ui,sans-serif;min-width:160px;padding:2px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#581c87,#18181b);border:1.5px solid #a855f7;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#e879f9;overflow:hidden;shrink-0;">
+                                ${profilePictureUrl ? `<img src="${profilePictureUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='${userInitials}'"/>` : userInitials}
+                            </div>
+                            <div>
+                                <div style="font-weight:700;font-size:13px;color:#f4f4f5;line-height:1.2;">${nameLabel}</div>
+                                <div style="font-size:10px;color:#c084fc;font-weight:600;">Your Location</div>
+                            </div>
+                        </div>
                         <div style="font-size:10px;color:#a1a1aa;">Accuracy: ±${acc}</div>
                         <div style="font-size:10px;color:#71717a;margin-top:2px;">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
                     </div>
-                `, { className: 'oc-popup', maxWidth: 220 })
+                `, { className: 'oc-popup', maxWidth: 240 })
                 .addTo(self.mapInstance)
                 .openPopup();
 
