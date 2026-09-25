@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Changed — [2026-09-25] (Live Field Radar Map, Location Tracking & Avatar Markers)
+
+- **Live Field Radar Map Overhaul (`Locations.razor`, `mapInterop.js`):**
+  - Upgraded the Locations radar map with Leaflet.js to always render cleanly with free OpenStreetMap dark-filtered tiles without blank screens or API key dependencies.
+  - Implemented 3×3 CSS grid overlay system eliminating overlapping UI controls across all viewport sizes.
+  - Moved Leaflet zoom control to `topright` so it never clashes with the bottom-right global chat floating action button (FAB).
+  - Integrated location geocoding search bar with instant address search via OpenStreetMap Nominatim.
+  - Added interactive staff inspection cards and stacked status legend.
+
+- **Profile Picture & Initials Map Indicator (`Locations.razor`, `mapInterop.js`):**
+  - Replaced generic blue location dot indicator with the logged-in user's profile avatar.
+  - **With Profile Image:** Renders high-resolution circular profile photo framed with a purple glowing border and pulsing beacon.
+  - **Without Profile Image:** Dynamically generates stylized initials avatar (e.g. `DE`) with purple/fuchsia gradient matching the application design system.
+  - Injected `AuthenticationStateProvider` and `IConfiguration` into `Locations.razor` to automatically pass authenticated user details into geolocation markers.
+
+- **Desktop Security Lockdown (Production Branch):**
+  - Disabled default WebView2 context menus and developer tools (`AreDefaultContextMenusEnabled = false`, `AreDevToolsEnabled = false`) on production builds for desktop client and server hosts.
+
 ### Added & Changed — [2026-09-25] (Security Hardening, Real-Time Notifications, Legacy Project Removal)
 
 - **Removed `OfficeCore.DesktopClient` (Legacy Dual-Mode Desktop):**

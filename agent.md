@@ -260,8 +260,12 @@ When performing tasks on OfficeCore, all AI agents must follow these non-negotia
    - If you introduce new Tailwind utility classes, run `npm.cmd run css:build` in `src/OfficeCore.Web` so the classes are compiled into `wwwroot/app.css`.
 4. **Preserve Code Comments & Architecture:**
    - Maintain existing docstrings, entity configurations, and comments. Never delete working functionality unless explicitly requested by the user.
-5. **Keep Documentation Up-to-Date (Add-Only Rule for CHANGELOG):**
-   - Record all notable features, schema changes, and bug fixes in `CHANGELOG.md` under `## [Unreleased]`.
-   - **STRICT ADD-ONLY POLICY:** When updating `CHANGELOG.md`, ONLY add new entries. **NEVER** delete, truncate, overwrite, or remove existing history, previous phases, or legacy milestones. All past documentation must be preserved permanently.
-   - Keep commit messages descriptive following conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`).
+5. **MANDATORY: Update CHANGELOG.md on Every Task & Session:**
+   - At the completion of every task or feature update, immediately update `CHANGELOG.md` under `## [Unreleased]`.
+   - **STRICT ADD-ONLY POLICY:** When updating `CHANGELOG.md`, **ONLY ADD NEW ENTRIES OR EXPAND RECENT ENTRIES**.
+   - **NEVER** delete, truncate, remove, or overwrite existing changelog entries, previous dates, or legacy project milestones. Every piece of historical documentation must be preserved permanently.
+6. **Occasional Git Commits:**
+   - Commit working changes to Git frequently and whenever completing a feature, bug fix, or milestone.
+   - Do not leave large sets of uncommitted modifications accumulated over multiple chats.
+   - Use clean, conventional commit messages (`feat:`, `fix:`, `refactor:`, `chore:`) that accurately describe the changes made.
 
