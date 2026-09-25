@@ -209,12 +209,10 @@
 
     private async Task ConnectToHub()
     {
-        var apiBase = Navigation.BaseUri.TrimEnd('/');
-        var uri = new Uri(apiBase);
-        var hubUrl = $"{uri.Scheme}://{uri.Host}:5026/hubs/notifications";
+        var hubUrl = new Uri(Http.BaseAddress!, "hubs/notifications").ToString();
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, opts => opts.UseDefaultCredentials = true)
+            .WithUrl(hubUrl)
             .WithAutomaticReconnect()
             .Build();
 
