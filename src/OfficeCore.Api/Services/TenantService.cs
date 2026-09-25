@@ -35,6 +35,11 @@ public class TenantService
     }
 
     /// <summary>
+    /// Gets the active OrganizationId or Guid.Empty if not resolved.
+    /// </summary>
+    public Guid CurrentOrganizationId => GetActiveOrganizationId() ?? Guid.Empty;
+
+    /// <summary>
     /// Gets the current user's ApplicationUser ID from claims.
     /// </summary>
     public string? GetUserId()

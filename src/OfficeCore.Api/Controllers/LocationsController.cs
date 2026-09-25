@@ -129,7 +129,7 @@ public class LocationsController : ControllerBase
                 {
                     EmployeeId = emp.Id,
                     EmployeeName = $"{emp.FirstName} {emp.LastName}".Trim(),
-                    Department = emp.Department ?? "Field Operations",
+                    Department = "Field Operations",
                     Role = "Field Staff",
                     ProfilePictureUrl = emp.ProfilePictureUrl,
                     Latitude = p.Latitude,

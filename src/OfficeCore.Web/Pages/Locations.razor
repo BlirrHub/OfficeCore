@@ -198,8 +198,8 @@
         return time.ToString("MMM dd");
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        // Cleanup if needed
+        return ValueTask.CompletedTask;
     }
 }
