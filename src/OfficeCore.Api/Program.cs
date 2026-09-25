@@ -135,8 +135,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
 app.UseCors("BlazorPolicy");
 app.UseRateLimiter();
 
@@ -147,25 +145,17 @@ app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? "";
 
-    // Allow API endpoints, SignalR hubs, static assets, and OpenAPI
+    // Allow API endpoints, SignalR hubs, and OpenAPI documentation
     if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWith("/attendanceHub", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/_content", StringComparison.OrdinalIgnoreCase) ||
-        path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
-        path.EndsWith(".css", StringComparison.OrdinalIgnoreCase) ||
-        path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-        path.EndsWith(".ico", StringComparison.OrdinalIgnoreCase) ||
-        path.EndsWith(".woff", StringComparison.OrdinalIgnoreCase) ||
-        path.EndsWith(".woff2", StringComparison.OrdinalIgnoreCase))
+        path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase))
     {
         await next();
         return;
     }
 
-    // Verify desktop / mobile client header or loopback development bypass
+    // Verify desktop / mobile client header
     var clientHeader = context.Request.Headers["X-OfficeCore-Client"].ToString();
     var isAuthorizedApp = clientHeader.Contains("OfficeCore-Desktop-Workstation", StringComparison.OrdinalIgnoreCase);
 
@@ -209,6 +199,9 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
