@@ -7,7 +7,34 @@
 
 <PageTitle>Location - OfficeCore</PageTitle>
 
-<div class="flex flex-col gap-3 h-[calc(100vh-125px)] overflow-hidden">
+<style>
+    #officecore-field-map {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+    .locations-outer {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        height: calc(100vh - 125px);
+        overflow: hidden;
+    }
+    .locations-map-wrapper {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        background: #09090b;
+        border: 1px solid rgba(39,39,42,0.8);
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
+    }
+</style>
+
+<div class="locations-outer">
     <!-- Header -->
     <div class="flex items-center justify-between gap-3 shrink-0 flex-wrap">
         <div>
@@ -29,14 +56,14 @@
         </div>
     </div>
 
-    <!-- Map Canvas Container -->
-    <div class="flex-1 bg-zinc-950 border border-zinc-800/80 rounded-2xl overflow-hidden relative shadow-2xl flex flex-col min-h-0">
+    <!-- Map Canvas (fills remaining vertical space) -->
+    <div class="locations-map-wrapper">
 
-        <!-- ── Leaflet Map ── -->
-        <div id="officecore-field-map" style="width:100%;height:100%;min-height:400px;z-index:0;"></div>
+        <!-- Leaflet Map fills entire box -->
+        <div id="officecore-field-map"></div>
 
         <!-- ── Search Bar (top-center overlay) ── -->
-        <div class="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-sm px-3">
+        <div class="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-sm px-3 pointer-events-auto">
             <div class="relative">
                 <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-zinc-400">
                     <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,7 +74,7 @@
                 <input @bind="_searchQuery" @bind:event="oninput"
                        @onkeydown="OnSearchKeyDown"
                        placeholder="Search location…"
-                       class="w-full pl-8 pr-10 py-2 bg-zinc-900/95 backdrop-blur text-sm text-white border border-zinc-700/80 rounded-xl
+                       class="w-full pl-8 pr-9 py-2 bg-zinc-900/96 backdrop-blur text-sm text-white border border-zinc-700/80 rounded-xl
                               placeholder:text-zinc-500 focus:outline-none focus:border-fuchsia-500/60 focus:ring-2 focus:ring-fuchsia-500/20
                               shadow-xl transition-all" />
                 @if (!string.IsNullOrEmpty(_searchQuery))
@@ -97,8 +124,8 @@
             <span class="text-xs font-semibold text-white">@_staffList.Count(s => s.IsOnline) Outside Staff Active</span>
         </div>
 
-        <!-- ── Legend (top-right) ── -->
-        <div class="absolute top-3 right-3 z-[500] bg-zinc-950/90 backdrop-blur border border-zinc-800 rounded-xl px-3 py-1.5 shadow-xl flex items-center gap-3 text-[11px] text-zinc-400">
+        <!-- ── Legend (bottom-right) ── -->
+        <div class="absolute bottom-6 right-3 z-[500] bg-zinc-950/90 backdrop-blur border border-zinc-800 rounded-xl px-3 py-1.5 shadow-xl flex items-center gap-3 text-[11px] text-zinc-400">
             <div class="flex items-center gap-1.5">
                 <span class="size-2 rounded-full bg-emerald-400"></span>
                 <span>Active Transit</span>
@@ -109,7 +136,7 @@
             </div>
         </div>
 
-        <!-- ── Staff sidebar panel (right side when staff selected) ── -->
+        <!-- ── Selected Staff Detail Card (bottom-left) ── -->
         @if (_selectedStaff != null)
         {
             <div class="absolute bottom-4 left-4 z-[500] w-72 bg-zinc-900/98 backdrop-blur border border-zinc-700/80 rounded-2xl p-4 shadow-2xl text-zinc-100">
@@ -156,16 +183,10 @@
             </div>
         }
 
-        <!-- ── No Staff Banner (shown when map is loaded but list is empty) ── -->
+        <!-- ── No-staff floating notice (map stays visible) ── -->
         @if (!_isLoading && _staffList.Count == 0 && _mapReady)
         {
-            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-[500] bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-2xl px-6 py-4 shadow-2xl text-center max-w-sm">
-                <div class="size-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center mx-auto mb-2">
-                    <svg class="size-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </div>
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-[500] bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-2xl px-6 py-4 shadow-2xl text-center max-w-xs pointer-events-none">
                 <p class="text-xs font-semibold text-zinc-300">No Outside Staff Currently Active</p>
                 <p class="text-[10px] text-zinc-500 mt-1">Active riders and field staff will appear as pins on the map.</p>
             </div>
@@ -213,11 +234,9 @@
         {
             _dotNetRef = DotNetObjectReference.Create(this);
 
-            // Allow DOM to settle then initialize the Leaflet map
-            await Task.Delay(200);
+            // Allow DOM + Leaflet JS to fully settle before initializing
+            await Task.Delay(250);
             await InitializeMap();
-
-            // Load staff data
             await RefreshFieldStaff();
         }
     }
@@ -226,7 +245,8 @@
     {
         try
         {
-            var ok = await JS.InvokeAsync<bool>("OfficeCoreMap.initializeMap", "officecore-field-map", 14.5995, 120.9842, 12);
+            var ok = await JS.InvokeAsync<bool>("OfficeCoreMap.initializeMap",
+                "officecore-field-map", 14.5995, 120.9842, 12);
             _mapReady = ok;
         }
         catch (Exception ex)
@@ -245,14 +265,10 @@
         {
             var result = await Http.GetFromJsonAsync<List<ActiveFieldEmployeeDto>>("api/locations/active");
             if (result != null)
-            {
                 _staffList = result;
-            }
 
             if (_mapReady)
-            {
                 await JS.InvokeVoidAsync("OfficeCoreMap.updateStaffMarkers", _staffList);
-            }
         }
         catch (Exception ex)
         {
@@ -268,7 +284,8 @@
     private async Task PanToSelectedStaff()
     {
         if (_selectedStaff == null || !_mapReady) return;
-        await JS.InvokeVoidAsync("OfficeCoreMap.panToStaff", _selectedStaff.Latitude, _selectedStaff.Longitude);
+        await JS.InvokeVoidAsync("OfficeCoreMap.panToStaff",
+            _selectedStaff.Latitude, _selectedStaff.Longitude);
     }
 
     // ── Search ──────────────────────────────────────────────────────────────
@@ -288,10 +305,14 @@
     private async Task TriggerSearch()
     {
         if (string.IsNullOrWhiteSpace(_searchQuery) || _dotNetRef == null) return;
+
         _isSearching = true;
         _searchResults.Clear();
         StateHasChanged();
-        await JS.InvokeVoidAsync("OfficeCoreMap.searchLocation", _searchQuery.Trim(), _dotNetRef);
+
+        // Call JS geocoder — results returned via [JSInvokable] callback
+        await JS.InvokeVoidAsync("OfficeCoreMap.searchLocation",
+            _searchQuery.Trim(), _dotNetRef);
     }
 
     [JSInvokable]
@@ -309,7 +330,8 @@
             : result.DisplayName;
         _searchResults.Clear();
 
-        await JS.InvokeVoidAsync("OfficeCoreMap.goToLocation", result.Lat, result.Lng, result.DisplayName);
+        await JS.InvokeVoidAsync("OfficeCoreMap.goToLocation",
+            result.Lat, result.Lng, result.DisplayName);
         StateHasChanged();
     }
 
