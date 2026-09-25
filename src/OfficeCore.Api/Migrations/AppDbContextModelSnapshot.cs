@@ -975,6 +975,47 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("EmployeeGovernmentRecords");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.EmployeeLocationPing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("AccuracyMeters")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("SpeedKmh")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("StatusNote")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("EmployeeLocationPings");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.EmployeeRole", b =>
                 {
                     b.Property<string>("EmployeeId")
@@ -1455,6 +1496,46 @@ namespace OfficeCore.Api.Migrations
                     b.HasIndex("PayrollPeriodId");
 
                     b.ToTable("Payslips");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.TimeOffPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("DefaultDaysPerYear")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("LeaveType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("RequiresAttachment")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("TimeOffPolicies");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
@@ -2130,6 +2211,25 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.EmployeeLocationPing", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.EmployeeRole", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
@@ -2326,6 +2426,17 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Organization");
 
                     b.Navigation("PayrollPeriod");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.TimeOffPolicy", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>

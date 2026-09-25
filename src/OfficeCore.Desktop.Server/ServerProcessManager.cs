@@ -20,7 +20,11 @@ public class ServerProcessManager : IDisposable
 {
     private Process? _serverProcess;
     private CancellationTokenSource? _healthCheckCts;
-    private readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(2) };
+    private readonly HttpClient _httpClient = new() 
+    { 
+        Timeout = TimeSpan.FromSeconds(2),
+        DefaultRequestHeaders = { { "X-OfficeCore-Client", "OfficeCore-Desktop-Workstation" } }
+    };
 
     public ServerStatus CurrentStatus { get; private set; } = ServerStatus.Stopped;
 

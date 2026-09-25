@@ -27,6 +27,11 @@ public partial class MainWindow : Window
         try
         {
             await webView.EnsureCoreWebView2Async(null);
+            webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+            webView.CoreWebView2.WebResourceRequested += (s, args) =>
+            {
+                args.Request.Headers.SetHeader("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
+            };
             webView.NavigationCompleted += WebView_NavigationCompleted;
         }
         catch (Exception ex)

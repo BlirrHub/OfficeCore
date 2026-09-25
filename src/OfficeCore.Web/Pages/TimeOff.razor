@@ -33,16 +33,77 @@
 
     @if (_activeTab == "Policies")
     {
-        <div class="flex-1 p-8 flex items-center justify-center">
-            <div class="text-center space-y-4">
-                <div class="mx-auto size-24 bg-zinc-900 rounded-full flex items-center justify-center">
-                    <svg class="size-10 text-zinc-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+        <div class="flex-1 p-6 flex flex-col h-full overflow-hidden">
+            <div class="flex items-center justify-between pb-6 border-b border-zinc-800 shrink-0">
+                <div>
+                    <h2 class="text-lg font-semibold text-white">Leave &amp; Time Off Policies</h2>
+                    <p class="text-xs text-zinc-400">Define employee leave types, standard yearly allowances, and paid leave settings.</p>
                 </div>
-                <h3 class="text-lg font-medium text-white">Time Off Policies</h3>
-                <p class="text-sm text-zinc-500 max-w-sm">This feature is not yet available. You'll be able to configure leave policies like Sick Leave, Vacation, and custom time off soon.</p>
+                <button @onclick="OpenCreatePolicyModal" class="px-3.5 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-lg shadow-fuchsia-600/20">
+                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    New Policy
+                </button>
             </div>
+
+            @if (_isLoadingPolicies)
+            {
+                <div class="flex-1 flex items-center justify-center">
+                    <p class="text-sm text-zinc-500">Loading policies...</p>
+                </div>
+            }
+            else if (_policies.Count == 0)
+            {
+                <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
+                    <div class="size-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-2xl mb-3">
+                        📋
+                    </div>
+                    <h3 class="text-base font-semibold text-white mb-1">No Leave Policies Defined</h3>
+                    <p class="text-xs text-zinc-500 max-w-sm mb-4">Create your company's standard leave rules (e.g. 15-day Vacation Leave, 10-day Sick Leave).</p>
+                    <button @onclick="OpenCreatePolicyModal" class="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-medium rounded-xl transition-colors">
+                        Add First Policy
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-6 overflow-y-auto">
+                    @foreach (var policy in _policies)
+                    {
+                        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all flex flex-col justify-between group">
+                            <div>
+                                <div class="flex items-start justify-between mb-3">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold @(policy.LeaveType == 0 ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-sky-500/10 text-sky-400 border border-sky-500/20")">
+                                        @(policy.LeaveType == 0 ? "🤒 Sick Leave" : "🌴 Vacation Leave")
+                                    </span>
+                                    <span class="text-xs font-medium @(policy.IsPaid ? "text-emerald-400" : "text-zinc-500")">
+                                        @(policy.IsPaid ? "Paid" : "Unpaid")
+                                    </span>
+                                </div>
+                                <h4 class="text-base font-bold text-white mb-1">@policy.Name</h4>
+                                <div class="flex items-baseline gap-1.5 my-3">
+                                    <span class="text-3xl font-extrabold text-white">@policy.DefaultDaysPerYear.ToString("G29")</span>
+                                    <span class="text-xs text-zinc-400 font-medium">days / year</span>
+                                </div>
+                                <div class="space-y-1 text-xs text-zinc-400">
+                                    <p class="flex items-center gap-1.5">
+                                        <span class="@(policy.RequiresAttachment ? "text-amber-400" : "text-zinc-600")">●</span>
+                                        @(policy.RequiresAttachment ? "Medical certificate required" : "No certificate required")
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 mt-4 border-t border-zinc-800/80 flex items-center justify-end gap-2">
+                                <button @onclick="() => EditPolicy(policy)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-xs font-medium">
+                                    Edit
+                                </button>
+                                <button @onclick="() => DeletePolicy(policy.Id)" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-lg transition-colors text-xs font-medium">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
         </div>
     }
     else if (_activeTab == "Holidays")
@@ -346,13 +407,69 @@
     </div>
 }
 
+@if (_showPolicyModal)
+{
+    <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h3 class="text-base font-bold text-white">@(_editingPolicyId == null ? "Create Leave Policy" : "Edit Leave Policy")</h3>
+                <button @onclick="() => _showPolicyModal = false" class="text-zinc-500 hover:text-white">✕</button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-400 mb-1">Policy Name</label>
+                    <input type="text" @bind="_policyModel.Name" placeholder="e.g. Standard Vacation Leave" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-400 mb-1">Leave Type</label>
+                        <select @bind="_policyModel.LeaveType" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
+                            <option value="0">Sick Leave</option>
+                            <option value="1">Vacation Leave</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-400 mb-1">Days Per Year</label>
+                        <input type="number" step="0.5" @bind="_policyModel.DefaultDaysPerYear" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-2 border-t border-zinc-800">
+                    <label class="flex items-center gap-2.5 cursor-pointer">
+                        <input type="checkbox" @bind="_policyModel.IsPaid" class="rounded bg-zinc-950 border-zinc-800 text-fuchsia-600 focus:ring-fuchsia-500" />
+                        <span class="text-xs text-zinc-300 font-medium">Paid Time Off (PTO)</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 cursor-pointer">
+                        <input type="checkbox" @bind="_policyModel.RequiresAttachment" class="rounded bg-zinc-950 border-zinc-800 text-fuchsia-600 focus:ring-fuchsia-500" />
+                        <span class="text-xs text-zinc-300 font-medium">Require Document Attachment (e.g. Med Cert)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                <button @onclick="() => _showPolicyModal = false" class="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white bg-zinc-800 rounded-xl transition-colors">Cancel</button>
+                <button @onclick="SavePolicy" class="px-4 py-2 text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-500 rounded-xl transition-colors">Save Policy</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
 
     private bool _editingHoliday = false;
-    private string _activeTab = "Holidays"; // Start on holidays for this implementation
+    private string _activeTab = "Policies"; // Default to Policies
     
     private void SetActiveTab(string tab) => _activeTab = tab;
     private void SetImportMode(ImportMode mode) => _importMode = mode;
+
+    // Time Off Policies State
+    private List<TimeOffPolicyDto> _policies = new();
+    private bool _isLoadingPolicies = false;
+    private bool _showPolicyModal = false;
+    private Guid? _editingPolicyId = null;
+    private TimeOffPolicyDto _policyModel = new();
     
     private List<HolidayCalendarDto>? _calendars;
     private HolidayCalendarDto? _selectedCalendar;
@@ -403,6 +520,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadPolicies();
         await LoadData();
         _countries = await Http.GetFromJsonAsync<List<CountryDto>>("/api/holidaycalendar/import/countries") ?? new();
     }
@@ -565,5 +683,108 @@
     {
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
+    }
+
+    public class TimeOffPolicyDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int LeaveType { get; set; }
+        public decimal DefaultDaysPerYear { get; set; } = 15;
+        public bool IsPaid { get; set; } = true;
+        public bool RequiresAttachment { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    private async Task LoadPolicies()
+    {
+        _isLoadingPolicies = true;
+        try
+        {
+            _policies = await Http.GetFromJsonAsync<List<TimeOffPolicyDto>>("/api/timeoffpolicies") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading policies: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingPolicies = false;
+        }
+    }
+
+    private void OpenCreatePolicyModal()
+    {
+        _editingPolicyId = null;
+        _policyModel = new TimeOffPolicyDto { Name = "", LeaveType = 1, DefaultDaysPerYear = 15, IsPaid = true };
+        _showPolicyModal = true;
+    }
+
+    private void EditPolicy(TimeOffPolicyDto policy)
+    {
+        _editingPolicyId = policy.Id;
+        _policyModel = new TimeOffPolicyDto
+        {
+            Id = policy.Id,
+            Name = policy.Name,
+            LeaveType = policy.LeaveType,
+            DefaultDaysPerYear = policy.DefaultDaysPerYear,
+            IsPaid = policy.IsPaid,
+            RequiresAttachment = policy.RequiresAttachment
+        };
+        _showPolicyModal = true;
+    }
+
+    private async Task SavePolicy()
+    {
+        if (string.IsNullOrWhiteSpace(_policyModel.Name))
+        {
+            ToastService.ShowError("Please specify a policy name.");
+            return;
+        }
+
+        try
+        {
+            if (_editingPolicyId == null)
+            {
+                var response = await Http.PostAsJsonAsync("/api/timeoffpolicies", _policyModel);
+                if (response.IsSuccessStatusCode)
+                {
+                    ToastService.ShowSuccess("Policy created successfully.");
+                }
+            }
+            else
+            {
+                var response = await Http.PutAsJsonAsync($"/api/timeoffpolicies/{_editingPolicyId}", _policyModel);
+                if (response.IsSuccessStatusCode)
+                {
+                    ToastService.ShowSuccess("Policy updated successfully.");
+                }
+            }
+
+            _showPolicyModal = false;
+            await LoadPolicies();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error saving policy: {ex.Message}");
+        }
+    }
+
+    private async Task DeletePolicy(Guid id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"/api/timeoffpolicies/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Policy deleted.");
+                await LoadPolicies();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error deleting policy: {ex.Message}");
+        }
     }
 }

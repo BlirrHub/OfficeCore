@@ -11,7 +11,11 @@ namespace OfficeCore.Desktop.Client;
 public partial class MainWindow : Window
 {
     private ClientConfig _config;
-    private readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(2.5) };
+    private readonly HttpClient _httpClient = new() 
+    { 
+        Timeout = TimeSpan.FromSeconds(2.5),
+        DefaultRequestHeaders = { { "X-OfficeCore-Client", "OfficeCore-Desktop-Workstation" } }
+    };
 
     public MainWindow()
     {
@@ -25,6 +29,11 @@ public partial class MainWindow : Window
         try
         {
             await webView.EnsureCoreWebView2Async(null);
+            webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+            webView.CoreWebView2.WebResourceRequested += (s, args) =>
+            {
+                args.Request.Headers.SetHeader("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
+            };
             webView.NavigationCompleted += WebView_NavigationCompleted;
         }
         catch (Exception ex)

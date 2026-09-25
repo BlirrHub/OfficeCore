@@ -1,14 +1,205 @@
 @page "/locations"
 @attribute [Authorize(Policy = "RequireLocations")]
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject OfficeCore.Web.Services.ToastService ToastService
+@implements IAsyncDisposable
 
-<PageTitle>Locations - OfficeCore</PageTitle>
+<PageTitle>Live Field Operations & Locations - OfficeCore</PageTitle>
 
-<div class="space-y-6">
-    <div>
-        <h1 class="text-3xl font-bold tracking-tight text-white">Locations</h1>
-        <p class="mt-1 text-zinc-400 text-sm">Manage company offices, branches, and remote work locations.</p>
+<div class="space-y-6 h-full flex flex-col">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-3xl font-bold tracking-tight text-white">Live Field Tracking</h1>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="size-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live Dispatch Map
+                </span>
+            </div>
+            <p class="mt-1 text-zinc-400 text-sm">Monitor clocked-in field employees (riders, messengers, delivery, and liaison staff) in real time.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button @onclick="RefreshFieldStaff" class="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-xl text-sm font-medium transition-colors flex items-center gap-2">
+                <svg class="size-4 @(_isLoading ? "animate-spin" : "")" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Map
+            </button>
+        </div>
     </div>
-    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 flex items-center justify-center">
-        <p class="text-zinc-500 italic">This module is under construction.</p>
+
+    <!-- Main Grid: Left is Map, Right is Active Staff List -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-[550px]">
+        <!-- Interactive Map Container -->
+        <div class="lg:col-span-3 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden relative flex flex-col shadow-xl">
+            <div id="officecore-field-map" class="w-full h-full min-h-[500px] z-0"></div>
+
+            <!-- Map Floating Summary Badge -->
+            <div class="absolute top-4 left-4 z-10 bg-zinc-950/90 backdrop-blur border border-zinc-800 rounded-xl p-3 shadow-2xl flex items-center gap-4">
+                <div>
+                    <span class="text-xs text-zinc-400 font-medium">Active Outside</span>
+                    <p class="text-lg font-bold text-white">@_staffList.Count(s => s.IsOnline) Staff</p>
+                </div>
+                <div class="h-8 w-px bg-zinc-800"></div>
+                <div>
+                    <span class="text-xs text-zinc-400 font-medium">Total Registered</span>
+                    <p class="text-lg font-bold text-fuchsia-400">@_staffList.Count</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Field Staff Roster -->
+        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 flex flex-col h-full overflow-hidden">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider mb-3 shrink-0 flex items-center justify-between">
+                <span>Field Roster</span>
+                <span class="text-xs px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400">@_staffList.Count</span>
+            </h3>
+
+            @if (_isLoading && _staffList.Count == 0)
+            {
+                <div class="flex-1 flex items-center justify-center">
+                    <p class="text-zinc-500 text-sm">Loading field positions...</p>
+                </div>
+            }
+            else if (_staffList.Count == 0)
+            {
+                <div class="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500">
+                    <span class="text-3xl mb-2">🛵</span>
+                    <p class="text-sm font-medium text-zinc-400">No field staff active outside</p>
+                    <p class="text-xs mt-1 text-zinc-600">When employees clock in remotely or submit location check-ins, they will appear here live.</p>
+                </div>
+            }
+            else
+            {
+                <div class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                    @foreach (var staff in _staffList)
+                    {
+                        <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 transition-all flex flex-col gap-2">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="relative">
+                                        <div class="size-9 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-fuchsia-400 border border-zinc-700">
+                                            @GetInitials(staff.EmployeeName)
+                                        </div>
+                                        @if (staff.IsOnline)
+                                        {
+                                            <span class="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-500 ring-2 ring-zinc-900"></span>
+                                        }
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-white leading-tight">@staff.EmployeeName</h4>
+                                        <p class="text-xs text-zinc-400 leading-tight">@staff.Department</p>
+                                    </div>
+                                </div>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold @(staff.IsOnline ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-zinc-800 text-zinc-500")">
+                                    @(staff.IsOnline ? "ACTIVE" : "IDLE")
+                                </span>
+                            </div>
+
+                            <div class="bg-zinc-950/60 rounded-lg p-2 text-xs border border-zinc-800/50">
+                                <span class="text-zinc-500 block text-[10px] uppercase font-bold tracking-wider">Status / Task</span>
+                                <p class="text-zinc-300 font-medium truncate">@staff.StatusNote</p>
+                            </div>
+
+                            <div class="flex items-center justify-between text-[11px] text-zinc-500 pt-1">
+                                <span>📍 @staff.Latitude.ToString("F4"), @staff.Longitude.ToString("F4")</span>
+                                <span>@GetRelativeTime(staff.LastPingTime)</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
     </div>
 </div>
+
+@code {
+    private List<ActiveFieldEmployeeDto> _staffList = new();
+    private bool _isLoading = false;
+    private bool _mapInitialized = false;
+
+    public class ActiveFieldEmployeeDto
+    {
+        public string EmployeeId { get; set; } = string.Empty;
+        public string EmployeeName { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string? ProfilePictureUrl { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double? SpeedKmh { get; set; }
+        public string? StatusNote { get; set; }
+        public DateTime LastPingTime { get; set; }
+        public bool IsOnline { get; set; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(300); // Wait for DOM layout
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("OfficeCoreMap.initializeMap", "officecore-field-map", 14.5995, 120.9842, 12);
+                _mapInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing map: {ex.Message}");
+            }
+
+            await RefreshFieldStaff();
+        }
+    }
+
+    private async Task RefreshFieldStaff()
+    {
+        _isLoading = true;
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<ActiveFieldEmployeeDto>>("api/locations/active");
+            if (result != null)
+            {
+                _staffList = result;
+                if (_mapInitialized)
+                {
+                    await JSRuntime.InvokeVoidAsync("OfficeCoreMap.updateStaffMarkers", _staffList);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Failed to fetch field locations: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "OC";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+        return $"{parts[0][0]}{parts[parts.Length - 1][0]}".ToUpper();
+    }
+
+    private string GetRelativeTime(DateTime time)
+    {
+        var span = DateTime.UtcNow - time;
+        if (span.TotalMinutes < 1) return "Just now";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
+        return time.ToString("MMM dd");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Cleanup if needed
+    }
+}

@@ -1,0 +1,24 @@
+# Cloudflare Tunnel Configuration for OfficeCore
+# ==============================================================
+# When you are ready to allow outside/remote employees (riders, delivery, mobile app) 
+# to access the office server without opening router ports or requiring a static IP:
+
+## Step 1: Install cloudflared on this Server PC
+# Download cloudflared from: https://github.com/cloudflare/cloudflared/releases
+# Or install via winget:
+#   winget install Cloudflare.cloudflared
+
+## Step 2: Login to your Cloudflare account
+#   cloudflared tunnel login
+
+## Step 3: Create the tunnel
+#   cloudflared tunnel create officecore-tunnel
+
+## Step 4: Route DNS (replace with your custom domain e.g. officecore.yourcompany.com)
+#   cloudflared tunnel route dns officecore-tunnel officecore.yourcompany.com
+
+## Step 5: Run the tunnel to connect to local port 5026
+#   cloudflared tunnel run --url http://localhost:5026 officecore-tunnel
+
+# Note: The API enforcer will accept mobile app requests while continuing to block 
+# unauthorized web browser visits automatically.

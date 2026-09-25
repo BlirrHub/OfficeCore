@@ -58,6 +58,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
     public DbSet<OrganizationRoleClaim> OrganizationRoleClaims { get; set; }
     public DbSet<EmployeeRole> EmployeeRoles { get; set; }
 
+    // Time Off Policies & Field Locations
+    public DbSet<TimeOffPolicy> TimeOffPolicies { get; set; }
+    public DbSet<EmployeeLocationPing> EmployeeLocationPings { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -207,5 +211,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
         builder.Entity<PayrollPeriod>()
             .Property(p => p.DeductionMultiplier)
             .HasPrecision(18, 4);
+
+        builder.Entity<TimeOffPolicy>()
+            .Property(p => p.DefaultDaysPerYear)
+            .HasPrecision(18, 2);
     }
 }
