@@ -29,7 +29,7 @@ window.OfficeCoreMap = {
             });
 
             // Zoom control at bottom-right — away from all UI overlays
-            L.control.zoom({ position: 'bottomright' }).addTo(this.mapInstance);
+            L.control.zoom({ position: 'topright' }).addTo(this.mapInstance);
 
             // Free OpenStreetMap tiles — no API key, no cost
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -123,12 +123,22 @@ window.OfficeCoreMap = {
             var pulse = staff.isOnline ? '#10b981' : '#71717a';
             var border = staff.isOnline ? '#34d399' : '#52525b';
 
+            // Use profile picture if available, fall back to 🛵 emoji
+            var avatarInner = staff.profilePictureUrl
+                ? `<img src="${staff.profilePictureUrl}"
+                         style="width:30px;height:30px;border-radius:50%;object-fit:cover;display:block;"
+                         onerror="this.style.display='none';this.nextSibling.style.display='flex';" />
+                   <span style="display:none;width:30px;height:30px;align-items:center;justify-content:center;font-size:15px;">&#x1F6F5;</span>`
+                : `<span style="font-size:15px;">&#x1F6F5;</span>`;
+
             var icon = L.divIcon({
                 className: '',
                 html: `
                     <div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;">
                         <div style="position:absolute;width:44px;height:44px;border-radius:50%;background:${pulse};opacity:0.25;animation:oc-ping 1.8s cubic-bezier(0,0,0.2,1) infinite;"></div>
-                        <div style="position:relative;width:34px;height:34px;border-radius:50%;background:#18181b;border:2.5px solid ${border};display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.7);font-size:16px;">🛵</div>
+                        <div style="position:relative;width:34px;height:34px;border-radius:50%;background:#18181b;border:2.5px solid ${border};display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.7);overflow:hidden;">
+                            ${avatarInner}
+                        </div>
                         <span style="position:absolute;bottom:-1px;right:-1px;width:11px;height:11px;border-radius:50%;background:${pulse};border:2px solid #09090b;"></span>
                     </div>
                 `,

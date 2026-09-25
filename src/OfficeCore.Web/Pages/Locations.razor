@@ -87,7 +87,7 @@
                 <span>Location</span>
                 <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Live Field Radar</span>
             </h1>
-            <p class="text-zinc-400 text-xs mt-0.5">Live map showing active outside employees (riders, delivery, and liaison staff).</p>
+            <p class="text-zinc-400 text-xs mt-0.5">Live map showing active outside employees.</p>
         </div>
 
         <div class="flex items-center gap-2">
@@ -200,8 +200,8 @@
                 </div>
             </div>
 
-            <!-- TOP-RIGHT: empty (reserved space so nothing clips into attribution) -->
-            <div class="loc-tr"></div>
+            <!-- TOP-RIGHT: spacer so Leaflet zoom control (+/−) has clearance -->
+            <div class="loc-tr" style="width: 38px;"></div>
 
             <!-- BOTTOM-LEFT: legend + selected staff card stacked -->
             <div class="loc-bl-stack">
@@ -283,8 +283,8 @@
                 }
             </div>
 
-            <!-- BOTTOM-RIGHT: reserved for Leaflet zoom control (+/−) -->
-            <div class="loc-br" style="width:36px;height:60px;"></div>
+            <!-- BOTTOM-RIGHT: empty (zoom is at top-right now) -->
+            <div class="loc-br"></div>
 
         </div>
     </div>
