@@ -1,5 +1,6 @@
 @page "/locations"
 @attribute [Authorize(Policy = "RequireLocations")]
+@using Microsoft.AspNetCore.SignalR.Client
 @inject HttpClient Http
 @inject OfficeCore.Web.Services.ToastService ToastService
 @inject IJSRuntime JS
@@ -38,6 +39,12 @@
         background: #09090b;
         border: 1px solid rgba(39,39,42,0.7);
         box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    }
+
+    html.light .loc-map-card {
+        background: #ffffff;
+        border-color: #e2e8f0;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
     }
 
     /*
@@ -303,6 +310,7 @@
     private List<SearchResult> _searchResults = new();
 
     private DotNetObjectReference<Locations>? _dotNetRef;
+    private HubConnection? _hubConnection;
 
     public class ActiveFieldEmployeeDto
     {
@@ -334,6 +342,7 @@
             await Task.Delay(250);
             await InitializeMap();
             await RefreshFieldStaff();
+            await ConnectToHub();
         }
     }
 
@@ -342,7 +351,7 @@
         try
         {
             var ok = await JS.InvokeAsync<bool>("OfficeCoreMap.initializeMap",
-                "officecore-field-map", 14.5995, 120.9842, 12);
+                "officecore-field-map", 14.5995, 120.9842, 12, _dotNetRef);
             _mapReady = ok;
         }
         catch (Exception ex)
@@ -474,8 +483,78 @@
         _isSearching = false;
     }
 
+    [JSInvokable]
+    public void OnStaffSelected(string? employeeId)
+    {
+        if (string.IsNullOrEmpty(employeeId))
+        {
+            _selectedStaff = null;
+        }
+        else
+        {
+            _selectedStaff = _staffList.FirstOrDefault(s => s.EmployeeId == employeeId);
+        }
+        StateHasChanged();
+    }
+
+    private async Task ConnectToHub()
+    {
+        try
+        {
+            var hubUrl = new Uri(Http.BaseAddress!, "hubs/notifications").ToString();
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(hubUrl)
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<ActiveFieldEmployeeDto>("FieldLocationUpdated", async (ping) =>
+            {
+                var existing = _staffList.FirstOrDefault(s => s.EmployeeId == ping.EmployeeId);
+                if (existing != null)
+                {
+                    existing.Latitude = ping.Latitude;
+                    existing.Longitude = ping.Longitude;
+                    existing.SpeedKmh = ping.SpeedKmh;
+                    existing.StatusNote = ping.StatusNote;
+                    existing.LastPingTime = ping.LastPingTime;
+                    existing.IsOnline = ping.IsOnline;
+                    existing.Role = ping.Role;
+                    existing.Department = ping.Department;
+                    existing.EmployeeName = ping.EmployeeName;
+                    existing.ProfilePictureUrl = ping.ProfilePictureUrl;
+                }
+                else
+                {
+                    _staffList.Insert(0, ping);
+                }
+
+                if (_selectedStaff?.EmployeeId == ping.EmployeeId)
+                {
+                    _selectedStaff = existing ?? ping;
+                }
+
+                if (_mapReady)
+                {
+                    await JS.InvokeVoidAsync("OfficeCoreMap.updateStaffMarkers", _staffList);
+                }
+                await InvokeAsync(StateHasChanged);
+            });
+
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Locations] SignalR connection warning: {ex.Message}");
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         _dotNetRef?.Dispose();
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 }

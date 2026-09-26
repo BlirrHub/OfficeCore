@@ -1,12 +1,10 @@
-window.OfficeCoreMap = {
-    mapInstance: null,
-    markersLayer: null,
-    searchMarker: null,
-    userMarker: null,
+    dotNetHelper: null,
 
-    initializeMap: function (elementId, initialLat, initialLng, zoomLevel) {
+    initializeMap: function (elementId, initialLat, initialLng, zoomLevel, dotNetHelper) {
         var container = document.getElementById(elementId);
         if (!container) return false;
+
+        this.dotNetHelper = dotNetHelper || null;
 
         try {
             if (this.mapInstance) {
@@ -28,7 +26,7 @@ window.OfficeCoreMap = {
                 attributionControl: true
             });
 
-            // Zoom control at bottom-right — away from all UI overlays
+            // Zoom control at top-right — away from chat FAB
             L.control.zoom({ position: 'topright' }).addTo(this.mapInstance);
 
             // Free OpenStreetMap tiles — no API key, no cost
@@ -37,19 +35,19 @@ window.OfficeCoreMap = {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
             }).addTo(this.mapInstance);
 
-            // Dark CSS filter on the tile pane
-            var applyDark = function () {
-                var panes = document.querySelectorAll('#' + elementId + ' .leaflet-tile-pane');
-                panes.forEach(function (p) {
-                    p.style.filter = 'invert(100%) hue-rotate(180deg) brightness(90%) contrast(88%) saturate(0.7)';
-                });
-            };
-            setTimeout(applyDark, 250);
-            setTimeout(applyDark, 800);
+            var self = this;
+            setTimeout(function () { self.applyTheme(); }, 150);
+            setTimeout(function () { self.applyTheme(); }, 600);
 
             this.markersLayer = L.layerGroup().addTo(this.mapInstance);
 
-            var self = this;
+            // Deselect staff card when tapping empty map background
+            this.mapInstance.on('click', function (e) {
+                if (self.dotNetHelper && e.originalEvent && !e.originalEvent.defaultPrevented) {
+                    self.dotNetHelper.invokeMethodAsync('OnStaffSelected', null);
+                }
+            });
+
             setTimeout(function () { if (self.mapInstance) self.mapInstance.invalidateSize(); }, 150);
             setTimeout(function () { if (self.mapInstance) self.mapInstance.invalidateSize(); }, 700);
 
@@ -58,6 +56,16 @@ window.OfficeCoreMap = {
             console.error('[OfficeCoreMap] init error:', err);
             return false;
         }
+    },
+
+    applyTheme: function () {
+        var isLight = document.documentElement.classList.contains('light');
+        var panes = document.querySelectorAll('.leaflet-tile-pane');
+        panes.forEach(function (p) {
+            p.style.filter = isLight 
+                ? 'none' 
+                : 'invert(100%) hue-rotate(180deg) brightness(90%) contrast(88%) saturate(0.7)';
+        });
     },
 
     showUserLocation: function (profilePictureUrl, initials, displayName) {
@@ -184,9 +192,15 @@ window.OfficeCoreMap = {
                 </div>
             `;
 
-            L.marker([lat, lng], { icon: icon })
+            var marker = L.marker([lat, lng], { icon: icon })
                 .bindPopup(popup, { className: 'oc-popup', maxWidth: 260 })
                 .addTo(OfficeCoreMap.markersLayer);
+
+            marker.on('click', function () {
+                if (OfficeCoreMap.dotNetHelper) {
+                    OfficeCoreMap.dotNetHelper.invokeMethodAsync('OnStaffSelected', staff.employeeId);
+                }
+            });
         });
 
         if (bounds.length > 0) {
@@ -240,6 +254,12 @@ window.OfficeCoreMap = {
     invalidate: function () { if (this.mapInstance) this.mapInstance.invalidateSize(); }
 };
 
+window.addEventListener('officecore-theme-changed', function () {
+    if (window.OfficeCoreMap) {
+        window.OfficeCoreMap.applyTheme();
+    }
+});
+
 (function () {
     if (document.getElementById('oc-map-styles')) return;
     var s = document.createElement('style');
@@ -264,6 +284,22 @@ window.OfficeCoreMap = {
             background:#18181b!important; color:#d4d4d8!important; border-color:#27272a!important;
         }
         .leaflet-control-zoom a:hover { background:#27272a!important; color:#fff!important; }
+
+        /* Light Theme Overrides */
+        html.light .oc-popup .leaflet-popup-content-wrapper {
+            background:#ffffff; border:1px solid #e2e8f0;
+            box-shadow:0 10px 25px rgba(0,0,0,0.12); color:#0f172a;
+        }
+        html.light .oc-popup .leaflet-popup-tip { background:#ffffff; }
+        html.light .leaflet-container { background:#f8fafc; }
+        html.light .leaflet-control-attribution {
+            background:rgba(255,255,255,0.85)!important; color:#64748b!important;
+        }
+        html.light .leaflet-control-attribution a { color:#475569!important; }
+        html.light .leaflet-control-zoom a {
+            background:#ffffff!important; color:#1e293b!important; border-color:#e2e8f0!important;
+        }
+        html.light .leaflet-control-zoom a:hover { background:#f1f5f9!important; color:#0f172a!important; }
     `;
     document.head.appendChild(s);
 })();
