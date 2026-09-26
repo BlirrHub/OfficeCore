@@ -27,6 +27,40 @@
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
+        <Style x:Key="ModernCheckBox" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#E4E4E7"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Box" Grid.Column="0" Width="18" Height="18" CornerRadius="4" 
+                                    Background="#18181B" BorderBrush="#3F3F46" BorderThickness="1" VerticalAlignment="Center">
+                                <Path x:Name="CheckMark" Data="M3,8 L7,12 L14,4" Stroke="#C026D3" StrokeThickness="2" 
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,1,0,0"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="#27272A"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#C026D3"/>
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#A855F7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -149,6 +183,17 @@
                                         </Style>
                                     </Button.Resources>
                                 </Button>
+
+                                <!-- Auto-Start Server Setting -->
+                                <Border Margin="0,16,0,0" Padding="0,14,0,0" BorderBrush="#27272A" BorderThickness="0,1,0,0">
+                                    <CheckBox x:Name="AutoStartServerCheckBox" Style="{StaticResource ModernCheckBox}"
+                                              Click="AutoStartServerCheckBox_Click">
+                                        <StackPanel Margin="0,0,0,0">
+                                            <TextBlock Text="Auto-start server on app launch" FontSize="12" FontWeight="SemiBold" Foreground="#E4E4E7"/>
+                                            <TextBlock Text="Automatically boots the unified backend when Station opens" FontSize="11" Foreground="#71717A" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </CheckBox>
+                                </Border>
                             </StackPanel>
                         </Border>
 

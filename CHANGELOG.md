@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Fixed — [2026-09-26] (OfficeCore Server Station Desktop App: Navigation Fallthrough Fix, Auto-Start Setting & Manual Launch Prompt)
+
+- **Fixed "Server Not Running" Dialog Fallthrough & Connection Error (`MainWindow.xaml.cs`):**
+  - Resolved an issue in `LaunchLocalApp_Click` where selecting **"No"** on the "Server Not Running. Would you like to start it now?" prompt still proceeded to load `http://localhost:5026` in WebView2, causing an ungraceful `ERR_CONNECTION_REFUSED` screen and error popup.
+  - Selecting "No" now returns cleanly and leaves the user on the Server Station host dashboard.
+  - Selecting "Yes" flags `_pendingLaunchWhenLive = true` and starts the backend asynchronously, deferring WebView navigation until the server passes health check verification and transitions to `RUNNING (LIVE)`.
+
+- **Auto-Start Server on Application Launch Setting (`ServerConfigService.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs`):**
+  - Added persistent `AutoStartServer` boolean setting stored in `server_config.json` (`%LocalAppData%\OfficeCore\server_config.json`).
+  - Added a modern themed CheckBox toggle (`AutoStartServerCheckBox`) with dark styling (`ModernCheckBox`) under the Server Action panel.
+  - When enabled, the Server Station automatically spins up the unified backend upon opening without requiring manual intervention.
+
+- **Prompt to Launch OfficeCore on Manual Server Start (`MainWindow.xaml.cs`):**
+  - When the user manually clicks "▶ Start Server", the app tracks the manual start state (`_isManualServerStart`).
+  - Once the server status transitions to `RUNNING (LIVE)` via the health check probe, a confirmation dialog pops up asking: *"OfficeCore server is now live and healthy on http://localhost:5026. Would you like to launch OfficeCore now? [Yes] [No]"*.
+  - Clicking "Yes" transitions to the embedded Web App view, while "No" keeps the user on the Live Server Console logs.
+  - Auto-start launches do not display this prompt, ensuring silent background startup.
+
+
 ### Added & Changed — [2026-09-26] (Dashboard Redirection Fixes & Multi-Person Kanban Task Assignment)
 
 - **Comprehensive Dashboard Link & Redirection Harmonization (`Dashboard.razor`, `DashboardController.cs`, `UserManagement.razor`):**

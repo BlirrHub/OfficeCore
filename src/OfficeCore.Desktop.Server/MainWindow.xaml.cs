@@ -10,6 +10,8 @@ public partial class MainWindow : Window
 {
     private readonly ServerProcessManager _serverManager = new();
     private ServerConfig _config;
+    private bool _isManualServerStart = false;
+    private bool _pendingLaunchWhenLive = false;
 
     public MainWindow()
     {
@@ -51,8 +53,15 @@ public partial class MainWindow : Window
         DbNameInput.Text = _config.DbName;
         DbUserInput.Text = _config.DbUser;
         DbPasswordInput.Password = _config.DbPassword;
+        AutoStartServerCheckBox.IsChecked = _config.AutoStartServer;
 
         LanUrlTextBlock.Text = NetworkHelper.GetServerShareUrl(5026);
+
+        if (_config.AutoStartServer && _serverManager.CurrentStatus == ServerStatus.Stopped)
+        {
+            _isManualServerStart = false;
+            _ = _serverManager.StartServerAsync(_config);
+        }
     }
 
     #region View Navigation
@@ -82,31 +91,52 @@ public partial class MainWindow : Window
 
     private async void StartServer_Click(object sender, RoutedEventArgs e)
     {
+        _isManualServerStart = true;
         SyncConfigFromInputs();
         await _serverManager.StartServerAsync(_config);
     }
 
     private void StopServer_Click(object sender, RoutedEventArgs e)
     {
+        _isManualServerStart = false;
+        _pendingLaunchWhenLive = false;
         _serverManager.StopServer();
     }
 
     private void LaunchLocalApp_Click(object sender, RoutedEventArgs e)
     {
-        if (_serverManager.CurrentStatus != ServerStatus.Running)
+        if (_serverManager.CurrentStatus == ServerStatus.Running)
         {
-            var result = MessageBox.Show(
-                "The server is not currently running. Would you like to start it now?",
-                "Server Not Running", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                SyncConfigFromInputs();
-                _ = _serverManager.StartServerAsync(_config);
-            }
+            ShowWebView("http://localhost:5026");
+            return;
         }
 
-        ShowWebView("http://localhost:5026");
+        if (_serverManager.CurrentStatus == ServerStatus.Starting)
+        {
+            _pendingLaunchWhenLive = true;
+            MessageBox.Show(
+                "The server is currently starting up.\n\nOfficeCore will open automatically as soon as the server is live and ready.",
+                "Starting Server", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            "The server is not currently running. Would you like to start it now?",
+            "Server Not Running", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            SyncConfigFromInputs();
+            _pendingLaunchWhenLive = true;
+            _ = _serverManager.StartServerAsync(_config);
+        }
+        // If result == MessageBoxResult.No, we intentionally do nothing so the user stays on the Server Station dashboard.
+    }
+
+    private void AutoStartServerCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        _config.AutoStartServer = AutoStartServerCheckBox.IsChecked == true;
+        ServerConfigService.Save(_config);
     }
 
     private async void TestDbConnection_Click(object sender, RoutedEventArgs e)
@@ -146,6 +176,7 @@ public partial class MainWindow : Window
         _config.DbName = DbNameInput.Text.Trim();
         _config.DbUser = DbUserInput.Text.Trim();
         _config.DbPassword = DbPasswordInput.Password;
+        _config.AutoStartServer = AutoStartServerCheckBox.IsChecked == true;
     }
 
     private void CopyLanUrl_Click(object sender, RoutedEventArgs e)
@@ -167,6 +198,8 @@ public partial class MainWindow : Window
             switch (status)
             {
                 case ServerStatus.Stopped:
+                    _isManualServerStart = false;
+                    _pendingLaunchWhenLive = false;
                     ServerStatusText.Text = "STOPPED";
                     ServerStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A1A1AA"));
                     ServerStatusPill.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27272A"));
@@ -188,9 +221,30 @@ public partial class MainWindow : Window
                     ServerStatusPill.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#064E3B"));
                     StartServerButton.IsEnabled = false;
                     StopServerButton.IsEnabled = true;
+
+                    if (_pendingLaunchWhenLive)
+                    {
+                        _pendingLaunchWhenLive = false;
+                        _isManualServerStart = false;
+                        ShowWebView("http://localhost:5026");
+                    }
+                    else if (_isManualServerStart)
+                    {
+                        _isManualServerStart = false;
+                        var promptResult = MessageBox.Show(
+                            "OfficeCore server is now live and healthy on http://localhost:5026.\n\nWould you like to launch OfficeCore now?",
+                            "Server Live", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                        if (promptResult == MessageBoxResult.Yes)
+                        {
+                            ShowWebView("http://localhost:5026");
+                        }
+                    }
                     break;
 
                 case ServerStatus.Error:
+                    _isManualServerStart = false;
+                    _pendingLaunchWhenLive = false;
                     ServerStatusText.Text = "ERROR";
                     ServerStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
                     ServerStatusPill.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F1D1D"));

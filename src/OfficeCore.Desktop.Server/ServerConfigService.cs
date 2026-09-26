@@ -11,6 +11,7 @@ public class ServerConfig
     public string DbName { get; set; } = "OfficeCoreDb";
     public string DbUser { get; set; } = "postgres";
     public string DbPassword { get; set; } = "password";
+    public bool AutoStartServer { get; set; } = false;
 
     public string BuildConnectionString()
     {
