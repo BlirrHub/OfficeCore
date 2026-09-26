@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — [2026-09-26] (Master Planning & Feature Roadmap Pipeline)
+
+- **Dedicated Planning & Roadmap System (`ROADMAP.md`, `agent.md`):**
+  - Created `ROADMAP.md` as the centralized workspace tracking document for upcoming features, implementation plans, architectural improvements, and brainstormed ideas.
+  - Organized by prioritization (P1/P2/P3), module pipelines (Desktop, Kanban, Attendance/Biometrics, Leaves, Payroll, Chat, Multi-Tenancy), and an instant-idea scratchpad.
+  - Linked `ROADMAP.md` within `agent.md` documentation hierarchy.
+
+
 ### Added & Updated — [2026-09-26] (Standalone Installers Suite & Device AutoStartup on Boot)
 
 - **Device AutoStartup Option in Workstation Installer (`OfficeCore.Client.Installer`):**

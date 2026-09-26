@@ -40,6 +40,7 @@ OfficeCore/
 ├── CHANGELOG.md                            # Comprehensive version and change history
 ├── agent.md                                # This document (AI agent instructions)
 ├── PROJECT_STATUS.md                       # High-level product milestones & feature tracking
+├── ROADMAP.md                              # Planning, feature pipeline, upcoming backlog & ideas
 ├── RUNNING.md                              # Local setup and launch instructions
 ├── hardware/
 │   └── ESP32_Fingerprint_Device/           # C++ Arduino firmware for biometric scanners
