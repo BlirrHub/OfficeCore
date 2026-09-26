@@ -36,6 +36,7 @@ This document establishes the architecture rules, project conventions, technical
 ```
 OfficeCore/
 ├── OfficeCore.slnx                         # Solution file (.NET 9)
+├── README.md                               # Master project overview & system documentation
 ├── package.json                            # Root NPM scripts (concurrently runner)
 ├── CHANGELOG.md                            # Comprehensive version and change history
 ├── agent.md                                # This document (AI agent instructions)

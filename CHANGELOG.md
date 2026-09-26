@@ -14,6 +14,9 @@ All notable changes to this project will be documented in this file.
   - Added **Database Backup & Disaster Recovery System** as immediate focus (P1) covering manual/automated PostgreSQL dumps, retention policies, and safety-verified restore wizards.
   - Added **Software Licensing & Product Key System** as a documented future concept (hardware fingerprinting, offline Ed25519 signature verification, seat tiers) explicitly marked for later implementation.
   - Linked `ROADMAP.md` within `agent.md` documentation hierarchy.
+- **Master System Documentation (`README.md`, `agent.md`):**
+  - Created root `README.md` providing a comprehensive system overview, module breakdown, architectural stack, quickstart guide, and cross-references.
+  - Linked `README.md` within `agent.md` file hierarchy.
 
 
 ### Added & Updated — [2026-09-26] (Standalone Installers Suite & Device AutoStartup on Boot)
