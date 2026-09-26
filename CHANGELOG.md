@@ -6,6 +6,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Changed — [2026-09-26] (Locations Real-Time Hub, Solution Build Fix, Live In-App Notification Center, Dynamic Dashboard)
+
+- **Solution Build & Embedded Resource Fix (`OfficeCore.Client.Installer.csproj`):**
+  - Added existence condition `Condition="Exists('..\..\dist\OfficeCore-Client-Portable\OfficeCore.Client.exe')"` to the portable client embedded resource.
+  - Resolves `CS1566: Error reading resource` failure so clean `dotnet build` succeeds across all 5 projects without requiring manual client pre-publication.
+
+- **Locations Real-Time Tracking & Architecture Fix (`LocationsController.cs`, `Locations.razor`, `mapInterop.js`):**
+  - **SignalR Group Harmonization:** Fixed group casing bug where `LocationsController` broadcasted to capital `Org_{orgId}` while `NotificationHub` subscribed clients to lowercase `org_{orgId}`.
+  - **Live SignalR Field Tracking:** Connected `Locations.razor` to `NotificationHub` listening to `FieldLocationUpdated`. When riders or field staff ping GPS coordinates, the map updates marker positions dynamically with zero page reload required.
+  - **Interactive Marker Pin Selection:** Wired Leaflet marker click events in `mapInterop.js` to invoke `OnStaffSelected` in Blazor via `DotNetObjectReference`, seamlessly revealing the bottom-left staff card and centering the map.
+  - **Multi-Tenancy & Entity Separation:** Fixed `LocationsController.PingLocation` to resolve and store the tenant-scoped `Employee.Id` instead of global `ApplicationUser.Id`, resolving foreign key constraints and correctly querying employee roles and names.
+  - **Theme Parity for Maps:** Added dynamic theme awareness to `mapInterop.js` responding to `officecore-theme-changed` events, switching from dark-inverted tiles to clean standard OpenStreetMap tiles when Light Mode is active, and styling Leaflet popups cleanly in light mode.
+
+- **In-App Real-Time Notification Center (`NotificationCenter.razor`, `MainLayout.razor`):**
+  - Replaced the static, inert notification bell in `MainLayout.razor` with a fully interactive `NotificationCenter` component.
+  - Displays a dynamic unread counter badge with glowing highlight and ping animation when new alerts arrive.
+  - Connects to `NotificationHub` via SignalR to capture live workspace events across:
+    - Leave requests (submissions, managerial reviews, approvals)
+    - Salary advances & E-Loan requests (creation, approvals, updates)
+    - Field staff live GPS alerts
+  - Interactive dropdown popover with categorized icon badges, relative timestamps ("Just now", "5m ago"), unread indicators, "Mark all as read", and "Clear all" actions.
+  - Clicking any notification automatically marks it as read and navigates directly to the target module (`/admin/leave-approvals`, `/myleaves`, `/ledger`, `/advances`, `/locations`).
+
+- **Dynamic Reactive Workspace Dashboard (`DashboardController.cs`, `Dashboard.razor`):**
+  - Created new `DashboardController` (`GET /api/dashboard/stats`) computing live metrics scoped to the active organization:
+    - Active team members count
+    - Today's distinct clock-in attendance count and percentage
+    - Total sprint board tasks, completed count, and in-progress count
+    - Pending leave requests and salary advance requests count
+    - Active field personnel count within the last 12 hours
+    - Aggregated real-time workspace activity feed (latest clock-ins, leave submissions, advances)
+    - Dynamic database engine detection (`PostgreSQL 18 (Npgsql)`)
+  - Redesigned `Dashboard.razor` to replace hardcoded placeholder statistics with live reactive data binding, interactive refresh button, completion rate progress bar, and real-time recent activity timeline.
+
 ### Added & Changed — [2026-09-25] (Live Field Radar Map, Location Tracking & Avatar Markers)
 
 - **Live Field Radar Map Overhaul (`Locations.razor`, `mapInterop.js`):**
