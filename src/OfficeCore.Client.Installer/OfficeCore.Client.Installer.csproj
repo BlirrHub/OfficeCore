@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\dist\OfficeCore-Client-Portable\OfficeCore.Client.exe">
+    <EmbeddedResource Include="..\..\dist\OfficeCore-Client-Portable\OfficeCore.Client.exe" Condition="Exists('..\..\dist\OfficeCore-Client-Portable\OfficeCore.Client.exe')">
       <Link>OfficeCore.Client.exe</Link>
     </EmbeddedResource>
   </ItemGroup>
