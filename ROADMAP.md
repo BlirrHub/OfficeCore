@@ -17,11 +17,13 @@
 
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :---: | :--- |
+| **P1** | **Database Backup & Disaster Recovery System** | Server Station & Web API | 🟡 In Planning | Automated/manual PostgreSQL snapshot dumps, restore wizard, and retention policy |
 | **P1** | Auto-Updater for Desktop Apps | Desktop Client / Server | 🟣 Backlog | Background version check against GitHub releases or API endpoint |
 | **P1** | Card File Attachments & Comments | Kanban Boards | 🟣 Backlog | Upload attachments & rich activity feed on board cards |
 | **P2** | Multi-Tier Leave Approval Workflows | Leave Management | 🟣 Backlog | Direct Supervisor -> Department Head -> HR Manager review flow |
 | **P2** | Direct Payslip PDF Export & Emailing | Payroll Engine | 🟣 Backlog | Generate printable payslips & auto-email to employees |
 | **P3** | Live Field Staff Path History | Field Operations | 🟣 Backlog | Replay rider/field staff location trails on the Leaflet map |
+| **P4** | **Software Licensing & Seat Management** | Server Station & Licensing | 🟣 Backlog | Hardware fingerprinting, offline signed keys, seat tiers *(Not implemented soon)* |
 
 ---
 
@@ -68,7 +70,26 @@
 - [ ] **Audit Log Explorer:** Administrative ledger tracking all sensitive actions (salary edits, role changes, organization settings).
 - [ ] **Custom Organization Branding:** Allow workspaces to upload custom company logos, favicon, and brand accent colors.
 - [ ] **Single Sign-On (SSO):** Google Workspace and Microsoft Entra ID (Azure AD) OAuth2 login integration.
-- [ ] **Database Backup & Restore Manager:** One-click PostgreSQL automated database backup and point-in-time restore from Server Station.
+
+### 💾 Database Backup & Disaster Recovery System
+- [ ] **One-Click Manual Backup:** Button in Server Station and Admin portal to immediately dump the PostgreSQL database into a timestamped archive (`.sql` / compressed `.dump`).
+- [ ] **Scheduled Automated Backups:** Configurable recurring background schedule (Daily, Weekly, Custom cron) with automatic status logging.
+- [ ] **Backup Retention Policies:** Configurable auto-prune rules to keep disk usage optimized (e.g. keep last 7 daily, 4 weekly, auto-delete older archives).
+- [ ] **Custom Storage Paths & Secondary Locations:** Option to save backups to secondary hard drives, NAS shares, or external media for physical redundancy.
+- [ ] **Safe Database Restore Wizard:** Interactive restore tool with pre-flight database connection validation, safety confirmation barrier, and automatic pre-restore safety snapshot.
+- [ ] **Tenant-Level Data Export:** Organization admins can export their workspace's discrete records (employees, attendance logs, payroll, boards) as an encrypted or portable JSON/ZIP package.
+- [ ] **Server Station Backup Health Card:** Visual dashboard indicator showing last backup timestamp, file size, storage space remaining, and success/failure alerts.
+
+### 🔑 Software Licensing & Product Key System *(Future Concept — Not Implemented Soon)*
+> **Note:** Long-term architectural consideration for commercial on-premises deployments. Explicitly postponed from near-term implementation.
+- [ ] **Hardware Fingerprint Generation:** Server Station generates a unique host machine identifier based on CPU ID, motherboard UUID, or network interface MAC address.
+- [ ] **Cryptographic License Verification:** Offline public/private key verification (Ed25519 / RSA signature) so servers do not require an active external internet connection to validate licenses.
+- [ ] **Tiered License Capabilities:**
+  - **Community / Starter Tier:** Free tier capped at a maximum employee count (e.g. up to 10 staff) with basic modules.
+  - **Professional Tier:** Unlimited employees, active hardware biometric integration, advanced payroll.
+  - **Enterprise Tier:** Multi-organization hosting, audit logs, priority update channel, custom branding.
+- [ ] **License Management UI:** Clean registration screen in Server Station showing active tier, registered company name, expiration/renewal date, and seat utilization meters.
+- [ ] **Grace Period & Non-Destructive Warnings:** Graceful warnings before expiration without abrupt lockouts or risk of business data loss.
 
 ---
 
