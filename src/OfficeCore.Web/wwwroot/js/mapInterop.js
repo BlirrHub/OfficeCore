@@ -1,3 +1,8 @@
+window.OfficeCoreMap = {
+    mapInstance: null,
+    markersLayer: null,
+    searchMarker: null,
+    userMarker: null,
     dotNetHelper: null,
 
     initializeMap: function (elementId, initialLat, initialLng, zoomLevel, dotNetHelper) {
