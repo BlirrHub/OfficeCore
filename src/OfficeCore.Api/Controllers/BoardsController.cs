@@ -127,6 +127,11 @@ public class BoardsController : ControllerBase
                         .ThenInclude(e => e.User)
             .Include(b => b.Lists)
                 .ThenInclude(l => l.Cards)
+                    .ThenInclude(c => c.Assignees)
+                        .ThenInclude(a => a.Employee)
+                            .ThenInclude(e => e.User)
+            .Include(b => b.Lists)
+                .ThenInclude(l => l.Cards)
                     .ThenInclude(c => c.Labels)
                         .ThenInclude(cl => cl.Label)
             .Include(b => b.Lists)
@@ -182,6 +187,27 @@ public class BoardsController : ControllerBase
                         LastName = c.AssignedToUser.User.LastName,
                         ProfilePictureUrl = c.AssignedToUser.User.ProfilePictureUrl
                     },
+                    Assignees = (c.Assignees != null && c.Assignees.Any())
+                        ? c.Assignees.Select(a => new BoardCardAssigneeResponseDto {
+                            EmployeeId = a.EmployeeId,
+                            User = a.Employee?.User == null ? null : new BoardCardUserResponseDto {
+                                Id = a.Employee.Id,
+                                FirstName = a.Employee.User.FirstName,
+                                LastName = a.Employee.User.LastName,
+                                ProfilePictureUrl = a.Employee.User.ProfilePictureUrl
+                            }
+                        }).ToList()
+                        : (c.AssignedToUser != null ? new List<BoardCardAssigneeResponseDto> {
+                            new BoardCardAssigneeResponseDto {
+                                EmployeeId = c.AssignedToUser.Id,
+                                User = new BoardCardUserResponseDto {
+                                    Id = c.AssignedToUser.Id,
+                                    FirstName = c.AssignedToUser.User.FirstName,
+                                    LastName = c.AssignedToUser.User.LastName,
+                                    ProfilePictureUrl = c.AssignedToUser.User.ProfilePictureUrl
+                                }
+                            }
+                        } : new List<BoardCardAssigneeResponseDto>()),
                     c.DueDate,
                     Labels = c.Labels.Select(cl => new { cl.LabelId, Label = new { cl.Label.Id, cl.Label.Name, cl.Label.ColorHex } }),
                     Comments = c.Comments.Select(cm => new {
@@ -367,6 +393,7 @@ public class BoardsController : ControllerBase
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? AssignedToUserId { get; set; }
+        public List<string>? AssigneeIds { get; set; }
         public DateTime? DueDate { get; set; }
     }
 
@@ -393,17 +420,34 @@ public class BoardsController : ControllerBase
 
         var orgId = _tenant.GetActiveOrganizationId();
 
+        var assigneeIds = (req.AssigneeIds != null && req.AssigneeIds.Count > 0)
+            ? req.AssigneeIds.Distinct().ToList()
+            : (!string.IsNullOrWhiteSpace(req.AssignedToUserId) ? new List<string> { req.AssignedToUserId } : new List<string>());
+
+        var primaryAssignee = assigneeIds.FirstOrDefault();
+
         var card = new BoardCard
         {
             Id = Guid.NewGuid(),
             ListId = listId,
             Title = req.Title,
             Description = req.Description,
-            AssignedToUserId = string.IsNullOrWhiteSpace(req.AssignedToUserId) ? null : req.AssignedToUserId,
+            AssignedToUserId = primaryAssignee,
             DueDate = req.DueDate.HasValue ? DateTime.SpecifyKind(req.DueDate.Value, DateTimeKind.Utc) : null,
             OrderIndex = nextOrder,
             OrganizationId = orgId!.Value
         };
+
+        foreach (var empId in assigneeIds)
+        {
+            card.Assignees.Add(new BoardCardAssignee
+            {
+                CardId = card.Id,
+                EmployeeId = empId,
+                OrganizationId = orgId.Value,
+                AssignedAt = DateTime.UtcNow
+            });
+        }
 
         _context.BoardCards.Add(card);
         await _context.SaveChangesAsync();
@@ -418,17 +462,50 @@ public class BoardsController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
         var userId = employee.Id;
-        var card = await _context.BoardCards.Include(c => c.List).ThenInclude(l => l.Board).ThenInclude(b => b.Members).FirstOrDefaultAsync(c => c.Id == cardId);
+        var card = await _context.BoardCards
+            .Include(c => c.List)
+                .ThenInclude(l => l.Board)
+                    .ThenInclude(b => b.Members)
+            .Include(c => c.Assignees)
+            .FirstOrDefaultAsync(c => c.Id == cardId);
         if (card == null) return NotFound();
 
         var currentUserMember = card.List.Board.Members.FirstOrDefault(m => m.UserId == userId);
         if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
             return Forbid();
 
+        var orgId = _tenant.GetActiveOrganizationId()!.Value;
+
+        var assigneeIds = (req.AssigneeIds != null)
+            ? req.AssigneeIds.Distinct().ToList()
+            : (!string.IsNullOrWhiteSpace(req.AssignedToUserId) ? new List<string> { req.AssignedToUserId } : new List<string>());
+
         card.Title = req.Title;
         card.Description = req.Description;
-        card.AssignedToUserId = string.IsNullOrWhiteSpace(req.AssignedToUserId) ? null : req.AssignedToUserId;
+        card.AssignedToUserId = assigneeIds.FirstOrDefault();
         card.DueDate = req.DueDate.HasValue ? DateTime.SpecifyKind(req.DueDate.Value, DateTimeKind.Utc) : null;
+
+        // Synchronize assignees
+        var currentAssigneeIds = card.Assignees.Select(a => a.EmployeeId).ToHashSet();
+        var toRemove = card.Assignees.Where(a => !assigneeIds.Contains(a.EmployeeId)).ToList();
+        foreach (var rem in toRemove)
+        {
+            _context.BoardCardAssignees.Remove(rem);
+        }
+
+        foreach (var empId in assigneeIds)
+        {
+            if (!currentAssigneeIds.Contains(empId))
+            {
+                _context.BoardCardAssignees.Add(new BoardCardAssignee
+                {
+                    CardId = card.Id,
+                    EmployeeId = empId,
+                    OrganizationId = orgId,
+                    AssignedAt = DateTime.UtcNow
+                });
+            }
+        }
 
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(card.List.BoardId);
@@ -881,5 +958,18 @@ public class BoardsController : ControllerBase
 
         return Ok(new { message = "Attachment deleted successfully." });
     }
+}
 
+public class BoardCardAssigneeResponseDto
+{
+    public string EmployeeId { get; set; } = string.Empty;
+    public BoardCardUserResponseDto? User { get; set; }
+}
+
+public class BoardCardUserResponseDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? ProfilePictureUrl { get; set; }
 }

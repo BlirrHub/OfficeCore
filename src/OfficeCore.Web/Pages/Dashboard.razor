@@ -48,11 +48,12 @@
             </button>
             @if (_stats?.Permissions?.CanViewBoards == true)
             {
-                <a href="/boards" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-semibold transition-all shadow-md shadow-fuchsia-900/30 active:scale-95">
+                var boardsUrl = _stats?.PrimaryBoardId != null ? $"/boards/{_stats.PrimaryBoardId}" : "/boards";
+                <a href="@boardsUrl" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-semibold transition-all shadow-md shadow-fuchsia-900/30 active:scale-95" title="Go to Project Boards">
                     <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
                     </svg>
-                    <span>New Task</span>
+                    <span>Kanban Boards</span>
                 </a>
             }
         </div>
@@ -96,7 +97,8 @@
             <!-- Metric 1: Headcount -->
             @if (_stats.Permissions.CanManageUsers || _stats.Permissions.CanManageAttendance)
             {
-                <a href="/clients" class="glass-card-interactive rounded-2xl p-5 block group">
+                var headcountUrl = _stats.Permissions.CanManageUsers ? "/admin/users" : "/attendance";
+                <a href="@headcountUrl" class="glass-card-interactive rounded-2xl p-5 block group">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-medium text-zinc-400">Team Headcount</span>
                         <div class="size-9 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-105 transition-transform">
@@ -119,7 +121,7 @@
                         }
                         else
                         {
-                            <span>Enrolled in current workspace</span>
+                            <span>Manage workspace team members</span>
                         }
                     </p>
                 </a>
@@ -148,30 +150,52 @@
             <!-- Metric 3: Pending Approvals -->
             @if (_stats.Permissions.CanManageLeaves || _stats.Permissions.CanManageAdvances)
             {
-                var targetUrl = _stats.Permissions.CanManageLeaves ? "/admin/leave-approvals" : "/ledger";
-                <a href="@targetUrl" class="glass-card-interactive rounded-2xl p-5 block group">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-medium text-zinc-400">Pending Approvals</span>
-                        <div class="size-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
-                            <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                var targetApprovalUrl = (_stats.PendingAdvancesCount ?? 0) > 0 && (_stats.PendingLeavesCount ?? 0) == 0 && _stats.Permissions.CanManageAdvances
+                    ? "/ledger"
+                    : (_stats.Permissions.CanManageLeaves ? "/admin/leave-approvals" : "/ledger");
+                <div class="glass-card-interactive rounded-2xl p-5 block group relative">
+                    <a href="@targetApprovalUrl" class="absolute inset-0 z-0" title="Open Approvals"></a>
+                    <div class="relative z-10 pointer-events-none">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-zinc-400">Pending Approvals</span>
+                            <div class="size-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+                                <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline gap-2">
+                            <span class="text-3xl font-bold tracking-tight text-white">@((_stats.PendingLeavesCount ?? 0) + (_stats.PendingAdvancesCount ?? 0))</span>
+                            <span class="text-xs font-medium text-amber-400">Action Required</span>
+                        </div>
+                        <div class="mt-2 flex items-center gap-2 text-xs pointer-events-auto">
+                            @if (_stats.Permissions.CanManageLeaves)
+                            {
+                                <a href="/admin/leave-approvals" class="hover:underline text-fuchsia-400 font-medium">@(_stats.PendingLeavesCount ?? 0) Leaves</a>
+                            }
+                            else
+                            {
+                                <span class="text-zinc-500">@(_stats.PendingLeavesCount ?? 0) Leaves</span>
+                            }
+                            <span class="text-zinc-600">•</span>
+                            @if (_stats.Permissions.CanManageAdvances)
+                            {
+                                <a href="/ledger" class="hover:underline text-amber-400 font-medium">@(_stats.PendingAdvancesCount ?? 0) Advances</a>
+                            }
+                            else
+                            {
+                                <span class="text-zinc-500">@(_stats.PendingAdvancesCount ?? 0) Advances</span>
+                            }
                         </div>
                     </div>
-                    <div class="mt-4 flex items-baseline gap-2">
-                        <span class="text-3xl font-bold tracking-tight text-white">@((_stats.PendingLeavesCount ?? 0) + (_stats.PendingAdvancesCount ?? 0))</span>
-                        <span class="text-xs font-medium text-amber-400">Action Required</span>
-                    </div>
-                    <p class="mt-1 text-xs text-zinc-500">
-                        @(_stats.PendingLeavesCount ?? 0) Leaves • @(_stats.PendingAdvancesCount ?? 0) Advances
-                    </p>
-                </a>
+                </div>
             }
 
             <!-- Metric 4: Board Sprint Cards -->
             @if (_stats.Permissions.CanViewBoards)
             {
-                <a href="/boards" class="glass-card-interactive rounded-2xl p-5 block group">
+                var boardsCardUrl = _stats.PrimaryBoardId != null ? $"/boards/{_stats.PrimaryBoardId}" : "/boards";
+                <a href="@boardsCardUrl" class="glass-card-interactive rounded-2xl p-5 block group">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-medium text-zinc-400">Workspace Tasks</span>
                         <div class="size-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-105 transition-transform">
@@ -194,7 +218,14 @@
         <!-- Management Quick Actions -->
         <div class="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80">
             <p class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Management Shortcuts</p>
-            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                @if (_stats.Permissions.CanManageUsers)
+                {
+                    <a href="/admin/users" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                        <span class="size-7 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-110 transition-transform">👥</span>
+                        <span>Team Users</span>
+                    </a>
+                }
                 @if (_stats.Permissions.CanManageAttendance)
                 {
                     <a href="/attendance" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
@@ -216,6 +247,14 @@
                         <span>Advance Approvals</span>
                     </a>
                 }
+                @if (_stats.Permissions.CanViewBoards)
+                {
+                    var boardsShortcutUrl = _stats.PrimaryBoardId != null ? $"/boards/{_stats.PrimaryBoardId}" : "/boards";
+                    <a href="@boardsShortcutUrl" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                        <span class="size-7 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-110 transition-transform">📋</span>
+                        <span>Kanban Boards</span>
+                    </a>
+                }
                 @if (_stats.Permissions.CanViewLocations)
                 {
                     <a href="/locations" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
@@ -223,11 +262,11 @@
                         <span>Field Radar</span>
                     </a>
                 }
-                @if (_stats.Permissions.CanViewBoards)
+                @if (_stats.Permissions.CanViewClients)
                 {
-                    <a href="/boards" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
-                        <span class="size-7 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-110 transition-transform">📋</span>
-                        <span>Kanban Boards</span>
+                    <a href="/clients" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                        <span class="size-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">🏢</span>
+                        <span>Clients</span>
                     </a>
                 }
             </div>
@@ -243,7 +282,10 @@
                             <h3 class="text-base font-semibold text-white">Task & Sprint Velocity</h3>
                             <p class="text-xs text-zinc-400 mt-0.5">Key deliverables and project progress</p>
                         </div>
-                        <a href="/boards" class="text-xs font-medium text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 transition-colors">
+                        @{
+                            var openBoardVelocityUrl = _stats.PrimaryBoardId != null ? $"/boards/{_stats.PrimaryBoardId}" : "/boards";
+                        }
+                        <a href="@openBoardVelocityUrl" class="text-xs font-medium text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 transition-colors">
                             <span>Open Board</span>
                             <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                         </a>
@@ -283,18 +325,30 @@
                             <div class="space-y-2.5">
                                 @foreach (var act in _stats.RecentActivities)
                                 {
-                                    <div class="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 transition-colors text-xs">
+                                    var actUrl = act.Category switch
+                                    {
+                                        "Attendance" => "/attendance",
+                                        "Leave" => "/admin/leave-approvals",
+                                        "Advance" => "/ledger",
+                                        "Location" => "/locations",
+                                        "Task" => (_stats.PrimaryBoardId != null ? $"/boards/{_stats.PrimaryBoardId}" : "/boards"),
+                                        _ => "/dashboard"
+                                    };
+                                    <a href="@actUrl" class="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/50 transition-all text-xs group block">
                                         <div class="flex items-center gap-3 min-w-0">
-                                            <span class="text-base shrink-0">@act.Icon</span>
+                                            <span class="text-base shrink-0 group-hover:scale-110 transition-transform">@act.Icon</span>
                                             <div class="min-w-0">
-                                                <p class="font-medium text-zinc-200 truncate">@act.Title</p>
+                                                <p class="font-medium text-zinc-200 group-hover:text-white truncate">@act.Title</p>
                                                 <p class="text-[11px] text-zinc-400 truncate">@act.Description</p>
                                             </div>
                                         </div>
-                                        <span class="text-[10px] text-zinc-500 shrink-0 ml-3 whitespace-nowrap">
-                                            @FormatTimeAgo(act.Timestamp)
-                                        </span>
-                                    </div>
+                                        <div class="flex items-center gap-2 shrink-0 ml-3">
+                                            <span class="text-[10px] text-zinc-500 whitespace-nowrap">
+                                                @FormatTimeAgo(act.Timestamp)
+                                            </span>
+                                            <svg class="size-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                        </div>
+                                    </a>
                                 }
                             </div>
                         }
@@ -385,7 +439,10 @@
             </a>
 
             <!-- Card 2: My Assigned Tasks -->
-            <a href="/boards" class="glass-card-interactive rounded-2xl p-5 block group">
+            @{
+                var personalBoardUrl = _stats?.PrimaryBoardId != null ? $"/boards/{_stats.PrimaryBoardId}" : "/boards";
+            }
+            <a href="@personalBoardUrl" class="glass-card-interactive rounded-2xl p-5 block group">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-medium text-zinc-400">My Tasks</span>
                     <div class="size-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-105 transition-transform">
@@ -462,7 +519,7 @@
                     <span class="size-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">💵</span>
                     <span>Apply Advance</span>
                 </a>
-                <a href="/boards" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                <a href="@personalBoardUrl" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
                     <span class="size-7 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-110 transition-transform">📋</span>
                     <span>View Tasks</span>
                 </a>
@@ -479,7 +536,7 @@
                             <h3 class="text-base font-semibold text-white">Tasks Assigned to Me</h3>
                             <p class="text-xs text-zinc-400 mt-0.5">Active cards requiring your attention</p>
                         </div>
-                        <a href="/boards" class="text-xs font-medium text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 transition-colors">
+                        <a href="@personalBoardUrl" class="text-xs font-medium text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 transition-colors">
                             <span>Open Boards</span>
                             <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                         </a>
@@ -490,18 +547,22 @@
                         <div class="space-y-2.5">
                             @foreach (var task in _stats.PersonalTasks)
                             {
-                                <div class="flex items-center justify-between p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 transition-colors text-xs">
+                                var taskLink = task.BoardId != Guid.Empty ? $"/boards/{task.BoardId}" : personalBoardUrl;
+                                <a href="@taskLink" class="flex items-center justify-between p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/50 transition-all text-xs block group">
                                     <div class="flex items-center gap-3 min-w-0">
                                         <span class="size-2 rounded-full @(task.ListName.Contains("Done", StringComparison.OrdinalIgnoreCase) ? "bg-emerald-400" : "bg-fuchsia-500") shrink-0"></span>
                                         <div class="min-w-0">
-                                            <p class="font-medium text-zinc-200 truncate">@task.Title</p>
+                                            <p class="font-medium text-zinc-200 group-hover:text-white truncate">@task.Title</p>
                                             <p class="text-[11px] text-zinc-500 mt-0.5">List: <span class="text-zinc-400">@task.ListName</span></p>
                                         </div>
                                     </div>
-                                    <span class="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400 shrink-0 ml-3">
-                                        @(task.DueDate.HasValue ? $"Due {task.DueDate.Value:MMM dd}" : "No Due Date")
-                                    </span>
-                                </div>
+                                    <div class="flex items-center gap-2 shrink-0 ml-3">
+                                        <span class="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400">
+                                            @(task.DueDate.HasValue ? $"Due {task.DueDate.Value:MMM dd}" : "No Due Date")
+                                        </span>
+                                        <svg class="size-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                    </div>
+                                </a>
                             }
                         </div>
                     }
@@ -523,13 +584,21 @@
                         <div class="space-y-3">
                             @foreach (var act in _stats.RecentActivities)
                             {
-                                <div class="p-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800/60 text-xs">
+                                var personalActUrl = act.Category switch
+                                {
+                                    "Attendance" => "/attendance",
+                                    "Leave" => "/myleaves",
+                                    "Advance" => "/advances",
+                                    "Task" => personalBoardUrl,
+                                    _ => "/dashboard"
+                                };
+                                <a href="@personalActUrl" class="p-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-800/40 transition-all text-xs block group">
                                     <div class="flex items-center justify-between">
-                                        <span class="font-medium text-zinc-200">@act.Title</span>
+                                        <span class="font-medium text-zinc-200 group-hover:text-white">@act.Title</span>
                                         <span class="text-[10px] text-zinc-500">@FormatTimeAgo(act.Timestamp)</span>
                                     </div>
                                     <p class="text-[11px] text-zinc-400 mt-0.5">@act.Description</p>
-                                </div>
+                                </a>
                             }
                         </div>
                     }
@@ -598,6 +667,7 @@
         public int? CompletedTasksCount { get; set; }
         public int? InProgressTasksCount { get; set; }
         public int? ActiveOutsideStaffCount { get; set; }
+        public Guid? PrimaryBoardId { get; set; }
         public string DatabaseEngine { get; set; } = "PostgreSQL 18";
         public List<DashboardActivityItemDto> RecentActivities { get; set; } = new();
     }

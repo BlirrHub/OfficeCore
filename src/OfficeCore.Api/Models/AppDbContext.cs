@@ -47,6 +47,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
     public DbSet<BoardCardChecklist> BoardCardChecklists { get; set; }
     public DbSet<BoardCardChecklistItem> BoardCardChecklistItems { get; set; }
     public DbSet<BoardCardAttachment> BoardCardAttachments { get; set; }
+    public DbSet<BoardCardAssignee> BoardCardAssignees { get; set; }
 
     // Chat System
     public DbSet<ChatRoom> ChatRooms { get; set; }
@@ -165,6 +166,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .HasOne(bcl => bcl.Label)
             .WithMany()
             .HasForeignKey(bcl => bcl.LabelId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Configure Board Card Assignees
+        builder.Entity<BoardCardAssignee>()
+            .HasKey(bca => new { bca.CardId, bca.EmployeeId });
+
+        builder.Entity<BoardCardAssignee>()
+            .HasOne(bca => bca.Card)
+            .WithMany(c => c.Assignees)
+            .HasForeignKey(bca => bca.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<BoardCardAssignee>()
+            .HasOne(bca => bca.Employee)
+            .WithMany()
+            .HasForeignKey(bca => bca.EmployeeId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // PostgreSQL stores decimal as native numeric type with arbitrary precision.

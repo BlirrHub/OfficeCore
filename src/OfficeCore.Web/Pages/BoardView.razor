@@ -213,16 +213,30 @@ else
                                             }
                                         </div>
                                         
-                                        @if (card.AssignedToUser != null)
+                                        @{
+                                            var cardAssignees = card.GetAssignees().ToList();
+                                        }
+                                        @if (cardAssignees.Count > 0)
                                         {
-                                            <div class="size-6 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden" title="@card.AssignedToUser.FirstName @card.AssignedToUser.LastName">
-                                                @if (!string.IsNullOrEmpty(card.AssignedToUser.ProfilePictureUrl))
+                                            <div class="flex items-center -space-x-1.5 overflow-hidden" title="@string.Join(", ", cardAssignees.Select(u => $"{u.FirstName} {u.LastName}".Trim()))">
+                                                @foreach (var user in cardAssignees.Take(3))
                                                 {
-                                                    <img src="@(Configuration["ApiBaseUrl"] + card.AssignedToUser.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                    <div class="size-6 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0 hover:z-10 transition-transform hover:scale-110">
+                                                        @if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
+                                                        {
+                                                            <img src="@(Configuration["ApiBaseUrl"] + user.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-[9px] font-bold text-zinc-300">@(user.FirstName.Length > 0 ? user.FirstName[0] : 'U')</span>
+                                                        }
+                                                    </div>
                                                 }
-                                                else
+                                                @if (cardAssignees.Count > 3)
                                                 {
-                                                    <span class="text-[9px] font-bold text-zinc-300">@(card.AssignedToUser.FirstName[0])</span>
+                                                    <div class="size-6 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center text-[9px] font-bold text-zinc-400 shrink-0">
+                                                        +@(cardAssignees.Count - 3)
+                                                    </div>
                                                 }
                                             </div>
                                         }
@@ -454,17 +468,80 @@ else
                 <div class="w-full md:w-64 shrink-0 space-y-6">
                     <div class="bg-zinc-950/50 border border-zinc-800/80 p-4 rounded-xl space-y-4 shadow-sm">
                         <div>
-                            <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Assign To</label>
-                            <select @bind="_cardModel.AssignedToUserId" class="w-full bg-zinc-900 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none appearance-none cursor-pointer transition-colors">
-                                <option value="">Unassigned</option>
-                                @if (_board != null)
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Assignees</label>
+                                @if (_cardModel.AssigneeIds.Any())
+                                {
+                                    <span class="text-[10px] font-semibold text-fuchsia-400 bg-fuchsia-500/10 px-1.5 py-0.5 rounded-full border border-fuchsia-500/20">
+                                        @_cardModel.AssigneeIds.Count selected
+                                    </span>
+                                }
+                            </div>
+
+                            @if (_cardModel.AssigneeIds.Any())
+                            {
+                                <div class="flex flex-wrap gap-1.5 mb-2.5">
+                                    @foreach (var empId in _cardModel.AssigneeIds)
+                                    {
+                                        var memberUser = _board?.Members.FirstOrDefault(m => m.User.Id == empId)?.User;
+                                        if (memberUser != null)
+                                        {
+                                            <div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-lg bg-zinc-900 border border-zinc-700/80 text-xs text-zinc-200 shadow-sm">
+                                                <div class="size-4.5 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
+                                                    @if (!string.IsNullOrEmpty(memberUser.ProfilePictureUrl))
+                                                    {
+                                                        <img src="@(Configuration["ApiBaseUrl"] + memberUser.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-[8px] font-bold text-zinc-300">@(memberUser.FirstName.Length > 0 ? memberUser.FirstName[0] : 'U')</span>
+                                                    }
+                                                </div>
+                                                <span class="truncate max-w-[100px] text-[11px]">@memberUser.FirstName</span>
+                                                <button type="button" @onclick="() => ToggleAssignee(empId)" class="text-zinc-500 hover:text-red-400 ml-0.5 transition-colors" title="Remove assignee">
+                                                    <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+
+                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1 border border-zinc-800 rounded-lg p-1.5 bg-zinc-900/60">
+                                @if (_board != null && _board.Members.Any())
                                 {
                                     @foreach (var member in _board.Members)
                                     {
-                                        <option value="@member.User.Id">@member.User.FirstName @member.User.LastName</option>
+                                        var isAssigned = _cardModel.AssigneeIds.Contains(member.User.Id);
+                                        <button type="button" @onclick="() => ToggleAssignee(member.User.Id)"
+                                                class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors @(isAssigned ? "bg-fuchsia-600/15 text-white border border-fuchsia-500/30" : "text-zinc-400 hover:text-white hover:bg-zinc-800/70")">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <div class="size-5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0">
+                                                    @if (!string.IsNullOrEmpty(member.User.ProfilePictureUrl))
+                                                    {
+                                                        <img src="@(Configuration["ApiBaseUrl"] + member.User.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-[8px] font-bold text-zinc-300">@(member.User.FirstName.Length > 0 ? member.User.FirstName[0] : 'U')</span>
+                                                    }
+                                                </div>
+                                                <span class="truncate text-[11px] font-medium">@member.User.FirstName @member.User.LastName</span>
+                                            </div>
+                                            <div class="size-4 rounded flex items-center justify-center shrink-0 @(isAssigned ? "bg-fuchsia-600 text-white" : "border border-zinc-700")">
+                                                @if (isAssigned)
+                                                {
+                                                    <svg class="size-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                }
+                                            </div>
+                                        </button>
                                     }
                                 }
-                            </select>
+                                else
+                                {
+                                    <div class="text-[11px] text-zinc-500 p-2 text-center">No board members found</div>
+                                }
+                            </div>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Due Date</label>
@@ -961,9 +1038,23 @@ else
             Title = card.Title,
             Description = card.Description,
             AssignedToUserId = card.AssignedToUserId ?? card.AssignedToUser?.Id,
+            AssigneeIds = card.GetAssignees().Select(u => u.Id).Distinct().ToList(),
             DueDate = card.DueDate
         };
         _showCardModal = true;
+    }
+
+    private void ToggleAssignee(string memberUserId)
+    {
+        if (_cardModel.AssigneeIds.Contains(memberUserId))
+        {
+            _cardModel.AssigneeIds.Remove(memberUserId);
+        }
+        else
+        {
+            _cardModel.AssigneeIds.Add(memberUserId);
+        }
+        _cardModel.AssignedToUserId = _cardModel.AssigneeIds.FirstOrDefault();
     }
 
     private void CloseCardModal()
@@ -975,11 +1066,14 @@ else
     {
         if (string.IsNullOrWhiteSpace(_cardModel.Title)) return;
 
+        _cardModel.AssignedToUserId = _cardModel.AssigneeIds.FirstOrDefault();
+
         var req = new 
         { 
             Title = _cardModel.Title, 
             Description = _cardModel.Description,
             AssignedToUserId = _cardModel.AssignedToUserId,
+            AssigneeIds = _cardModel.AssigneeIds,
             DueDate = _cardModel.DueDate
         };
 
@@ -992,12 +1086,14 @@ else
                 var createdCard = await response.Content.ReadFromJsonAsync<BoardCardDto>();
                 if (createdCard != null)
                 {
-                    // Manually attach user object for instant UI update
-                    if (!string.IsNullOrEmpty(createdCard.AssignedToUserId))
-                    {
-                        var memberUser = _board?.Members.FirstOrDefault(m => m.User.Id == createdCard.AssignedToUserId)?.User;
-                        createdCard.AssignedToUser = memberUser;
-                    }
+                    var selectedMembers = _board?.Members
+                        .Where(m => _cardModel.AssigneeIds.Contains(m.User.Id))
+                        .Select(m => m.User)
+                        .ToList() ?? new List<EmployeeDto>();
+
+                    createdCard.Assignees = selectedMembers.Select(u => new BoardCardAssigneeDto { EmployeeId = u.Id, User = u }).ToList();
+                    createdCard.AssignedToUser = selectedMembers.FirstOrDefault();
+                    createdCard.AssignedToUserId = _cardModel.AssignedToUserId;
 
                     var list = _board?.Lists.FirstOrDefault(l => l.Id == _activeListIdForCard);
                     list?.Cards.Add(createdCard);
@@ -1018,21 +1114,14 @@ else
                 _editingCard.Title = _cardModel.Title;
                 _editingCard.Description = _cardModel.Description;
                 
-                var oldUserId = _editingCard.AssignedToUserId;
-                _editingCard.AssignedToUserId = string.IsNullOrWhiteSpace(_cardModel.AssignedToUserId) ? null : _cardModel.AssignedToUserId;
-                
-                if (oldUserId != _editingCard.AssignedToUserId)
-                {
-                    if (_editingCard.AssignedToUserId == null)
-                    {
-                        _editingCard.AssignedToUser = null;
-                    }
-                    else
-                    {
-                        _editingCard.AssignedToUser = _board?.Members.FirstOrDefault(m => m.User.Id == _editingCard.AssignedToUserId)?.User;
-                    }
-                }
+                var selectedMembers = _board?.Members
+                    .Where(m => _cardModel.AssigneeIds.Contains(m.User.Id))
+                    .Select(m => m.User)
+                    .ToList() ?? new List<EmployeeDto>();
 
+                _editingCard.Assignees = selectedMembers.Select(u => new BoardCardAssigneeDto { EmployeeId = u.Id, User = u }).ToList();
+                _editingCard.AssignedToUserId = _cardModel.AssignedToUserId;
+                _editingCard.AssignedToUser = selectedMembers.FirstOrDefault();
                 _editingCard.DueDate = _cardModel.DueDate;
                 ToastService.ShowSuccess("Card updated.");
             }
@@ -1172,6 +1261,7 @@ else
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? AssignedToUserId { get; set; }
+        public List<string> AssigneeIds { get; set; } = new();
         public DateTime? DueDate { get; set; }
     }
 
@@ -1372,12 +1462,32 @@ else
         public int OrderIndex { get; set; }
         public string? AssignedToUserId { get; set; }
         public EmployeeDto? AssignedToUser { get; set; }
+        public List<BoardCardAssigneeDto> Assignees { get; set; } = new();
         public DateTime? DueDate { get; set; }
+
+        public IEnumerable<EmployeeDto> GetAssignees()
+        {
+            if (Assignees != null && Assignees.Count > 0)
+            {
+                return Assignees.Where(a => a.User != null).Select(a => a.User!);
+            }
+            if (AssignedToUser != null)
+            {
+                return new[] { AssignedToUser };
+            }
+            return Enumerable.Empty<EmployeeDto>();
+        }
 
         public List<BoardCardLabelDto> Labels { get; set; } = new();
         public List<BoardCardCommentDto> Comments { get; set; } = new();
         public List<BoardCardChecklistDto> Checklists { get; set; } = new();
         public List<BoardCardAttachmentDto> Attachments { get; set; } = new();
+    }
+
+    public class BoardCardAssigneeDto
+    {
+        public string EmployeeId { get; set; } = string.Empty;
+        public EmployeeDto? User { get; set; }
     }
 
     public class BoardLabelDto

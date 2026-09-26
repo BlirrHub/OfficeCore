@@ -29,6 +29,7 @@ public class BoardCard : ITenantEntity{
     public DateTime? DueDate { get; set; }
 
     public List<BoardCardLabel> Labels { get; set; } = new();
+    public List<BoardCardAssignee> Assignees { get; set; } = new();
     public List<BoardCardComment> Comments { get; set; } = new();
     public List<BoardCardChecklist> Checklists { get; set; } = new();
     public List<BoardCardAttachment> Attachments { get; set; } = new();

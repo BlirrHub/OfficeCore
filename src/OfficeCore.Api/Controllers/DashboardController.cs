@@ -55,6 +55,7 @@ public class DashboardStatsDto
     public int? CompletedTasksCount { get; set; }
     public int? InProgressTasksCount { get; set; }
     public int? ActiveOutsideStaffCount { get; set; }
+    public Guid? PrimaryBoardId { get; set; }
     public string DatabaseEngine { get; set; } = "PostgreSQL 18";
     public List<DashboardActivityItemDto> RecentActivities { get; set; } = new();
 }
@@ -128,6 +129,24 @@ public class DashboardController : ControllerBase
             DatabaseEngine = "PostgreSQL 18 (Npgsql)"
         };
 
+        // Determine primary board for workspace
+        var primaryBoardId = await _context.BoardMembers
+            .Where(bm => bm.OrganizationId == orgId && (employee == null || bm.UserId == employee.Id))
+            .OrderByDescending(bm => bm.IsStarred)
+            .Select(bm => bm.BoardId)
+            .FirstOrDefaultAsync();
+
+        if (primaryBoardId == Guid.Empty)
+        {
+            primaryBoardId = await _context.Boards
+                .Where(b => b.OrganizationId == orgId)
+                .OrderBy(b => b.CreatedAt)
+                .Select(b => b.Id)
+                .FirstOrDefaultAsync();
+        }
+
+        dto.PrimaryBoardId = primaryBoardId != Guid.Empty ? primaryBoardId : null;
+
         var todayUtcStart = DateTime.UtcNow.Date;
 
         // ── 1. Calculate Personal ESS Data for the caller ──
@@ -170,14 +189,15 @@ public class DashboardController : ControllerBase
             // Personal tasks assigned to this employee
             var myCards = await _context.BoardCards
                 .Include(c => c.List)
-                .Where(c => c.OrganizationId == orgId && c.AssignedToUserId == employee.Id)
+                .Include(c => c.Assignees)
+                .Where(c => c.OrganizationId == orgId && (c.AssignedToUserId == employee.Id || c.Assignees.Any(a => a.EmployeeId == employee.Id)))
                 .OrderByDescending(c => c.DueDate.HasValue)
                 .ThenBy(c => c.DueDate)
                 .Take(5)
                 .ToListAsync();
 
             dto.PersonalAssignedTasksCount = await _context.BoardCards
-                .CountAsync(c => c.OrganizationId == orgId && c.AssignedToUserId == employee.Id);
+                .CountAsync(c => c.OrganizationId == orgId && (c.AssignedToUserId == employee.Id || c.Assignees.Any(a => a.EmployeeId == employee.Id)));
 
             dto.PersonalTasks = myCards.Select(c => new PersonalTaskItemDto
             {

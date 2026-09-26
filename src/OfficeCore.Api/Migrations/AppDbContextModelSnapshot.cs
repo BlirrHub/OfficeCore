@@ -404,6 +404,29 @@ namespace OfficeCore.Api.Migrations
                     b.ToTable("BoardCards");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardAssignee", b =>
+                {
+                    b.Property<Guid>("CardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EmployeeId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CardId", "EmployeeId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("BoardCardAssignees");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.BoardCardAttachment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1854,6 +1877,33 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("OfficeCore.Api.Models.BoardCardAssignee", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.BoardCard", "Card")
+                        .WithMany("Assignees")
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Card");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("OfficeCore.Api.Models.BoardCardAttachment", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.BoardCard", "Card")
@@ -2542,6 +2592,8 @@ namespace OfficeCore.Api.Migrations
 
             modelBuilder.Entity("OfficeCore.Api.Models.BoardCard", b =>
                 {
+                    b.Navigation("Assignees");
+
                     b.Navigation("Attachments");
 
                     b.Navigation("Checklists");

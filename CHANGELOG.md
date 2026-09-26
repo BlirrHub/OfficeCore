@@ -6,6 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Changed — [2026-09-26] (Dashboard Redirection Fixes & Multi-Person Kanban Task Assignment)
+
+- **Comprehensive Dashboard Link & Redirection Harmonization (`Dashboard.razor`, `DashboardController.cs`, `UserManagement.razor`):**
+  - **Fixed Misconnected Cards & Buttons:**
+    - Corrected the top header button from mismatched "+ New Task" text (which previously redirected to the board directory) to "Kanban Boards" with a board icon, routing directly to the workspace's primary board or board directory.
+    - Fixed the **Team Headcount** metric card which was incorrectly redirecting users to `/clients`; it now directs managers and authorized personnel straight to `/admin/users` (User Management).
+    - Fixed the **Pending Approvals** card which previously always routed to `/admin/leave-approvals` even when only advance requests were pending; now intelligently routes to `/ledger` when pending advances are present and leaves are zero, while providing direct clickable filter chips for both Leaves and Advances.
+    - Updated **Workspace Tasks** and **Task & Sprint Velocity** cards to navigate directly to the primary active Kanban board.
+    - Added **Team Users** (`/admin/users`) and **Clients** (`/clients`) shortcuts into the Management Quick Actions panel.
+    - Made **Live Team Activity** rows interactive and clickable, routing directly to Attendance, Leave Approvals, Ledger, or Kanban Boards.
+    - Fixed **Tasks Assigned to Me** rows in the Personal ESS dashboard: each task is now a clickable card that routes directly to `/boards/{task.BoardId}` where the card is hosted.
+    - Updated `UserManagement.razor` authorization from role-based `Roles = "Admin"` to policy-based `Policy = "RequireUsers"`, allowing managers with user management claims to access employee accounts seamlessly.
+
+- **Multi-Person Task Assignment on Kanban Boards (`BoardCardAssignee.cs`, `BoardsController.cs`, `BoardView.razor`, `AppDbContext.cs`, Migration `AddBoardCardAssignees`):**
+  - **Database & Architecture:**
+    - Created `BoardCardAssignee` tenant-scoped join entity and database table with foreign keys to `BoardCards` and `Employees`.
+    - Added EF Core migration `AddBoardCardAssignees` with automatic execution on startup via `DbSeeder.SeedAsync`.
+    - Maintained full backward compatibility with single `AssignedToUserId` while allowing arbitrary multiple assignees per task card.
+  - **Backend API & Real-Time Sync:**
+    - Updated `GET /api/boards/{id}` to include `Assignees` with populated employee profiles (name, avatar, ID), with fallback synthesis for legacy single-assignee cards.
+    - Updated `CreateCardRequest` to accept `AssigneeIds` list on card creation (`POST /api/boards/lists/{listId}/cards`) and card editing (`PUT /api/boards/cards/{cardId}`).
+    - Updated `DashboardController` personal task queries to check both `AssignedToUserId` and `Assignees.Any(...)` so cards with multiple assigned team members appear on every assigned member's dashboard.
+  - **Interactive Kanban UI (`BoardView.razor`):**
+    - Card preview columns now display stacked avatar bubbles for all assigned members with tooltip names, hover zoom, and overflow counters (`+N`).
+    - Redesigned the card modal sidebar with a multi-assignee picker featuring selected member chips with instant removal ('x'), and an interactive member roster with avatars and toggle checkmarks.
+
 ### Added & Changed — [2026-09-26] (Locations Real-Time Hub, Solution Build Fix, Live Notification Center, Role-Adaptive Dashboard & Opaque Popover)
 
 - **Opaque Notification Center & Layout Fix (`NotificationCenter.razor`):**
