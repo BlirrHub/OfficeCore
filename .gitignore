@@ -25,7 +25,8 @@ Thumbs.db
 *.db-wal
 
 # Build distribution
-dist/
+dist/*
+!dist/*.exe
 
 # Desktop Client local config
 **/server_ip.txt

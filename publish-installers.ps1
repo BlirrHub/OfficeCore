@@ -16,24 +16,24 @@ if (!(Test-Path $distDir)) {
 # 1. Publish Portable Client Terminal
 Write-Host "[1/4] Publishing OfficeCore Client Terminal Portable..." -ForegroundColor Cyan
 $clientDist = Join-Path $distDir "OfficeCore-Client-Portable"
-dotnet publish "$rootDir/src/OfficeCore.Desktop.Client/OfficeCore.Desktop.Client.csproj" -c Release -r win-x64 --self-contained false -o $clientDist
+dotnet publish "$rootDir/src/OfficeCore.Desktop.Client/OfficeCore.Desktop.Client.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $clientDist
 
 # 2. Build Client Setup Wizard
 Write-Host "[2/4] Publishing Setup-OfficeCore-Client.exe..." -ForegroundColor Cyan
 $tempClientDir = Join-Path $distDir "temp_client_installer"
-dotnet publish "$rootDir/src/OfficeCore.Client.Installer/OfficeCore.Client.Installer.csproj" -c Release -r win-x64 --self-contained false -o $tempClientDir
+dotnet publish "$rootDir/src/OfficeCore.Client.Installer/OfficeCore.Client.Installer.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $tempClientDir
 Copy-Item "$tempClientDir/Setup-OfficeCore-Client.exe" "$distDir/Setup-OfficeCore-Client.exe" -Force
 Remove-Item $tempClientDir -Recurse -Force
 
 # 3. Publish Portable Server Station
 Write-Host "[3/4] Publishing OfficeCore Server Station Portable..." -ForegroundColor Cyan
 $serverDist = Join-Path $distDir "OfficeCore-ServerStation-Portable"
-dotnet publish "$rootDir/src/OfficeCore.Desktop.Server/OfficeCore.Desktop.Server.csproj" -c Release -r win-x64 --self-contained false -o $serverDist
+dotnet publish "$rootDir/src/OfficeCore.Desktop.Server/OfficeCore.Desktop.Server.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $serverDist
 
 # 4. Build Server Setup Wizard
 Write-Host "[4/4] Publishing Setup-OfficeCore-Server.exe..." -ForegroundColor Cyan
 $tempServerDir = Join-Path $distDir "temp_server_installer"
-dotnet publish "$rootDir/src/OfficeCore.Server.Installer/OfficeCore.Server.Installer.csproj" -c Release -r win-x64 --self-contained false -o $tempServerDir
+dotnet publish "$rootDir/src/OfficeCore.Server.Installer/OfficeCore.Server.Installer.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $tempServerDir
 Copy-Item "$tempServerDir/Setup-OfficeCore-Server.exe" "$distDir/Setup-OfficeCore-Server.exe" -Force
 Remove-Item $tempServerDir -Recurse -Force
 

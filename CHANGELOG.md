@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
 
 - **Automated Packaging Script & Documentation (`publish-installers.ps1`, `RUNNING.md`, `agent.md`):**
   - Added `publish-installers.ps1` script to automate publishing both portable versions (`OfficeCore-Client-Portable`, `OfficeCore-ServerStation-Portable`) and standalone setup installers (`Setup-OfficeCore-Client.exe`, `Setup-OfficeCore-Server.exe`) to `dist/`.
+  - Configured single-file compilation with embedded payloads and tracked the two standalone installers in `dist/` for direct deployment from the production branch.
   - Updated developer documentation in `RUNNING.md` and `agent.md`.
 
 
