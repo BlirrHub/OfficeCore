@@ -117,14 +117,17 @@ Dedicated server host orchestrator with live logs, LAN IP auto-detection, Postgr
 dotnet run --project src/OfficeCore.Desktop.Server
 ```
 * Or run portable executable: `dist/OfficeCore-ServerStation-Portable/OfficeCore.ServerStation.exe`
+* **Installer for Server Host PC:** `dist/Setup-OfficeCore-Server.exe` (1-click installer that sets up Desktop/Start Menu shortcuts, programs registration, and optional automatic startup when device turns on).
 
 #### 2. Client Terminal (Employee Workstations)
 Lightweight workstation terminal with zero local database requirements:
 ```powershell
 dotnet run --project src/OfficeCore.Desktop.Client
 ```
-* **Installer for Other PCs:** `dist/Setup-OfficeCore-Client.exe` (1-click installer that sets up Desktop & Start Menu shortcuts).
+* **Installer for Other PCs:** `dist/Setup-OfficeCore-Client.exe` (1-click installer that sets up Desktop & Start Menu shortcuts, with optional automatic startup when device turns on).
 * **Portable Executable:** `dist/OfficeCore-Client-Portable/OfficeCore.Client.exe` (runs directly without installation).
+
+> **Packaging Tip:** Run `./publish-installers.ps1` from the root directory to generate all standalone installers and portable distributions in `dist/`.
 
 ---
 

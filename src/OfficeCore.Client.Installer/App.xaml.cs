@@ -40,6 +40,16 @@ public partial class App : Application
             if (File.Exists(startMenuShortcut)) File.Delete(startMenuShortcut);
             if (Directory.Exists(startMenuDir)) Directory.Delete(startMenuDir, true);
 
+            // Remove auto-startup run key
+            try
+            {
+                using var runKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true);
+                runKey?.DeleteValue("OfficeCore Workstation", false);
+            }
+            catch
+            {
+            }
+
             // Remove registry
             Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OfficeCoreClient", false);
 

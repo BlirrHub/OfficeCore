@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="OfficeCore Workstation Setup" Height="480" Width="620" ResizeMode="NoResize"
+        Title="OfficeCore Workstation Setup" Height="520" Width="620" ResizeMode="NoResize"
         Background="#09090B" WindowStartupLocation="CenterScreen" Foreground="#F4F4F5">
 
     <Window.Resources>
@@ -58,6 +58,8 @@
                 <CheckBox x:Name="DesktopShortcutCheckBox" Content="Create a Desktop Shortcut" IsChecked="True" 
                           Foreground="#D4D4D8" FontSize="13" Cursor="Hand" Margin="0,0,0,8"/>
                 <CheckBox x:Name="StartMenuShortcutCheckBox" Content="Create a Start Menu Shortcut" IsChecked="True" 
+                          Foreground="#D4D4D8" FontSize="13" Cursor="Hand" Margin="0,0,0,8"/>
+                <CheckBox x:Name="AutoStartupCheckBox" Content="Start OfficeCore Workstation automatically when device turns on" IsChecked="True" 
                           Foreground="#D4D4D8" FontSize="13" Cursor="Hand" Margin="0,0,0,8"/>
                 <CheckBox x:Name="LaunchAfterCheckBox" Content="Launch OfficeCore Workstation after installation" IsChecked="True" 
                           Foreground="#D4D4D8" FontSize="13" Cursor="Hand" Margin="0,0,0,18"/>

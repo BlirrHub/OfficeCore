@@ -70,7 +70,8 @@ OfficeCore/
     ├── OfficeCore.Desktop.Client/          # WPF Client Terminal — lightweight workstation WebView2 shell
     │   ├── MainWindow.xaml/cs              # Server URL input + WebView2 browser host
     │   └── ClientConfigService.cs          # Server address persistence
-    └── OfficeCore.Client.Installer/        # WPF setup wizard for deploying the Client Terminal
+    ├── OfficeCore.Client.Installer/        # WPF setup wizard for deploying the Client Terminal (Setup-OfficeCore-Client.exe)
+    └── OfficeCore.Server.Installer/        # WPF setup wizard for deploying the Server Station (Setup-OfficeCore-Server.exe)
 ```
 
 ---

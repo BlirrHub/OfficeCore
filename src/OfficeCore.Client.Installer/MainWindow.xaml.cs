@@ -73,12 +73,23 @@ public partial class MainWindow : Window
                 }
                 else
                 {
-                    // Fallback to local file in current folder
+                    // Fallback to local file or development build paths
                     var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                    var localExe = Path.Combine(baseDir, "OfficeCore.Client.exe");
-                    if (File.Exists(localExe))
+                    string[] candidatePaths = [
+                        Path.Combine(baseDir, "OfficeCore.Client.exe"),
+                        Path.Combine(baseDir, "..", "..", "..", "..", "OfficeCore.Desktop.Client", "bin", "Debug", "net9.0-windows", "OfficeCore.Client.exe"),
+                        Path.Combine(baseDir, "..", "..", "..", "..", "OfficeCore.Desktop.Client", "bin", "Release", "net9.0-windows", "OfficeCore.Client.exe"),
+                        Path.Combine(baseDir, "..", "..", "..", "..", "dist", "OfficeCore-Client-Portable", "OfficeCore.Client.exe")
+                    ];
+
+                    foreach (var candidate in candidatePaths)
                     {
-                        File.Copy(localExe, destExe, true);
+                        var fullCandidate = Path.GetFullPath(candidate);
+                        if (File.Exists(fullCandidate))
+                        {
+                            File.Copy(fullCandidate, destExe, true);
+                            break;
+                        }
                     }
                 }
 
@@ -95,13 +106,15 @@ public partial class MainWindow : Window
                     StatusMessageText.Text = "Creating shortcuts and system registry...";
                 });
 
-                // 2. Shortcuts
+                // 2. Shortcuts & Startup Configuration
                 var createDesktop = false;
                 var createStartMenu = false;
+                var autoStartup = false;
                 Dispatcher.Invoke(() =>
                 {
                     createDesktop = DesktopShortcutCheckBox.IsChecked == true;
                     createStartMenu = StartMenuShortcutCheckBox.IsChecked == true;
+                    autoStartup = AutoStartupCheckBox.IsChecked == true;
                 });
 
                 if (createDesktop)
@@ -117,7 +130,28 @@ public partial class MainWindow : Window
                     CreateShortcut(Path.Combine(startMenuDir, "OfficeCore Workstation.lnk"), destExe, "OfficeCore Workstation Terminal");
                 }
 
-                // 3. Register in Windows Programs & Features
+                // 3. AutoStartup on Device Turn-On (Windows Startup Run Registry)
+                try
+                {
+                    using var runKey = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
+                    if (runKey != null)
+                    {
+                        if (autoStartup)
+                        {
+                            runKey.SetValue("OfficeCore Workstation", $"\"{destExe}\"");
+                        }
+                        else
+                        {
+                            runKey.DeleteValue("OfficeCore Workstation", false);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore registry issues on restricted environments
+                }
+
+                // 4. Register in Windows Programs & Features
                 try
                 {
                     using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OfficeCoreClient");

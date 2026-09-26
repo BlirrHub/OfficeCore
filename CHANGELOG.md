@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Updated — [2026-09-26] (Standalone Installers Suite & Device AutoStartup on Boot)
+
+- **Device AutoStartup Option in Workstation Installer (`OfficeCore.Client.Installer`):**
+  - Added "Start OfficeCore Workstation automatically when device turns on" (`AutoStartupCheckBox`) in `MainWindow.xaml`.
+  - Configures the Windows user startup registry (`HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`) with the installed executable path on installation.
+  - Enhanced binary discovery with fallback scanning across debug, release, and portable distribution directories.
+  - Integrated uninstaller cleanup (`App.xaml.cs`) to remove the auto-startup registry value upon removal.
+
+- **Dedicated Server Host Installer (`OfficeCore.Server.Installer`):**
+  - Introduced new dedicated setup wizard project `OfficeCore.Server.Installer` (`Setup-OfficeCore-Server.exe`) in `OfficeCore.slnx`.
+  - Features Server Station purple branding (`#C026D3`), custom installation path (`%LocalAppData%\Programs\OfficeCore Server`), and Desktop & Start Menu shortcut generation.
+  - Includes "Start OfficeCore Server Station automatically when device turns on" option, allowing host machines to automatically launch Server Station on boot and combine with backend auto-start for zero-touch server orchestration.
+  - Includes uninstaller integration in Windows Programs & Features with complete registry and shortcut cleanup.
+
+- **Automated Packaging Script & Documentation (`publish-installers.ps1`, `RUNNING.md`, `agent.md`):**
+  - Added `publish-installers.ps1` script to automate publishing both portable versions (`OfficeCore-Client-Portable`, `OfficeCore-ServerStation-Portable`) and standalone setup installers (`Setup-OfficeCore-Client.exe`, `Setup-OfficeCore-Server.exe`) to `dist/`.
+  - Updated developer documentation in `RUNNING.md` and `agent.md`.
+
+
 ### Added & Fixed — [2026-09-26] (OfficeCore Server Station Desktop App: Navigation Fallthrough Fix, Auto-Start Setting & Manual Launch Prompt)
 
 - **Fixed "Server Not Running" Dialog Fallthrough & Connection Error (`MainWindow.xaml.cs`):**

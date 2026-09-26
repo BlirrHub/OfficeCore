@@ -4,6 +4,7 @@
     <Project Path="src/OfficeCore.Desktop.Client/OfficeCore.Desktop.Client.csproj" />
     <Project Path="src/OfficeCore.Desktop.Server/OfficeCore.Desktop.Server.csproj" />
     <Project Path="src/OfficeCore.Client.Installer/OfficeCore.Client.Installer.csproj" />
+    <Project Path="src/OfficeCore.Server.Installer/OfficeCore.Server.Installer.csproj" />
   </Folder>
   <Folder Name="/src/OfficeCore.Web/">
     <Project Path="src/OfficeCore.Web/OfficeCore.Web.Client.csproj" />
