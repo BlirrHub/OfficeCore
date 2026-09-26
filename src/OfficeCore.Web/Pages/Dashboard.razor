@@ -8,18 +8,27 @@
 <PageTitle>Dashboard - OfficeCore</PageTitle>
 
 <div class="space-y-8 max-w-7xl mx-auto">
-    <!-- Header with Welcome, Live Status & Refresh -->
+    <!-- Header with Welcome, Role Badge, and Refresh -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
         <div>
             <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 text-xs font-medium mb-2">
                 <span class="size-1.5 rounded-full bg-fuchsia-400 animate-pulse"></span>
-                <span>Operational Overview</span>
+                <span>@(_stats?.IsManager == true ? "Management Hub" : "Employee Self-Service")</span>
+                <span class="text-zinc-500">•</span>
+                <span class="text-zinc-300 font-semibold">@(_stats?.RoleName ?? "Workspace Member")</span>
             </div>
             <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                Good day, @(!string.IsNullOrWhiteSpace(_firstName) ? _firstName : "Admin")
+                Good day, @(!string.IsNullOrWhiteSpace(_firstName) ? _firstName : "Team Member")
             </h1>
             <p class="mt-1 text-zinc-400 text-xs sm:text-sm">
-                Here is what's happening across your workspace today.
+                @if (_stats?.IsManager == true)
+                {
+                    <span>Here is what's happening across your team and workspace today.</span>
+                }
+                else
+                {
+                    <span>Here is your personal attendance, tasks, and requests summary today.</span>
+                }
             </p>
         </div>
 
@@ -37,14 +46,32 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                 </svg>
             </button>
-            <a href="/boards" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-semibold transition-all shadow-md shadow-fuchsia-900/30 active:scale-95">
-                <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                <span>New Task</span>
-            </a>
+            @if (_stats?.Permissions?.CanViewBoards == true)
+            {
+                <a href="/boards" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-semibold transition-all shadow-md shadow-fuchsia-900/30 active:scale-95">
+                    <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    <span>New Task</span>
+                </a>
+            }
         </div>
     </div>
+
+    <!-- Manager View Switcher (For managers/admins who also have personal ESS data) -->
+    @if (_stats?.IsManager == true)
+    {
+        <div class="flex items-center gap-2 border-b border-zinc-800/60 pb-3">
+            <button @onclick="() => _activeTab = DashboardTab.Team"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 @(_activeTab == DashboardTab.Team ? "bg-fuchsia-600 text-white shadow-sm shadow-fuchsia-900/40" : "bg-zinc-900/70 text-zinc-400 hover:text-white border border-zinc-800")">
+                <span>📊 Team Operations</span>
+            </button>
+            <button @onclick="() => _activeTab = DashboardTab.Personal"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 @(_activeTab == DashboardTab.Personal ? "bg-fuchsia-600 text-white shadow-sm shadow-fuchsia-900/40" : "bg-zinc-900/70 text-zinc-400 hover:text-white border border-zinc-800")">
+                <span>👤 My Personal Status</span>
+            </button>
+        </div>
+    }
 
     @if (_isLoading && _stats == null)
     {
@@ -60,60 +87,307 @@
             }
         </div>
     }
-    else
+    else if (_stats?.IsManager == true && _activeTab == DashboardTab.Team)
     {
-        <!-- KPI Metric Cards Grid -->
+        <!-- ==========================================
+             MANAGEMENT VIEW: Team Overview & Approvals
+             ========================================== -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            <!-- Metric 1: Total Employees -->
-            <a href="/clients" class="glass-card-interactive rounded-2xl p-5 block group">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-zinc-400">Team Members</span>
-                    <div class="size-9 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-105 transition-transform">
-                        <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                        </svg>
+            <!-- Metric 1: Headcount -->
+            @if (_stats.Permissions.CanManageUsers || _stats.Permissions.CanManageAttendance)
+            {
+                <a href="/clients" class="glass-card-interactive rounded-2xl p-5 block group">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-zinc-400">Team Headcount</span>
+                        <div class="size-9 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-105 transition-transform">
+                            <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-baseline gap-2">
+                        <span class="text-3xl font-bold tracking-tight text-white">@(_stats.TotalEmployees ?? 0)</span>
+                        <span class="text-xs font-medium text-emerald-400 flex items-center gap-0.5">
+                            <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" /></svg>
+                            Active
+                        </span>
+                    </div>
+                    <p class="mt-1 text-xs text-zinc-500">
+                        @if ((_stats.ActiveOutsideStaffCount ?? 0) > 0)
+                        {
+                            <span class="text-fuchsia-400 font-medium">@_stats.ActiveOutsideStaffCount on field radar</span>
+                        }
+                        else
+                        {
+                            <span>Enrolled in current workspace</span>
+                        }
+                    </p>
+                </a>
+            }
+
+            <!-- Metric 2: Today's Team Attendance -->
+            @if (_stats.Permissions.CanManageAttendance)
+            {
+                <a href="/attendance" class="glass-card-interactive rounded-2xl p-5 block group">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-zinc-400">Team Attendance Today</span>
+                        <div class="size-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+                            <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-baseline gap-2">
+                        <span class="text-3xl font-bold tracking-tight text-white">@(_stats.AttendanceRatePercent?.ToString("0") ?? "0")%</span>
+                        <span class="text-xs font-medium text-emerald-400">@(_stats.PresentTodayCount ?? 0) Present</span>
+                    </div>
+                    <p class="mt-1 text-xs text-zinc-500">Wi-Fi & Biometric listener active</p>
+                </a>
+            }
+
+            <!-- Metric 3: Pending Approvals -->
+            @if (_stats.Permissions.CanManageLeaves || _stats.Permissions.CanManageAdvances)
+            {
+                var targetUrl = _stats.Permissions.CanManageLeaves ? "/admin/leave-approvals" : "/ledger";
+                <a href="@targetUrl" class="glass-card-interactive rounded-2xl p-5 block group">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-zinc-400">Pending Approvals</span>
+                        <div class="size-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+                            <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-baseline gap-2">
+                        <span class="text-3xl font-bold tracking-tight text-white">@((_stats.PendingLeavesCount ?? 0) + (_stats.PendingAdvancesCount ?? 0))</span>
+                        <span class="text-xs font-medium text-amber-400">Action Required</span>
+                    </div>
+                    <p class="mt-1 text-xs text-zinc-500">
+                        @(_stats.PendingLeavesCount ?? 0) Leaves • @(_stats.PendingAdvancesCount ?? 0) Advances
+                    </p>
+                </a>
+            }
+
+            <!-- Metric 4: Board Sprint Cards -->
+            @if (_stats.Permissions.CanViewBoards)
+            {
+                <a href="/boards" class="glass-card-interactive rounded-2xl p-5 block group">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-zinc-400">Workspace Tasks</span>
+                        <div class="size-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-105 transition-transform">
+                            <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-baseline gap-2">
+                        <span class="text-3xl font-bold tracking-tight text-white">@(_stats.TotalTasksCount ?? 0)</span>
+                        <span class="text-xs font-medium text-fuchsia-400">Total Cards</span>
+                    </div>
+                    <p class="mt-1 text-xs text-zinc-500">
+                        @(_stats.CompletedTasksCount ?? 0) Done • @(_stats.InProgressTasksCount ?? 0) In Progress
+                    </p>
+                </a>
+            }
+        </div>
+
+        <!-- Management Quick Actions -->
+        <div class="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80">
+            <p class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Management Shortcuts</p>
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                @if (_stats.Permissions.CanManageAttendance)
+                {
+                    <a href="/attendance" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                        <span class="size-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">⏱️</span>
+                        <span>Attendance Admin</span>
+                    </a>
+                }
+                @if (_stats.Permissions.CanManageLeaves)
+                {
+                    <a href="/admin/leave-approvals" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                        <span class="size-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform">🌴</span>
+                        <span>Leave Approvals</span>
+                    </a>
+                }
+                @if (_stats.Permissions.CanManageAdvances)
+                {
+                    <a href="/ledger" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                        <span class="size-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">💵</span>
+                        <span>Advance Approvals</span>
+                    </a>
+                }
+                @if (_stats.Permissions.CanViewLocations)
+                {
+                    <a href="/locations" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                        <span class="size-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">📍</span>
+                        <span>Field Radar</span>
+                    </a>
+                }
+                @if (_stats.Permissions.CanViewBoards)
+                {
+                    <a href="/boards" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                        <span class="size-7 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-110 transition-transform">📋</span>
+                        <span>Kanban Boards</span>
+                    </a>
+                }
+            </div>
+        </div>
+
+        <!-- Management Detailed Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left 2 Cols: Sprint Overview & Tasks -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <div>
+                            <h3 class="text-base font-semibold text-white">Task & Sprint Velocity</h3>
+                            <p class="text-xs text-zinc-400 mt-0.5">Key deliverables and project progress</p>
+                        </div>
+                        <a href="/boards" class="text-xs font-medium text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 transition-colors">
+                            <span>Open Board</span>
+                            <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                        </a>
+                    </div>
+
+                    @{
+                        var total = _stats.TotalTasksCount ?? 0;
+                        var done = _stats.CompletedTasksCount ?? 0;
+                        var inProg = _stats.InProgressTasksCount ?? 0;
+                        var todo = Math.Max(0, total - done - inProg);
+                        var donePct = total > 0 ? (int)Math.Round((double)done / total * 100) : 0;
+                        var inProgPct = total > 0 ? (int)Math.Round((double)inProg / total * 100) : 0;
+                        var todoPct = Math.Max(0, 100 - donePct - inProgPct);
+                    }
+                    <div class="space-y-2 mb-6">
+                        <div class="flex items-center justify-between text-xs text-zinc-400">
+                            <span>Completion Rate (@done of @total completed)</span>
+                            <span class="font-semibold text-zinc-200">@donePct%</span>
+                        </div>
+                        <div class="h-2.5 w-full rounded-full bg-zinc-800 overflow-hidden flex">
+                            <div class="bg-emerald-500 h-full transition-all duration-500" style="width: @donePct%"></div>
+                            <div class="bg-fuchsia-500 h-full transition-all duration-500" style="width: @inProgPct%"></div>
+                            <div class="bg-zinc-700 h-full transition-all duration-500" style="width: @todoPct%"></div>
+                        </div>
+                        <div class="flex items-center gap-4 text-[11px] text-zinc-400 pt-1">
+                            <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-zinc-600"></span> To Do (@todo)</span>
+                            <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-fuchsia-500"></span> In Progress (@inProg)</span>
+                            <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-emerald-500"></span> Done (@done)</span>
+                        </div>
+                    </div>
+
+                    <!-- Team Activity Feed -->
+                    <div>
+                        <h4 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Live Team Activity</h4>
+                        @if (_stats.RecentActivities.Count > 0)
+                        {
+                            <div class="space-y-2.5">
+                                @foreach (var act in _stats.RecentActivities)
+                                {
+                                    <div class="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 transition-colors text-xs">
+                                        <div class="flex items-center gap-3 min-w-0">
+                                            <span class="text-base shrink-0">@act.Icon</span>
+                                            <div class="min-w-0">
+                                                <p class="font-medium text-zinc-200 truncate">@act.Title</p>
+                                                <p class="text-[11px] text-zinc-400 truncate">@act.Description</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] text-zinc-500 shrink-0 ml-3 whitespace-nowrap">
+                                            @FormatTimeAgo(act.Timestamp)
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="p-6 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
+                                No team activity recorded today yet.
+                            </div>
+                        }
                     </div>
                 </div>
-                <div class="mt-4 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold tracking-tight text-white">@(_stats?.TotalEmployees ?? 0)</span>
-                    <span class="text-xs font-medium text-emerald-400 flex items-center gap-0.5">
-                        <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" /></svg>
-                        Active
-                    </span>
-                </div>
-                <p class="mt-1 text-xs text-zinc-500">
-                    @if ((_stats?.ActiveOutsideStaffCount ?? 0) > 0)
-                    {
-                        <span class="text-fuchsia-400 font-medium">@_stats!.ActiveOutsideStaffCount active outside</span>
-                    }
-                    else
-                    {
-                        <span>Enrolled in current workspace</span>
-                    }
-                </p>
-            </a>
+            </div>
 
-            <!-- Metric 2: Attendance -->
+            <!-- Right 1 Col: Workspace Engine -->
+            <div class="space-y-6">
+                <div class="glass-card rounded-2xl p-6 space-y-4">
+                    <h3 class="text-sm font-semibold text-white flex items-center justify-between">
+                        <span>Workspace Engine</span>
+                        <span class="size-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    </h3>
+
+                    <div class="space-y-3 text-xs">
+                        <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
+                            <span class="text-zinc-400">Database Engine</span>
+                            <span class="font-medium text-zinc-200">@_stats.DatabaseEngine</span>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
+                            <span class="text-zinc-400">Real-Time Hubs</span>
+                            <span class="font-medium text-emerald-400">SignalR Active</span>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
+                            <span class="text-zinc-400">Biometric Port</span>
+                            <span class="font-medium text-zinc-200">TCP 9000 & USB Web Serial</span>
+                        </div>
+                        <div class="flex items-center justify-between py-2">
+                            <span class="text-zinc-400">Field GPS Radar</span>
+                            <span class="font-medium text-fuchsia-400">@(_stats.ActiveOutsideStaffCount ?? 0) Active</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <a href="/workspaces" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition-colors">
+                            <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+                            <span>Manage Workspaces</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- ==========================================
+             PERSONAL VIEW: Employee Self-Service (ESS)
+             ========================================== -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            <!-- Card 1: My Attendance Today -->
             <a href="/attendance" class="glass-card-interactive rounded-2xl p-5 block group">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-zinc-400">Attendance Today</span>
-                    <div class="size-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+                    <span class="text-xs font-medium text-zinc-400">My Attendance Today</span>
+                    <div class="size-9 rounded-xl @(_stats?.PersonalClockedInToday == true ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-400") border flex items-center justify-center group-hover:scale-105 transition-transform">
                         <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
                 </div>
                 <div class="mt-4 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold tracking-tight text-white">@(_stats?.AttendanceRatePercent.ToString("0") ?? "0")%</span>
-                    <span class="text-xs font-medium text-emerald-400">@(_stats?.PresentTodayCount ?? 0) Clocked In</span>
+                    @if (_stats?.PersonalClockedInToday == true)
+                    {
+                        <span class="text-2xl font-bold tracking-tight text-emerald-400">Clocked In</span>
+                        <span class="size-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    }
+                    else
+                    {
+                        <span class="text-2xl font-bold tracking-tight text-zinc-400">Not Clocked In</span>
+                    }
                 </div>
-                <p class="mt-1 text-xs text-zinc-500">Wi-Fi & Biometric listener active</p>
+                <p class="mt-1 text-xs text-zinc-500">
+                    @if (_stats?.PersonalClockedInToday == true && _stats.PersonalLastClockInTime.HasValue)
+                    {
+                        <span>Since @_stats.PersonalLastClockInTime.Value.ToLocalTime().ToString("h:mm tt") • ~@_stats.PersonalHoursWorkedToday hrs</span>
+                    }
+                    else
+                    {
+                        <span class="text-fuchsia-400 font-medium">Click to view log & punch</span>
+                    }
+                </p>
             </a>
 
-            <!-- Metric 3: Sprint Tasks -->
+            <!-- Card 2: My Assigned Tasks -->
             <a href="/boards" class="glass-card-interactive rounded-2xl p-5 block group">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-zinc-400">Sprint Tasks</span>
+                    <span class="text-xs font-medium text-zinc-400">My Tasks</span>
                     <div class="size-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-105 transition-transform">
                         <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
@@ -121,124 +395,111 @@
                     </div>
                 </div>
                 <div class="mt-4 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold tracking-tight text-white">@(_stats?.TotalTasksCount ?? 0)</span>
-                    <span class="text-xs font-medium text-fuchsia-400">Total Cards</span>
+                    <span class="text-3xl font-bold tracking-tight text-white">@(_stats?.PersonalAssignedTasksCount ?? 0)</span>
+                    <span class="text-xs font-medium text-violet-400">Assigned Cards</span>
                 </div>
-                <p class="mt-1 text-xs text-zinc-500">
-                    @(_stats?.CompletedTasksCount ?? 0) Done • @(_stats?.InProgressTasksCount ?? 0) In Progress
-                </p>
+                <p class="mt-1 text-xs text-zinc-500">Tasks assigned to you on boards</p>
             </a>
 
-            <!-- Metric 4: Approvals -->
-            <a href="/admin/leave-approvals" class="glass-card-interactive rounded-2xl p-5 block group">
+            <!-- Card 3: My Leaves -->
+            <a href="/myleaves" class="glass-card-interactive rounded-2xl p-5 block group">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-zinc-400">Pending Approvals</span>
-                    <div class="size-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+                    <span class="text-xs font-medium text-zinc-400">My Leaves</span>
+                    <div class="size-9 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-105 transition-transform">
                         <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                         </svg>
                     </div>
                 </div>
                 <div class="mt-4 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold tracking-tight text-white">@((_stats?.PendingLeavesCount ?? 0) + (_stats?.PendingAdvancesCount ?? 0))</span>
-                    <span class="text-xs font-medium text-amber-400">Pending Review</span>
+                    <span class="text-3xl font-bold tracking-tight text-white">@(_stats?.PersonalPendingLeavesCount ?? 0)</span>
+                    <span class="text-xs font-medium text-amber-400">Pending</span>
                 </div>
-                <p class="mt-1 text-xs text-zinc-500">
-                    @(_stats?.PendingLeavesCount ?? 0) Leaves • @(_stats?.PendingAdvancesCount ?? 0) Advances
-                </p>
+                <p class="mt-1 text-xs text-zinc-500">@(_stats?.PersonalApprovedLeavesCount ?? 0) approved leaves this year</p>
+            </a>
+
+            <!-- Card 4: My Advances & Loans -->
+            <a href="/advances" class="glass-card-interactive rounded-2xl p-5 block group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-zinc-400">My Advances / Loans</span>
+                    <div class="size-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+                        <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-baseline gap-2">
+                    @if (_stats?.PersonalActiveAdvanceAmount.HasValue == true)
+                    {
+                        <span class="text-2xl font-bold tracking-tight text-white">₱@(_stats.PersonalActiveAdvanceAmount.Value.ToString("N0"))</span>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            @_stats.PersonalActiveAdvanceStatus
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="text-2xl font-bold tracking-tight text-zinc-400">₱0.00</span>
+                        <span class="text-xs font-medium text-emerald-400">No Debt</span>
+                    }
+                </div>
+                <p class="mt-1 text-xs text-zinc-500">Apply or view deduction schedules</p>
             </a>
         </div>
-    }
 
-    <!-- Quick Action Hub -->
-    <div class="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80">
-        <p class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Quick Navigation & Actions</p>
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <a href="/attendance" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
-                <span class="size-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">⏱️</span>
-                <span>Attendance Log</span>
-            </a>
-            <a href="/boards" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
-                <span class="size-7 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-110 transition-transform">📋</span>
-                <span>Kanban Board</span>
-            </a>
-            <a href="/locations" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
-                <span class="size-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">📍</span>
-                <span>Field Radar</span>
-            </a>
-            <a href="/myleaves" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
-                <span class="size-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform">🌴</span>
-                <span>Request Leave</span>
-            </a>
-            <a href="/advances" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
-                <span class="size-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">💵</span>
-                <span>Salary Advances</span>
-            </a>
+        <!-- Personal Quick Actions -->
+        <div class="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80">
+            <p class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">My Shortcuts</p>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <a href="/attendance" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                    <span class="size-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">⏱️</span>
+                    <span>Clock In / Out</span>
+                </a>
+                <a href="/myleaves" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                    <span class="size-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform">🌴</span>
+                    <span>File Leave</span>
+                </a>
+                <a href="/advances" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                    <span class="size-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">💵</span>
+                    <span>Apply Advance</span>
+                </a>
+                <a href="/boards" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                    <span class="size-7 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 group-hover:scale-110 transition-transform">📋</span>
+                    <span>View Tasks</span>
+                </a>
+            </div>
         </div>
-    </div>
 
-    <!-- Operations & Activity Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left 2 Cols: Sprint Overview & Tasks -->
-        <div class="lg:col-span-2 space-y-6">
-            <!-- Active Sprint Card -->
-            <div class="glass-card rounded-2xl p-6">
-                <div class="flex items-center justify-between mb-5">
-                    <div>
-                        <h3 class="text-base font-semibold text-white">Task & Sprint Velocity</h3>
-                        <p class="text-xs text-zinc-400 mt-0.5">Key deliverables and project progress</p>
+        <!-- Personal Tasks & Personal Activity Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left 2 Cols: My Assigned Tasks -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <div>
+                            <h3 class="text-base font-semibold text-white">Tasks Assigned to Me</h3>
+                            <p class="text-xs text-zinc-400 mt-0.5">Active cards requiring your attention</p>
+                        </div>
+                        <a href="/boards" class="text-xs font-medium text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 transition-colors">
+                            <span>Open Boards</span>
+                            <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                        </a>
                     </div>
-                    <a href="/boards" class="text-xs font-medium text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 transition-colors">
-                        <span>Open Board</span>
-                        <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-                    </a>
-                </div>
 
-                <!-- Progress Bar -->
-                @{
-                    var total = _stats?.TotalTasksCount ?? 0;
-                    var done = _stats?.CompletedTasksCount ?? 0;
-                    var inProg = _stats?.InProgressTasksCount ?? 0;
-                    var todo = Math.Max(0, total - done - inProg);
-                    var donePct = total > 0 ? (int)Math.Round((double)done / total * 100) : 0;
-                    var inProgPct = total > 0 ? (int)Math.Round((double)inProg / total * 100) : 0;
-                    var todoPct = Math.Max(0, 100 - donePct - inProgPct);
-                }
-                <div class="space-y-2 mb-6">
-                    <div class="flex items-center justify-between text-xs text-zinc-400">
-                        <span>Completion Rate (@done of @total completed)</span>
-                        <span class="font-semibold text-zinc-200">@donePct%</span>
-                    </div>
-                    <div class="h-2.5 w-full rounded-full bg-zinc-800 overflow-hidden flex">
-                        <div class="bg-emerald-500 h-full transition-all duration-500" style="width: @donePct%"></div>
-                        <div class="bg-fuchsia-500 h-full transition-all duration-500" style="width: @inProgPct%"></div>
-                        <div class="bg-zinc-700 h-full transition-all duration-500" style="width: @todoPct%"></div>
-                    </div>
-                    <div class="flex items-center gap-4 text-[11px] text-zinc-400 pt-1">
-                        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-zinc-600"></span> To Do (@todo)</span>
-                        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-fuchsia-500"></span> In Progress (@inProg)</span>
-                        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-emerald-500"></span> Done (@done)</span>
-                    </div>
-                </div>
-
-                <!-- Recent Activities Feed -->
-                <div>
-                    <h4 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Recent Workspace Activity</h4>
-                    @if (_stats?.RecentActivities != null && _stats.RecentActivities.Count > 0)
+                    @if (_stats?.PersonalTasks != null && _stats.PersonalTasks.Count > 0)
                     {
                         <div class="space-y-2.5">
-                            @foreach (var act in _stats.RecentActivities)
+                            @foreach (var task in _stats.PersonalTasks)
                             {
-                                <div class="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 transition-colors text-xs">
+                                <div class="flex items-center justify-between p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 transition-colors text-xs">
                                     <div class="flex items-center gap-3 min-w-0">
-                                        <span class="text-base shrink-0">@act.Icon</span>
+                                        <span class="size-2 rounded-full @(task.ListName.Contains("Done", StringComparison.OrdinalIgnoreCase) ? "bg-emerald-400" : "bg-fuchsia-500") shrink-0"></span>
                                         <div class="min-w-0">
-                                            <p class="font-medium text-zinc-200 truncate">@act.Title</p>
-                                            <p class="text-[11px] text-zinc-400 truncate">@act.Description</p>
+                                            <p class="font-medium text-zinc-200 truncate">@task.Title</p>
+                                            <p class="text-[11px] text-zinc-500 mt-0.5">List: <span class="text-zinc-400">@task.ListName</span></p>
                                         </div>
                                     </div>
-                                    <span class="text-[10px] text-zinc-500 shrink-0 ml-3 whitespace-nowrap">
-                                        @FormatTimeAgo(act.Timestamp)
+                                    <span class="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400 shrink-0 ml-3">
+                                        @(task.DueDate.HasValue ? $"Due {task.DueDate.Value:MMM dd}" : "No Due Date")
                                     </span>
                                 </div>
                             }
@@ -246,69 +507,97 @@
                     }
                     else
                     {
-                        <div class="p-6 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
-                            No recent activity recorded today.
+                        <div class="p-8 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
+                            🎉 No tasks currently assigned to you!
                         </div>
                     }
                 </div>
             </div>
-        </div>
 
-        <!-- Right 1 Col: Workspace Engine & Status -->
-        <div class="space-y-6">
-            <!-- System Health Card -->
-            <div class="glass-card rounded-2xl p-6 space-y-4">
-                <h3 class="text-sm font-semibold text-white flex items-center justify-between">
-                    <span>Workspace Engine</span>
-                    <span class="size-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                </h3>
-
-                <div class="space-y-3 text-xs">
-                    <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
-                        <span class="text-zinc-400">Database Engine</span>
-                        <span class="font-medium text-zinc-200">@(_stats?.DatabaseEngine ?? "PostgreSQL 18")</span>
-                    </div>
-                    <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
-                        <span class="text-zinc-400">Real-Time Hubs</span>
-                        <span class="font-medium text-emerald-400">SignalR Active</span>
-                    </div>
-                    <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
-                        <span class="text-zinc-400">Biometric Listener</span>
-                        <span class="font-medium text-zinc-200">TCP 9000 & USB Web Serial</span>
-                    </div>
-                    <div class="flex items-center justify-between py-2">
-                        <span class="text-zinc-400">Field GPS Radar</span>
-                        <span class="font-medium text-fuchsia-400">@(_stats?.ActiveOutsideStaffCount ?? 0) Active</span>
-                    </div>
-                </div>
-
-                <div class="pt-2">
-                    <a href="/workspaces" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition-colors">
-                        <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
-                        <span>Manage Workspaces</span>
-                    </a>
+            <!-- Right 1 Col: My Recent Timeline -->
+            <div class="space-y-6">
+                <div class="glass-card rounded-2xl p-6 space-y-4">
+                    <h3 class="text-sm font-semibold text-white">My Recent Activity</h3>
+                    @if (_stats?.RecentActivities != null && _stats.RecentActivities.Count > 0)
+                    {
+                        <div class="space-y-3">
+                            @foreach (var act in _stats.RecentActivities)
+                            {
+                                <div class="p-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800/60 text-xs">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-medium text-zinc-200">@act.Title</span>
+                                        <span class="text-[10px] text-zinc-500">@FormatTimeAgo(act.Timestamp)</span>
+                                    </div>
+                                    <p class="text-[11px] text-zinc-400 mt-0.5">@act.Description</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-xs text-zinc-500 py-4 text-center">No personal activity logged today.</p>
+                    }
                 </div>
             </div>
         </div>
-    </div>
+    }
 </div>
 
 @code {
+    private enum DashboardTab { Team, Personal }
+    private DashboardTab _activeTab = DashboardTab.Team;
+
     private string? _firstName;
     private DashboardStatsDto? _stats;
     private bool _isLoading = false;
 
+    public class DashboardPermissionsDto
+    {
+        public bool CanManageLeaves { get; set; }
+        public bool CanManageAttendance { get; set; }
+        public bool CanManageUsers { get; set; }
+        public bool CanManageAdvances { get; set; }
+        public bool CanManagePayroll { get; set; }
+        public bool CanViewBoards { get; set; }
+        public bool CanViewLocations { get; set; }
+        public bool CanViewClients { get; set; }
+        public bool CanViewInvoices { get; set; }
+    }
+
+    public class PersonalTaskItemDto
+    {
+        public Guid CardId { get; set; }
+        public Guid BoardId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string ListName { get; set; } = string.Empty;
+        public DateTime? DueDate { get; set; }
+    }
+
     public class DashboardStatsDto
     {
-        public int TotalEmployees { get; set; }
-        public int PresentTodayCount { get; set; }
-        public double AttendanceRatePercent { get; set; }
-        public int PendingLeavesCount { get; set; }
-        public int PendingAdvancesCount { get; set; }
-        public int TotalTasksCount { get; set; }
-        public int CompletedTasksCount { get; set; }
-        public int InProgressTasksCount { get; set; }
-        public int ActiveOutsideStaffCount { get; set; }
+        public string RoleName { get; set; } = "Employee";
+        public bool IsManager { get; set; }
+        public DashboardPermissionsDto Permissions { get; set; } = new();
+
+        public bool PersonalClockedInToday { get; set; }
+        public DateTimeOffset? PersonalLastClockInTime { get; set; }
+        public double PersonalHoursWorkedToday { get; set; }
+        public int PersonalPendingLeavesCount { get; set; }
+        public int PersonalApprovedLeavesCount { get; set; }
+        public int PersonalAssignedTasksCount { get; set; }
+        public List<PersonalTaskItemDto> PersonalTasks { get; set; } = new();
+        public decimal? PersonalActiveAdvanceAmount { get; set; }
+        public string? PersonalActiveAdvanceStatus { get; set; }
+
+        public int? TotalEmployees { get; set; }
+        public int? PresentTodayCount { get; set; }
+        public double? AttendanceRatePercent { get; set; }
+        public int? PendingLeavesCount { get; set; }
+        public int? PendingAdvancesCount { get; set; }
+        public int? TotalTasksCount { get; set; }
+        public int? CompletedTasksCount { get; set; }
+        public int? InProgressTasksCount { get; set; }
+        public int? ActiveOutsideStaffCount { get; set; }
         public string DatabaseEngine { get; set; } = "PostgreSQL 18";
         public List<DashboardActivityItemDto> RecentActivities { get; set; } = new();
     }
@@ -349,6 +638,7 @@
             if (result != null)
             {
                 _stats = result;
+                _activeTab = _stats.IsManager ? DashboardTab.Team : DashboardTab.Personal;
             }
         }
         catch (Exception ex)

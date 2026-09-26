@@ -6,7 +6,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added & Changed — [2026-09-26] (Locations Real-Time Hub, Solution Build Fix, Live In-App Notification Center, Dynamic Dashboard)
+### Added & Changed — [2026-09-26] (Locations Real-Time Hub, Solution Build Fix, Live Notification Center, Role-Adaptive Dashboard & Opaque Popover)
+
+- **Opaque Notification Center & Layout Fix (`NotificationCenter.razor`):**
+  - Eliminated translucency and `backdrop-blur` artifacts that allowed underlying page buttons (like `+ New Task`) to bleed through the notification dropdown.
+  - Applied solid, opaque surfaces (`#18181b` in Dark Mode, `#ffffff` in Light Mode) across header, notification list rows, and footer with crisp borders and elevated shadow (`shadow-2xl`).
+  - Added dedicated scoped styling (`.oc-notif-dropdown`, `.oc-notif-header`, `.oc-notif-item`, `.oc-notif-footer`) ensuring 100% opacity parity across all browsers and WebView2 rendering engines.
+
+- **Role-Adaptive & Personalized Workspace Dashboard (`DashboardController.cs`, `Dashboard.razor`):**
+  - **Employee Self-Service (ESS) Personalization:**
+    - Non-managerial staff and employees without administrative permissions now see an employee-centric dashboard rather than irrelevant organization-wide statistics.
+    - Personal dashboard highlights **My Attendance Today** (live punch status, clock-in/out timestamps, hours worked), **My Assigned Tasks** (personal board cards and sprint priorities), **My Leave Requests**, and **My Salary Advance** balances.
+    - Quick actions and navigation shortcuts are strictly filtered according to each user's authorized modules (e.g. Punch Clock, File Leave, Request Advance, My Kanban Board).
+  - **Management & Operational View (MSS):**
+    - Users with managerial and administrative module claims (`LeaveApprovals`, `Users`, `Ledger`, `Payroll`, etc.) retain access to organization-wide metrics (Active Team Headcount, Today's Attendance %, Sprint Completion, Approval Queues, Live Field Staff).
+    - Added an interactive view toggle on managerial dashboards allowing managers to seamlessly switch between **📊 Team Operations** and **👤 My Personal Status**.
 
 - **Solution Build & Embedded Resource Fix (`OfficeCore.Client.Installer.csproj`):**
   - Added existence condition `Condition="Exists('..\..\dist\OfficeCore-Client-Portable\OfficeCore.Client.exe')"` to the portable client embedded resource.

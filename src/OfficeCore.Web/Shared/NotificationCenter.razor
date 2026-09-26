@@ -4,6 +4,38 @@
 @inject ToastService ToastService
 @implements IAsyncDisposable
 
+<style>
+    .oc-notif-dropdown {
+        background-color: #18181b !important;
+        opacity: 1 !important;
+    }
+    .oc-notif-header, .oc-notif-footer {
+        background-color: #09090b !important;
+        opacity: 1 !important;
+    }
+    .oc-notif-item {
+        background-color: #18181b !important;
+    }
+    .oc-notif-item:hover {
+        background-color: #27272a !important;
+    }
+    html.light .oc-notif-dropdown {
+        background-color: #ffffff !important;
+        border-color: #e2e8f0 !important;
+        box-shadow: 0 20px 45px rgba(0,0,0,0.15) !important;
+    }
+    html.light .oc-notif-header, html.light .oc-notif-footer {
+        background-color: #f8fafc !important;
+        border-color: #e2e8f0 !important;
+    }
+    html.light .oc-notif-item {
+        background-color: #ffffff !important;
+    }
+    html.light .oc-notif-item:hover {
+        background-color: #f1f5f9 !important;
+    }
+</style>
+
 <div class="relative">
     <!-- Notification Bell Button -->
     <button @onclick="ToggleDropdown"
@@ -25,12 +57,12 @@
     <!-- Dropdown Popover -->
     @if (_isOpen)
     {
-        <!-- Backdrop to close on outside tap -->
-        <div class="fixed inset-0 z-40" @onclick="CloseDropdown"></div>
+        <!-- Transparent backdrop to dismiss on outside click -->
+        <div class="fixed inset-0 z-40 bg-transparent" @onclick="CloseDropdown"></div>
 
-        <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-zinc-900/98 backdrop-blur-xl border border-zinc-800 shadow-2xl shadow-black/80 z-50 overflow-hidden flex flex-col max-h-[480px] animate-in fade-in slide-in-from-top-2 duration-150">
+        <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-zinc-800 shadow-2xl shadow-black z-50 overflow-hidden flex flex-col max-h-[480px] oc-notif-dropdown">
             <!-- Header -->
-            <div class="px-4 py-3 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-950/40">
+            <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between oc-notif-header">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-white uppercase tracking-wider">Notifications</span>
                     @if (UnreadCount > 0)
@@ -50,11 +82,11 @@
             </div>
 
             <!-- Notification List -->
-            <div class="overflow-y-auto flex-1 divide-y divide-zinc-800/50 custom-scrollbar">
+            <div class="overflow-y-auto flex-1 divide-y divide-zinc-800 custom-scrollbar oc-notif-dropdown">
                 @if (_notifications.Count == 0)
                 {
-                    <div class="p-8 text-center space-y-2">
-                        <div class="size-10 rounded-full bg-zinc-800/60 mx-auto flex items-center justify-center text-lg text-zinc-400">
+                    <div class="p-8 text-center space-y-2 oc-notif-item">
+                        <div class="size-10 rounded-full bg-zinc-800 mx-auto flex items-center justify-center text-lg text-zinc-400">
                             🔔
                         </div>
                         <p class="text-xs font-medium text-zinc-300">You're all caught up!</p>
@@ -66,7 +98,7 @@
                     @foreach (var item in _notifications)
                     {
                         <div @onclick="() => OnItemClick(item)"
-                             class="p-3.5 hover:bg-zinc-800/50 transition-colors cursor-pointer flex items-start gap-3 relative group @(!item.IsRead ? "bg-fuchsia-950/15" : "")">
+                             class="p-3.5 transition-colors cursor-pointer flex items-start gap-3 relative group oc-notif-item @(!item.IsRead ? "bg-fuchsia-950/20" : "")">
                             
                             <!-- Icon Pill -->
                             <div class="size-8 rounded-xl bg-zinc-800 flex items-center justify-center text-sm shrink-0 border border-zinc-700/60">
@@ -101,7 +133,7 @@
             <!-- Footer -->
             @if (_notifications.Count > 0)
             {
-                <div class="p-2 border-t border-zinc-800/80 bg-zinc-950/40 flex items-center justify-between text-[11px]">
+                <div class="p-2 border-t border-zinc-800 flex items-center justify-between text-[11px] oc-notif-footer">
                     <span class="text-zinc-500 pl-2">Real-time alerts active</span>
                     <button @onclick="ClearAll"
                             class="px-2.5 py-1 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
