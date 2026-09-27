@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Updated — [2026-09-27] (Standalone Server Station Installer Refresh)
+
+- **Updated Standalone Server Station Setup Installer (`dist/Setup-OfficeCore-Server.exe`):**
+  - Rebuilt and packaged the release distribution of `OfficeCore.Desktop.Server` and `OfficeCore.Server.Installer` into `dist/Setup-OfficeCore-Server.exe`.
+  - Updated the production-tracked server setup wizard binary while keeping `Setup-OfficeCore-Client.exe` intact.
+
 ### Added & Improved — [2026-09-27] (Desktop-Friendly Workspace Invitation Flow & Join-by-Code System)
 
 - **Desktop-Friendly Workspace Invitation Modal & Token Parser (`Workspaces.razor`):**
