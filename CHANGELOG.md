@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Improved — [2026-09-27] (Desktop-Friendly Workspace Invitation Flow & Join-by-Code System)
+
+- **Desktop-Friendly Workspace Invitation Modal & Token Parser (`Workspaces.razor`):**
+  - Added dedicated **"Join with invite"** card in the workspace directory grid alongside "Create workspace", enabling team members operating strictly within the desktop app to join organizations without external web browsers.
+  - Added **"Join with invite"** action button in the workspaces header with emerald theme styling.
+  - Implemented an interactive Join Workspace modal supporting raw 32-character tokens, `/join/<token>` URLs, and `?code=` / `?token=` query parameters with intelligent parsing (`ExtractToken`).
+  - Integrated live invitation verification (`GET /api/organizations/invitations/{token}`) displaying organization initials, name, and inviter name in a verified preview card prior to joining.
+  - Implemented one-click **"Enter Workspace"** (`ConfirmJoin`) which joins the organization (`POST /api/organizations/join`), activates it via cookie selection (`POST /api/organizations/{id}/select`), and routes seamlessly to `/dashboard`.
+  - Added support for query parameters (`/workspaces?join=true`, `/workspaces?code=...`, `/workspaces?token=...`) with automatic modal launch and instant verification.
+
+- **Desktop-Centric Invite Code Generation & Dual Copy Buttons (`UserManagement.razor`):**
+  - Updated workspace invitation dialog in User Management to provide an **Invite Code (for Desktop App)** with dedicated "Copy Code" button alongside the full shareable invite link.
+  - Added helper guidance informing administrators that team members can paste the code directly inside the Desktop App under **Workspaces → Join with invite**.
+  - Added clipboard integration with animated "✓ Copied" feedback and toast alerts.
+
+- **Workspace Navigation & Switcher Integration (`MainLayout.razor`, `Join.razor`):**
+  - Added **"Join with Invite Code"** shortcut in the workspace switcher dropdown in `MainLayout.razor`, routing directly to `/workspaces?join=true`.
+  - Added `@page "/join"` route in `Join.razor` that automatically forwards requests without a route parameter directly to `/workspaces?join=true`.
+
 ### Added — [2026-09-26] (Master Planning & Feature Roadmap Pipeline)
 
 - **Dedicated Planning & Roadmap System (`ROADMAP.md`, `agent.md`):**

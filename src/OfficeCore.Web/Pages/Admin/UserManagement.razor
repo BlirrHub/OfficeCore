@@ -3,6 +3,7 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ToastService ToastService
+@inject IJSRuntime JS
 
 <PageTitle>User Management - OfficeCore</PageTitle>
 
@@ -145,7 +146,7 @@
                         <p class="text-xs text-zinc-400 mt-0.5">Add someone to your workspace</p>
                     </div>
                 </div>
-                <button @onclick="() => { _showCreate = false; _inviteLink = null; _create.Email = string.Empty; }" class="text-zinc-500 hover:text-white hover:bg-zinc-800 p-2 rounded-lg transition-colors">
+                <button @onclick="() => { _showCreate = false; _inviteLink = null; _inviteToken = null; _copiedToken = false; _copiedLink = false; _create.Email = string.Empty; }" class="text-zinc-500 hover:text-white hover:bg-zinc-800 p-2 rounded-lg transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -155,10 +156,10 @@
             <div class="p-6 pb-2 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
                 <!-- Tabs -->
                 <div class="flex p-1 bg-zinc-900 rounded-lg shrink-0">
-                    <button type="button" @onclick="@(() => { _inviteTab = "link"; _inviteLink = null; })" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "link" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
-                        By Link
+                    <button type="button" @onclick="@(() => { _inviteTab = "link"; _inviteLink = null; _inviteToken = null; })" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "link" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
+                        By Link / Code
                     </button>
-                    <button type="button" @onclick="@(() => { _inviteTab = "email"; _inviteLink = null; })" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "email" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
+                    <button type="button" @onclick="@(() => { _inviteTab = "email"; _inviteLink = null; _inviteToken = null; })" class="@($"flex-1 py-1.5 text-xs font-medium rounded-md transition-colors {(_inviteTab == "email" ? "bg-zinc-800 text-white shadow" : "text-zinc-400 hover:text-zinc-300")}")">
                         By Email
                     </button>
                 </div>
@@ -168,31 +169,58 @@
                     <div>
                         <label class="block text-xs font-medium text-zinc-400 mb-1">Email Address</label>
                         <input @bind="_create.Email" type="email" placeholder="user@example.com" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
-                        <p class="text-[10px] text-zinc-500 mt-2">They will see this invitation when they log in.</p>
+                        <p class="text-[10px] text-zinc-500 mt-2">Registered users with this email will see this invitation in their Workspaces directory.</p>
                     </div>
                 }
                 else
                 {
-                    <p class="text-xs text-zinc-400">Generate a shareable link. Anyone with this link can request to join your workspace.</p>
+                    <p class="text-xs text-zinc-400">Generate an invite code and link. Team members can use either to join directly inside the Desktop App.</p>
                 }
                 
                 @if (!string.IsNullOrEmpty(_inviteLink) && _inviteTab == "link")
                 {
-                    <div class="bg-emerald-900/30 border border-emerald-800 rounded-lg p-3 mt-4">
-                        <p class="text-xs text-emerald-400 font-medium mb-1">Invitation Generated!</p>
-                        <input readonly value="@_inviteLink" class="w-full bg-black/50 text-emerald-300 text-xs font-mono p-2 rounded border border-emerald-900/50 outline-none" />
-                        <p class="text-[10px] text-zinc-500 mt-2">Send this link to the user to join.</p>
+                    <div class="bg-emerald-950/30 border border-emerald-800/60 rounded-xl p-4 mt-2 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                                <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Invitation Generated!
+                            </span>
+                            <span class="text-[10px] text-zinc-500">Valid for 7 days</span>
+                        </div>
+
+                        <!-- 1. Invite Code (Desktop App Friendly) -->
+                        <div class="space-y-1">
+                            <label class="block text-[11px] font-medium text-zinc-300">Invite Code (for Desktop App):</label>
+                            <div class="flex items-center gap-2">
+                                <input readonly value="@_inviteToken" class="flex-1 bg-black/60 text-emerald-300 text-xs font-mono px-3 py-2 rounded-lg border border-emerald-900/60 outline-none select-all" />
+                                <button type="button" @onclick="CopyInviteToken" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors shrink-0 shadow-sm">
+                                    @(_copiedToken ? "✓ Copied" : "Copy Code")
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-zinc-400">Team members can enter this code in the Desktop App under <strong>Workspaces → Join with invite</strong>.</p>
+                        </div>
+
+                        <!-- 2. Full Shareable Link -->
+                        <div class="space-y-1 pt-2 border-t border-emerald-900/40">
+                            <label class="block text-[11px] font-medium text-zinc-300">Full Invite Link:</label>
+                            <div class="flex items-center gap-2">
+                                <input readonly value="@_inviteLink" class="flex-1 bg-black/60 text-emerald-300/80 text-xs font-mono px-3 py-2 rounded-lg border border-emerald-900/60 outline-none select-all truncate" />
+                                <button type="button" @onclick="CopyInviteLink" class="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-lg border border-zinc-700 transition-colors shrink-0">
+                                    @(_copiedLink ? "✓ Copied" : "Copy Link")
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 }
                 </div>
             </div>
 
             <div class="flex justify-end gap-3 p-6 bg-zinc-900/50 border-t border-zinc-800 shrink-0">
-                <button type="button" @onclick="() => { _showCreate = false; _inviteLink = null; _create.Email = string.Empty; }"
+                <button type="button" @onclick="() => { _showCreate = false; _inviteLink = null; _inviteToken = null; _copiedToken = false; _copiedLink = false; _create.Email = string.Empty; }"
                         class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Close</button>
                 <button type="button" @onclick="InviteMember" disabled="@(_inviteTab == "link" && !string.IsNullOrEmpty(_inviteLink))"
                         class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors disabled:opacity-50">
-                    @(_inviteTab == "email" ? "Send Invitation" : "Generate Link")
+                    @(_inviteTab == "email" ? "Send Invitation" : "Generate Code & Link")
                 </button>
             </div>
         </div>
@@ -668,10 +696,17 @@
     }
 
     private string? _inviteLink;
+    private string? _inviteToken;
+    private bool _copiedToken;
+    private bool _copiedLink;
     private string _inviteTab = "link";
     
     private class OrganizationDto { public Guid Id { get; set; } }
-    private class InviteResponseDto { public string JoinUrl { get; set; } = string.Empty; }
+    private class InviteResponseDto 
+    { 
+        public string JoinUrl { get; set; } = string.Empty; 
+        public string Token { get; set; } = string.Empty;
+    }
 
     private async Task InviteMember()
     {
@@ -699,8 +734,11 @@
                 {
                     if (_inviteTab == "link")
                     {
-                        _inviteLink = Nav.BaseUri + result.JoinUrl.TrimStart('/');
-                        ToastService.ShowSuccess("Invitation link generated.");
+                        _inviteToken = result.Token;
+                        _inviteLink = Nav.BaseUri.TrimEnd('/') + "/" + result.JoinUrl.TrimStart('/');
+                        _copiedToken = false;
+                        _copiedLink = false;
+                        ToastService.ShowSuccess("Invitation code and link generated.");
                     }
                     else
                     {
@@ -717,6 +755,44 @@
         catch
         {
             ToastService.ShowError("Failed to generate invitation.");
+        }
+    }
+
+    private async Task CopyInviteToken()
+    {
+        if (string.IsNullOrEmpty(_inviteToken)) return;
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", _inviteToken);
+            _copiedToken = true;
+            ToastService.ShowSuccess("Invite code copied to clipboard!");
+            StateHasChanged();
+            await Task.Delay(2500);
+            _copiedToken = false;
+            StateHasChanged();
+        }
+        catch
+        {
+            ToastService.ShowInfo("Press Ctrl+C to copy the selected code.");
+        }
+    }
+
+    private async Task CopyInviteLink()
+    {
+        if (string.IsNullOrEmpty(_inviteLink)) return;
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", _inviteLink);
+            _copiedLink = true;
+            ToastService.ShowSuccess("Invite link copied to clipboard!");
+            StateHasChanged();
+            await Task.Delay(2500);
+            _copiedLink = false;
+            StateHasChanged();
+        }
+        catch
+        {
+            ToastService.ShowInfo("Press Ctrl+C to copy the selected link.");
         }
     }
 

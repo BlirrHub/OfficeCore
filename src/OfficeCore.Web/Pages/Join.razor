@@ -1,3 +1,4 @@
+@page "/join"
 @page "/join/{Token}"
 @attribute [Authorize]
 @inject HttpClient Http
@@ -89,7 +90,7 @@
 
 @code {
     [Parameter]
-    public string Token { get; set; } = string.Empty;
+    public string? Token { get; set; }
 
     private bool _isLoading = true;
     private bool _isAccepting = false;
@@ -102,6 +103,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            Nav.NavigateTo("/workspaces?join=true", replace: true);
+            return;
+        }
+
         try
         {
             _invitation = await Http.GetFromJsonAsync<InvitationDetailsDto>($"/api/organizations/invitations/{Token}");
