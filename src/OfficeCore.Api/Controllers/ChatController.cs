@@ -84,6 +84,7 @@ public class ChatController : ControllerBase
                 {
                     r.Id,
                     r.Name,
+                    r.PictureUrl,
                     r.Type,
                     r.CreatedAt,
                     Members = r.Members.Select(m => new
@@ -265,6 +266,8 @@ public class ChatController : ControllerBase
         [System.ComponentModel.DataAnnotations.StringLength(100, MinimumLength = 1)]
         public string Name { get; set; } = string.Empty;
 
+        public string? PictureUrl { get; set; }
+
         public List<string> MemberIds { get; set; } = new();
     }
 
@@ -311,6 +314,7 @@ public class ChatController : ControllerBase
         {
             Id = Guid.NewGuid(),
             Name = trimmedName,
+            PictureUrl = !string.IsNullOrWhiteSpace(req.PictureUrl) ? req.PictureUrl.Trim() : null,
             Type = ChatRoomType.Group,
             CreatedAt = DateTime.UtcNow,
             OrganizationId = orgId.Value
@@ -468,6 +472,88 @@ public class ChatController : ControllerBase
         }
 
         return Ok(new { Name = room.Name });
+    }
+
+    [HttpPost("rooms/{roomId}/picture")]
+    public async Task<IActionResult> UploadGroupPicture(Guid roomId, IFormFile file)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var room = await _context.ChatRooms
+            .Include(r => r.Members)
+            .FirstOrDefaultAsync(r => r.Id == roomId && r.OrganizationId == orgId.Value && r.Type == ChatRoomType.Group);
+
+        if (room == null) return NotFound("Group chat not found.");
+
+        if (!room.Members.Any(m => m.UserId == employee.Id))
+            return Forbid("You are not a member of this group.");
+
+        if (file == null || file.Length == 0)
+            return BadRequest("File is empty.");
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(ext))
+            return BadRequest("Invalid image format. Allowed formats: JPG, PNG, WEBP, GIF.");
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest("Image file size must be less than 5MB.");
+
+        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "chat");
+        Directory.CreateDirectory(uploadDir);
+
+        var fileName = $"group_{room.Id}_{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        room.PictureUrl = $"/uploads/chat/{fileName}";
+        await _context.SaveChangesAsync();
+
+        foreach (var member in room.Members)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{member.UserId}").SendAsync("RoomCreated", room.Id);
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{member.UserId}").SendAsync("RoomPictureUpdated", room.Id, room.PictureUrl);
+        }
+
+        return Ok(new { PictureUrl = room.PictureUrl });
+    }
+
+    [HttpDelete("rooms/{roomId}/picture")]
+    public async Task<IActionResult> RemoveGroupPicture(Guid roomId)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var room = await _context.ChatRooms
+            .Include(r => r.Members)
+            .FirstOrDefaultAsync(r => r.Id == roomId && r.OrganizationId == orgId.Value && r.Type == ChatRoomType.Group);
+
+        if (room == null) return NotFound("Group chat not found.");
+
+        if (!room.Members.Any(m => m.UserId == employee.Id))
+            return Forbid("You are not a member of this group.");
+
+        room.PictureUrl = null;
+        await _context.SaveChangesAsync();
+
+        foreach (var member in room.Members)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{member.UserId}").SendAsync("RoomCreated", room.Id);
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{member.UserId}").SendAsync("RoomPictureUpdated", room.Id, (string?)null);
+        }
+
+        return Ok(new { message = "Group picture removed successfully" });
     }
 
     [HttpGet("users")]

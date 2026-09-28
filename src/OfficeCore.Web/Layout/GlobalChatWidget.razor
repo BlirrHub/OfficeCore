@@ -4,6 +4,7 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager NavigationManager
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject ToastService ToastService
 @implements IAsyncDisposable
 
 <!-- Chat Widget Container -->
@@ -142,11 +143,38 @@
                         {
                             <!-- Group Chat Creation View -->
                             <div class="p-3 border-b border-zinc-800 bg-zinc-900/40 shrink-0 space-y-3">
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-zinc-300 mb-1">Group Name</label>
-                                    <input type="text" @bind="_newGroupName" @bind:event="oninput" 
-                                           placeholder="e.g. Design Team, Project Alpha, Sprint Sync..." 
-                                           class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+                                <div class="flex items-center gap-3">
+                                    <div class="relative shrink-0">
+                                        <label for="new-group-pic" title="Set group picture"
+                                               class="size-12 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-fuchsia-500/50 flex flex-col items-center justify-center overflow-hidden transition-all cursor-pointer group/pic relative">
+                                            @if (!string.IsNullOrEmpty(_newGroupPictureDataUrl))
+                                            {
+                                                <img src="@_newGroupPictureDataUrl" class="w-full h-full object-cover" />
+                                            }
+                                            else
+                                            {
+                                                <svg class="size-5 text-zinc-400 group-hover/pic:text-fuchsia-400 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                </svg>
+                                                <span class="text-[8px] text-zinc-500 font-semibold group-hover/pic:text-fuchsia-300">Photo</span>
+                                            }
+                                        </label>
+                                        <InputFile id="new-group-pic" OnChange="HandleNewGroupPictureSelected" class="hidden" accept="image/png,image/jpeg,image/webp,image/gif" />
+                                        @if (!string.IsNullOrEmpty(_newGroupPictureDataUrl))
+                                        {
+                                            <button type="button" @onclick="ClearNewGroupPicture" title="Remove selected photo"
+                                                    class="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center text-[10px] border border-zinc-600 cursor-pointer shadow">
+                                                ✕
+                                            </button>
+                                        }
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <label class="block text-[11px] font-semibold text-zinc-300 mb-1">Group Name</label>
+                                        <input type="text" @bind="_newGroupName" @bind:event="oninput" 
+                                               placeholder="e.g. Design Team, Project Alpha..." 
+                                               class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+                                    </div>
                                 </div>
 
                                 @if (!string.IsNullOrEmpty(_createGroupError))
@@ -310,9 +338,16 @@
                                     }
                                     else // Group Chat
                                     {
-                                        <div class="size-11 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-violet-700 flex items-center justify-center shadow-md shadow-fuchsia-900/30 text-white font-bold text-xs border border-fuchsia-400/30">
-                                            @GetGroupInitials(room.Name)
-                                        </div>
+                                        if (!string.IsNullOrEmpty(room.PictureUrl))
+                                        {
+                                            <img src="@(Configuration["ApiBaseUrl"] + room.PictureUrl)" class="size-11 rounded-2xl object-cover ring-1 ring-fuchsia-500/30 shadow-md shadow-fuchsia-950/20" />
+                                        }
+                                        else
+                                        {
+                                            <div class="size-11 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-violet-700 flex items-center justify-center shadow-md shadow-fuchsia-900/30 text-white font-bold text-xs border border-fuchsia-400/30">
+                                                @GetGroupInitials(room.Name)
+                                            </div>
+                                        }
                                         <div class="absolute -bottom-1 -right-1 px-1 rounded-full bg-zinc-900 border border-zinc-700 text-[9px] font-semibold text-zinc-300">
                                             @room.Members.Count
                                         </div>
@@ -384,9 +419,16 @@
                             }
                             else
                             {
-                                <div class="size-8 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-700 flex items-center justify-center text-white font-bold text-[10px] shadow-sm">
-                                    @GetGroupInitials(_activeRoom.Name)
-                                </div>
+                                if (!string.IsNullOrEmpty(_activeRoom.PictureUrl))
+                                {
+                                    <img src="@(Configuration["ApiBaseUrl"] + _activeRoom.PictureUrl)" class="size-8 rounded-xl object-cover ring-1 ring-fuchsia-500/30 shadow-sm cursor-pointer" @onclick="ToggleGroupDetails" />
+                                }
+                                else
+                                {
+                                    <div @onclick="ToggleGroupDetails" class="size-8 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-700 flex items-center justify-center text-white font-bold text-[10px] shadow-sm cursor-pointer border border-fuchsia-400/30">
+                                        @GetGroupInitials(_activeRoom.Name)
+                                    </div>
+                                }
                             }
                         </div>
                         
@@ -431,19 +473,69 @@
                 @if (_showGroupDetails && _activeRoom?.Type == 1)
                 {
                     <div class="absolute inset-x-0 top-[57px] bottom-0 bg-zinc-950/95 backdrop-blur-md z-30 flex flex-col p-4 animate-fade-in custom-scrollbar overflow-y-auto">
-                        <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
-                            <div class="flex items-center gap-2">
-                                <div class="size-9 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-700 flex items-center justify-center text-white font-bold text-xs shadow-md">
-                                    @GetGroupInitials(_activeRoom.Name)
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-sm text-white">@_activeRoom.Name</h4>
-                                    <p class="text-[10px] text-zinc-400">@_activeRoom.Members.Count members</p>
-                                </div>
-                            </div>
-                            <button type="button" @onclick="ToggleGroupDetails" class="size-7 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer">
+                        <!-- Group Header & Avatar Card -->
+                        <div class="flex flex-col items-center justify-center py-4 border-b border-zinc-800 relative bg-zinc-900/40 rounded-2xl p-4 mb-3 border border-zinc-800/80">
+                            <!-- Close Drawer Button in Top Right -->
+                            <button type="button" @onclick="ToggleGroupDetails" class="absolute top-3 right-3 size-7 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors">
                                 ✕
                             </button>
+
+                            <div class="relative group cursor-pointer mb-2">
+                                @if (!string.IsNullOrEmpty(_activeRoom.PictureUrl))
+                                {
+                                    <img src="@(Configuration["ApiBaseUrl"] + _activeRoom.PictureUrl)" class="size-20 rounded-3xl object-cover ring-2 ring-fuchsia-500/40 shadow-xl shadow-fuchsia-950/40" />
+                                }
+                                else
+                                {
+                                    <div class="size-20 rounded-3xl bg-gradient-to-br from-fuchsia-600 via-purple-600 to-violet-700 flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-fuchsia-950/40 border border-fuchsia-400/30">
+                                        @GetGroupInitials(_activeRoom.Name)
+                                    </div>
+                                }
+
+                                <!-- Hover Overlay for changing picture -->
+                                <label for="active-group-pic-upload" class="absolute inset-0 rounded-3xl bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer backdrop-blur-[1px]">
+                                    <svg class="size-6 text-fuchsia-300 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <span class="text-[10px] font-semibold text-fuchsia-200">Change</span>
+                                </label>
+                                <InputFile id="active-group-pic-upload" OnChange="HandleGroupPictureUpload" class="hidden" accept="image/png,image/jpeg,image/webp,image/gif" />
+
+                                <!-- Floating quick button on bottom-right corner -->
+                                <label for="active-group-pic-upload" class="absolute -bottom-1 -right-1 size-7 rounded-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white flex items-center justify-center shadow-lg border-2 border-zinc-950 cursor-pointer transition-colors" title="Change group photo">
+                                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </label>
+                            </div>
+
+                            @if (_isUploadingGroupPicture)
+                            {
+                                <div class="flex items-center gap-1.5 text-xs text-fuchsia-400 font-medium py-1 animate-pulse">
+                                    <div class="animate-spin size-3.5 border-2 border-fuchsia-400 border-t-transparent rounded-full"></div>
+                                    <span>Uploading photo...</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="flex items-center gap-2 mt-1">
+                                    <label for="active-group-pic-upload" class="text-[11px] font-semibold text-fuchsia-400 hover:text-fuchsia-300 transition-colors cursor-pointer flex items-center gap-1">
+                                        <span>Change Photo</span>
+                                    </label>
+                                    @if (!string.IsNullOrEmpty(_activeRoom.PictureUrl))
+                                    {
+                                        <span class="text-zinc-600 text-xs">•</span>
+                                        <button type="button" @onclick="RemoveGroupPicture" disabled="@_isRemovingGroupPicture" class="text-[11px] font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer">
+                                            @(_isRemovingGroupPicture ? "Removing..." : "Remove")
+                                        </button>
+                                    }
+                                </div>
+                            }
+
+                            <h4 class="font-bold text-base text-white mt-2">@_activeRoom.Name</h4>
+                            <p class="text-xs text-zinc-400">@_activeRoom.Members.Count members</p>
                         </div>
 
                         <!-- Add Member Section -->
@@ -768,9 +860,32 @@
             }
         });
 
-        _hubConnection.On<Guid>("RoomCreated", (roomId) =>
+        _hubConnection.On<Guid>("RoomCreated", async (roomId) =>
         {
-            _ = LoadRooms();
+            await LoadRooms();
+            if (_activeRoom?.Id == roomId)
+            {
+                var refreshed = _rooms.FirstOrDefault(r => r.Id == roomId);
+                if (refreshed != null)
+                {
+                    _activeRoom = refreshed;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        });
+
+        _hubConnection.On<Guid, string?>("RoomPictureUpdated", (roomId, pictureUrl) =>
+        {
+            var room = _rooms.FirstOrDefault(r => r.Id == roomId);
+            if (room != null)
+            {
+                room.PictureUrl = pictureUrl;
+            }
+            if (_activeRoom?.Id == roomId)
+            {
+                _activeRoom.PictureUrl = pictureUrl;
+            }
+            InvokeAsync(StateHasChanged);
         });
 
         try
@@ -824,6 +939,7 @@
         _selectedMemberIds.Clear();
         _createGroupError = null;
         _groupSearchQuery = string.Empty;
+        ClearNewGroupPicture();
         _showNewMessage = true;
     }
 
@@ -868,6 +984,20 @@
                 _newGroupName = string.Empty;
                 _selectedMemberIds.Clear();
 
+                if (content != null && _newGroupPictureBytes != null)
+                {
+                    try
+                    {
+                        using var uploadContent = new MultipartFormDataContent();
+                        var byteContent = new ByteArrayContent(_newGroupPictureBytes);
+                        byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_newGroupPictureContentType ?? "image/jpeg");
+                        uploadContent.Add(byteContent, "file", $"{content.RoomId}.jpg");
+                        await Http.PostAsync($"/api/chat/rooms/{content.RoomId}/picture", uploadContent);
+                    }
+                    catch { }
+                }
+
+                ClearNewGroupPicture();
                 await LoadRooms();
 
                 if (content != null)
@@ -1050,10 +1180,128 @@
         _typingTimer?.Dispose();
     }
 
+    private bool _isUploadingGroupPicture = false;
+    private bool _isRemovingGroupPicture = false;
+
+    private async Task HandleGroupPictureUpload(InputFileChangeEventArgs e)
+    {
+        if (_activeRoom == null || e.File == null) return;
+
+        try
+        {
+            _isUploadingGroupPicture = true;
+            StateHasChanged();
+
+            var resizedImage = await e.File.RequestImageFileAsync("image/jpeg", 600, 600);
+            var buffer = new byte[resizedImage.Size];
+            using var stream = resizedImage.OpenReadStream(10 * 1024 * 1024);
+            await stream.ReadAsync(buffer);
+
+            using var content = new MultipartFormDataContent();
+            var byteContent = new ByteArrayContent(buffer);
+            byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+            content.Add(byteContent, "file", $"{_activeRoom.Id}.jpg");
+
+            var response = await Http.PostAsync($"/api/chat/rooms/{_activeRoom.Id}/picture", content);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<PictureUploadResponse>();
+                if (result != null && !string.IsNullOrEmpty(result.PictureUrl))
+                {
+                    _activeRoom.PictureUrl = result.PictureUrl;
+                    var roomInList = _rooms.FirstOrDefault(r => r.Id == _activeRoom.Id);
+                    if (roomInList != null) roomInList.PictureUrl = result.PictureUrl;
+                    ToastService.ShowSuccess("Group photo updated!");
+                }
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Failed to update photo: {err}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error uploading photo: {ex.Message}");
+        }
+        finally
+        {
+            _isUploadingGroupPicture = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveGroupPicture()
+    {
+        if (_activeRoom == null) return;
+
+        try
+        {
+            _isRemovingGroupPicture = true;
+            StateHasChanged();
+
+            var response = await Http.DeleteAsync($"/api/chat/rooms/{_activeRoom.Id}/picture");
+            if (response.IsSuccessStatusCode)
+            {
+                _activeRoom.PictureUrl = null;
+                var roomInList = _rooms.FirstOrDefault(r => r.Id == _activeRoom.Id);
+                if (roomInList != null) roomInList.PictureUrl = null;
+                ToastService.ShowSuccess("Group photo removed.");
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Failed to remove photo: {err}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error removing photo: {ex.Message}");
+        }
+        finally
+        {
+            _isRemovingGroupPicture = false;
+            StateHasChanged();
+        }
+    }
+
+    private string? _newGroupPictureDataUrl;
+    private byte[]? _newGroupPictureBytes;
+    private string? _newGroupPictureContentType;
+
+    private async Task HandleNewGroupPictureSelected(InputFileChangeEventArgs e)
+    {
+        if (e.File == null) return;
+        try
+        {
+            var resizedImage = await e.File.RequestImageFileAsync("image/jpeg", 500, 500);
+            var buffer = new byte[resizedImage.Size];
+            using var stream = resizedImage.OpenReadStream(10 * 1024 * 1024);
+            await stream.ReadAsync(buffer);
+
+            _newGroupPictureBytes = buffer;
+            _newGroupPictureContentType = "image/jpeg";
+            _newGroupPictureDataUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(buffer)}";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error selecting image: {ex.Message}");
+        }
+    }
+
+    private void ClearNewGroupPicture()
+    {
+        _newGroupPictureDataUrl = null;
+        _newGroupPictureBytes = null;
+        _newGroupPictureContentType = null;
+    }
+
     public class ChatRoomDto
     {
         public Guid Id { get; set; }
         public string? Name { get; set; }
+        public string? PictureUrl { get; set; }
         public int Type { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<ChatRoomMemberDto> Members { get; set; } = new();
@@ -1094,6 +1342,12 @@
     {
         public Guid RoomId { get; set; }
         public string? Name { get; set; }
+        public string? PictureUrl { get; set; }
+    }
+
+    private class PictureUploadResponse
+    {
+        public string? PictureUrl { get; set; }
     }
 
     private async Task StartDirectMessage(string userId)

@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — [2026-09-28] (Group Chat Profile Picture & Avatar Management)
+
+- **Group Chat Avatar Upload & Picture Management (`GlobalChatWidget.razor`, `ChatController.cs`, `ChatRoom.cs`):**
+  - Added `PictureUrl` property to `ChatRoom` with EF Core database migration (`AddChatRoomPictureUrl`).
+  - Added dedicated Group Profile Picture changing and removal in the **Group Details Drawer** with an interactive avatar card, hover upload overlay, floating quick-action camera button, and progress indicators.
+  - Added optional Group Photo picker directly within the **New Group Chat** creation modal, supporting real-time local image preview, cancellation, and automatic upload upon room creation.
+  - Integrated `POST /api/chat/rooms/{roomId}/picture` supporting JPG, PNG, WEBP, and GIF up to 5MB with automatic server-side storage under `wwwroot/uploads/chat/`.
+  - Integrated `DELETE /api/chat/rooms/{roomId}/picture` allowing group members to remove custom pictures and revert back to initials gradients.
+  - Implemented real-time SignalR broadcast event `RoomPictureUpdated` updating avatars across the rooms list and active chat headers instantly for all group members without requiring page reloads.
+  - Updated room cards in the chat list and active conversation headers to display group photos with custom borders and shadows.
+
 ### Added — [2026-09-28] (Group Chat Creation, Member Management & Real-Time Collaboration)
 
 - **Group Chat Creation & Multi-User Management (`GlobalChatWidget.razor`, `ChatController.cs`):**

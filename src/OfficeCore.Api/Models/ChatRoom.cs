@@ -16,6 +16,8 @@ public class ChatRoom : ITenantEntity{
     
     public string? Name { get; set; }
     
+    public string? PictureUrl { get; set; }
+    
     public ChatRoomType Type { get; set; }
     
     public DateTime CreatedAt { get; set; }
