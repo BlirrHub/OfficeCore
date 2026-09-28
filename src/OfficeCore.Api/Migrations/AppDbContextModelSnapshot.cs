@@ -781,6 +781,15 @@ namespace OfficeCore.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AttachmentName")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("AttachmentSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("ChatRoomId")
                         .HasColumnType("uuid");
 

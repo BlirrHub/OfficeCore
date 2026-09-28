@@ -22,6 +22,10 @@ public class ChatMessage : ITenantEntity{
     [Required]
     public string Content { get; set; } = string.Empty;
 
+    public string? AttachmentUrl { get; set; }
+    public string? AttachmentName { get; set; }
+    public long? AttachmentSize { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public Guid OrganizationId { get; set; }

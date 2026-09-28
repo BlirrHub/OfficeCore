@@ -22,6 +22,8 @@ builder.Services.AddTransient<OfficeCore.Web.Client.Auth.CookieHandler>();
 
 var baseUri = new Uri(builder.HostEnvironment.BaseAddress);
 var apiUrl = $"{baseUri.Scheme}://{baseUri.Host}:5026";
+builder.Configuration["ApiBaseUrl"] = apiUrl;
+
 builder.Services.AddHttpClient("Default", client => 
     client.BaseAddress = new Uri(apiUrl))
     .AddHttpMessageHandler<OfficeCore.Web.Client.Auth.CookieHandler>();

@@ -3,8 +3,11 @@
 @inject HttpClient Http
 @inject OfficeCore.Web.Services.ToastService ToastService
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 @implements IAsyncDisposable
 @using Microsoft.AspNetCore.SignalR.Client
+@using OfficeCore.Web.Services
+@using OfficeCore.Web.Client.Pages.Components
 
 <PageTitle>Leave Approvals - OfficeCore</PageTitle>
 
@@ -243,16 +246,20 @@
                         }
                         else
                         {
+                            var resolvedAttachment = MediaUrlHelper.Resolve(_selectedRequest.AttachmentPath, Configuration);
                             <div class="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950">
-                                <a href="http://localhost:5033@_selectedRequest.AttachmentPath" target="_blank" class="block hover:opacity-80 transition-opacity">
-                                    <img src="http://localhost:5033@_selectedRequest.AttachmentPath" class="w-full max-h-64 object-contain" alt="Medical Certificate" />
-                                </a>
+                                <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, "Medical Certificate")' class="w-full block hover:opacity-85 transition-opacity cursor-pointer text-left">
+                                    <img src="@resolvedAttachment" class="w-full max-h-64 object-contain bg-black/40" alt="Medical Certificate" />
+                                </button>
                                 <div class="p-3 border-t border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
-                                    <span class="text-xs text-zinc-400">Click image to view full size</span>
-                                    <a href="http://localhost:5033@_selectedRequest.AttachmentPath" target="_blank" class="text-fuchsia-400 hover:text-fuchsia-300 text-xs font-medium flex items-center gap-1">
-                                        Open in new tab
-                                        <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                    </a>
+                                    <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, "Medical Certificate")' class="text-xs text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1.5 cursor-pointer">
+                                        <svg class="size-3.5 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                                        <span>Click image to view in Photo Viewer</span>
+                                    </button>
+                                    <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, "Medical Certificate")' class="text-fuchsia-400 hover:text-fuchsia-300 text-xs font-semibold flex items-center gap-1 cursor-pointer">
+                                        <span>Preview &amp; Save</span>
+                                        <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                    </button>
                                 </div>
                             </div>
                         }
@@ -373,12 +380,31 @@
     </div>
 }
 
+<MediaViewerModal @bind-IsOpen="_isViewerOpen"
+                  FileUrl="@_viewerUrl"
+                  FileName="@_viewerFileName"
+                  Title="@_viewerTitle" />
+
 @code {
+    private bool _isViewerOpen = false;
+    private string _viewerUrl = "";
+    private string _viewerFileName = "";
+    private string _viewerTitle = "Medical Certificate";
+
+    private void OpenViewer(string? path, string title)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        _viewerUrl = MediaUrlHelper.Resolve(path, Configuration);
+        _viewerFileName = Path.GetFileName(path);
+        _viewerTitle = title;
+        _isViewerOpen = true;
+    }
 
     private List<LeaveRequestAdminDto>? _requests;
     private string _searchQuery = "";
     private int _statusFilter = -1;
     private int _typeFilter = -1;
+
     
     private LeaveRequestAdminDto? _selectedRequest;
     private bool _isUpdating = false;

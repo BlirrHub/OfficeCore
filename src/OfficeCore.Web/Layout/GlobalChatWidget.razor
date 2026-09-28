@@ -1,10 +1,13 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.AspNetCore.Components.Authorization
+@using OfficeCore.Web.Client.Pages.Components
+@using OfficeCore.Web.Services
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager NavigationManager
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject ToastService ToastService
+@inject IJSRuntime JS
 @implements IAsyncDisposable
 
 <!-- Chat Widget Container -->
@@ -385,7 +388,21 @@
                                                 @(room.LastMessage.SenderId == _currentEmployeeId ? "You: " : $"{room.LastMessage.SenderName?.Split(' ').FirstOrDefault()}: ")
                                             </span>
                                         }
-                                        @(room.LastMessage?.Content ?? "No messages yet")
+                                        @if (!string.IsNullOrEmpty(room.LastMessage?.Content))
+                                        {
+                                            <span>@room.LastMessage.Content</span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(room.LastMessage?.AttachmentUrl))
+                                        {
+                                            <span class="inline-flex items-center gap-1 text-fuchsia-400">
+                                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                                <span>@(room.LastMessage.AttachmentName ?? "Attachment")</span>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span>No messages yet</span>
+                                        }
                                     </p>
                                 </div>
                             </div>
@@ -639,13 +656,17 @@
                         @foreach (var msg in _messages.DistinctBy(m => m.Id).OrderBy(m => m.CreatedAt))
                         {
                             bool isMine = msg.SenderId == _currentEmployeeId;
+                            bool hasAttachment = !string.IsNullOrEmpty(msg.AttachmentUrl);
+                            bool isAttachmentImg = hasAttachment && IsImageAttachment(msg.AttachmentUrl);
+                            bool isAttachmentPdf = hasAttachment && IsPdfAttachment(msg.AttachmentUrl);
+
                             <div class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start")">
                                 @if (!isMine)
                                 {
                                     <div class="size-6 rounded-full bg-zinc-800 shrink-0 overflow-hidden self-end mb-1 border border-zinc-700">
                                         @if (!string.IsNullOrEmpty(msg.ProfilePictureUrl))
                                         {
-                                            <img src="@(Configuration["ApiBaseUrl"] + msg.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                            <img src="@(MediaUrlHelper.Resolve(msg.ProfilePictureUrl, Configuration))" class="w-full h-full object-cover" />
                                         }
                                         else
                                         {
@@ -662,8 +683,73 @@
                                         <!-- In group chat, show sender's name above message -->
                                         <span class="text-[10px] font-semibold text-fuchsia-400 mb-0.5 ml-1">@msg.SenderName</span>
                                     }
-                                    <div class="px-3 py-2 text-xs rounded-2xl @(isMine ? "bg-fuchsia-600 text-white rounded-br-xs shadow-md shadow-fuchsia-950/40" : "bg-zinc-800 text-zinc-100 rounded-bl-xs")">
-                                        @msg.Content
+
+                                    <div class="flex flex-col gap-1.5 @(isMine ? "items-end" : "items-start")">
+                                        @if (hasAttachment)
+                                        {
+                                            <div class="rounded-2xl overflow-hidden border transition-all cursor-pointer @(isMine ? "bg-fuchsia-700/80 border-fuchsia-500/50 hover:border-fuchsia-400 shadow-md shadow-fuchsia-950/40" : "bg-zinc-800/90 border-zinc-700/70 hover:border-zinc-500 shadow-sm")"
+                                                 @onclick="() => OpenAttachmentViewer(msg)">
+                                                @if (isAttachmentImg)
+                                                {
+                                                    <div class="relative group/att w-48 h-36 bg-zinc-950/50 flex items-center justify-center overflow-hidden">
+                                                        <img src="@(MediaUrlHelper.Resolve(msg.AttachmentUrl, Configuration))" class="w-full h-full object-cover group-hover/att:scale-105 transition-transform duration-300" />
+                                                        <div class="absolute inset-0 bg-black/30 opacity-0 group-hover/att:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <span class="px-2 py-1 rounded-md bg-black/70 text-white text-[10px] font-semibold flex items-center gap-1 backdrop-blur-xs">
+                                                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                                <span>View</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    @if (!string.IsNullOrEmpty(msg.AttachmentName))
+                                                    {
+                                                        <div class="px-2.5 py-1 text-[10px] text-zinc-300 truncate max-w-48 bg-zinc-900/60 flex items-center justify-between gap-1">
+                                                            <span class="truncate">@msg.AttachmentName</span>
+                                                            @if (msg.AttachmentSize.HasValue)
+                                                            {
+                                                                <span class="text-[9px] text-zinc-400 shrink-0">@FormatFileSize(msg.AttachmentSize.Value)</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="p-2.5 flex items-center gap-2.5 max-w-56">
+                                                        <div class="size-9 rounded-xl flex items-center justify-center shrink-0 @(isAttachmentPdf ? "bg-rose-500/20 text-rose-300 border border-rose-500/30" : "bg-zinc-700 text-zinc-300")">
+                                                            @if (isAttachmentPdf)
+                                                            {
+                                                                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                                </svg>
+                                                            }
+                                                            else
+                                                            {
+                                                                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                            }
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-xs font-semibold text-white truncate">@(msg.AttachmentName ?? "Document")</p>
+                                                            <p class="text-[10px] text-zinc-400 flex items-center gap-1.5">
+                                                                @if (msg.AttachmentSize.HasValue)
+                                                                {
+                                                                    <span>@FormatFileSize(msg.AttachmentSize.Value)</span>
+                                                                    <span>•</span>
+                                                                }
+                                                                <span class="text-fuchsia-300 font-medium">Click to view</span>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(msg.Content))
+                                        {
+                                            <div class="px-3 py-2 text-xs rounded-2xl @(isMine ? "bg-fuchsia-600 text-white rounded-br-xs shadow-md shadow-fuchsia-950/40" : "bg-zinc-800 text-zinc-100 rounded-bl-xs")">
+                                                @msg.Content
+                                            </div>
+                                        }
                                     </div>
                                     <span class="text-[9px] text-zinc-500 mt-1 px-1">@msg.CreatedAt.ToLocalTime().ToString("h:mm tt")</span>
                                 </div>
@@ -673,19 +759,71 @@
                 </div>
 
                 <!-- Input Area -->
-                <div class="p-3 bg-zinc-900 border-t border-zinc-800 shrink-0">
+                <div class="p-3 bg-zinc-900 border-t border-zinc-800 shrink-0 space-y-2">
                     @if (_isTyping)
                     {
-                        <div class="text-[10px] text-zinc-400 px-2 mb-1.5 italic flex items-center gap-1.5">
+                        <div class="text-[10px] text-zinc-400 px-2 italic flex items-center gap-1.5">
                             <span class="size-1.5 rounded-full bg-fuchsia-400 animate-ping"></span>
                             <span>@(_typingUserName ?? "Someone") is typing...</span>
                         </div>
                     }
+
+                    <!-- Pending Attachment Preview Banner -->
+                    @if (!string.IsNullOrEmpty(_pendingAttachmentUrl))
+                    {
+                        <div class="flex items-center justify-between p-2 rounded-xl bg-zinc-950 border border-zinc-800 shadow-sm animate-fade-in">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                @if (IsImageAttachment(_pendingAttachmentUrl))
+                                {
+                                    <div class="size-9 rounded-lg overflow-hidden shrink-0 border border-zinc-700 bg-zinc-900">
+                                        <img src="@(MediaUrlHelper.Resolve(_pendingAttachmentUrl, Configuration))" class="w-full h-full object-cover" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="size-9 rounded-lg bg-zinc-800 text-fuchsia-400 flex items-center justify-center shrink-0 border border-zinc-700">
+                                        <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                }
+                                <div class="min-w-0">
+                                    <p class="text-xs font-semibold text-white truncate max-w-[180px]">@_pendingAttachmentName</p>
+                                    @if (_pendingAttachmentSize.HasValue)
+                                    {
+                                        <p class="text-[10px] text-zinc-400">@FormatFileSize(_pendingAttachmentSize.Value)</p>
+                                    }
+                                </div>
+                            </div>
+                            <button type="button" @onclick="ClearPendingAttachment" title="Remove attachment"
+                                    class="size-6 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    }
+
                     <form @onsubmit="SendMessage" class="flex items-center gap-2">
+                        <!-- Attachment Input & Button -->
+                        <label for="chat-file-input" title="Attach image or document"
+                               class="size-8.5 rounded-full bg-zinc-800/90 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer border border-zinc-700/60 @(_isUploadingAttachment ? "pointer-events-none opacity-50" : "")">
+                            @if (_isUploadingAttachment)
+                            {
+                                <div class="animate-spin size-3.5 border-2 border-fuchsia-400 border-t-transparent rounded-full"></div>
+                            }
+                            else
+                            {
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                </svg>
+                            }
+                        </label>
+                        <InputFile id="chat-file-input" OnChange="HandleChatFileUpload" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
+
                         <input type="text" @bind="_newMessageContent" @bind:event="oninput" @onkeyup="HandleKeyUp" 
                                placeholder="@(_activeRoom?.Type == 1 ? $"Message {_activeRoom?.Name}..." : "Type a message...")" 
                                class="flex-1 bg-zinc-950 border border-zinc-800 rounded-full px-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
-                        <button type="submit" disabled="@string.IsNullOrWhiteSpace(_newMessageContent)" 
+
+                        <button type="submit" disabled="@(string.IsNullOrWhiteSpace(_newMessageContent) && string.IsNullOrEmpty(_pendingAttachmentUrl))" 
                                 class="size-8.5 rounded-full bg-fuchsia-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fuchsia-500 transition-colors shrink-0 shadow-md shadow-fuchsia-900/30 cursor-pointer">
                             <svg class="size-3.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                         </button>
@@ -694,6 +832,12 @@
             }
         </div>
     }
+
+    <!-- In-App Media Viewer Modal for Chat Attachments -->
+    <MediaViewerModal @bind-IsOpen="_showMediaViewer"
+                      FileUrl="@_selectedMediaUrl"
+                      FileName="@_selectedMediaName"
+                      Title="Chat Attachment" />
 
     <!-- Floating Bubble Button -->
     <button type="button" @onclick="ToggleChat" 
@@ -1137,12 +1281,122 @@
         }
     }
 
+    private bool _isUploadingAttachment = false;
+    private string? _pendingAttachmentUrl;
+    private string? _pendingAttachmentName;
+    private long? _pendingAttachmentSize;
+
+    // Media viewer state for chat attachments
+    private bool _showMediaViewer = false;
+    private string? _selectedMediaUrl;
+    private string? _selectedMediaName;
+
+    private static bool IsImageAttachment(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return false;
+        var ext = System.IO.Path.GetExtension(url).ToLowerInvariant();
+        return ext is ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif";
+    }
+
+    private static bool IsPdfAttachment(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return false;
+        var ext = System.IO.Path.GetExtension(url).ToLowerInvariant();
+        return ext is ".pdf";
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private void OpenAttachmentViewer(ChatMessageDto msg)
+    {
+        if (string.IsNullOrEmpty(msg.AttachmentUrl)) return;
+        _selectedMediaUrl = MediaUrlHelper.Resolve(msg.AttachmentUrl, Configuration);
+        _selectedMediaName = msg.AttachmentName ?? "Attachment";
+        _showMediaViewer = true;
+    }
+
+    private void ClearPendingAttachment()
+    {
+        _pendingAttachmentUrl = null;
+        _pendingAttachmentName = null;
+        _pendingAttachmentSize = null;
+    }
+
+    private async Task HandleChatFileUpload(InputFileChangeEventArgs e)
+    {
+        if (_activeRoom == null || e.File == null) return;
+
+        try
+        {
+            _isUploadingAttachment = true;
+            StateHasChanged();
+
+            var maxFileSize = 25 * 1024 * 1024; // 25MB
+            if (e.File.Size > maxFileSize)
+            {
+                ToastService.ShowError("File exceeds the 25MB limit.");
+                return;
+            }
+
+            using var content = new MultipartFormDataContent();
+            var streamContent = new StreamContent(e.File.OpenReadStream(maxFileSize));
+            if (!string.IsNullOrEmpty(e.File.ContentType))
+            {
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(e.File.ContentType);
+            }
+            content.Add(streamContent, "file", e.File.Name);
+
+            var response = await Http.PostAsync($"/api/chat/rooms/{_activeRoom.Id}/attachment", content);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<AttachmentUploadResponse>();
+                if (result != null && !string.IsNullOrEmpty(result.AttachmentUrl))
+                {
+                    _pendingAttachmentUrl = result.AttachmentUrl;
+                    _pendingAttachmentName = result.AttachmentName;
+                    _pendingAttachmentSize = result.AttachmentSize;
+                }
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError(!string.IsNullOrWhiteSpace(err) ? err : "Failed to upload attachment.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Upload error: {ex.Message}");
+        }
+        finally
+        {
+            _isUploadingAttachment = false;
+            StateHasChanged();
+        }
+    }
+
+    public class AttachmentUploadResponse
+    {
+        public string? AttachmentUrl { get; set; }
+        public string? AttachmentName { get; set; }
+        public long? AttachmentSize { get; set; }
+    }
+
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(_newMessageContent) || _activeRoom == null) return;
+        if ((string.IsNullOrWhiteSpace(_newMessageContent) && string.IsNullOrEmpty(_pendingAttachmentUrl)) || _activeRoom == null) return;
 
-        var content = _newMessageContent;
+        var content = _newMessageContent?.Trim() ?? string.Empty;
+        var attUrl = _pendingAttachmentUrl;
+        var attName = _pendingAttachmentName;
+        var attSize = _pendingAttachmentSize;
+
         _newMessageContent = string.Empty;
+        ClearPendingAttachment();
 
         var tempId = Guid.NewGuid();
         var optimisticMsg = new ChatMessageDto
@@ -1152,6 +1406,9 @@
             SenderId = _currentEmployeeId,
             SenderName = "Me",
             Content = content,
+            AttachmentUrl = attUrl,
+            AttachmentName = attName,
+            AttachmentSize = attSize,
             CreatedAt = DateTime.UtcNow
         };
         _messages.Add(optimisticMsg);
@@ -1159,7 +1416,13 @@
 
         try
         {
-            var req = new { Content = content };
+            var req = new
+            {
+                Content = content,
+                AttachmentUrl = attUrl,
+                AttachmentName = attName,
+                AttachmentSize = attSize
+            };
             var response = await Http.PostAsJsonAsync($"/api/chat/rooms/{_activeRoom.Id}/messages", req);
             
             if (response.IsSuccessStatusCode)
@@ -1363,6 +1626,9 @@
         public string SenderName { get; set; } = string.Empty;
         public string? ProfilePictureUrl { get; set; }
         public string Content { get; set; } = string.Empty;
+        public string? AttachmentUrl { get; set; }
+        public string? AttachmentName { get; set; }
+        public long? AttachmentSize { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 

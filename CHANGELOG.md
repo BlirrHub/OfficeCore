@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Fixed — [2026-09-28] (In-App Photo/Document Viewer, Chat File Attachments, LAN Client Avatar Fix & Workspaces Cleanup)
+
+- **In-App Media & Document Viewer Modal (`MediaViewerModal.razor`, `fileInterop.js`, `index.html`):**
+  - Created a reusable, high-performance modal component (`MediaViewerModal.razor`) for viewing images and documents inline without leaving the app.
+  - Features smooth image zoom controls (zoom in, zoom out, reset), embedded PDF document viewer iframe, file metadata headers, keyboard Escape key dismiss, and a direct "Download File to Desktop" button via `window.fileInterop.downloadFile()`.
+  - Integrated into **Sick Leave** medical attachments (`LeaveApprovals.razor`, `MyLeaves.razor`), replacing broken dead-port links (`:5033`) with responsive click-to-preview thumbnails.
+  - Integrated into **Board Card Attachments** (`BoardView.razor`), allowing team members to preview attached card assets (images, receipts, PDFs) and download them to local disk with one click.
+- **Chat File & Document Attachments (`ChatMessage.cs`, `ChatController.cs`, `GlobalChatWidget.razor`):**
+  - Extended `ChatMessage` entity and database schema with `AttachmentUrl`, `AttachmentName`, and `AttachmentSize` via EF Core migration `AddChatAttachments`.
+  - Added `POST /api/chat/rooms/{roomId}/attachment` endpoint supporting images (`.jpg`, `.png`, `.webp`, `.gif`), documents (`.pdf`, `.txt`, `.doc`, `.docx`, `.xls`, `.xlsx`) up to 25MB.
+  - Enhanced `GlobalChatWidget.razor` with an attachment upload button (paperclip icon), pending attachment preview banner with remove option, inline image thumbnails with hover preview button, and document chips showing file name and size.
+  - Integrated `MediaViewerModal` in chat so clicking any attached image or PDF opens the full-screen interactive viewer with desktop download capability.
+- **Client Workstation Avatar & Profile Picture LAN Resolution Fix (`Program.cs`, `MediaUrlHelper.cs`):**
+  - Resolved root cause of broken profile pictures and group chat images on client workstations: `appsettings.json` previously supplied `ApiBaseUrl` as `localhost:5026`, which caused client browsers/workstations on the LAN to request uploaded media from their own local machine instead of the host server.
+  - Configured `Program.cs` in `OfficeCore.Web` to dynamically bind `builder.Configuration["ApiBaseUrl"] = builder.HostEnvironment.BaseAddress`, guaranteeing all uploaded images and avatars correctly point to the server host regardless of LAN IP or hostname.
+  - Created `MediaUrlHelper.cs` to resolve relative upload paths and data URLs safely across components.
+- **Workspaces Page Cleanup (`Workspaces.razor`):**
+  - Removed redundant "Join with invite" card from `Workspaces.razor` workspace selection grid since an action button already exists in the header.
+
 ### Fixed — [2026-09-28] (Chat Double-Message Bug & Currency Symbol Parity to ₱)
 
 - **Chat Double Message Rendering Bug Fixed (`GlobalChatWidget.razor`):**

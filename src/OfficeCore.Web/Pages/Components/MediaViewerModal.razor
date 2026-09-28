@@ -1,0 +1,229 @@
+@inject IConfiguration Configuration
+@inject IJSRuntime JS
+@using OfficeCore.Web.Services
+
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/85 backdrop-blur-md transition-all animate-in fade-in duration-200"
+         @onclick="Close"
+         @onkeydown="HandleKeyDown"
+         tabindex="0">
+
+        <div class="relative w-full max-w-5xl h-[88vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+             @onclick:stopPropagation="true">
+
+            <!-- Top Header Bar -->
+            <div class="px-5 py-3.5 border-b border-zinc-800 bg-zinc-900/80 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="size-9 rounded-xl bg-zinc-800 border border-zinc-700/80 flex items-center justify-center shrink-0 text-fuchsia-400">
+                        @if (IsImage)
+                        {
+                            <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        }
+                        else if (IsPdf)
+                        {
+                            <svg class="size-4.5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                        }
+                        else
+                        {
+                            <svg class="size-4.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        }
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-semibold text-white truncate max-w-sm md:max-w-md">@(string.IsNullOrWhiteSpace(FileName) ? (Title ?? "Attachment") : FileName)</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider @(IsImage ? "bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/30" : IsPdf ? "bg-rose-500/15 text-rose-400 border border-rose-500/30" : "bg-zinc-800 text-zinc-400")">
+                                @(IsImage ? "Image" : IsPdf ? "PDF Document" : "File")
+                            </span>
+                        </div>
+                        <p class="text-xs text-zinc-400">
+                            @(FileSize.HasValue && FileSize.Value > 0 ? $"{(FileSize.Value / 1024.0):N1} KB • " : "")@Title
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="flex items-center gap-2">
+                    @if (IsImage)
+                    {
+                        <!-- Zoom Controls -->
+                        <div class="hidden sm:flex items-center bg-zinc-800/80 border border-zinc-700/60 rounded-xl p-1 gap-1 mr-2">
+                            <button type="button" @onclick="ZoomOut" title="Zoom Out"
+                                    class="size-7 rounded-lg hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors">
+                                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
+                            </button>
+                            <span class="text-xs font-mono px-2 text-zinc-300 min-w-12 text-center">@((int)(_zoomLevel * 100))%</span>
+                            <button type="button" @onclick="ZoomIn" title="Zoom In"
+                                    class="size-7 rounded-lg hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors">
+                                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                            </button>
+                            <button type="button" @onclick="ResetZoom" title="Reset Zoom"
+                                    class="px-2 h-7 rounded-lg hover:bg-zinc-700 text-[11px] font-medium text-zinc-300 hover:text-white transition-colors">
+                                Reset
+                            </button>
+                        </div>
+                    }
+
+                    <!-- Download / Save Locally Button -->
+                    <button type="button" @onclick="DownloadFile"
+                            class="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/80 text-xs font-medium text-zinc-200 hover:text-white transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                            title="Download and save this file to your local computer">
+                        <svg class="size-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span class="hidden sm:inline">Save to Desktop</span>
+                    </button>
+
+                    <!-- Open in New Tab Button -->
+                    @if (!string.IsNullOrEmpty(ResolvedUrl))
+                    {
+                        <a href="@ResolvedUrl" target="_blank" rel="noopener noreferrer"
+                           class="p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-300 hover:text-white transition-colors"
+                           title="Open raw file in a new browser tab">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                        </a>
+                    }
+
+                    <!-- Close Button -->
+                    <button type="button" @onclick="Close"
+                            class="size-8 rounded-xl bg-zinc-800/80 hover:bg-red-950/60 hover:text-red-400 text-zinc-400 border border-zinc-700/60 flex items-center justify-center transition-colors cursor-pointer ml-1"
+                            title="Close (Esc)">
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Body -->
+            <div class="flex-1 overflow-auto bg-black/60 flex items-center justify-center p-4 relative select-none">
+                @if (string.IsNullOrWhiteSpace(ResolvedUrl))
+                {
+                    <div class="text-center p-8 text-zinc-500">
+                        <svg class="size-12 mx-auto mb-2 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        <p class="text-sm font-medium">No valid attachment URL provided.</p>
+                    </div>
+                }
+                else if (IsImage)
+                {
+                    <div class="w-full h-full flex items-center justify-center overflow-auto custom-scrollbar">
+                        <img src="@ResolvedUrl"
+                             alt="@(FileName ?? "Photo Preview")"
+                             style="transform: scale(@_zoomLevel); transform-origin: center; transition: transform 0.15s ease-out; max-width: 100%; max-height: 100%; object-fit: contain;"
+                             class="rounded-lg shadow-2xl select-none" />
+                    </div>
+                }
+                else if (IsPdf)
+                {
+                    <iframe src="@ResolvedUrl" class="w-full h-full rounded-xl bg-white border border-zinc-800 shadow-inner"></iframe>
+                }
+                else
+                {
+                    <!-- Generic File Card -->
+                    <div class="text-center p-8 max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl space-y-4">
+                        <div class="size-16 rounded-2xl bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400">
+                            <svg class="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-semibold text-white">@(FileName ?? "Document Attachment")</h4>
+                            <p class="text-xs text-zinc-400 mt-1">This file type cannot be previewed directly in the browser.</p>
+                        </div>
+                        <button type="button" @onclick="DownloadFile"
+                                class="px-5 py-2.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-medium text-xs transition-colors shadow-lg shadow-fuchsia-900/30">
+                            Download File to Desktop
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string? Title { get; set; } = "Attachment";
+    [Parameter] public string? FileName { get; set; }
+    [Parameter] public string? FileUrl { get; set; }
+    [Parameter] public long? FileSize { get; set; }
+
+    private double _zoomLevel = 1.0;
+
+    private string ResolvedUrl => MediaUrlHelper.Resolve(FileUrl, Configuration);
+
+    private bool IsImage
+    {
+        get
+        {
+            var target = !string.IsNullOrEmpty(FileName) ? FileName : FileUrl;
+            if (string.IsNullOrEmpty(target)) return false;
+            var ext = System.IO.Path.GetExtension(target).ToLowerInvariant();
+            return ext is ".png" or ".jpg" or ".jpeg" or ".webp" or ".gif" or ".bmp" or ".svg";
+        }
+    }
+
+    private bool IsPdf
+    {
+        get
+        {
+            var target = !string.IsNullOrEmpty(FileName) ? FileName : FileUrl;
+            if (string.IsNullOrEmpty(target)) return false;
+            var ext = System.IO.Path.GetExtension(target).ToLowerInvariant();
+            return ext is ".pdf";
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen)
+        {
+            _zoomLevel = 1.0;
+        }
+    }
+
+    private void ZoomIn() => _zoomLevel = Math.Min(_zoomLevel + 0.25, 3.5);
+    private void ZoomOut() => _zoomLevel = Math.Max(_zoomLevel - 0.25, 0.5);
+    private void ResetZoom() => _zoomLevel = 1.0;
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _ = Close();
+        }
+    }
+
+    private async Task DownloadFile()
+    {
+        if (string.IsNullOrEmpty(ResolvedUrl)) return;
+        var name = !string.IsNullOrEmpty(FileName) 
+            ? FileName 
+            : System.IO.Path.GetFileName(ResolvedUrl) ?? "download";
+        
+        try
+        {
+            await JS.InvokeVoidAsync("fileInterop.downloadFile", ResolvedUrl, name);
+        }
+        catch
+        {
+            // Fallback direct link navigation
+            await JS.InvokeVoidAsync("open", ResolvedUrl, "_blank");
+        }
+    }
+}

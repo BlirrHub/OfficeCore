@@ -100,6 +100,9 @@ public class ChatController : ControllerBase
                         lastMsg.Id,
                         lastMsg.SenderId,
                         lastMsg.Content,
+                        lastMsg.AttachmentUrl,
+                        lastMsg.AttachmentName,
+                        lastMsg.AttachmentSize,
                         lastMsg.CreatedAt
                     },
                     UnreadCount = unread
@@ -135,6 +138,9 @@ public class ChatController : ControllerBase
                 SenderName = m.Sender.User != null ? m.Sender.User.FirstName + " " + m.Sender.User.LastName : "Unknown",
                 ProfilePictureUrl = m.Sender.User != null ? m.Sender.User.ProfilePictureUrl : null,
                 m.Content,
+                m.AttachmentUrl,
+                m.AttachmentName,
+                m.AttachmentSize,
                 m.CreatedAt
             })
             .ToListAsync();
@@ -145,6 +151,9 @@ public class ChatController : ControllerBase
     public class SendMessageRequest
     {
         public string Content { get; set; } = string.Empty;
+        public string? AttachmentUrl { get; set; }
+        public string? AttachmentName { get; set; }
+        public long? AttachmentSize { get; set; }
     }
 
     [HttpPost("rooms/{roomId}/messages")]
@@ -165,7 +174,10 @@ public class ChatController : ControllerBase
             Id = Guid.NewGuid(),
             ChatRoomId = roomId,
             SenderId = employee.Id,
-            Content = req.Content,
+            Content = req.Content ?? string.Empty,
+            AttachmentUrl = req.AttachmentUrl,
+            AttachmentName = req.AttachmentName,
+            AttachmentSize = req.AttachmentSize,
             CreatedAt = DateTime.UtcNow,
             OrganizationId = orgId
         };
@@ -186,6 +198,9 @@ public class ChatController : ControllerBase
             SenderName = employee.User != null ? employee.User.FirstName + " " + employee.User.LastName : "Me",
             ProfilePictureUrl = employee.User?.ProfilePictureUrl,
             message.Content,
+            message.AttachmentUrl,
+            message.AttachmentName,
+            message.AttachmentSize,
             message.CreatedAt
         };
 
@@ -197,6 +212,49 @@ public class ChatController : ControllerBase
         }
 
         return Ok(msgDto);
+    }
+
+    [HttpPost("rooms/{roomId}/attachment")]
+    public async Task<IActionResult> UploadAttachment(Guid roomId, IFormFile file)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
+        if (!isMember) return Forbid();
+
+        if (file == null || file.Length == 0)
+            return BadRequest("No file was uploaded.");
+
+        // Allow images, pdfs, docs, text files up to 25MB
+        if (file.Length > 25 * 1024 * 1024)
+            return BadRequest("File size cannot exceed 25MB.");
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".txt", ".doc", ".docx", ".xls", ".xlsx" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(ext))
+            return BadRequest("File type is not supported.");
+
+        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "chat");
+        Directory.CreateDirectory(uploadDir);
+
+        var safeFileName = $"chat_{roomId}_{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadDir, safeFileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        return Ok(new
+        {
+            AttachmentUrl = $"/uploads/chat/{safeFileName}",
+            AttachmentName = Path.GetFileName(file.FileName),
+            AttachmentSize = file.Length
+        });
     }
 
     [HttpPost("rooms/{roomId}/read")]
