@@ -13,17 +13,19 @@
 
 ---
 
-## 🎯 1. Immediate Focus & Next Up
+## 🎯 1. Immediate Focus & Office Test-Run Triad
+
+These 3 features form the **Office Test-Run Foundation** to safely operate OfficeCore on-premises in a live office environment:
 
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :---: | :--- |
-| **P1** | **Database Backup & Disaster Recovery System** | Server Station & Web API | 🟡 In Planning | Automated/manual PostgreSQL snapshot dumps, restore wizard, and retention policy |
-| **P1** | Auto-Updater for Desktop Apps | Desktop Client / Server | 🟣 Backlog | Background version check against GitHub releases or API endpoint |
-| **P1** | Card File Attachments & Comments | Kanban Boards | 🟣 Backlog | Upload attachments & rich activity feed on board cards |
-| **P2** | Multi-Tier Leave Approval Workflows | Leave Management | 🟣 Backlog | Direct Supervisor -> Department Head -> HR Manager review flow |
-| **P2** | Direct Payslip PDF Export & Emailing | Payroll Engine | 🟣 Backlog | Generate printable payslips & auto-email to employees |
-| **P3** | Live Field Staff Path History | Field Operations | 🟣 Backlog | Replay rider/field staff location trails on the Leaflet map |
-| **P4** | **Software Licensing & Seat Management** | Server Station & Licensing | 🟣 Backlog | Hardware fingerprinting, offline signed keys, seat tiers *(Not implemented soon)* |
+| **P1** | **Automated Database Backup & 1-Click Restore** | Server Station & Web API | 🟢 Ready | Automated scheduled & manual PostgreSQL dumps, safe restore wizard with pre-restore snapshot, retention policy, and download archives |
+| **P1** | **Audit Trail Logging System** | Core Web API & Admin | 🟢 Ready | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
+| **P1** | **Payroll Export & Individual Payslip Generation** | Payroll Engine & Web | 🟢 Ready | Printable PDF/HTML individual employee payslips (with company branding & signature lines) and complete Payroll Run Excel/CSV export |
+| **P2** | **Server Installer Silent PostgreSQL Check/Install** | Server Installer | 🟡 In Planning | Setup wizard checks if PostgreSQL is installed; if missing, runs silent embedded setup |
+| **P2** | In-App Auto-Updater for Server & Client | Desktop Apps | 🟣 Backlog | Background version check against GitHub releases or API endpoint |
+| **P3** | **Software Licensing & Seat Management** | Server Station & Licensing | 🟣 Backlog | Hardware fingerprinting, offline signed keys, seat tiers *(Deferred until after initial test runs)* |
+| **P4** | **General Ledger & Double-Entry Accounting** | Accounting Module | 🟣 Backlog | Chart of Accounts, Journal Vouchers, Accounts Payable/Receivable, and BIR Tax Forms (Long-term vision) |
 
 ---
 

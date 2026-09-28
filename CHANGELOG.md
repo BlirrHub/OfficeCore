@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Updated — [2026-09-28] (Office Test-Run Foundation & Strategic Roadmap Prioritization)
+
+- **Prioritized On-Premises Office Test-Run Triad (`ROADMAP.md`):**
+  - Aligned core engineering focus on 3 critical pre-deployment pillars: (1) Automated Database Backup & 1-Click Restore, (2) Audit Trail Logging System, and (3) Individual Payslip Printable/PDF Export & Payroll Summary Excel Export.
+  - Formally locked architecture to a single unified codebase with tenant configuration/feature toggles (abandoning risky branch-per-client bifurcation).
+  - Outlined silent PostgreSQL installer check for Server Station and long-term General Ledger / Chart of Accounts accounting evolution.
+
 ### Added — [2026-09-28] (Group Chat Profile Picture & Avatar Management)
 
 - **Group Chat Avatar Upload & Picture Management (`GlobalChatWidget.razor`, `ChatController.cs`, `ChatRoom.cs`):**
