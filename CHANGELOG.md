@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Fixed — [2026-09-28] (Audit Trail Dark Mode Parity & RBAC Modularization for Backups & Audit Trail)
+
+- **Audit Trail Dark Mode Theme Parity (`AuditLogs.razor`, `app.css`):**
+  - Resolved blinding white card backgrounds and black borders when viewing Audit Trail in Dark Mode by replacing hardcoded `bg-white dark:bg-zinc-900` classes with native OfficeCore zinc token system (`bg-zinc-900/60`, `border-zinc-800/80`, `bg-zinc-950`).
+  - Standardized badge tinting across all categories, filters, pagination controls, and the JSON diff modal to ensure crystal-clear contrast and visual harmony across both Dark Mode and Light Mode (`html.light`).
+  - Recompiled Tailwind CSS v4 assets (`npm run css:build`).
+
+- **Granular RBAC Modularization for Database Backups & Audit Trail (`Program.cs`, `DbSeeder.cs`, `RoleManagement.razor`, `NavMenu.razor`):**
+  - Elevated **"Database Backups"** (`Backups`) and **"Audit Trail"** (`AuditLogs`) to official modular permission claims under the `Administration` category.
+  - Added module authorization policies (`RequireBackups`, `RequireAuditLogs`) in `OfficeCore.Api/Program.cs`.
+  - Added Backups and Audit Trail toggles to the Role Permissions Matrix in `RoleManagement.razor` allowing workspace owners to grant or revoke granular administrative access to custom and department roles.
+  - Implemented automatic database seeder startup migration in `DbSeeder.cs` ensuring all existing workspace `Admin` and `Owner` roles are backfilled with the new `Backups` and `AuditLogs` claims without requiring manual role re-creation.
+  - Gated navigation menu entries in `NavMenu.razor` with `context.User.HasClaim("ModuleAccess", "Backups")` and `context.User.HasClaim("ModuleAccess", "AuditLogs")`.
+
 ### Added — [2026-09-28] (Pillar 2: Immutable Audit Trail Logging System & Compliance Ledger)
 
 - **Comprehensive Multi-Tenant Audit Trail Architecture (`AuditLog.cs`, `AuditService.cs`, `AppDbContext.cs`, `AuditController.cs`):**

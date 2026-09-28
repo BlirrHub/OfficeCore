@@ -172,7 +172,8 @@ public static class DbSeeder
             "Dashboard", "Clients", "Attendance", "Boards",
             "Payroll", "Invoices", "Ledger",
             "WorkSchedules", "TimeOff", "Locations",
-            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals"
+            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals",
+            "Backups", "AuditLogs"
         };
 
         foreach (var module in allModules)
@@ -242,6 +243,30 @@ public static class DbSeeder
                 }
             }
         }
+
+        // Ensure all Admin/Owner roles across all organizations have Backups and AuditLogs
+        var allAdminRoles = await context.OrganizationRoles
+            .Include(r => r.Claims)
+            .Where(r => r.Name == "Admin" || r.Name == "Owner")
+            .ToListAsync();
+
+        foreach (var adminRole in allAdminRoles)
+        {
+            foreach (var mod in new[] { "Backups", "AuditLogs" })
+            {
+                if (!adminRole.Claims.Any(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == mod))
+                {
+                    context.OrganizationRoleClaims.Add(new OrganizationRoleClaim
+                    {
+                        Id = Guid.NewGuid(),
+                        OrganizationRoleId = adminRole.Id,
+                        ClaimType = "ModuleAccess",
+                        ClaimValue = mod
+                    });
+                }
+            }
+        }
+
         await context.SaveChangesAsync();
 
         // 6. Ensure Employee is assigned to the Admin role

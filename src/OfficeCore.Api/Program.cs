@@ -95,7 +95,8 @@ builder.Services.AddAuthorization(options =>
     var modules = new[] { 
         "Dashboard", "Clients", "Attendance", "Boards", "MyLeaves",
         "Advances", "Ledger", "Payroll", "Invoices",
-        "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization" 
+        "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization",
+        "Backups", "AuditLogs"
     };
     foreach (var module in modules)
     {

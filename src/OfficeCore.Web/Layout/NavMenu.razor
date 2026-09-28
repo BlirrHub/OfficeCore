@@ -172,14 +172,20 @@
                         <span class="@(IsCollapsed ? "hidden" : "block")">Locations</span>
                     </NavLink>
                 }
-                <NavLink href="admin/backups" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
-                    <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
-                    <span class="@(IsCollapsed ? "hidden" : "block")">Database Backups</span>
-                </NavLink>
-                <NavLink href="admin/audit-logs" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
-                    <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    <span class="@(IsCollapsed ? "hidden" : "block")">Audit Trail</span>
-                </NavLink>
+                @if (context.User.HasClaim("ModuleAccess", "Backups"))
+                {
+                    <NavLink href="admin/backups" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
+                        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
+                        <span class="@(IsCollapsed ? "hidden" : "block")">Database Backups</span>
+                    </NavLink>
+                }
+                @if (context.User.HasClaim("ModuleAccess", "AuditLogs"))
+                {
+                    <NavLink href="admin/audit-logs" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
+                        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <span class="@(IsCollapsed ? "hidden" : "block")">Audit Trail</span>
+                    </NavLink>
+                }
             }
         </Authorized>
     </AuthorizeView>
