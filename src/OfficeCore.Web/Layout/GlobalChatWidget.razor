@@ -12,54 +12,255 @@
     <!-- Chat Window -->
     @if (_isOpen)
     {
-        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl w-96 h-[600px] mb-4 flex flex-col overflow-hidden transition-all duration-300">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl w-96 h-[600px] mb-4 flex flex-col overflow-hidden transition-all duration-300 relative select-none">
             @if (_activeRoom == null)
             {
-                <!-- Rooms List View -->
-                <div class="p-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
-                    <h3 class="font-bold text-white text-lg tracking-wide">Messages</h3>
-                    <div class="flex gap-2">
-                        <button @onclick="() => _showNewMessage = true" class="size-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 flex items-center justify-center transition-colors">
-                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                <!-- Rooms List Header -->
+                <div class="p-3.5 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2">
+                        <div class="size-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                        <h3 class="font-bold text-white text-base tracking-wide">Messages</h3>
+                        @if (_totalUnread > 0)
+                        {
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-fuchsia-600/20 text-fuchsia-400 border border-fuchsia-500/30">
+                                @_totalUnread unread
+                            </span>
+                        }
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" @onclick="OpenNewGroupChat" title="New Group Chat" 
+                                class="size-8 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-zinc-700/60 group cursor-pointer">
+                            <svg class="size-4 group-hover:text-fuchsia-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </button>
+                        <button type="button" @onclick="OpenNewDirectMessage" title="New Direct Message" 
+                                class="size-8 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md shadow-fuchsia-900/30 cursor-pointer">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
                         </button>
                     </div>
                 </div>
 
+                <!-- Room Type Filter Tabs -->
+                <div class="px-3 py-2 border-b border-zinc-800/80 bg-zinc-950/40 flex items-center gap-1.5 shrink-0">
+                    <button type="button" @onclick='() => _roomFilter = "all"' 
+                            class="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer @(_roomFilter == "all" ? "bg-zinc-800 text-white shadow-xs" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900")">
+                        All (@_rooms.Count)
+                    </button>
+                    <button type="button" @onclick='() => _roomFilter = "direct"' 
+                            class="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer @(_roomFilter == "direct" ? "bg-zinc-800 text-white shadow-xs" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900")">
+                        Direct (@_rooms.Count(r => r.Type == 0))
+                    </button>
+                    <button type="button" @onclick='() => _roomFilter = "group"' 
+                            class="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer @(_roomFilter == "group" ? "bg-fuchsia-950/40 text-fuchsia-300 border border-fuchsia-500/30 shadow-xs" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900")">
+                        Groups (@_rooms.Count(r => r.Type == 1))
+                    </button>
+                </div>
+
+                <!-- New Message / Create Group Modal View -->
                 @if (_showNewMessage)
                 {
-                    <div class="absolute inset-0 bg-zinc-950 z-10 flex flex-col">
-                        <div class="p-3 border-b border-zinc-800 bg-zinc-900 flex items-center gap-3 shrink-0">
-                            <button @onclick="() => _showNewMessage = false" class="size-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors">
-                                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-                            </button>
-                            <h4 class="font-bold text-white text-sm">New Message</h4>
+                    <div class="absolute inset-0 bg-zinc-950 z-20 flex flex-col animate-fade-in">
+                        <!-- Modal Header -->
+                        <div class="p-3 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between shrink-0">
+                            <div class="flex items-center gap-2">
+                                <button type="button" @onclick="() => _showNewMessage = false" class="size-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                                    <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                                </button>
+                                <h4 class="font-bold text-white text-sm">
+                                    @(_newChatTab == "group" ? "Create Group Chat" : "New Direct Message")
+                                </h4>
+                            </div>
+                            
+                            <!-- Toggle Tab Switcher -->
+                            <div class="flex rounded-lg bg-zinc-950 p-0.5 border border-zinc-800">
+                                <button type="button" @onclick='() => _newChatTab = "direct"' 
+                                        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer @(_newChatTab == "direct" ? "bg-zinc-800 text-white shadow-xs" : "text-zinc-400 hover:text-zinc-200")">
+                                    Direct
+                                </button>
+                                <button type="button" @onclick='() => _newChatTab = "group"' 
+                                        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer @(_newChatTab == "group" ? "bg-fuchsia-600 text-white shadow-xs" : "text-zinc-400 hover:text-zinc-200")">
+                                    Group
+                                </button>
+                            </div>
                         </div>
-                        <div class="p-3 border-b border-zinc-800 shrink-0">
-                            <input type="text" @bind="_userSearchQuery" @bind:event="oninput" placeholder="Search colleagues..." class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
-                        </div>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
-                            @foreach (var user in _filteredUsers)
-                            {
-                                <div @onclick="() => StartDirectMessage(user.Id)" class="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-900 cursor-pointer transition-colors">
-                                    <div class="size-8 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700 shrink-0">
-                                        @if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
-                                        {
-                                            <img src="@(Configuration["ApiBaseUrl"] + user.ProfilePictureUrl)" class="w-full h-full object-cover" />
-                                        }
-                                        else
-                                        {
-                                            <span class="text-xs font-bold text-zinc-400">@(user.FirstName?.FirstOrDefault() ?? '?')</span>
-                                        }
+
+                        @if (_newChatTab == "direct")
+                        {
+                            <!-- Direct Message View -->
+                            <div class="p-3 border-b border-zinc-800 shrink-0 space-y-2">
+                                <input type="text" @bind="_userSearchQuery" @bind:event="oninput" 
+                                       placeholder="Search colleagues..." 
+                                       class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+
+                                <!-- Quick button to switch to group -->
+                                <button type="button" @onclick='() => _newChatTab = "group"' 
+                                        class="w-full py-2 px-3 rounded-xl bg-fuchsia-950/20 border border-fuchsia-500/20 text-fuchsia-300 hover:bg-fuchsia-950/40 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer">
+                                    <span class="flex items-center gap-2">
+                                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                        <span>Create a Group Chat instead</span>
+                                    </span>
+                                    <span class="text-fuchsia-400">→</span>
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
+                                @if (!_filteredUsers.Any())
+                                {
+                                    <div class="text-center py-8 text-zinc-500 text-xs">
+                                        No colleagues found.
                                     </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-white truncate">@user.FirstName @user.LastName</p>
-                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var user in _filteredUsers)
+                                    {
+                                        <div @onclick="() => StartDirectMessage(user.Id)" 
+                                             class="flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-900 cursor-pointer transition-colors group">
+                                            <div class="size-9 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700 shrink-0">
+                                                @if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
+                                                {
+                                                    <img src="@(Configuration["ApiBaseUrl"] + user.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-xs font-bold text-zinc-400">@(user.FirstName?.FirstOrDefault() ?? '?')</span>
+                                                }
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-xs font-semibold text-white group-hover:text-fuchsia-300 transition-colors truncate">@user.FirstName @user.LastName</p>
+                                                <p class="text-[10px] text-zinc-500">Click to start conversation</p>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- Group Chat Creation View -->
+                            <div class="p-3 border-b border-zinc-800 bg-zinc-900/40 shrink-0 space-y-3">
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-zinc-300 mb-1">Group Name</label>
+                                    <input type="text" @bind="_newGroupName" @bind:event="oninput" 
+                                           placeholder="e.g. Design Team, Project Alpha, Sprint Sync..." 
+                                           class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
                                 </div>
-                            }
-                        </div>
+
+                                @if (!string.IsNullOrEmpty(_createGroupError))
+                                {
+                                    <div class="p-2 rounded-lg bg-red-950/50 border border-red-900/60 text-red-300 text-[11px] flex items-center gap-1.5">
+                                        <svg class="size-3.5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <span>@_createGroupError</span>
+                                    </div>
+                                }
+
+                                <!-- Selected Members Chips -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[11px] font-semibold text-zinc-300">
+                                            Members (@_selectedMemberIds.Count selected)
+                                        </label>
+                                        @if (_selectedMemberIds.Any())
+                                        {
+                                            <button type="button" @onclick="() => _selectedMemberIds.Clear()" class="text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer">
+                                                Clear all
+                                            </button>
+                                        }
+                                    </div>
+
+                                    @if (_selectedMemberIds.Any())
+                                    {
+                                        <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto custom-scrollbar p-1.5 bg-zinc-950/60 rounded-xl border border-zinc-800/80">
+                                            @foreach (var memberId in _selectedMemberIds)
+                                            {
+                                                var member = _allUsers.FirstOrDefault(u => u.Id == memberId);
+                                                if (member != null)
+                                                {
+                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-fuchsia-950/60 border border-fuchsia-500/30 text-[10px] text-fuchsia-200">
+                                                        <span>@member.FirstName @member.LastName</span>
+                                                        <button type="button" @onclick="() => ToggleGroupMember(memberId)" class="hover:text-white cursor-pointer ml-0.5 font-bold">×</button>
+                                                    </span>
+                                                }
+                                            }
+                                        </div>
+                                    }
+
+                                    <!-- Candidate Filter Search -->
+                                    <input type="text" @bind="_groupSearchQuery" @bind:event="oninput" 
+                                           placeholder="Search colleagues to add..." 
+                                           class="w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+                                </div>
+                            </div>
+
+                            <!-- Colleagues Selection Checkbox List -->
+                            <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
+                                @if (!_filteredGroupCandidates.Any())
+                                {
+                                    <div class="text-center py-6 text-zinc-500 text-xs">
+                                        No colleagues found.
+                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var user in _filteredGroupCandidates)
+                                    {
+                                        var isSelected = _selectedMemberIds.Contains(user.Id);
+                                        <div @onclick="() => ToggleGroupMember(user.Id)" 
+                                             class="flex items-center justify-between p-2 rounded-xl hover:bg-zinc-900 cursor-pointer transition-colors @(isSelected ? "bg-fuchsia-950/20 border border-fuchsia-500/20" : "")">
+                                            <div class="flex items-center gap-2.5 min-w-0">
+                                                <div class="size-8 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700 shrink-0">
+                                                    @if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
+                                                    {
+                                                        <img src="@(Configuration["ApiBaseUrl"] + user.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-xs font-bold text-zinc-400">@(user.FirstName?.FirstOrDefault() ?? '?')</span>
+                                                    }
+                                                </div>
+                                                <p class="text-xs font-medium text-white truncate">@user.FirstName @user.LastName</p>
+                                            </div>
+
+                                            <div class="size-5 rounded-md border flex items-center justify-center transition-colors @(isSelected ? "bg-fuchsia-600 border-fuchsia-500 text-white" : "border-zinc-700 bg-zinc-900")">
+                                                @if (isSelected)
+                                                {
+                                                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+
+                            <!-- Footer Action Button -->
+                            <div class="p-3 bg-zinc-900 border-t border-zinc-800 shrink-0 flex gap-2">
+                                <button type="button" @onclick="() => _showNewMessage = false" 
+                                        class="flex-1 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer">
+                                    Cancel
+                                </button>
+                                <button type="button" @onclick="CreateGroupChat" 
+                                        disabled="@(string.IsNullOrWhiteSpace(_newGroupName) || !_selectedMemberIds.Any() || _isCreatingGroup)"
+                                        class="flex-1 py-2 px-3 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold text-white transition-all shadow-md shadow-fuchsia-900/30 flex items-center justify-center gap-1.5 cursor-pointer">
+                                    @if (_isCreatingGroup)
+                                    {
+                                        <div class="animate-spin size-3.5 border-2 border-white/20 border-t-white rounded-full"></div>
+                                        <span>Creating...</span>
+                                    }
+                                    else
+                                    {
+                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                        <span>Create Group</span>
+                                    }
+                                </button>
+                            </div>
+                        }
                     </div>
                 }
 
+                <!-- Rooms List Content -->
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
                     @if (_isLoadingRooms)
                     {
@@ -67,38 +268,56 @@
                             <div class="animate-spin size-6 border-2 border-zinc-800 border-t-fuchsia-600 rounded-full"></div>
                         </div>
                     }
-                    else if (!_rooms.Any())
+                    else if (!_filteredRooms.Any())
                     {
                         <div class="flex flex-col items-center justify-center h-full text-center p-6 text-zinc-500">
-                            <svg class="size-12 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                            <p class="text-sm">No messages yet.</p>
-                            <p class="text-xs mt-1">Start a conversation!</p>
+                            <div class="size-14 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-center mb-3">
+                                <svg class="size-7 opacity-30 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                            </div>
+                            <p class="text-xs font-semibold text-zinc-400">No conversations here</p>
+                            <p class="text-[11px] mt-1 text-zinc-500">Start a direct message or create a group chat!</p>
+                            <div class="mt-4 flex gap-2">
+                                <button type="button" @onclick="OpenNewDirectMessage" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-white transition-colors cursor-pointer">
+                                    Direct Message
+                                </button>
+                                <button type="button" @onclick="OpenNewGroupChat" class="px-3 py-1.5 rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 text-xs font-medium text-white transition-colors cursor-pointer">
+                                    New Group
+                                </button>
+                            </div>
                         </div>
                     }
                     else
                     {
-                        @foreach (var room in _rooms)
+                        @foreach (var room in _filteredRooms)
                         {
-                            <div @onclick="() => OpenRoom(room)" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-900 cursor-pointer transition-colors group">
+                            <div @onclick="() => OpenRoom(room)" class="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-900 cursor-pointer transition-colors group">
                                 <div class="relative shrink-0">
-                                    <div class="size-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
-                                        @if (room.Type == 0) // Direct Message
-                                        {
-                                            var otherMember = room.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
-                                            if (otherMember != null && !string.IsNullOrEmpty(otherMember.ProfilePictureUrl))
+                                    @if (room.Type == 0) // Direct Message
+                                    {
+                                        var otherMember = room.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
+                                        <div class="size-11 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+                                            @if (otherMember != null && !string.IsNullOrEmpty(otherMember.ProfilePictureUrl))
                                             {
                                                 <img src="@(Configuration["ApiBaseUrl"] + otherMember.ProfilePictureUrl)" class="w-full h-full object-cover" />
                                             }
                                             else
                                             {
-                                                <span class="font-bold text-zinc-400 text-lg">@(otherMember?.FirstName?.FirstOrDefault() ?? '?')</span>
+                                                <span class="font-bold text-zinc-400 text-sm">@(otherMember?.FirstName?.FirstOrDefault() ?? '?')</span>
                                             }
-                                        }
-                                        else
-                                        {
-                                            <svg class="size-6 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                        }
-                                    </div>
+                                        </div>
+                                    }
+                                    else // Group Chat
+                                    {
+                                        <div class="size-11 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-violet-700 flex items-center justify-center shadow-md shadow-fuchsia-900/30 text-white font-bold text-xs border border-fuchsia-400/30">
+                                            @GetGroupInitials(room.Name)
+                                        </div>
+                                        <div class="absolute -bottom-1 -right-1 px-1 rounded-full bg-zinc-900 border border-zinc-700 text-[9px] font-semibold text-zinc-300">
+                                            @room.Members.Count
+                                        </div>
+                                    }
+
                                     @if (room.UnreadCount > 0)
                                     {
                                         <div class="absolute -top-1 -right-1 size-5 rounded-full bg-fuchsia-600 border-2 border-zinc-950 flex items-center justify-center">
@@ -108,15 +327,16 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-baseline justify-between mb-0.5">
-                                        <h4 class="font-semibold text-sm text-zinc-100 truncate pr-2">
+                                        <h4 class="font-semibold text-xs text-zinc-100 truncate pr-2 flex items-center gap-1.5">
                                             @if (room.Type == 0)
                                             {
                                                 var otherMember = room.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
-                                                <text>@(otherMember?.FirstName) @(otherMember?.LastName)</text>
+                                                <span>@(otherMember?.FirstName) @(otherMember?.LastName)</span>
                                             }
                                             else
                                             {
-                                                @room.Name
+                                                <span class="truncate">@room.Name</span>
+                                                <span class="px-1.5 py-0.2 rounded bg-fuchsia-500/10 text-fuchsia-400 text-[9px] font-medium border border-fuchsia-500/20">Group</span>
                                             }
                                         </h4>
                                         <span class="text-[10px] font-medium text-zinc-500 shrink-0">
@@ -124,7 +344,13 @@
                                         </span>
                                     </div>
                                     <p class="text-xs text-zinc-400 truncate @(room.UnreadCount > 0 ? "font-semibold text-white" : "")">
-                                        @(room.LastMessage?.Content ?? "No messages")
+                                        @if (room.Type == 1 && room.LastMessage != null)
+                                        {
+                                            <span class="text-zinc-500 font-medium">
+                                                @(room.LastMessage.SenderId == _currentEmployeeId ? "You: " : $"{room.LastMessage.SenderName?.Split(' ').FirstOrDefault()}: ")
+                                            </span>
+                                        }
+                                        @(room.LastMessage?.Content ?? "No messages yet")
                                     </p>
                                 </div>
                             </div>
@@ -135,40 +361,177 @@
             else
             {
                 <!-- Active Chat View -->
-                <div class="p-3 border-b border-zinc-800 bg-zinc-900 flex items-center gap-3 shrink-0">
-                    <button @onclick="CloseRoom" class="size-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors">
-                        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                    
-                    <div class="size-8 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700 shrink-0">
-                        @if (_activeRoom.Type == 0)
-                        {
-                            var otherMember = _activeRoom.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
-                            if (otherMember != null && !string.IsNullOrEmpty(otherMember.ProfilePictureUrl))
-                            {
-                                <img src="@(Configuration["ApiBaseUrl"] + otherMember.ProfilePictureUrl)" class="w-full h-full object-cover" />
-                            }
-                            else
-                            {
-                                <span class="font-bold text-zinc-400 text-xs">@(otherMember?.FirstName?.FirstOrDefault() ?? '?')</span>
-                            }
-                        }
-                    </div>
-                    
-                    <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-white text-sm truncate">
+                <div class="p-3 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                        <button type="button" @onclick="CloseRoom" class="size-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0">
+                            <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                        
+                        <div class="relative shrink-0">
                             @if (_activeRoom.Type == 0)
                             {
                                 var otherMember = _activeRoom.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
-                                <text>@(otherMember?.FirstName) @(otherMember?.LastName)</text>
+                                <div class="size-8 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+                                    @if (otherMember != null && !string.IsNullOrEmpty(otherMember.ProfilePictureUrl))
+                                    {
+                                        <img src="@(Configuration["ApiBaseUrl"] + otherMember.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                    }
+                                    else
+                                    {
+                                        <span class="font-bold text-zinc-400 text-xs">@(otherMember?.FirstName?.FirstOrDefault() ?? '?')</span>
+                                    }
+                                </div>
                             }
                             else
                             {
-                                @_activeRoom.Name
+                                <div class="size-8 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-700 flex items-center justify-center text-white font-bold text-[10px] shadow-sm">
+                                    @GetGroupInitials(_activeRoom.Name)
+                                </div>
                             }
-                        </h4>
+                        </div>
+                        
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-white text-xs truncate">
+                                @if (_activeRoom.Type == 0)
+                                {
+                                    var otherMember = _activeRoom.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
+                                    <text>@(otherMember?.FirstName) @(otherMember?.LastName)</text>
+                                }
+                                else
+                                {
+                                    @_activeRoom.Name
+                                }
+                            </h4>
+                            <p class="text-[10px] text-zinc-400 truncate">
+                                @if (_activeRoom.Type == 0)
+                                {
+                                    <span>Direct Message</span>
+                                }
+                                else
+                                {
+                                    <span>@_activeRoom.Members.Count members: @string.Join(", ", _activeRoom.Members.Select(m => m.UserId == _currentEmployeeId ? "You" : m.FirstName))</span>
+                                }
+                            </p>
+                        </div>
                     </div>
+
+                    @if (_activeRoom.Type == 1)
+                    {
+                        <!-- Group Details Toggle Button -->
+                        <button type="button" @onclick="ToggleGroupDetails" title="Group Details"
+                                class="size-8 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 @(_showGroupDetails ? "bg-zinc-800 text-fuchsia-400" : "")">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
+                    }
                 </div>
+
+                <!-- Group Details Side/Overlay Drawer -->
+                @if (_showGroupDetails && _activeRoom?.Type == 1)
+                {
+                    <div class="absolute inset-x-0 top-[57px] bottom-0 bg-zinc-950/95 backdrop-blur-md z-30 flex flex-col p-4 animate-fade-in custom-scrollbar overflow-y-auto">
+                        <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+                            <div class="flex items-center gap-2">
+                                <div class="size-9 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-700 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                                    @GetGroupInitials(_activeRoom.Name)
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-sm text-white">@_activeRoom.Name</h4>
+                                    <p class="text-[10px] text-zinc-400">@_activeRoom.Members.Count members</p>
+                                </div>
+                            </div>
+                            <button type="button" @onclick="ToggleGroupDetails" class="size-7 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer">
+                                ✕
+                            </button>
+                        </div>
+
+                        <!-- Add Member Section -->
+                        <div class="py-3 border-b border-zinc-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-zinc-200">Group Members</span>
+                                <button type="button" @onclick="() => _showAddMembers = !_showAddMembers" 
+                                        class="text-xs font-semibold text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 cursor-pointer">
+                                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                    <span>Add Colleagues</span>
+                                </button>
+                            </div>
+
+                            @if (_showAddMembers)
+                            {
+                                <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-3 space-y-2">
+                                    <input type="text" @bind="_addMemberSearchQuery" @bind:event="oninput" 
+                                           placeholder="Search colleagues to add..." 
+                                           class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+
+                                    <div class="max-h-36 overflow-y-auto custom-scrollbar space-y-1">
+                                        @if (!_availableMembersToAdd.Any())
+                                        {
+                                            <p class="text-[11px] text-zinc-500 text-center py-2">All colleagues are already in this group.</p>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var user in _availableMembersToAdd)
+                                            {
+                                                var isSelected = _selectedAddMemberIds.Contains(user.Id);
+                                                <div @onclick="() => ToggleAddMemberCandidate(user.Id)" 
+                                                     class="flex items-center justify-between p-1.5 rounded-lg hover:bg-zinc-800 cursor-pointer @(isSelected ? "bg-fuchsia-950/40 text-fuchsia-200" : "")">
+                                                    <span class="text-xs">@user.FirstName @user.LastName</span>
+                                                    <input type="checkbox" checked="@isSelected" class="rounded text-fuchsia-600 focus:ring-0" />
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+
+                                    @if (_selectedAddMemberIds.Any())
+                                    {
+                                        <button type="button" @onclick="AddMembersToActiveGroup" disabled="@_isAddingMembers" 
+                                                class="w-full py-1.5 rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-semibold transition-all cursor-pointer">
+                                            @(_isAddingMembers ? "Adding..." : $"Add {_selectedAddMemberIds.Count} Member(s)")
+                                        </button>
+                                    }
+                                </div>
+                            }
+
+                            <!-- Members List -->
+                            <div class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                                @foreach (var member in _activeRoom.Members)
+                                {
+                                    <div class="flex items-center justify-between p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <div class="size-7 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700 shrink-0">
+                                                @if (!string.IsNullOrEmpty(member.ProfilePictureUrl))
+                                                {
+                                                    <img src="@(Configuration["ApiBaseUrl"] + member.ProfilePictureUrl)" class="w-full h-full object-cover" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-[10px] font-bold text-zinc-400">@(member.FirstName?.FirstOrDefault() ?? '?')</span>
+                                                }
+                                            </div>
+                                            <span class="text-xs font-medium text-white truncate">
+                                                @member.FirstName @member.LastName
+                                                @if (member.UserId == _currentEmployeeId)
+                                                {
+                                                    <span class="text-zinc-500 text-[10px] font-normal ml-1">(You)</span>
+                                                }
+                                            </span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Leave Group Option -->
+                        <div class="mt-auto pt-4">
+                            <button type="button" @onclick="LeaveActiveGroup" disabled="@_isLeavingGroup"
+                                    class="w-full py-2 px-3 rounded-xl bg-red-950/30 border border-red-900/50 hover:bg-red-950/60 text-red-400 text-xs font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                <span>@(_isLeavingGroup ? "Leaving group..." : "Leave Group Chat")</span>
+                            </button>
+                        </div>
+                    </div>
+                }
 
                 <!-- Messages Area -->
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 flex flex-col-reverse" id="chat-messages-container">
@@ -186,7 +549,7 @@
                             <div class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start")">
                                 @if (!isMine)
                                 {
-                                    <div class="size-6 rounded-full bg-zinc-800 shrink-0 overflow-hidden self-end mb-1">
+                                    <div class="size-6 rounded-full bg-zinc-800 shrink-0 overflow-hidden self-end mb-1 border border-zinc-700">
                                         @if (!string.IsNullOrEmpty(msg.ProfilePictureUrl))
                                         {
                                             <img src="@(Configuration["ApiBaseUrl"] + msg.ProfilePictureUrl)" class="w-full h-full object-cover" />
@@ -200,8 +563,13 @@
                                     </div>
                                 }
                                 
-                                <div class="max-w-[75%] flex flex-col @(isMine ? "items-end" : "items-start")">
-                                    <div class="px-3 py-2 text-sm rounded-2xl @(isMine ? "bg-fuchsia-600 text-white rounded-br-sm" : "bg-zinc-800 text-zinc-100 rounded-bl-sm")">
+                                <div class="max-w-[78%] flex flex-col @(isMine ? "items-end" : "items-start")">
+                                    @if (!isMine && _activeRoom?.Type == 1)
+                                    {
+                                        <!-- In group chat, show sender's name above message -->
+                                        <span class="text-[10px] font-semibold text-fuchsia-400 mb-0.5 ml-1">@msg.SenderName</span>
+                                    }
+                                    <div class="px-3 py-2 text-xs rounded-2xl @(isMine ? "bg-fuchsia-600 text-white rounded-br-xs shadow-md shadow-fuchsia-950/40" : "bg-zinc-800 text-zinc-100 rounded-bl-xs")">
                                         @msg.Content
                                     </div>
                                     <span class="text-[9px] text-zinc-500 mt-1 px-1">@msg.CreatedAt.ToLocalTime().ToString("h:mm tt")</span>
@@ -215,12 +583,18 @@
                 <div class="p-3 bg-zinc-900 border-t border-zinc-800 shrink-0">
                     @if (_isTyping)
                     {
-                        <div class="text-[10px] text-zinc-400 px-2 mb-2 italic">Someone is typing...</div>
+                        <div class="text-[10px] text-zinc-400 px-2 mb-1.5 italic flex items-center gap-1.5">
+                            <span class="size-1.5 rounded-full bg-fuchsia-400 animate-ping"></span>
+                            <span>@(_typingUserName ?? "Someone") is typing...</span>
+                        </div>
                     }
                     <form @onsubmit="SendMessage" class="flex items-center gap-2">
-                        <input type="text" @bind="_newMessageContent" @bind:event="oninput" @onkeyup="HandleKeyUp" placeholder="Type a message..." class="flex-1 bg-zinc-950 border border-zinc-800 rounded-full px-4 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
-                        <button type="submit" disabled="@string.IsNullOrWhiteSpace(_newMessageContent)" class="size-9 rounded-full bg-fuchsia-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fuchsia-500 transition-colors shrink-0">
-                            <svg class="size-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                        <input type="text" @bind="_newMessageContent" @bind:event="oninput" @onkeyup="HandleKeyUp" 
+                               placeholder="@(_activeRoom?.Type == 1 ? $"Message {_activeRoom?.Name}..." : "Type a message...")" 
+                               class="flex-1 bg-zinc-950 border border-zinc-800 rounded-full px-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+                        <button type="submit" disabled="@string.IsNullOrWhiteSpace(_newMessageContent)" 
+                                class="size-8.5 rounded-full bg-fuchsia-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fuchsia-500 transition-colors shrink-0 shadow-md shadow-fuchsia-900/30 cursor-pointer">
+                            <svg class="size-3.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                         </button>
                     </form>
                 </div>
@@ -229,7 +603,8 @@
     }
 
     <!-- Floating Bubble Button -->
-    <button @onclick="ToggleChat" class="size-14 rounded-full bg-fuchsia-600 text-white shadow-xl shadow-fuchsia-900/20 flex items-center justify-center hover:bg-fuchsia-500 hover:scale-105 active:scale-95 transition-all duration-300 relative group z-50">
+    <button type="button" @onclick="ToggleChat" 
+            class="size-14 rounded-full bg-fuchsia-600 text-white shadow-xl shadow-fuchsia-900/30 flex items-center justify-center hover:bg-fuchsia-500 hover:scale-105 active:scale-95 transition-all duration-300 relative group z-50 cursor-pointer">
         @if (_isOpen)
         {
             <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -260,6 +635,7 @@
 
     private bool _isLoadingRooms = true;
     private List<ChatRoomDto> _rooms = new();
+    private string _roomFilter = "all"; // "all", "direct", "group"
     private int _totalUnread => _rooms.Sum(r => r.UnreadCount);
 
     private ChatRoomDto? _activeRoom = null;
@@ -268,15 +644,60 @@
     private string _newMessageContent = string.Empty;
 
     private bool _isTyping = false;
+    private string? _typingUserName;
     private System.Timers.Timer? _typingTimer;
     private DateTime _lastTypingSent = DateTime.MinValue;
 
+    // Creation & Navigation Modals
     private bool _showNewMessage = false;
+    private string _newChatTab = "direct"; // "direct" or "group"
     private string _userSearchQuery = string.Empty;
     private List<UserDto> _allUsers = new();
+
+    // Group Chat Creation State
+    private string _newGroupName = string.Empty;
+    private HashSet<string> _selectedMemberIds = new();
+    private bool _isCreatingGroup = false;
+    private string? _createGroupError;
+    private string _groupSearchQuery = string.Empty;
+
+    // Group Details Drawer State
+    private bool _showGroupDetails = false;
+    private bool _showAddMembers = false;
+    private HashSet<string> _selectedAddMemberIds = new();
+    private bool _isAddingMembers = false;
+    private string _addMemberSearchQuery = string.Empty;
+    private bool _isLeavingGroup = false;
+
     private IEnumerable<UserDto> _filteredUsers => string.IsNullOrWhiteSpace(_userSearchQuery)
         ? _allUsers
         : _allUsers.Where(u => (u.FirstName + " " + u.LastName).Contains(_userSearchQuery, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<UserDto> _filteredGroupCandidates => string.IsNullOrWhiteSpace(_groupSearchQuery)
+        ? _allUsers
+        : _allUsers.Where(u => (u.FirstName + " " + u.LastName).Contains(_groupSearchQuery, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<UserDto> _availableMembersToAdd
+    {
+        get
+        {
+            if (_activeRoom == null) return Enumerable.Empty<UserDto>();
+            var existingIds = _activeRoom.Members.Select(m => m.UserId).ToHashSet();
+            var candidates = _allUsers.Where(u => !existingIds.Contains(u.Id));
+            if (!string.IsNullOrWhiteSpace(_addMemberSearchQuery))
+            {
+                candidates = candidates.Where(u => (u.FirstName + " " + u.LastName).Contains(_addMemberSearchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+            return candidates;
+        }
+    }
+
+    private IEnumerable<ChatRoomDto> _filteredRooms => _roomFilter switch
+    {
+        "direct" => _rooms.Where(r => r.Type == 0),
+        "group" => _rooms.Where(r => r.Type == 1),
+        _ => _rooms
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -285,17 +706,16 @@
 
         if (string.IsNullOrEmpty(_currentUserId)) return;
 
-        // Load employees in org for new message search (returns Employee.Id as Id)
+        // Load employees in org for chat searches (returns Employee.Id as Id)
         try 
         { 
             _allUsers = await Http.GetFromJsonAsync<List<UserDto>>("/api/chat/users") ?? new();
-            // Find our current employee record to get the Employee.Id
             var me = _allUsers.FirstOrDefault(u => u.ApplicationUserId == _currentUserId);
             if (me != null) _currentEmployeeId = me.Id;
         } 
         catch { }
         
-        // Remove current employee from searchable list
+        // Remove current employee from selectable lists
         _allUsers.RemoveAll(u => u.Id == _currentEmployeeId);
 
         _hubConnection = new HubConnectionBuilder()
@@ -314,7 +734,6 @@
                 room.LastMessage = msg;
                 if (_activeRoom?.Id == roomId)
                 {
-                    // Avoid duplicate if we already added it optimistically
                     if (!_messages.Any(m => m.Id == msg.Id))
                     {
                         _messages.Add(msg);
@@ -338,10 +757,12 @@
         {
             if (_activeRoom?.Id == roomId && userId != _currentEmployeeId)
             {
+                var member = _activeRoom.Members.FirstOrDefault(m => m.UserId == userId);
+                _typingUserName = member != null ? member.FirstName : "Someone";
                 _isTyping = true;
                 _typingTimer?.Stop();
-                _typingTimer = new System.Timers.Timer(2000);
-                _typingTimer.Elapsed += (s, e) => { _isTyping = false; InvokeAsync(StateHasChanged); };
+                _typingTimer = new System.Timers.Timer(2500);
+                _typingTimer.Elapsed += (s, e) => { _isTyping = false; _typingUserName = null; InvokeAsync(StateHasChanged); };
                 _typingTimer.Start();
                 InvokeAsync(StateHasChanged);
             }
@@ -356,10 +777,7 @@
         {
             await _hubConnection.StartAsync();
         }
-        catch (OperationCanceledException)
-        {
-            // Ignore cancellation during fast navigation
-        }
+        catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to connect to Chat SignalR: {ex.Message}");
@@ -373,6 +791,7 @@
         if (!_isOpen && _activeRoom != null)
         {
             _activeRoom = null;
+            _showGroupDetails = false;
         }
     }
 
@@ -391,12 +810,99 @@
         }
     }
 
+    private void OpenNewDirectMessage()
+    {
+        _newChatTab = "direct";
+        _userSearchQuery = string.Empty;
+        _showNewMessage = true;
+    }
+
+    private void OpenNewGroupChat()
+    {
+        _newChatTab = "group";
+        _newGroupName = string.Empty;
+        _selectedMemberIds.Clear();
+        _createGroupError = null;
+        _groupSearchQuery = string.Empty;
+        _showNewMessage = true;
+    }
+
+    private void ToggleGroupMember(string userId)
+    {
+        if (_selectedMemberIds.Contains(userId))
+            _selectedMemberIds.Remove(userId);
+        else
+            _selectedMemberIds.Add(userId);
+    }
+
+    private async Task CreateGroupChat()
+    {
+        if (string.IsNullOrWhiteSpace(_newGroupName))
+        {
+            _createGroupError = "Please enter a group name.";
+            return;
+        }
+
+        if (!_selectedMemberIds.Any())
+        {
+            _createGroupError = "Please select at least 1 colleague.";
+            return;
+        }
+
+        _isCreatingGroup = true;
+        _createGroupError = null;
+
+        try
+        {
+            var req = new
+            {
+                Name = _newGroupName.Trim(),
+                MemberIds = _selectedMemberIds.ToList()
+            };
+
+            var res = await Http.PostAsJsonAsync("/api/chat/group", req);
+            if (res.IsSuccessStatusCode)
+            {
+                var content = await res.Content.ReadFromJsonAsync<RoomCreationResponse>();
+                _showNewMessage = false;
+                _newGroupName = string.Empty;
+                _selectedMemberIds.Clear();
+
+                await LoadRooms();
+
+                if (content != null)
+                {
+                    var room = _rooms.FirstOrDefault(r => r.Id == content.RoomId);
+                    if (room != null)
+                    {
+                        await OpenRoom(room);
+                    }
+                }
+            }
+            else
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                _createGroupError = !string.IsNullOrWhiteSpace(err) ? err : "Failed to create group chat.";
+            }
+        }
+        catch
+        {
+            _createGroupError = "Could not connect to the server.";
+        }
+        finally
+        {
+            _isCreatingGroup = false;
+        }
+    }
+
     private async Task OpenRoom(ChatRoomDto room)
     {
         _activeRoom = room;
         _messages.Clear();
         _isLoadingMessages = true;
-        room.UnreadCount = 0; // Optimistic clear
+        _showGroupDetails = false;
+        _showAddMembers = false;
+        room.UnreadCount = 0;
         
         try
         {
@@ -418,7 +924,70 @@
         {
             try { await _hubConnection!.SendAsync("LeaveRoom", _activeRoom.Id.ToString()); } catch { }
             _activeRoom = null;
+            _showGroupDetails = false;
             await LoadRooms();
+        }
+    }
+
+    private void ToggleGroupDetails()
+    {
+        _showGroupDetails = !_showGroupDetails;
+        _showAddMembers = false;
+        _selectedAddMemberIds.Clear();
+        _addMemberSearchQuery = string.Empty;
+    }
+
+    private void ToggleAddMemberCandidate(string userId)
+    {
+        if (_selectedAddMemberIds.Contains(userId))
+            _selectedAddMemberIds.Remove(userId);
+        else
+            _selectedAddMemberIds.Add(userId);
+    }
+
+    private async Task AddMembersToActiveGroup()
+    {
+        if (_activeRoom == null || !_selectedAddMemberIds.Any()) return;
+
+        _isAddingMembers = true;
+        try
+        {
+            var req = new { MemberIds = _selectedAddMemberIds.ToList() };
+            var res = await Http.PostAsJsonAsync($"/api/chat/rooms/{_activeRoom.Id}/members", req);
+            if (res.IsSuccessStatusCode)
+            {
+                _selectedAddMemberIds.Clear();
+                _showAddMembers = false;
+                await LoadRooms();
+                var refreshed = _rooms.FirstOrDefault(r => r.Id == _activeRoom.Id);
+                if (refreshed != null) _activeRoom = refreshed;
+            }
+        }
+        catch { }
+        finally
+        {
+            _isAddingMembers = false;
+        }
+    }
+
+    private async Task LeaveActiveGroup()
+    {
+        if (_activeRoom == null) return;
+        _isLeavingGroup = true;
+
+        try
+        {
+            var res = await Http.PostAsync($"/api/chat/rooms/{_activeRoom.Id}/leave", null);
+            if (res.IsSuccessStatusCode)
+            {
+                _showGroupDetails = false;
+                await CloseRoom();
+            }
+        }
+        catch { }
+        finally
+        {
+            _isLeavingGroup = false;
         }
     }
 
@@ -463,6 +1032,14 @@
             _lastTypingSent = DateTime.UtcNow;
             try { _hubConnection?.SendAsync("SendTypingIndicator", _activeRoom.Id.ToString()); } catch { }
         }
+    }
+
+    private string GetGroupInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "GC";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Substring(0, Math.Min(2, name.Length)).ToUpper();
     }
 
     public async ValueTask DisposeAsync()
@@ -516,6 +1093,7 @@
     private class RoomCreationResponse
     {
         public Guid RoomId { get; set; }
+        public string? Name { get; set; }
     }
 
     private async Task StartDirectMessage(string userId)
@@ -531,7 +1109,6 @@
                 var content = await res.Content.ReadFromJsonAsync<RoomCreationResponse>();
                 if (content != null)
                 {
-                    // Reload rooms to get the new room details
                     await LoadRooms();
                     var room = _rooms.FirstOrDefault(r => r.Id == content.RoomId);
                     if (room != null)

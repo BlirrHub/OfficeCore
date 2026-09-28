@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — [2026-09-28] (Group Chat Creation, Member Management & Real-Time Collaboration)
+
+- **Group Chat Creation & Multi-User Management (`GlobalChatWidget.razor`, `ChatController.cs`):**
+  - Added dedicated **"New Group Chat"** creation flow accessible via the chat header button (`👥+`) and tabbed dual-mode creation modal.
+  - Implemented real-time colleague search with multi-select checkboxes, dynamic member count badges, and removable colleague pill tags.
+  - Added new group chat validation requiring a group name (up to 100 characters) and at least 2 active members within the active workspace.
+  - Added **Room Type Filters** (`All`, `Direct`, `Groups`) with real-time badges to swiftly organize active direct messages and group conversations.
+  - Added dedicated **Group Chat Cards** featuring gradient group icons, member count chips, group badges, and sender name prefixes on latest message previews.
+  - Added **Group Chat Header & Subtitle** displaying participant names, group initials avatar, and member count badge.
+  - Added **Group Details Drawer** showing full member lists with `(You)` indicators, "Add Colleagues" sub-panel with real-time search, and "Leave Group" confirmation dialog.
+  - Enhanced group messaging view with sender name headers in bold accent color (`text-fuchsia-400` / `text-fuchsia-600`) for incoming group messages.
+  - Added group-aware typing indicator displaying specific member names (`Alice is typing...`).
+
+- **Backend Group Chat Endpoints & SignalR Broadcasts (`ChatController.cs`):**
+  - Added `POST /api/chat/group`: Creates a new `ChatRoom` of type `ChatRoomType.Group` with multi-employee membership (`ChatRoomMember`), strictly scoped to active `OrganizationId`, and notifies all participants via SignalR (`RoomCreated`).
+  - Added `POST /api/chat/rooms/{roomId}/members`: Adds colleagues to an existing group chat, validating tenant isolation and active caller membership.
+  - Added `POST /api/chat/rooms/{roomId}/leave`: Allows an employee to leave a group chat, removing membership and updating remaining participants.
+  - Added `PUT /api/chat/rooms/{roomId}/name`: Allows renaming a group chat and pushes real-time title updates across all group members.
+
 ### Updated — [2026-09-27] (Standalone Server Station Installer Refresh)
 
 - **Updated Standalone Server Station Setup Installer (`dist/Setup-OfficeCore-Server.exe`):**

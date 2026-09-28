@@ -89,9 +89,9 @@ public class ChatController : ControllerBase
                     Members = r.Members.Select(m => new
                     {
                         m.UserId,
-                        m.User.User.FirstName,
-                        m.User.User.LastName,
-                        m.User.User.ProfilePictureUrl,
+                        FirstName = m.User?.User?.FirstName ?? "Unknown",
+                        LastName = m.User?.User?.LastName ?? "",
+                        ProfilePictureUrl = m.User?.User?.ProfilePictureUrl,
                         m.LastReadAt
                     }),
                     LastMessage = lastMsg == null ? null : new
@@ -121,6 +121,7 @@ public class ChatController : ControllerBase
 
         var messages = await _context.ChatMessages
             .Include(m => m.Sender)
+                .ThenInclude(s => s.User)
             .Where(m => m.ChatRoomId == roomId)
             .OrderByDescending(m => m.CreatedAt)
             .Skip(skip)
@@ -130,8 +131,8 @@ public class ChatController : ControllerBase
                 m.Id,
                 m.ChatRoomId,
                 m.SenderId,
-                SenderName = m.Sender.User.FirstName + " " + m.Sender.User.LastName,
-                m.Sender.User.ProfilePictureUrl,
+                SenderName = m.Sender.User != null ? m.Sender.User.FirstName + " " + m.Sender.User.LastName : "Unknown",
+                ProfilePictureUrl = m.Sender.User != null ? m.Sender.User.ProfilePictureUrl : null,
                 m.Content,
                 m.CreatedAt
             })
@@ -181,8 +182,8 @@ public class ChatController : ControllerBase
             message.Id,
             message.ChatRoomId,
             message.SenderId,
-            SenderName = employee.User!.FirstName + " " + employee.User.LastName,
-            employee.User.ProfilePictureUrl,
+            SenderName = employee.User != null ? employee.User.FirstName + " " + employee.User.LastName : "Me",
+            ProfilePictureUrl = employee.User?.ProfilePictureUrl,
             message.Content,
             message.CreatedAt
         };
@@ -258,6 +259,217 @@ public class ChatController : ControllerBase
         return Ok(new { RoomId = newRoom.Id });
     }
 
+    public class CreateGroupChatRequest
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(100, MinimumLength = 1)]
+        public string Name { get; set; } = string.Empty;
+
+        public List<string> MemberIds { get; set; } = new();
+    }
+
+    [HttpPost("group")]
+    public async Task<IActionResult> CreateGroupChat([FromBody] CreateGroupChatRequest req)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return BadRequest("Group name is required.");
+
+        var trimmedName = req.Name.Trim();
+
+        var memberIds = (req.MemberIds ?? new List<string>())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToList();
+
+        if (!memberIds.Contains(employee.Id))
+        {
+            memberIds.Add(employee.Id);
+        }
+
+        if (memberIds.Count < 2)
+        {
+            return BadRequest("A group chat must contain at least 2 members.");
+        }
+
+        var validEmployees = await _context.Employees
+            .Include(e => e.User)
+            .Where(e => e.OrganizationId == orgId.Value && e.IsActive && memberIds.Contains(e.Id))
+            .ToListAsync();
+
+        if (validEmployees.Count < 2)
+        {
+            return BadRequest("Not enough valid active organization members to create group chat.");
+        }
+
+        var newRoom = new ChatRoom
+        {
+            Id = Guid.NewGuid(),
+            Name = trimmedName,
+            Type = ChatRoomType.Group,
+            CreatedAt = DateTime.UtcNow,
+            OrganizationId = orgId.Value
+        };
+
+        foreach (var emp in validEmployees)
+        {
+            newRoom.Members.Add(new ChatRoomMember
+            {
+                Id = Guid.NewGuid(),
+                UserId = emp.Id,
+                JoinedAt = DateTime.UtcNow,
+                LastReadAt = DateTime.UtcNow,
+                OrganizationId = orgId.Value
+            });
+        }
+
+        _context.ChatRooms.Add(newRoom);
+        await _context.SaveChangesAsync();
+
+        foreach (var emp in validEmployees)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{emp.Id}").SendAsync("RoomCreated", newRoom.Id);
+        }
+
+        return Ok(new { RoomId = newRoom.Id, Name = newRoom.Name });
+    }
+
+    public class AddGroupMembersRequest
+    {
+        public List<string> MemberIds { get; set; } = new();
+    }
+
+    [HttpPost("rooms/{roomId}/members")]
+    public async Task<IActionResult> AddGroupMembers(Guid roomId, [FromBody] AddGroupMembersRequest req)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var room = await _context.ChatRooms
+            .Include(r => r.Members)
+            .FirstOrDefaultAsync(r => r.Id == roomId && r.OrganizationId == orgId.Value && r.Type == ChatRoomType.Group);
+
+        if (room == null) return NotFound("Group chat not found.");
+
+        if (!room.Members.Any(m => m.UserId == employee.Id))
+            return Forbid("You are not a member of this group.");
+
+        var existingIds = room.Members.Select(m => m.UserId).ToHashSet();
+        var candidateIds = (req.MemberIds ?? new List<string>())
+            .Where(id => !string.IsNullOrWhiteSpace(id) && !existingIds.Contains(id))
+            .Distinct()
+            .ToList();
+
+        if (!candidateIds.Any())
+            return BadRequest("No new members specified to add.");
+
+        var validEmployees = await _context.Employees
+            .Where(e => e.OrganizationId == orgId.Value && e.IsActive && candidateIds.Contains(e.Id))
+            .ToListAsync();
+
+        if (!validEmployees.Any())
+            return BadRequest("None of the specified members were found in this organization.");
+
+        foreach (var emp in validEmployees)
+        {
+            _context.ChatRoomMembers.Add(new ChatRoomMember
+            {
+                Id = Guid.NewGuid(),
+                ChatRoomId = room.Id,
+                UserId = emp.Id,
+                JoinedAt = DateTime.UtcNow,
+                LastReadAt = DateTime.UtcNow,
+                OrganizationId = orgId.Value
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        var allMemberIds = room.Members.Select(m => m.UserId).Concat(validEmployees.Select(e => e.Id)).Distinct();
+        foreach (var memberId in allMemberIds)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{memberId}").SendAsync("RoomCreated", room.Id);
+        }
+
+        return Ok(new { message = "Members added successfully", Count = validEmployees.Count });
+    }
+
+    [HttpPost("rooms/{roomId}/leave")]
+    public async Task<IActionResult> LeaveGroup(Guid roomId)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var room = await _context.ChatRooms
+            .Include(r => r.Members)
+            .FirstOrDefaultAsync(r => r.Id == roomId && r.OrganizationId == orgId.Value && r.Type == ChatRoomType.Group);
+
+        if (room == null) return NotFound("Group chat not found.");
+
+        var member = room.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null) return BadRequest("You are not a member of this group.");
+
+        _context.ChatRoomMembers.Remove(member);
+        await _context.SaveChangesAsync();
+
+        foreach (var remaining in room.Members.Where(m => m.UserId != employee.Id))
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{remaining.UserId}").SendAsync("RoomCreated", room.Id);
+        }
+
+        return Ok(new { message = "Left group successfully" });
+    }
+
+    public class UpdateGroupNameRequest
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(100, MinimumLength = 1)]
+        public string Name { get; set; } = string.Empty;
+    }
+
+    [HttpPut("rooms/{roomId}/name")]
+    public async Task<IActionResult> RenameGroup(Guid roomId, [FromBody] UpdateGroupNameRequest req)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return BadRequest("Group name is required.");
+
+        var room = await _context.ChatRooms
+            .Include(r => r.Members)
+            .FirstOrDefaultAsync(r => r.Id == roomId && r.OrganizationId == orgId.Value && r.Type == ChatRoomType.Group);
+
+        if (room == null) return NotFound("Group chat not found.");
+
+        if (!room.Members.Any(m => m.UserId == employee.Id))
+            return Forbid("You are not a member of this group.");
+
+        room.Name = req.Name.Trim();
+        await _context.SaveChangesAsync();
+
+        foreach (var member in room.Members)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{member.UserId}").SendAsync("RoomCreated", room.Id);
+        }
+
+        return Ok(new { Name = room.Name });
+    }
+
     [HttpGet("users")]
     public async Task<IActionResult> GetUsersForChat()
     {
@@ -272,12 +484,13 @@ public class ChatController : ControllerBase
             {
                 Id = e.Id,           // Employee.Id (used for chat membership)
                 ApplicationUserId = e.UserId, // ApplicationUser.Id (used to identify self)
-                e.User!.FirstName,
-                e.User.LastName,
-                e.User.ProfilePictureUrl
+                FirstName = e.User != null ? e.User.FirstName : "",
+                LastName = e.User != null ? e.User.LastName : "",
+                ProfilePictureUrl = e.User != null ? e.User.ProfilePictureUrl : null
             })
             .ToListAsync();
 
         return Ok(employees);
     }
 }
+
