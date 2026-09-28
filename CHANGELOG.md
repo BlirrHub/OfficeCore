@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Fixed — [2026-09-28] (Biometric Attendance Excel Importer, Chat Group Info UI & Backup Card Spacing)
+
+- **Biometric Attendance Excel Log Importer (`BiometricReportService.cs`, `AttendanceController.cs`, `BiometricImportHub.razor`, `Attendance.razor`):**
+  - Integrated `ExcelDataReader` (3.9.0) enabling cross-platform, zero-dependency parsing of legacy `.xls` (BIFF8) and `.xlsx` biometric time-attendance files.
+  - Designed dedicated **Biometric Import Hub** component (`BiometricImportHub.razor`) cleanly separated from the built-in workstation clock and direct USB/Wi-Fi hardware sensors, specifically tailored for company workflows like **ACBA** that export logs from standalone terminals (`All Report.xls`).
+  - Added intelligent punch parser extracting date windows, employee blocks (`ID :`, `Name :`), and day column punches, automatically pairing timestamps into `ClockIn` and `ClockOut` sequences while visually highlighting days with missing pairs (e.g. In without Out) so supervisors can cross-reference CCTV records.
+  - Implemented employee matching engine checking `Employee.EmployeeId` first, falling back to name heuristics, and providing an interactive profile mapping dropdown with an option to permanently link and save the biometric device ID to employee profiles.
+  - Added REST API endpoints (`POST /api/attendance/import-biometric-preview` and `POST /api/attendance/import-biometric-commit`) with duplicate punch skipping, SignalR live broadcast, and audit ledger tracking.
+  - Added dedicated **"Biometric Import (ACBA)"** tab under `Attendance.razor`.
+
+- **Chat Group Info UI Overhaul (`GlobalChatWidget.razor`):**
+  - Resolved visual overlap between the floating camera button, the misplaced "✕" button, and the "Change Photo" label in the group details drawer.
+  - Re-architected drawer layout with a dedicated top header bar, centered avatar card with clear action buttons, and spaced member list toolbar preventing "+ Add Colleagues" from colliding with "Group Members".
+
+- **Database Backups Summary Card Spacing Parity (`Backups.razor`, `Styles/app.css`):**
+  - Resolved 0px spacing between icons and metric text in `Backups.razor` by applying explicit margin utilities (`mr-3.5`) and updating CSS template scanning with `@source "..";` in `Styles/app.css`.
+  - Recompiled Tailwind CSS v4 assets (`npm run css:build`).
+
 ### Added & Fixed — [2026-09-28] (Audit Trail Dark Mode Parity & RBAC Modularization for Backups & Audit Trail)
 
 - **Audit Trail Dark Mode Theme Parity (`AuditLogs.razor`, `app.css`):**

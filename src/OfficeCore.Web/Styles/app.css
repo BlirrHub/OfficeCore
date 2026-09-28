@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "..";
 
 /* ─── Global Typography & Base ───────────────────────────────────────── */
 html, body {

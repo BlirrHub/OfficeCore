@@ -17,19 +17,22 @@ public class AttendanceController : ControllerBase
     private readonly IHubContext<OfficeCore.Api.Hubs.AttendanceHub> _hubContext;
     private readonly TenantService _tenant;
     private readonly IAuditService _audit;
+    private readonly BiometricReportService _biometricReportService;
 
     public AttendanceController(
         AppDbContext context, 
         FingerprintDeviceService deviceService, 
         IHubContext<OfficeCore.Api.Hubs.AttendanceHub> hubContext,
         TenantService tenant,
-        IAuditService audit)
+        IAuditService audit,
+        BiometricReportService biometricReportService)
     {
         _context = context;
         _deviceService = deviceService;
         _hubContext = hubContext;
         _tenant = tenant;
         _audit = audit;
+        _biometricReportService = biometricReportService;
     }
 
     // =========================================================================
@@ -468,6 +471,70 @@ public class AttendanceController : ControllerBase
         await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
 
         return Ok(new { message = "Attendance logged.", type = type.ToString() });
+    }
+
+    // =========================================================================
+    // BIOMETRIC EXCEL / FILE REPORT IMPORT ENDPOINTS
+    // =========================================================================
+
+    [HttpPost("import-biometric-preview")]
+    [Authorize(Policy = "RequireAttendance")]
+    [RequestSizeLimit(50_000_000)] // Up to 50MB
+    public async Task<IActionResult> PreviewBiometricImport([FromForm] IFormFile file)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("Please select a valid biometric report file (.xls, .xlsx).");
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext != ".xls" && ext != ".xlsx" && ext != ".csv")
+        {
+            return BadRequest("Unsupported file type. Please upload an Excel biometric report (.xls or .xlsx).");
+        }
+
+        using var stream = file.OpenReadStream();
+        var preview = await _biometricReportService.PreviewBiometricReportAsync(stream, orgId.Value);
+
+        if (!preview.Success)
+        {
+            return BadRequest(preview.ErrorMessage ?? "Could not parse biometric report.");
+        }
+
+        return Ok(preview);
+    }
+
+    [HttpPost("import-biometric-commit")]
+    [Authorize(Policy = "RequireAttendance")]
+    public async Task<IActionResult> CommitBiometricImport([FromBody] BiometricCommitRequestDto dto)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        if (dto.Punches == null || dto.Punches.Count == 0)
+        {
+            return BadRequest("No punches selected for import.");
+        }
+
+        var (inserted, duplicates, updatedMappings) = await _biometricReportService.CommitBiometricAttendanceAsync(dto, orgId.Value);
+
+        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+
+        await _audit.LogAttendanceAsync(
+            AuditActions.Create,
+            $"Imported {inserted} biometric attendance punches (skipped {duplicates} duplicates, updated {updatedMappings} employee device ID mappings)",
+            Guid.Empty);
+
+        return Ok(new
+        {
+            message = $"Successfully imported {inserted} attendance punch records.",
+            insertedCount = inserted,
+            skippedDuplicates = duplicates,
+            updatedMappings
+        });
     }
 }
 

@@ -33,3 +33,7 @@ dist/*
 **/client_config.json
 **/server_config.json
 **/desktop_config.json
+
+# Biometric test/client reports
+*.xls
+*.xlsx
