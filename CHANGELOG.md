@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Updated — [2026-09-28] (Production Server & Client Installers Rebuilt)
+
+- **Production Server & Workstation Installers Rebuilt (`dist/Setup-OfficeCore-Server.exe`, `dist/Setup-OfficeCore-Client.exe`):**
+  - Recompiled and packaged standalone Windows installers and portable distributions in `dist/` incorporating all recent features:
+    - Biometric Attendance Excel log importer for ACBA company workflow
+    - Audit Trail logging and compliance ledger
+    - Automated Database Backup & 1-Click Disaster Recovery console
+    - Role-based modular permissions for Backups and Audit Logs
+    - Dark mode visual parity fixes and chat group drawer UI polish
+  - Updated production release binaries in `dist/` and synchronized across all deployment branches (`development`, `master`, and `production`).
+
 ### Added & Fixed — [2026-09-28] (Biometric Attendance Excel Importer, Chat Group Info UI & Backup Card Spacing)
 
 - **Biometric Attendance Excel Log Importer (`BiometricReportService.cs`, `AttendanceController.cs`, `BiometricImportHub.razor`, `Attendance.razor`):**
