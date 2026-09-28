@@ -1,0 +1,867 @@
+@page "/admin/backups"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ToastService ToastService
+@inject IJSRuntime JS
+
+<div class="space-y-6 max-w-7xl mx-auto pb-12">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md">
+        <div class="flex items-center gap-4">
+            <div class="size-12 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-600 to-fuchsia-600 flex items-center justify-center text-white shadow-lg shadow-indigo-900/30">
+                <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-xl font-bold text-white tracking-tight">Database Backups & Disaster Recovery</h1>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-800/60">
+                        PostgreSQL
+                    </span>
+                </div>
+                <p class="text-xs text-zinc-400 mt-0.5">
+                    Automated snapshots, on-demand manual archives, and safety-verified 1-click restore for on-premise deployments.
+                </p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+            <button type="button" @onclick="() => _showSettingsModal = true"
+                    class="px-3.5 py-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-all border border-zinc-700/60 cursor-pointer">
+                <svg class="size-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>Schedule Settings</span>
+            </button>
+
+            <button type="button" @onclick="() => _showUploadModal = true"
+                    class="px-3.5 py-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-all border border-zinc-700/60 cursor-pointer">
+                <svg class="size-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>Upload Snapshot</span>
+            </button>
+
+            <button type="button" @onclick="OpenCreateBackupModal"
+                    class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-md shadow-cyan-900/30 cursor-pointer">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Create Backup Now</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Metrics Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- PostgreSQL Engine Status -->
+        <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-3.5">
+            <div class="size-10 rounded-xl @(_isPgToolsAvailable ? "bg-emerald-950/40 border border-emerald-500/30 text-emerald-400" : "bg-red-950/40 border border-red-500/30 text-red-400") flex items-center justify-center shrink-0">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+            </div>
+            <div class="min-w-0">
+                <p class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Engine Status</p>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="size-2 rounded-full @(_isPgToolsAvailable ? "bg-emerald-400 animate-pulse" : "bg-red-400")"></span>
+                    <p class="text-xs font-bold text-white truncate">@(_isPgToolsAvailable ? "pg_dump Ready" : "Tools Missing")</p>
+                </div>
+                <p class="text-[10px] text-zinc-500 truncate mt-0.5" title="@_pgBinPath">
+                    @(!string.IsNullOrEmpty(_pgBinPath) ? _pgBinPath : "Check PostgreSQL install path")
+                </p>
+            </div>
+        </div>
+
+        <!-- Total Backups Count -->
+        <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-3.5">
+            <div class="size-10 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Total Snapshots</p>
+                <p class="text-base font-bold text-white mt-0.5">@(_backups?.Count ?? 0) files</p>
+                <p class="text-[10px] text-zinc-500">@GetBreakdownText()</p>
+            </div>
+        </div>
+
+        <!-- Total Storage Footprint -->
+        <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-3.5">
+            <div class="size-10 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Storage Footprint</p>
+                <p class="text-base font-bold text-white mt-0.5">@FormatBytes(_totalSizeBytes)</p>
+                <p class="text-[10px] text-zinc-500">Compressed .dump archives</p>
+            </div>
+        </div>
+
+        <!-- Scheduled Backup Routine -->
+        <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-3.5">
+            <div class="size-10 rounded-xl bg-fuchsia-950/40 border border-fuchsia-500/30 text-fuchsia-400 flex items-center justify-center shrink-0">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Auto-Schedule</p>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                    @if (_settings?.AutoBackupEnabled == true)
+                    {
+                        <span class="size-2 rounded-full bg-cyan-400"></span>
+                        <p class="text-xs font-bold text-white">Daily at @(_settings.ScheduledTime)</p>
+                    }
+                    else
+                    {
+                        <span class="size-2 rounded-full bg-zinc-500"></span>
+                        <p class="text-xs font-bold text-zinc-400">Disabled</p>
+                    }
+                </div>
+                <p class="text-[10px] text-zinc-500">Retains last @(_settings?.RetentionCount ?? 14) days</p>
+            </div>
+        </div>
+    </div>
+
+    @if (!_isPgToolsAvailable)
+    {
+        <!-- Warning Banner for Missing PostgreSQL Tools -->
+        <div class="p-4 rounded-2xl bg-amber-950/30 border border-amber-800/50 flex items-start gap-3.5 text-amber-200 text-xs">
+            <svg class="size-5 shrink-0 text-amber-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+                <h4 class="font-bold text-amber-100">PostgreSQL Utilities Notice</h4>
+                <p class="mt-0.5 text-amber-300/90 leading-relaxed">
+                    The backup engine could not automatically locate <code class="bg-amber-900/40 px-1 py-0.5 rounded text-amber-200">pg_dump.exe</code> or <code class="bg-amber-900/40 px-1 py-0.5 rounded text-amber-200">pg_restore.exe</code> in standard system paths.
+                    Click <strong>Schedule Settings</strong> above to configure the exact path to your PostgreSQL <code class="bg-amber-900/40 px-1 py-0.5 rounded text-amber-200">bin</code> folder (e.g. <code class="bg-amber-900/40 px-1 py-0.5 rounded text-amber-200">C:\Program Files\PostgreSQL\18\bin</code>).
+                </p>
+            </div>
+        </div>
+    }
+
+    <!-- Filter & Search Toolbar -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-3">
+        <div class="flex items-center gap-2 w-full sm:w-80">
+            <div class="relative w-full">
+                <svg class="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text" @bind="_searchQuery" @bind:event="oninput"
+                       placeholder="Search backups by name or label..."
+                       class="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl pl-9 pr-3.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors" />
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <!-- Filter by Type -->
+            <button type="button" @onclick='() => _typeFilter = "all"'
+                    class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all @(_typeFilter == "all" ? "bg-cyan-600 text-white shadow-sm" : "bg-zinc-800/60 text-zinc-400 hover:text-white")">
+                All (@(_backups?.Count ?? 0))
+            </button>
+            <button type="button" @onclick='() => _typeFilter = "auto"'
+                    class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all @(_typeFilter == "auto" ? "bg-cyan-600 text-white shadow-sm" : "bg-zinc-800/60 text-zinc-400 hover:text-white")">
+                Auto
+            </button>
+            <button type="button" @onclick='() => _typeFilter = "manual"'
+                    class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all @(_typeFilter == "manual" ? "bg-cyan-600 text-white shadow-sm" : "bg-zinc-800/60 text-zinc-400 hover:text-white")">
+                Manual
+            </button>
+            <button type="button" @onclick='() => _typeFilter = "prerestore"'
+                    class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all @(_typeFilter == "prerestore" ? "bg-cyan-600 text-white shadow-sm" : "bg-zinc-800/60 text-zinc-400 hover:text-white")">
+                Safety
+            </button>
+        </div>
+    </div>
+
+    <!-- Backups Table -->
+    <div class="bg-zinc-900/30 border border-zinc-800/80 rounded-2xl overflow-hidden shadow-xl">
+        @if (_isLoading)
+        {
+            <div class="p-12 flex flex-col items-center justify-center text-center">
+                <div class="animate-spin size-8 border-2 border-zinc-800 border-t-cyan-500 rounded-full mb-3"></div>
+                <p class="text-xs font-medium text-zinc-400">Loading backup archives...</p>
+            </div>
+        }
+        else if (_filteredBackups.Count == 0)
+        {
+            <div class="p-12 flex flex-col items-center justify-center text-center">
+                <div class="size-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 mb-3">
+                    <svg class="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                </div>
+                <h3 class="text-sm font-bold text-zinc-300">No backup snapshots found</h3>
+                <p class="text-xs text-zinc-500 max-w-sm mt-1">
+                    @(!string.IsNullOrEmpty(_searchQuery) ? "No snapshots match your search filter." : "Create your first manual backup snapshot or configure automatic nightly backups.")
+                </p>
+                <button type="button" @onclick="OpenCreateBackupModal"
+                        class="mt-4 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-colors">
+                    Create Snapshot Now
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                            <th class="py-3 px-4">Type</th>
+                            <th class="py-3 px-4">Filename / Label</th>
+                            <th class="py-3 px-4">Created Date</th>
+                            <th class="py-3 px-4">File Size</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800/50 text-xs">
+                        @foreach (var b in _filteredBackups)
+                        {
+                            <tr class="hover:bg-zinc-900/40 transition-colors group">
+                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                    @if (b.IsPreRestore)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/50 text-amber-300 border border-amber-700/50">
+                                            <span class="size-1.5 rounded-full bg-amber-400"></span>
+                                            Safety Snapshot
+                                        </span>
+                                    }
+                                    else if (b.IsAutomatic)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-950/50 text-cyan-300 border border-cyan-700/50">
+                                            <span class="size-1.5 rounded-full bg-cyan-400"></span>
+                                            Automatic
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-950/50 text-indigo-300 border border-indigo-700/50">
+                                            <span class="size-1.5 rounded-full bg-indigo-400"></span>
+                                            Manual
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3.5 px-4 min-w-[240px]">
+                                    <div class="font-medium text-white truncate max-w-md">@b.FileName</div>
+                                    @if (!string.IsNullOrEmpty(b.Label))
+                                    {
+                                        <div class="text-[11px] text-zinc-400 italic truncate mt-0.5">@b.Label</div>
+                                    }
+                                </td>
+                                <td class="py-3.5 px-4 whitespace-nowrap text-zinc-300">
+                                    <div>@b.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                                    <div class="text-[10px] text-zinc-500">@b.CreatedAt.ToLocalTime().ToString("hh:mm:ss tt")</div>
+                                </td>
+                                <td class="py-3.5 px-4 whitespace-nowrap text-zinc-300 font-mono">
+                                    @FormatBytes(b.SizeBytes)
+                                </td>
+                                <td class="py-3.5 px-4 whitespace-nowrap text-right">
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        <!-- Download Button -->
+                                        <button type="button" @onclick="() => DownloadBackup(b.FileName)"
+                                                title="Download .dump file to your computer"
+                                                class="size-8 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                        </button>
+
+                                        <!-- Restore Button -->
+                                        <button type="button" @onclick="() => PromptRestore(b)"
+                                                title="Restore database from this snapshot"
+                                                class="size-8 rounded-lg bg-amber-950/40 hover:bg-amber-900/60 border border-amber-700/40 text-amber-300 flex items-center justify-center transition-colors cursor-pointer">
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                        </button>
+
+                                        <!-- Delete Button -->
+                                        <button type="button" @onclick="() => PromptDelete(b)"
+                                                title="Delete this snapshot"
+                                                class="size-8 rounded-lg bg-zinc-800/50 hover:bg-red-950/50 hover:border-red-800/50 text-zinc-400 hover:text-red-300 flex items-center justify-center transition-colors cursor-pointer">
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal: Create Backup Now -->
+@if (_showCreateModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="size-8 rounded-xl bg-cyan-950/60 border border-cyan-700/50 flex items-center justify-center text-cyan-400">
+                        <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </div>
+                    <h3 class="font-bold text-sm text-white">Create Database Snapshot</h3>
+                </div>
+                <button type="button" @onclick="() => _showCreateModal = false" class="text-zinc-400 hover:text-white">✕</button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-300 mb-1">Optional Label / Note</label>
+                    <input type="text" @bind="_newBackupLabel"
+                           placeholder="e.g. Before Payroll Run, Post-Migration, End of Month..."
+                           class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors" />
+                    <p class="text-[11px] text-zinc-500 mt-1">A description to easily identify this snapshot in the future.</p>
+                </div>
+
+                <div class="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-400 space-y-1">
+                    <p class="font-semibold text-zinc-300">What happens next:</p>
+                    <ul class="list-disc list-inside space-y-0.5 text-[11px] text-zinc-400">
+                        <li>Executes live transaction-safe PostgreSQL dump</li>
+                        <li>Stores archive in encrypted on-premise local data directory</li>
+                        <li>Available immediately for download or 1-click restore</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-zinc-800 bg-zinc-900/40 flex items-center justify-end gap-2.5">
+                <button type="button" @onclick="() => _showCreateModal = false" disabled="@_isOperating"
+                        class="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="ExecuteCreateBackup" disabled="@_isOperating"
+                        class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold flex items-center gap-2 transition-all">
+                    @if (_isOperating)
+                    {
+                        <div class="animate-spin size-3.5 border-2 border-white border-t-transparent rounded-full"></div>
+                        <span>Dumping Database...</span>
+                    }
+                    else
+                    {
+                        <span>Create Snapshot</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Restore Backup Confirmation -->
+@if (_showRestoreModal && _targetBackup != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-zinc-950 border border-amber-800/60 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-zinc-800 bg-amber-950/30 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="size-8 rounded-xl bg-amber-900/60 border border-amber-500/50 flex items-center justify-center text-amber-300">
+                        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-white">Restore Database Confirmation</h3>
+                        <p class="text-[11px] text-amber-300/80">Safety protocol: Pre-restore snapshot included</p>
+                    </div>
+                </div>
+                <button type="button" @onclick="() => _showRestoreModal = false" class="text-zinc-400 hover:text-white">✕</button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <div class="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-zinc-400">Snapshot File:</span>
+                        <span class="font-mono text-white font-medium">@_targetBackup.FileName</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-zinc-400">Captured At:</span>
+                        <span class="text-zinc-200">@_targetBackup.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-zinc-400">Snapshot Size:</span>
+                        <span class="text-zinc-200 font-mono">@FormatBytes(_targetBackup.SizeBytes)</span>
+                    </div>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/40 text-amber-200 text-xs space-y-2">
+                    <p class="font-semibold text-amber-100 flex items-center gap-1.5">
+                        <svg class="size-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Automatic Pre-Restore Safety Snapshot
+                    </p>
+                    <p class="text-[11px] text-amber-300/90 leading-relaxed">
+                        To protect your data, OfficeCore will <strong>automatically capture a fresh safety snapshot of your current database</strong> right now before applying this backup. If this restore is not what you wanted, you can instantly revert back to that safety snapshot.
+                    </p>
+                </div>
+
+                <div>
+                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                        <input type="checkbox" @bind="_confirmRestoreChecked" class="rounded text-cyan-600 focus:ring-0" />
+                        <span>I understand that this snapshot will replace current database tables.</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-zinc-800 bg-zinc-900/40 flex items-center justify-end gap-2.5">
+                <button type="button" @onclick="() => _showRestoreModal = false" disabled="@_isOperating"
+                        class="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="ExecuteRestore" disabled="@(!_confirmRestoreChecked || _isOperating)"
+                        class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-2 transition-all">
+                    @if (_isOperating)
+                    {
+                        <div class="animate-spin size-3.5 border-2 border-white border-t-transparent rounded-full"></div>
+                        <span>Restoring Database...</span>
+                    }
+                    else
+                    {
+                        <span>Restore Database Now</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Upload Snapshot -->
+@if (_showUploadModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="size-8 rounded-xl bg-cyan-950/60 border border-cyan-700/50 flex items-center justify-center text-cyan-400">
+                        <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                    </div>
+                    <h3 class="font-bold text-sm text-white">Upload & Restore Snapshot</h3>
+                </div>
+                <button type="button" @onclick="() => _showUploadModal = false" class="text-zinc-400 hover:text-white">✕</button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <p class="text-xs text-zinc-400">
+                    Upload an existing <code class="text-cyan-300">.dump</code> or <code class="text-cyan-300">.sql</code> archive from another computer or USB drive to restore it onto this server.
+                </p>
+
+                <div class="border-2 border-dashed border-zinc-800 rounded-2xl p-6 text-center hover:border-cyan-500/50 transition-colors">
+                    <InputFile OnChange="HandleFileSelected" accept=".dump,.sql" class="hidden" id="backup-file-input" />
+                    <label for="backup-file-input" class="cursor-pointer flex flex-col items-center">
+                        <div class="size-12 rounded-2xl bg-zinc-900 flex items-center justify-center text-cyan-400 mb-2">
+                            <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                        </div>
+                        <span class="text-xs font-semibold text-white">@(_selectedUploadFile?.Name ?? "Select .dump archive")</span>
+                        <span class="text-[10px] text-zinc-500 mt-1">Maximum file size: 500 MB</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-zinc-800 bg-zinc-900/40 flex items-center justify-end gap-2.5">
+                <button type="button" @onclick="() => _showUploadModal = false" disabled="@_isOperating"
+                        class="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="ExecuteUpload" disabled="@(_selectedUploadFile == null || _isOperating)"
+                        class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-2 transition-all">
+                    @if (_isOperating)
+                    {
+                        <div class="animate-spin size-3.5 border-2 border-white border-t-transparent rounded-full"></div>
+                        <span>Uploading & Restoring...</span>
+                    }
+                    else
+                    {
+                        <span>Upload & Restore</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Schedule Settings -->
+@if (_showSettingsModal && _settings != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="size-8 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-300">
+                        <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="font-bold text-sm text-white">Automated Backup Settings</h3>
+                </div>
+                <button type="button" @onclick="() => _showSettingsModal = false" class="text-zinc-400 hover:text-white">✕</button>
+            </div>
+
+            <div class="p-5 space-y-4 text-xs">
+                <div class="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
+                    <div>
+                        <span class="font-semibold text-white block">Automated Daily Backups</span>
+                        <span class="text-[11px] text-zinc-500">Run database snapshots automatically in background</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" @bind="_settings.AutoBackupEnabled" class="sr-only peer" />
+                        <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-zinc-300 mb-1">Scheduled Time of Day (24-Hour)</label>
+                    <input type="time" value="@_settings.ScheduledTime" @onchange="(e) => _settings.ScheduledTime = e.Value?.ToString() ?? string.Empty"
+                           class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 transition-colors" />
+                    <p class="text-[10px] text-zinc-500 mt-1">Recommended: After office hours (e.g. 23:00 / 11:00 PM).</p>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-zinc-300 mb-1">Retention Count (Snapshots Kept)</label>
+                    <input type="number" min="3" max="90" @bind="_settings.RetentionCount"
+                           class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 transition-colors" />
+                    <p class="text-[10px] text-zinc-500 mt-1">Older automatic backups will be pruned automatically to conserve disk space.</p>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-zinc-300 mb-1">Custom PostgreSQL Bin Path (Optional)</label>
+                    <input type="text" @bind="_settings.CustomPgBinPath" placeholder="C:\Program Files\PostgreSQL\18\bin"
+                           class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors font-mono" />
+                    <p class="text-[10px] text-zinc-500 mt-1">Leave blank to use auto-detected path.</p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-zinc-800 bg-zinc-900/40 flex items-center justify-end gap-2.5">
+                <button type="button" @onclick="() => _showSettingsModal = false"
+                        class="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors">
+                    Cancel
+                </button>
+                <button type="button" @onclick="SaveSettings"
+                        class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-all">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private bool _isOperating = false;
+    private bool _showCreateModal = false;
+    private bool _showRestoreModal = false;
+    private bool _showUploadModal = false;
+    private bool _showSettingsModal = false;
+    private bool _confirmRestoreChecked = false;
+
+    private string? _newBackupLabel;
+    private string _searchQuery = string.Empty;
+    private string _typeFilter = "all";
+
+    private List<BackupItemDto>? _backups;
+    private BackupItemDto? _targetBackup;
+    private IBrowserFile? _selectedUploadFile;
+
+    private bool _isPgToolsAvailable = true;
+    private string? _pgBinPath;
+    private long _totalSizeBytes = 0;
+    private BackupSettingsDto? _settings;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        try
+        {
+            var res = await Http.GetFromJsonAsync<BackupOverviewDto>("/api/backup");
+            if (res != null)
+            {
+                _backups = res.Backups;
+                _isPgToolsAvailable = res.IsPgToolsAvailable;
+                _pgBinPath = res.PgBinPath;
+                _totalSizeBytes = res.TotalSizeBytes;
+                _settings = res.Settings;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Failed to load backups: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private List<BackupItemDto> _filteredBackups
+    {
+        get
+        {
+            if (_backups == null) return new();
+            return _backups
+                .Where(b =>
+                {
+                    if (_typeFilter == "auto" && !b.IsAutomatic) return false;
+                    if (_typeFilter == "manual" && (b.IsAutomatic || b.IsPreRestore)) return false;
+                    if (_typeFilter == "prerestore" && !b.IsPreRestore) return false;
+
+                    if (!string.IsNullOrWhiteSpace(_searchQuery))
+                    {
+                        var q = _searchQuery.Trim().ToLowerInvariant();
+                        var nameMatch = b.FileName.ToLowerInvariant().Contains(q);
+                        var labelMatch = b.Label?.ToLowerInvariant().Contains(q) == true;
+                        return nameMatch || labelMatch;
+                    }
+                    return true;
+                })
+                .OrderByDescending(b => b.CreatedAt)
+                .ToList();
+        }
+    }
+
+    private void OpenCreateBackupModal()
+    {
+        _newBackupLabel = string.Empty;
+        _showCreateModal = true;
+    }
+
+    private async Task ExecuteCreateBackup()
+    {
+        _isOperating = true;
+        StateHasChanged();
+
+        try
+        {
+            var req = new { Label = _newBackupLabel };
+            var res = await Http.PostAsJsonAsync("/api/backup/create", req);
+            if (res.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Database snapshot created successfully!");
+                _showCreateModal = false;
+                await LoadData();
+            }
+            else
+            {
+                var err = await res.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                var msg = err.TryGetProperty("message", out var m) ? m.GetString() : "Creation failed.";
+                ToastService.ShowError(msg ?? "Failed to create snapshot.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error creating snapshot: {ex.Message}");
+        }
+        finally
+        {
+            _isOperating = false;
+            StateHasChanged();
+        }
+    }
+
+    private void DownloadBackup(string fileName)
+    {
+        Navigation.NavigateTo($"/api/backup/{fileName}/download", forceLoad: true);
+    }
+
+    private void PromptRestore(BackupItemDto backup)
+    {
+        _targetBackup = backup;
+        _confirmRestoreChecked = false;
+        _showRestoreModal = true;
+    }
+
+    private async Task ExecuteRestore()
+    {
+        if (_targetBackup == null) return;
+
+        _isOperating = true;
+        StateHasChanged();
+
+        try
+        {
+            var res = await Http.PostAsync($"/api/backup/{_targetBackup.FileName}/restore", null);
+            if (res.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Database restored successfully! A safety snapshot was archived.");
+                _showRestoreModal = false;
+                await LoadData();
+            }
+            else
+            {
+                var err = await res.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                var msg = err.TryGetProperty("message", out var m) ? m.GetString() : "Restore failed.";
+                ToastService.ShowError(msg ?? "Restore operation failed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error restoring database: {ex.Message}");
+        }
+        finally
+        {
+            _isOperating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PromptDelete(BackupItemDto backup)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to permanently delete backup {backup.FileName}?");
+        if (!confirmed) return;
+
+        try
+        {
+            var res = await Http.DeleteAsync($"/api/backup/{backup.FileName}");
+            if (res.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Backup snapshot deleted.");
+                await LoadData();
+            }
+            else
+            {
+                ToastService.ShowError("Failed to delete snapshot.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error deleting snapshot: {ex.Message}");
+        }
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        _selectedUploadFile = e.File;
+    }
+
+    private async Task ExecuteUpload()
+    {
+        if (_selectedUploadFile == null) return;
+
+        _isOperating = true;
+        StateHasChanged();
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var stream = _selectedUploadFile.OpenReadStream(maxAllowedSize: 500 * 1024 * 1024);
+            var streamContent = new StreamContent(stream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            content.Add(streamContent, "file", _selectedUploadFile.Name);
+
+            var res = await Http.PostAsync("/api/backup/upload", content);
+            if (res.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Backup uploaded and restored successfully!");
+                _showUploadModal = false;
+                _selectedUploadFile = null;
+                await LoadData();
+            }
+            else
+            {
+                var err = await res.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                var msg = err.TryGetProperty("message", out var m) ? m.GetString() : "Upload failed.";
+                ToastService.ShowError(msg ?? "Failed to upload snapshot.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Upload error: {ex.Message}");
+        }
+        finally
+        {
+            _isOperating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        if (_settings == null) return;
+
+        try
+        {
+            var res = await Http.PutAsJsonAsync("/api/backup/settings", _settings);
+            if (res.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Backup settings saved!");
+                _showSettingsModal = false;
+                await LoadData();
+            }
+            else
+            {
+                ToastService.ShowError("Failed to update backup settings.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error saving settings: {ex.Message}");
+        }
+    }
+
+    private string GetBreakdownText()
+    {
+        if (_backups == null || !_backups.Any()) return "No backups created yet";
+        var auto = _backups.Count(b => b.IsAutomatic);
+        var manual = _backups.Count(b => !b.IsAutomatic && !b.IsPreRestore);
+        var pre = _backups.Count(b => b.IsPreRestore);
+        return $"{auto} auto • {manual} manual • {pre} safety";
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        if (bytes <= 0) return "0 B";
+        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+        int i = (int)Math.Floor(Math.Log(bytes, 1024));
+        i = Math.Min(i, suffixes.Length - 1);
+        double num = bytes / Math.Pow(1024, i);
+        return $"{num:F1} {suffixes[i]}";
+    }
+
+    public class BackupOverviewDto
+    {
+        public List<BackupItemDto> Backups { get; set; } = new();
+        public string? PgBinPath { get; set; }
+        public bool IsPgToolsAvailable { get; set; }
+        public long TotalSizeBytes { get; set; }
+        public BackupSettingsDto? Settings { get; set; }
+    }
+
+    public class BackupItemDto
+    {
+        public string FileName { get; set; } = string.Empty;
+        public long SizeBytes { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsAutomatic { get; set; }
+        public bool IsPreRestore { get; set; }
+        public string? Label { get; set; }
+    }
+
+    public class BackupSettingsDto
+    {
+        public bool AutoBackupEnabled { get; set; } = true;
+        public string ScheduledTime { get; set; } = "23:00";
+        public int RetentionCount { get; set; } = 14;
+        public string? CustomPgBinPath { get; set; }
+        public DateTime? LastBackupAt { get; set; }
+        public string? LastBackupStatus { get; set; }
+    }
+}

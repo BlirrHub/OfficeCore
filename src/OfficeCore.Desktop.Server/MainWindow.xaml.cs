@@ -191,6 +191,70 @@ public partial class MainWindow : Window
         ConsoleLogBox.Clear();
     }
 
+    private async void QuickSnapshot_Click(object sender, RoutedEventArgs e)
+    {
+        if (_serverManager.CurrentStatus != ServerStatus.Running)
+        {
+            MessageBox.Show("Please start the server before creating a snapshot.", "Server Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        QuickSnapshotButton.IsEnabled = false;
+        BackupStatusFeedback.Text = "Creating database snapshot...";
+        BackupStatusFeedback.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FACC15"));
+
+        try
+        {
+            using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+            client.DefaultRequestHeaders.Add("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
+            client.DefaultRequestHeaders.Add("X-OfficeCore-Station", "ServerStationOrchestrator");
+
+            var payload = System.Text.Json.JsonSerializer.Serialize(new { Label = "Server Station Quick Snapshot" });
+            var content = new System.Net.Http.StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await client.PostAsync("http://localhost:5026/api/backup/create", content);
+            if (response.IsSuccessStatusCode)
+            {
+                BackupStatusFeedback.Text = "✓ Snapshot generated and verified successfully!";
+                BackupStatusFeedback.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"));
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                BackupStatusFeedback.Text = $"✗ Snapshot failed: {err}";
+                BackupStatusFeedback.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+            }
+        }
+        catch (Exception ex)
+        {
+            BackupStatusFeedback.Text = $"✗ Snapshot error: {ex.Message}";
+            BackupStatusFeedback.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+        }
+        finally
+        {
+            QuickSnapshotButton.IsEnabled = true;
+        }
+    }
+
+    private void OpenBackupConsole_Click(object sender, RoutedEventArgs e)
+    {
+        if (_serverManager.CurrentStatus != ServerStatus.Running)
+        {
+            var res = MessageBox.Show(
+                "The server is not currently running. Would you like to start it now to access the Disaster Recovery Console?",
+                "Server Not Running", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (res == MessageBoxResult.Yes)
+            {
+                SyncConfigFromInputs();
+                _pendingLaunchWhenLive = true;
+                _ = _serverManager.StartServerAsync(_config);
+            }
+            return;
+        }
+
+        ShowWebView("http://localhost:5026/admin/backups");
+    }
+
     private void OnServerStatusChanged(ServerStatus status)
     {
         Dispatcher.Invoke(() =>

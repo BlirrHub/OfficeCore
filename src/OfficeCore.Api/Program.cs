@@ -115,6 +115,8 @@ builder.Services.AddSignalR();
 // Register Background Services
 builder.Services.AddSingleton<OfficeCore.Api.Services.FingerprintDeviceService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<OfficeCore.Api.Services.FingerprintDeviceService>());
+builder.Services.AddSingleton<OfficeCore.Api.Services.BackupService>();
+builder.Services.AddHostedService<OfficeCore.Api.Services.BackupHostedService>();
 
 // Register Application Services
 builder.Services.AddHttpContextAccessor();

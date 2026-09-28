@@ -6,6 +6,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — [2026-09-28] (Pillar 1: Automated Database Backup & 1-Click Restore Disaster Recovery System)
+
+- **Comprehensive Database Backup & Disaster Recovery Architecture (`BackupService.cs`, `BackupHostedService.cs`, `BackupController.cs`):**
+  - Designed and implemented automated PostgreSQL custom-format (`.dump`, `-F c -b -v`) backup engine dynamically resolving PostgreSQL binary toolchains (`pg_dump.exe`, `pg_restore.exe`) from `PATH`, `Program Files\PostgreSQL\*\bin`, and custom path overrides.
+  - Added background worker service (`BackupHostedService`) running every 30 seconds to execute scheduled nightly/daily automated backups at configurable times without interrupting or blocking concurrent API requests.
+  - Implemented automatic **Pre-Restore Safety Snapshots** (`prerestore_*.dump`) executed immediately before any database restoration (from local snapshot or user-uploaded file) guaranteeing zero catastrophic data loss.
+  - Implemented configurable retention policies automatically pruning older routine dumps while permanently safeguarding manual labels and emergency safety snapshots.
+  - Exposed full administrative REST API endpoints: `GET /api/backup` (snapshot inventory & metadata), `POST /api/backup/create` (on-demand manual snapshot), `GET /api/backup/{fileName}/download` (archive file stream), `POST /api/backup/upload` (accepts up to 500MB `.dump`/`.sql` archives), `POST /api/backup/{fileName}/restore` (1-click safety restore), `DELETE /api/backup/{fileName}`, and `GET/PUT /api/backup/settings`.
+  - Added internal loopback station authentication bypass allowing host Server Station orchestrator direct administrative snapshot creation.
+
+- **Web Disaster Recovery Console (`Backups.razor`, `NavMenu.razor`):**
+  - Built an administrative dashboard under `/admin/backups` featuring real-time health indicator cards (Engine Status & pg_dump detection, Total Snapshots, Storage Footprint in MB/GB, Automated Schedule Status).
+  - Implemented search and category filter toolbar (`All`, `Automated`, `Manual`, `Safety Snapshots`).
+  - Added interactive dialogs for Manual Snapshot Creation (with custom descriptive labels), Safety-Gated Restore Wizard (with safety warnings and explicit confirmation checkbox), Upload & Restore Modal (supporting drag-and-drop `.dump`/`.sql`), and Backup Schedule Settings (enabling/disabling auto backups, setting backup time, and retention limit).
+  - Added direct browser file download button to export `.dump` archives off-machine.
+  - Added "Database Backups" navigation entry with database cylinder icon under Admin section in the main sidebar.
+
+- **Desktop Server Station Host Controls (`OfficeCore.Desktop.Server/MainWindow.xaml`, `MainWindow.xaml.cs`):**
+  - Integrated dedicated "Database Backups & Snapshots" host card within the Server Station dashboard below PostgreSQL configuration.
+  - Added "📦 Quick Snapshot" button triggering immediate local snapshot creation with live status feedback.
+  - Added "🛠️ Open Console" button launching the full Web Disaster Recovery Console directly inside the station's embedded Edge WebView2 host.
+
 ### Updated — [2026-09-28] (Office Test-Run Foundation & Strategic Roadmap Prioritization)
 
 - **Prioritized On-Premises Office Test-Run Triad (`ROADMAP.md`):**
