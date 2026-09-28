@@ -11,6 +11,8 @@ using System.Globalization;
 var cultureInfo = new CultureInfo("en-PH");
 CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
 CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+CultureInfo.CurrentCulture = cultureInfo;
+CultureInfo.CurrentUICulture = cultureInfo;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<OfficeCore.Web.Client.App>("#app");

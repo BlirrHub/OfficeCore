@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-09-28] (Chat Double-Message Bug & Currency Symbol Parity to ₱)
+
+- **Chat Double Message Rendering Bug Fixed (`GlobalChatWidget.razor`):**
+  - Resolved race condition where sending a message caused 2 duplicate chat bubbles to appear in the sender's active conversation window.
+  - Implemented dual-stage deduplication:
+    - Updated SignalR `ReceiveMessage` handler to detect incoming messages from the current sender and automatically replace/remove the temporary optimistic message.
+    - Updated `SendMessage()` to only add the HTTP response message if SignalR has not already appended it, and cleaned up optimistic instances on network failure.
+    - Applied `.DistinctBy(m => m.Id)` on the message iteration loop as a fail-safe against any duplicate ID rendering.
+- **Philippine Peso Currency Symbol Parity (`Advances.razor`, `Ledger.razor`, `Program.cs`):**
+  - Replaced hardcoded `$` signs with Philippine Peso (`₱`) across Cash Advance and E-Loan request amount inputs, expense creation inputs, and loan approval installment inputs in `Advances.razor` and `Ledger.razor`.
+  - Configured `CultureInfo.CurrentCulture` and `CultureInfo.CurrentUICulture` to `en-PH` alongside `DefaultThreadCurrentCulture` in `Program.cs` to ensure consistent `₱` formatting across all WebAssembly asynchronous continuations.
+
 ### Updated — [2026-09-28] (Production Server & Client Installers Rebuilt)
 
 - **Production Server & Workstation Installers Rebuilt (`dist/Setup-OfficeCore-Server.exe`, `dist/Setup-OfficeCore-Client.exe`):**
