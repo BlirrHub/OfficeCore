@@ -18,13 +18,20 @@ public class AdvanceRequestController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly TenantService _tenant;
     private readonly IHubContext<NotificationHub> _hub;
+    private readonly IAuditService _audit;
 
-    public AdvanceRequestController(AppDbContext context, UserManager<ApplicationUser> userManager, TenantService tenant, IHubContext<NotificationHub> hub)
+    public AdvanceRequestController(
+        AppDbContext context,
+        UserManager<ApplicationUser> userManager,
+        TenantService tenant,
+        IHubContext<NotificationHub> hub,
+        IAuditService audit)
     {
         _context = context;
         _userManager = userManager;
         _tenant = tenant;
         _hub = hub;
+        _audit = audit;
     }
 
     [HttpGet("my")]
@@ -170,6 +177,13 @@ public class AdvanceRequestController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        var emp = await _context.Employees.Include(e => e.User).FirstOrDefaultAsync(e => e.Id == request.EmployeeId);
+        var empName = $"{emp?.User?.FirstName} {emp?.User?.LastName}".Trim();
+        await _audit.LogAdvanceAsync(
+            AuditActions.Approve,
+            $"Approved {request.Type} advance request of ₱{request.RequestedAmount:N2} for employee {empName}",
+            id);
+
         // Notify org so the employee's Advances page reflects approval live
         var approvedOrgId = request.OrganizationId;
         await _hub.Clients.Group($"org_{approvedOrgId}").SendAsync("AdvanceRequestUpdated", new
@@ -196,6 +210,13 @@ public class AdvanceRequestController : ControllerBase
         request.ResolutionDate = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        var rejEmp = await _context.Employees.Include(e => e.User).FirstOrDefaultAsync(e => e.Id == request.EmployeeId);
+        var rejEmpName = $"{rejEmp?.User?.FirstName} {rejEmp?.User?.LastName}".Trim();
+        await _audit.LogAdvanceAsync(
+            AuditActions.Reject,
+            $"Rejected {request.Type} advance request of ₱{request.RequestedAmount:N2} for employee {rejEmpName}",
+            id);
 
         // Notify org so the employee's Advances page reflects rejection live
         var rejectedOrgId = request.OrganizationId;

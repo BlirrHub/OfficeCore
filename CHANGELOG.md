@@ -6,6 +6,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — [2026-09-28] (Pillar 2: Immutable Audit Trail Logging System & Compliance Ledger)
+
+- **Comprehensive Multi-Tenant Audit Trail Architecture (`AuditLog.cs`, `AuditService.cs`, `AppDbContext.cs`, `AuditController.cs`):**
+  - Designed and implemented multi-tenant `AuditLog` database entity implementing `ITenantEntity` with high-performance composite database indexes on `(OrganizationId, CreatedAt)`, `(OrganizationId, EntityName)`, and `(OrganizationId, Action)`.
+  - Added EF Core database migration (`AddAuditLogsTable`) and executed schema updates on the active PostgreSQL database.
+  - Implemented scoped `IAuditService` / `AuditService` extracting actor identity, IP address, and workstation/client signatures (`X-OfficeCore-Client` / `X-OfficeCore-Station` / `User-Agent`) from `IHttpContextAccessor` and `TenantService`.
+  - Added structured before-and-after state capture (`OldValues` and `NewValues` serialized to JSON) for deep diff inspection of sensitive modifications.
+  - Built administrative audit REST API endpoints (`GET /api/audit`, `GET /api/audit/summary`, `GET /api/audit/export`) supporting multi-criteria filtering by action, category, date range, and keyword search, along with CSV export streaming.
+
+- **Universal Business Operation & Mutation Instrumentation:**
+  - **Payroll Operations (`PayrollController.cs`):** Instrumented draft period creation, payslip re-computations, manual allowance/deduction modifications (with before-and-after net pay diffs), period finalization with total payout summaries, and period deletion.
+  - **Employee & Compensation Rates (`UserController.cs`):** Instrumented new employee creation, profile and work schedule updates, daily wage rate modifications (tracking old rate vs new rate), and employee resignation/termination.
+  - **Leave Management (`LeaveRequestController.cs`):** Instrumented leave status transitions (`Approved`, `Rejected`), admin-directed leave grants, and leave request cancellations.
+  - **Cash Advances & Loans (`AdvanceRequestController.cs`):** Instrumented loan approvals, rejections, and direct admin creation.
+  - **Attendance Punches (`AttendanceController.cs`):** Instrumented manual punch creations, timestamp adjustments, and punch deletions.
+  - **Database & Disaster Recovery (`BackupController.cs`):** Instrumented manual database snapshot creations, snapshot deletions, and emergency/safety database restores.
+
+- **Web Audit Trail & Compliance Console (`AuditLogs.razor`, `NavMenu.razor`):**
+  - Created a compliance dashboard under `/admin/audit-logs` featuring 4 executive metric cards: Total Audit Events, Today's Operations, Financial & Payroll Modifications, and Security & Backup Actions.
+  - Implemented filter toolbar with Category Tabs (`All`, `Payroll`, `Employee & Rates`, `Attendance`, `Leaves`, `Advances`, `Backups`, `Security`), Action Type dropdown, Date Range pickers, and live keyword search.
+  - Implemented interactive ledger table displaying timestamp, actor avatar and IP address, color-coded action badges, category chips, and event descriptions.
+  - Built Audit Event Deep-Inspection Modal with side-by-side JSON diff comparison for modified before-and-after records.
+  - Added one-click **"Export CSV Ledger"** streaming compliant audit reports directly to the user's browser.
+  - Added "Audit Trail" navigation link in `NavMenu.razor` under the Admin section.
+
 ### Added — [2026-09-28] (Pillar 1: Automated Database Backup & 1-Click Restore Disaster Recovery System)
 
 - **Comprehensive Database Backup & Disaster Recovery Architecture (`BackupService.cs`, `BackupHostedService.cs`, `BackupController.cs`):**

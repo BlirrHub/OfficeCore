@@ -14,12 +14,18 @@ public class PayrollController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IPayrollComputationService _computationService;
     private readonly TenantService _tenant;
+    private readonly IAuditService _audit;
 
-    public PayrollController(AppDbContext context, IPayrollComputationService computationService, TenantService tenant)
+    public PayrollController(
+        AppDbContext context,
+        IPayrollComputationService computationService,
+        TenantService tenant,
+        IAuditService audit)
     {
         _context = context;
         _computationService = computationService;
         _tenant = tenant;
+        _audit = audit;
     }
 
     [HttpGet("periods")]
@@ -49,6 +55,8 @@ public class PayrollController : ControllerBase
         period.IsArchived = true;
         await _context.SaveChangesAsync();
         
+        await _audit.LogPayrollAsync(AuditActions.Delete, $"Archived payroll period {period.StartDate:yyyy-MM-dd} to {period.EndDate:yyyy-MM-dd}", id);
+
         return Ok();
     }
 
@@ -65,6 +73,8 @@ public class PayrollController : ControllerBase
 
         _context.PayrollPeriods.Add(period);
         await _context.SaveChangesAsync();
+
+        await _audit.LogPayrollAsync(AuditActions.Create, $"Created draft payroll period {period.StartDate:yyyy-MM-dd} to {period.EndDate:yyyy-MM-dd}", period.Id);
 
         return Ok(period);
     }
@@ -84,6 +94,8 @@ public class PayrollController : ControllerBase
         try
         {
             await _computationService.ComputePayrollPeriodAsync(id);
+            var period = await _context.PayrollPeriods.FindAsync(id);
+            await _audit.LogPayrollAsync(AuditActions.Calculate, $"Computed payroll calculations for period {period?.StartDate:yyyy-MM-dd} to {period?.EndDate:yyyy-MM-dd}", id);
             return Ok();
         }
         catch (Exception ex)
@@ -124,10 +136,21 @@ public class PayrollController : ControllerBase
     [HttpPut("payslips/{id}")]
     public async Task<IActionResult> UpdatePayslip(Guid id, [FromBody] PayslipUpdateRequest request)
     {
-        var payslip = await _context.Payslips.Include(p => p.PayrollPeriod).FirstOrDefaultAsync(p => p.Id == id);
+        var payslip = await _context.Payslips
+            .Include(p => p.PayrollPeriod)
+            .Include(p => p.Employee)
+                .ThenInclude(e => e.User)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (payslip == null) return NotFound();
         if (payslip.PayrollPeriod?.Status == PayrollStatus.Finalized || payslip.PayrollPeriod?.Status == PayrollStatus.Paid)
             return BadRequest("Cannot update a finalized payslip.");
+
+        var oldState = new
+        {
+            payslip.OtherAllowances,
+            payslip.OtherDeductions,
+            payslip.NetPay
+        };
 
         payslip.OtherAllowances = request.OtherAllowances;
         payslip.OtherDeductions = request.OtherDeductions;
@@ -143,6 +166,23 @@ public class PayrollController : ControllerBase
             - payslip.OtherDeductions;
 
         await _context.SaveChangesAsync();
+
+        var newState = new
+        {
+            payslip.OtherAllowances,
+            payslip.OtherDeductions,
+            payslip.NetPay
+        };
+
+        var empName = $"{payslip.Employee?.User?.FirstName} {payslip.Employee?.User?.LastName}".Trim();
+        await _audit.LogAsync(
+            AuditActions.Update,
+            AuditModules.Payroll,
+            payslip.Id.ToString(),
+            $"Modified payslip allowances/deductions for employee {empName} (Net Pay adjusted: ₱{oldState.NetPay:N2} -> ₱{newState.NetPay:N2})",
+            oldState,
+            newState);
+
         return Ok();
     }
 
@@ -194,6 +234,11 @@ public class PayrollController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        var totalNetPay = await _context.Payslips.Where(p => p.PayrollPeriodId == id).SumAsync(p => p.NetPay);
+        var payslipCount = await _context.Payslips.CountAsync(p => p.PayrollPeriodId == id);
+        await _audit.LogPayrollAsync(AuditActions.Approve, $"Finalized and locked payroll period {period.StartDate:yyyy-MM-dd} to {period.EndDate:yyyy-MM-dd} ({payslipCount} employees, Total Net Payout: ₱{totalNetPay:N2})", id);
+
         return Ok();
     }
 }

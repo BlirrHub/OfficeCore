@@ -16,17 +16,20 @@ public class AttendanceController : ControllerBase
     private readonly FingerprintDeviceService _deviceService;
     private readonly IHubContext<OfficeCore.Api.Hubs.AttendanceHub> _hubContext;
     private readonly TenantService _tenant;
+    private readonly IAuditService _audit;
 
     public AttendanceController(
         AppDbContext context, 
         FingerprintDeviceService deviceService, 
         IHubContext<OfficeCore.Api.Hubs.AttendanceHub> hubContext,
-        TenantService tenant)
+        TenantService tenant,
+        IAuditService audit)
     {
         _context = context;
         _deviceService = deviceService;
         _hubContext = hubContext;
         _tenant = tenant;
+        _audit = audit;
     }
 
     // =========================================================================
@@ -318,6 +321,12 @@ public class AttendanceController : ControllerBase
 
         await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
 
+        var empName = $"{employee.User?.FirstName} {employee.User?.LastName}".Trim();
+        await _audit.LogAttendanceAsync(
+            AuditActions.Create,
+            $"Admin adjusted manual attendance punch ({record.Type} at {record.Timestamp:yyyy-MM-dd hh:mm tt}) for employee {empName}",
+            record.Id);
+
         return Ok(new { message = "Attendance record created." });
     }
 
@@ -328,13 +337,22 @@ public class AttendanceController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
-        var record = await _context.AttendanceRecords.FirstOrDefaultAsync(a => a.Id == id && a.OrganizationId == orgId.Value);
+        var record = await _context.AttendanceRecords
+            .Include(a => a.Employee)
+                .ThenInclude(e => e!.User)
+            .FirstOrDefaultAsync(a => a.Id == id && a.OrganizationId == orgId.Value);
         if (record == null) return NotFound("Attendance record not found.");
 
+        var deletedEmpName = $"{record.Employee?.User?.FirstName} {record.Employee?.User?.LastName}".Trim();
         _context.AttendanceRecords.Remove(record);
         await _context.SaveChangesAsync();
 
         await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+
+        await _audit.LogAttendanceAsync(
+            AuditActions.Delete,
+            $"Admin deleted {record.Type} attendance punch dated {record.Timestamp:yyyy-MM-dd hh:mm tt} for employee {deletedEmpName}",
+            id);
 
         return Ok(new { message = "Attendance record deleted." });
     }

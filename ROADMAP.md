@@ -20,7 +20,7 @@ These 3 features form the **Office Test-Run Foundation** to safely operate Offic
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :---: | :--- |
 | **P1** | **Automated Database Backup & 1-Click Restore** | Server Station & Web API | ✅ Completed | Automated scheduled & manual PostgreSQL dumps, safe restore wizard with pre-restore snapshot, retention policy, download archives, and Desktop Server Station controls |
-| **P1** | **Audit Trail Logging System** | Core Web API & Admin | 🟢 Ready | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
+| **P1** | **Audit Trail Logging System** | Core Web API & Admin | ✅ Completed | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
 | **P1** | **Payroll Export & Individual Payslip Generation** | Payroll Engine & Web | 🟢 Ready | Printable PDF/HTML individual employee payslips (with company branding & signature lines) and complete Payroll Run Excel/CSV export |
 | **P2** | **Server Installer Silent PostgreSQL Check/Install** | Server Installer | 🟡 In Planning | Setup wizard checks if PostgreSQL is installed; if missing, runs silent embedded setup |
 | **P2** | In-App Auto-Updater for Server & Client | Desktop Apps | 🟣 Backlog | Background version check against GitHub releases or API endpoint |

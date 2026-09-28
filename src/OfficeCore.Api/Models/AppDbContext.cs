@@ -63,6 +63,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
     public DbSet<TimeOffPolicy> TimeOffPolicies { get; set; }
     public DbSet<EmployeeLocationPing> EmployeeLocationPings { get; set; }
 
+    // Audit Trail System
+    public DbSet<AuditLog> AuditLogs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -232,5 +235,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
         builder.Entity<TimeOffPolicy>()
             .Property(p => p.DefaultDaysPerYear)
             .HasPrecision(18, 2);
+
+        // Audit Log Configuration & High Performance Query Indexes
+        builder.Entity<AuditLog>(b =>
+        {
+            b.HasOne(a => a.Organization)
+                .WithMany()
+                .HasForeignKey(a => a.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(a => new { a.OrganizationId, a.CreatedAt });
+            b.HasIndex(a => new { a.OrganizationId, a.EntityName });
+            b.HasIndex(a => new { a.OrganizationId, a.Action });
+        });
     }
 }

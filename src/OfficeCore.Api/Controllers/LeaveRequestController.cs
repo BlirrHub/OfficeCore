@@ -20,14 +20,22 @@ public class LeaveRequestController : ControllerBase
     private readonly IWebHostEnvironment _env;
     private readonly TenantService _tenant;
     private readonly IHubContext<NotificationHub> _hub;
+    private readonly IAuditService _audit;
 
-    public LeaveRequestController(AppDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, TenantService tenant, IHubContext<NotificationHub> hub)
+    public LeaveRequestController(
+        AppDbContext context,
+        UserManager<ApplicationUser> userManager,
+        IWebHostEnvironment env,
+        TenantService tenant,
+        IHubContext<NotificationHub> hub,
+        IAuditService audit)
     {
         _context = context;
         _userManager = userManager;
         _env = env;
         _tenant = tenant;
         _hub = hub;
+        _audit = audit;
     }
 
     [HttpGet("my")]
@@ -136,11 +144,25 @@ public class LeaveRequestController : ControllerBase
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateLeaveStatusDto request)
     {
         var orgId = _tenant.GetActiveOrganizationId();
-        var leaveRequest = await _context.LeaveRequests.FindAsync(id);
+        var leaveRequest = await _context.LeaveRequests
+            .Include(r => r.Employee)
+                .ThenInclude(e => e.User)
+            .FirstOrDefaultAsync(r => r.Id == id);
         if (leaveRequest == null) return NotFound();
 
+        var oldStatus = leaveRequest.Status;
         leaveRequest.Status = request.Status;
         await _context.SaveChangesAsync();
+
+        var empName = $"{leaveRequest.Employee?.User?.FirstName} {leaveRequest.Employee?.User?.LastName}".Trim();
+        var action = request.Status == LeaveRequestStatus.Approved ? AuditActions.Approve :
+                     (request.Status == LeaveRequestStatus.Rejected ? AuditActions.Reject : AuditActions.Update);
+
+        await _audit.LogLeaveAsync(
+            action,
+            $"{action} leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})",
+            id,
+            new { OldStatus = oldStatus.ToString(), NewStatus = request.Status.ToString() });
 
         // Notify all org members so the employee sees the status change live
         if (orgId.HasValue)
@@ -181,6 +203,12 @@ public class LeaveRequestController : ControllerBase
 
         _context.LeaveRequests.Add(leaveRequest);
         await _context.SaveChangesAsync();
+
+        var grantedEmpName = $"{employee.User?.FirstName} {employee.User?.LastName}".Trim();
+        await _audit.LogLeaveAsync(
+            AuditActions.Create,
+            $"Admin issued approved {request.Type} leave for employee {grantedEmpName} ({request.StartDate:yyyy-MM-dd} to {request.EndDate:yyyy-MM-dd})",
+            leaveRequest.Id);
 
         // Notify org members of the newly approved leave
         await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated", new

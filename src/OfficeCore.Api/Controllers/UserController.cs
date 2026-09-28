@@ -15,12 +15,18 @@ public class UserController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppDbContext _context;
     private readonly TenantService _tenant;
+    private readonly IAuditService _audit;
 
-    public UserController(UserManager<ApplicationUser> userManager, AppDbContext context, TenantService tenant)
+    public UserController(
+        UserManager<ApplicationUser> userManager,
+        AppDbContext context,
+        TenantService tenant,
+        IAuditService audit)
     {
         _userManager = userManager;
         _context = context;
         _tenant = tenant;
+        _audit = audit;
     }
 
     [HttpGet]
@@ -146,6 +152,11 @@ public class UserController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        await _audit.LogEmployeeAsync(
+            AuditActions.Create,
+            $"Created new employee profile for {request.FirstName} {request.LastName} ({request.Email}, ID: {request.EmployeeId}, Daily Rate: ₱{request.DailyRate:N2})",
+            employee.Id);
+
         return Ok(new { message = "User created successfully", userId = user.Id });
     }
 
@@ -162,6 +173,15 @@ public class UserController : ControllerBase
 
         if (employee == null || employee.User == null)
             return NotFound();
+
+        var oldState = new
+        {
+            employee.EmployeeId,
+            employee.IsActive,
+            employee.DailyRate,
+            employee.UseCustomDailyRate,
+            employee.WorkScheduleId
+        };
 
         employee.EmployeeId = request.EmployeeId;
         employee.IsActive = request.IsActive;
@@ -213,6 +233,28 @@ public class UserController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        var newState = new
+        {
+            employee.EmployeeId,
+            employee.IsActive,
+            employee.DailyRate,
+            employee.UseCustomDailyRate,
+            employee.WorkScheduleId
+        };
+
+        var empFullName = $"{employee.User.FirstName} {employee.User.LastName}".Trim();
+        var rateChangeMsg = oldState.DailyRate != newState.DailyRate
+            ? $" (Daily Rate updated: ₱{oldState.DailyRate:N2} -> ₱{newState.DailyRate:N2})"
+            : "";
+
+        await _audit.LogAsync(
+            AuditActions.Update,
+            AuditModules.Employee,
+            employee.Id.ToString(),
+            $"Updated employee profile for {empFullName}{rateChangeMsg}",
+            oldState,
+            newState);
+
         return Ok(new { message = "User updated successfully" });
     }
 
@@ -222,7 +264,9 @@ public class UserController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
-        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
+        var employee = await _context.Employees
+            .Include(e => e.User)
+            .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
         if (employee == null)
             return NotFound();
 
@@ -231,6 +275,12 @@ public class UserController : ControllerBase
 
         _context.Employees.Update(employee);
         await _context.SaveChangesAsync();
+
+        var name = $"{employee.User?.FirstName} {employee.User?.LastName}".Trim();
+        await _audit.LogEmployeeAsync(
+            AuditActions.Security,
+            $"Processed resignation/termination for employee {name} (Effective Date: {request.ResignedDate:yyyy-MM-dd})",
+            employee.Id);
 
         return Ok(new { message = "Employee resigned and archived successfully" });
     }
