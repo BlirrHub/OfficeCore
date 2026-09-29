@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-09-29] (Registration Phone OTP Verification & Browser Password Eye Parity)
+
+- **Registration Phone OTP Lifecycle Fix (`SmsOtpService.cs`, `AuthController.cs`):**
+  - Resolved `Registration failed. Invalid or expired phone verification code.` error occurring after successful OTP code verification.
+  - Added `_verifiedPhones` cache with 15-minute validity window in `SmsOtpService` and `IsPhoneVerified` check in `AuthController.Register` so users can proceed seamlessly to account creation immediately after verifying their phone code.
+- **Duplicate Password Reveal Eye Fix (`app.css`):**
+  - Suppressed browser native password reveal icon (`::-ms-reveal` and `::-ms-clear`) so Edge and Chromium browsers only render the single custom styled visibility toggle icon.
+
 ### Added & Enhanced — [2026-09-29] (Simplified Minimalist Welcome Screen)
 
 - **Minimalist Welcome Landing Page (`Home.razor`):**

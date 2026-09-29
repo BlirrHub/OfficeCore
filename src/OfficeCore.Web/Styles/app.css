@@ -199,3 +199,9 @@ html.light * {
     scrollbar-width: thin;
     scrollbar-color: #3f3f46 transparent;
 }
+
+/* Hide Microsoft Edge / IE native password reveal button to prevent duplicate eye icons */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}

@@ -9,6 +9,7 @@ public interface ISmsOtpService
 {
     Task<(bool Success, string Message, string? DebugCode)> SendOtpAsync(string phoneNumber);
     bool VerifyOtp(string phoneNumber, string code);
+    bool IsPhoneVerified(string phoneNumber, string? code = null);
 }
 
 public class SmsOtpService : ISmsOtpService
@@ -24,6 +25,9 @@ public class SmsOtpService : ISmsOtpService
 
     // In-memory thread-safe store for OTP codes with expiration
     private static readonly ConcurrentDictionary<string, OtpEntry> _otpStore = new();
+    // Cache for phone numbers that have been successfully verified within the last 15 minutes
+    private static readonly ConcurrentDictionary<string, DateTime> _verifiedPhones = new();
+
 
     public SmsOtpService(ILogger<SmsOtpService> logger)
     {
@@ -99,6 +103,8 @@ public class SmsOtpService : ISmsOtpService
 
             if (entry.Code == code.Trim())
             {
+                // Record verified status for 15 minutes
+                _verifiedPhones[normalized] = DateTime.UtcNow.AddMinutes(15);
                 // Remove upon successful verification
                 _otpStore.TryRemove(normalized, out _);
                 return true;
@@ -107,4 +113,29 @@ public class SmsOtpService : ISmsOtpService
 
         return false;
     }
+
+    public bool IsPhoneVerified(string phoneNumber, string? code = null)
+    {
+        var normalized = NormalizePhoneNumber(phoneNumber);
+        if (string.IsNullOrWhiteSpace(normalized)) return false;
+
+        // If it was already verified within the last 15 minutes, accept
+        if (_verifiedPhones.TryGetValue(normalized, out var expiresAt))
+        {
+            if (DateTime.UtcNow <= expiresAt)
+            {
+                return true;
+            }
+            _verifiedPhones.TryRemove(normalized, out _);
+        }
+
+        // If a code is provided, try verifying against the active OTP store as fallback
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            return VerifyOtp(phoneNumber, code);
+        }
+
+        return false;
+    }
 }
+

@@ -94,17 +94,13 @@ public class AuthController : ControllerBase
         // Validate phone number and OTP code if provided or required
         if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
         {
-            if (string.IsNullOrWhiteSpace(request.OtpCode))
-            {
-                return BadRequest("Phone verification code is required.");
-            }
-
-            bool isOtpValid = _smsOtpService.VerifyOtp(request.PhoneNumber, request.OtpCode);
-            if (!isOtpValid)
+            bool isPhoneVerified = _smsOtpService.IsPhoneVerified(request.PhoneNumber, request.OtpCode);
+            if (!isPhoneVerified)
             {
                 return BadRequest("Invalid or expired phone verification code.");
             }
         }
+
 
         var user = new ApplicationUser
         {
