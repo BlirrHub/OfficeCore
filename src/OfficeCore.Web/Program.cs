@@ -37,7 +37,7 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 builder.Services.AddAuthorizationCore(options =>
 {
     var modules = new[] { 
-        "Dashboard", "Clients", "Attendance", "Boards", "Payroll", 
+        "Dashboard", "MyAttendance", "Clients", "Attendance", "Boards", "Payroll", 
         "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", 
         "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals",
         "Backups", "AuditLogs"

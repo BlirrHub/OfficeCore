@@ -143,37 +143,51 @@ OfficeCore uses a dynamic, tenant-scoped claims system:
 - It looks up the user's `Employee` record and assigned `EmployeeRole` entries for that specific organization.
 - It dynamically injects `Claim("ModuleAccess", claimValue)` and `Claim(ClaimTypes.Role, roleName)` into the `ClaimsPrincipal`.
 
-### 2. Available Modules & Policy Authorization
-Controllers use policies named `Require{ModuleName}` defined in `Program.cs`:
+### 2. Default Modules vs. Configurable Role Modules
+OfficeCore enforces a clear distinction between **Default Modules** (available unconditionally to every authenticated employee in a workspace) and **Configurable Modules** (customizable per role in Role Management):
 
-| Module Claim | ASP.NET Policy | Typical Responsibilities |
-|---|---|---|
-| `Dashboard` | `RequireDashboard` | Organizational overview & metrics |
-| `Attendance` | `RequireAttendance` | Company-wide attendance records, device settings, manual adjustments |
-| `WorkSchedules` | `RequireWorkSchedules` | Shift definitions, break rules, overtime policies |
-| `TimeOff` | `RequireTimeOff` | Company holiday calendar, official closures |
-| `MyLeaves` | `RequireMyLeaves` | Personal leave request submission and history |
-| `LeaveApprovals` | `RequireLeaveApprovals` | Managerial review, approval, or rejection of employee leaves |
-| `UserManagement` | `RequireUserManagement` | Employee invitation, salary rates, role assignments |
-| `RoleManagement` | `RequireRoleManagement` | Custom role creation and permission checklists |
-| `PayrollSettings` | `RequirePayrollSettings` | Tax, SSS, PhilHealth, Pag-IBIG deduction brackets |
-| `Payroll` | `RequirePayroll` | Payroll cutoff calculation, batch approval, payslip generation |
-| `Advances` | `RequireAdvances` | Cash advances and E-Loans processing |
-| `Ledger` | `RequireLedger` | Employee custom deductions and dynamic allowances |
-| `Clients` | `RequireClients` | Customer CRM and business directory |
-| `Invoices` | `RequireInvoices` | Billing, invoice generation, payment tracking |
-| `Boards` | `RequireBoards` | Kanban project boards and task cards |
-| `Settings` | `RequireSettings` | Organization profile, logo, address, workspace deletion |
+#### Default Modules (Always Active for All Accounts)
+These modules are never toggled or revoked in roles; they are automatically granted via `OrganizationClaimsTransformation` and `CookieAuthStateProvider`:
+1. **Dashboard** (`/dashboard`): Workspace summary, personal metrics, team headcount, and activity feeds.
+2. **My Attendance** (`/my-attendance`): Personal workstation time clock, punch in/out, shift details, and punch history.
+3. **My Leaves** (`/myleaves`): Personal sick and vacation leave filing and approval status.
+4. **Advances & Loans** (`/advances`): Personal cash advances and loan requests.
+
+#### Configurable Module Categories (Navigation & Role Management)
+- **Main:**
+  - `Dashboard` (Default)
+  - `My Attendance` (Default)
+  - `Boards` (`RequireBoards`)
+  - `My Leaves` (Default)
+  - `Advances & Loans` (Default — moved under Main)
+- **Finance:**
+  - `Ledger` (`RequireLedger`): Dynamic allowances and custom employee deductions.
+  - `Payroll` (`RequirePayroll`): Batch computation, payroll approval, and payslip distribution.
+  - `Invoices` (`RequireInvoices`): Billing, client invoices, and payment tracking.
+- **Administration:**
+  - `Clients` (`RequireClients` — moved under Administration): Customer CRM directory.
+  - `Attendance` (`RequireAttendance` — moved under Administration): Company-wide biometric logs, manual punch adjustments, and device integration.
+  - `Users` (`RequireUsers`): Workspace staff directory and invitations.
+  - `Roles` (`RequireRoles`): Custom role creation and permission matrices.
+  - `LeaveApprovals` (`RequireLeaveApprovals`): Management review and approval of leave requests.
+  - `WorkSchedules` (`RequireWorkSchedules`): Shifts, break policies, and overtime configuration.
+  - `TimeOff` (`RequireTimeOff`): Workspace holiday calendars and official closures.
+  - `Locations` (`RequireLocations`): Physical office locations and geolocation fences.
+  - `Organization` (`RequireOrganization`): Workspace profile and settings.
+  - `Backups` (`RequireBackups`): Automated and manual PostgreSQL database backups.
+  - `AuditLogs` (`RequireAuditLogs`): Security and compliance audit trail.
 
 ### 3. ESS vs MSS Architectural Pattern
 - **Employee Self-Service (ESS):** Standard employees must always have access to view and manage their own records without needing management module permissions:
-  - `GET /api/leaverequest/my` (`[Authorize]`)
-  - Personal attendance clock-in / clock-out and log history (`[Authorize]`)
+  - `GET /api/attendance/my` & `POST /api/attendance/punch` (`[Authorize]`)
+  - `GET /api/leaverequest/my` & `POST /api/leaverequest` (`[Authorize]`)
+  - `GET /api/advancerequest/my` & `POST /api/advancerequest` (`[Authorize]`)
   - Personal profile and password changes (`[Authorize]`)
 - **Management Self-Service (MSS):** Company-wide management and modification endpoints are strictly gated:
+  - `GET /api/attendance` & `POST /api/attendance/admin-create` (`[Authorize(Policy = "RequireAttendance")]`)
   - `GET /api/leaverequest` (`[Authorize(Policy = "RequireLeaveApprovals")]`)
-  - `POST /api/attendance/adjust` (`[Authorize(Policy = "RequireAttendance")]`)
   - `POST /api/payroll/generate` (`[Authorize(Policy = "RequirePayroll")]`)
+  - `GET /api/client` (`[Authorize(Policy = "RequireClients")]`)
 
 ---
 

@@ -1,5 +1,5 @@
 @page "/dashboard"
-@attribute [Authorize(Policy = "RequireDashboard")]
+@attribute [Authorize]
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
 @inject HttpClient Http
@@ -97,7 +97,7 @@
             <!-- Metric 1: Headcount -->
             @if (_stats.Permissions.CanManageUsers || _stats.Permissions.CanManageAttendance)
             {
-                var headcountUrl = _stats.Permissions.CanManageUsers ? "/admin/users" : "/attendance";
+                var headcountUrl = _stats.Permissions.CanManageUsers ? "/admin/users" : "/admin/attendance";
                 <a href="@headcountUrl" class="glass-card-interactive rounded-2xl p-5 block group">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-medium text-zinc-400">Team Headcount</span>
@@ -130,7 +130,7 @@
             <!-- Metric 2: Today's Team Attendance -->
             @if (_stats.Permissions.CanManageAttendance)
             {
-                <a href="/attendance" class="glass-card-interactive rounded-2xl p-5 block group">
+                <a href="/admin/attendance" class="glass-card-interactive rounded-2xl p-5 block group">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-medium text-zinc-400">Team Attendance Today</span>
                         <div class="size-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
@@ -228,7 +228,7 @@
                 }
                 @if (_stats.Permissions.CanManageAttendance)
                 {
-                    <a href="/attendance" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                    <a href="/admin/attendance" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
                         <span class="size-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">⏱️</span>
                         <span>Attendance Admin</span>
                     </a>
@@ -327,7 +327,7 @@
                                 {
                                     var actUrl = act.Category switch
                                     {
-                                        "Attendance" => "/attendance",
+                                        "Attendance" => "/admin/attendance",
                                         "Leave" => "/admin/leave-approvals",
                                         "Advance" => "/ledger",
                                         "Location" => "/locations",
@@ -406,7 +406,7 @@
              ========================================== -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             <!-- Card 1: My Attendance Today -->
-            <a href="/attendance" class="glass-card-interactive rounded-2xl p-5 block group">
+            <a href="/my-attendance" class="glass-card-interactive rounded-2xl p-5 block group">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-medium text-zinc-400">My Attendance Today</span>
                     <div class="size-9 rounded-xl @(_stats?.PersonalClockedInToday == true ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-400") border flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -507,7 +507,7 @@
         <div class="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80">
             <p class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">My Shortcuts</p>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <a href="/attendance" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
+                <a href="/my-attendance" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium text-zinc-200 group">
                     <span class="size-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">⏱️</span>
                     <span>Clock In / Out</span>
                 </a>
@@ -586,7 +586,7 @@
                             {
                                 var personalActUrl = act.Category switch
                                 {
-                                    "Attendance" => "/attendance",
+                                    "Attendance" => "/my-attendance",
                                     "Leave" => "/myleaves",
                                     "Advance" => "/advances",
                                     "Task" => personalBoardUrl,

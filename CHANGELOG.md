@@ -6,6 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Reorganized — [2026-09-29] (Default Modules Isolation, Standalone My Attendance & Navigation Hierarchy Realignment)
+
+- **Default Modules Configuration for All Accounts:**
+  - Standardized **Dashboard**, **My Attendance**, **My Leaves**, and **Advances & Loans** as **Default Modules** available unconditionally to all authenticated accounts in an organization.
+  - Removed `Dashboard`, `MyLeaves`, and `Advances` from `ModuleCategories` in `RoleManagement.razor`, preventing administrators from revoking core employee self-service capabilities.
+  - Added an informative notice banner inside `RoleManagement.razor` clarifying default module access for roles.
+  - Updated `OrganizationClaimsTransformation.cs` to inject default module claims (`Dashboard`, `MyAttendance`, `MyLeaves`, `Advances`) for all authenticated workspace members.
+  - Updated `AuthController.cs` (`/api/auth/me`) to include default modules in the user profile response.
+  - Hardened `CookieAuthStateProvider.cs` to ensure default module access claims are always present in the client-side `ClaimsPrincipal`.
+  - Updated `Dashboard.razor` and `Advances.razor` page authorization directives from strict module policies to `@attribute [Authorize]`.
+- **Standalone My Attendance Module (`MyAttendance.razor`):**
+  - Extracted personal attendance tracking into a dedicated standalone Blazor page (`/my-attendance` and `/myattendance`), authorized for all accounts (`@attribute [Authorize]`).
+  - Features real-time workstation digital clock, live CLOCKED IN / CLOCKED OUT status indicator, one-click Punch In/Out button, schedule details, and 4 personal metric cards (Hours Today, Days Present, Monthly Accumulated Hours, Scheduled Shift).
+  - Includes personal punch log table with date-range filters, punch type filters (All, Clock In, Clock Out), and live SignalR auto-refresh via `attendanceHub`.
+  - Provides conditional header link for managers to seamlessly navigate to Company Attendance.
+- **Attendance Management Refactoring (`Attendance.razor`):**
+  - Streamlined `Attendance.razor` (`/admin/attendance` and `/attendance`) into a dedicated Management Self-Service (MSS) module protected by `@attribute [Authorize(Policy = "RequireAttendance")]`.
+  - Features two management tabs: **Company Records** (multi-employee punch logs, employee search, date filters, manual entry modal, and deletion) and **Device Settings** (biometric scanner integration and fingerprint enrollment).
+  - Added direct header action linking managers back to their personal `My Attendance` dashboard.
+- **Navigation Hierarchy & Grouping Realignment (`NavMenu.razor`):**
+  - **Main Group:** Organized to host core daily workflows: `Dashboard` (default), `My Attendance` (default), `Boards` (`RequireBoards`), `My Leaves` (default), and `Advances & Loans` (default — moved under Main).
+  - **Finance Group:** Gated by `RequireLedger`, `RequirePayroll`, or `RequireInvoices`: `Ledger`, `Payroll`, and `Invoices`.
+  - **Administration Group:** Gated by administrative claims: `Clients` (moved under Administration), `Attendance` (moved under Administration), `Users`, `Roles`, `Leave Approvals`, `Work Schedules`, `Time Off & Holidays`, `Locations`, `Database Backups`, and `Audit Trail`.
+  - Updated `Dashboard.razor` quick shortcuts, headcount links, and recent activity feeds to route personal actions to `/my-attendance` and team management to `/admin/attendance`.
+  - Rebuilt solution with 0 errors and 0 compiler warnings, and recompiled Tailwind CSS v4 assets.
+
 ### Security & Bug Fixes — [2026-09-29] (Comprehensive Codebase Audit, Multi-Tenancy IDOR Hardening, SignalR Isolation & RBAC Parity)
 
 - **Comprehensive Security & Bug Audit:**

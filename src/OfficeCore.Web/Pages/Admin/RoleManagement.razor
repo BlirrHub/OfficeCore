@@ -101,7 +101,15 @@
             </div>
 
             <div>
-                <label class="block text-xs font-medium text-zinc-400 mb-2">Module Access</label>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-xs font-medium text-zinc-400">Configurable Module Access</label>
+                </div>
+                <div class="p-3 mb-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80 text-xs text-zinc-400 flex items-start gap-2">
+                    <svg class="size-4 text-fuchsia-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                    <span>
+                        <strong class="text-zinc-200">Default modules:</strong> Dashboard, My Attendance, My Leaves, and Advances & Loans are enabled by default for all accounts.
+                    </span>
+                </div>
                 <div class="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
                     @foreach (var category in ModuleCategories)
                     {
@@ -163,9 +171,9 @@
 @code {
     private static readonly Dictionary<string, string[]> ModuleCategories = new()
     {
-        { "Main", ["Dashboard", "Clients", "Attendance", "Boards", "MyLeaves"] },
-        { "Finance", ["Advances", "Ledger", "Payroll", "Invoices"] },
-        { "Administration", ["Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization", "Backups", "AuditLogs"] }
+        { "Main", ["Boards"] },
+        { "Finance", ["Ledger", "Payroll", "Invoices"] },
+        { "Administration", ["Clients", "Attendance", "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization", "Backups", "AuditLogs"] }
     };
 
     private List<RoleDto>? _roles;

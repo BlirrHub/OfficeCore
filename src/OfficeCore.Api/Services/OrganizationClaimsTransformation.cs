@@ -59,6 +59,12 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
         var claimsIdentity = new ClaimsIdentity();
         claimsIdentity.AddClaim(new Claim("TenantTransformed", "true"));
 
+        // Default modules for all authenticated accounts in the workspace
+        claimsIdentity.AddClaim(new Claim("ModuleAccess", "Dashboard"));
+        claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyAttendance"));
+        claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyLeaves"));
+        claimsIdentity.AddClaim(new Claim("ModuleAccess", "Advances"));
+
         foreach (var er in employeeRoles)
         {
             if (er.Role == null) continue;
