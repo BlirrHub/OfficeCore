@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Enhanced — [2026-09-29] (Simplified Minimalist Welcome Screen)
+
+- **Minimalist Welcome Landing Page (`Home.razor`):**
+  - Re-designed the landing page into a clean, unexaggerated welcome screen with a scrollable design.
+  - Simplified the layout to focus on clean branding, quick "Sign In" / "Create Account" or "Continue to Workspace" call-to-actions, and straightforward feature cards (Time & Attendance, Payroll Engine, Tasks & Collaboration).
+  - Maintained smooth scrollability and theme parity (dark and light modes).
+
 ### Added & Enhanced — [2026-09-29] (On-Premises Client Branching Strategy & ACBA Biometric Importer Extraction)
 
 - **On-Premises Client Branching Model (`ACBA` Branch):**
