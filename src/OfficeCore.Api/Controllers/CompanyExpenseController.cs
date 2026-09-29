@@ -59,7 +59,11 @@ public class CompanyExpenseController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteExpense(Guid id)
     {
-        var expense = await _context.CompanyExpenses.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var expense = await _context.CompanyExpenses
+            .FirstOrDefaultAsync(e => e.Id == id && e.OrganizationId == orgId.Value);
         if (expense == null) return NotFound();
 
         _context.CompanyExpenses.Remove(expense);

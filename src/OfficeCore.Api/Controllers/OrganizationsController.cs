@@ -115,7 +115,8 @@ public class OrganizationsController : ControllerBase
             "Dashboard", "Clients", "Attendance", "Boards",
             "Payroll", "Invoices", "Ledger",
             "WorkSchedules", "TimeOff", "Locations",
-            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals"
+            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals",
+            "Backups", "AuditLogs"
         };
 
         foreach (var module in modules)

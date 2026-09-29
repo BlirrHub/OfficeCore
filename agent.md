@@ -1,6 +1,26 @@
 # OfficeCore — AI Agent Operating Guide & Project Standards
 
-This document establishes the architecture rules, project conventions, technical guidelines, and development workflows for AI agents and engineers working on the **OfficeCore** codebase.
+> **Notice:** This file establishes the architecture rules, project conventions, technical guidelines, development workflows, and mandatory operating rules for AI agents and engineers working on the **OfficeCore** codebase. All directives here are strictly enforced.
+
+---
+
+## 0. Mandatory Operating Directives & Workflow
+
+1. **CHANGELOG Updates (Strict Add-Only Policy):**
+   - After completing any update, bug fix, refactor, or feature, **ALWAYS update [CHANGELOG.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/CHANGELOG.md)** under `## [Unreleased]`.
+   - **DO NOT REMOVE OR DELETE ANYTHING:** You must never remove, truncate, or overwrite existing entries, milestones, or history from `CHANGELOG.md`. Only append new entries or update recent entries with additional details.
+2. **Occasional & Timely Git Commits:**
+   - Commit changes to Git frequently and whenever completing a feature, bug fix, or milestone.
+   - Do not leave modifications uncommitted across tasks.
+   - Use clean, conventional commit messages (`feat:`, `fix:`, `refactor:`, `chore:`).
+3. **Multi-Tenancy & Tenant Scoping:**
+   - Every workspace-scoped entity must implement `ITenantEntity` and include `OrganizationId`. All queries and mutations in controllers must be scoped to the active tenant.
+4. **Theme Parity:**
+   - All pages and components must support both **Dark Mode** and **Light Mode** seamlessly with no contrast or visibility flaws.
+5. **Tailwind CSS v4:**
+   - Whenever adding or altering Tailwind classes, run `npm.cmd run css:build` in `src/OfficeCore.Web` so they are compiled to `wwwroot/app.css`.
+6. **Preserve Existing Functionality:**
+   - Do not delete working code, existing entity configurations, or docstrings unless explicitly instructed.
 
 ---
 

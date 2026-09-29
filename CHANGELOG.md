@@ -6,6 +6,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security & Bug Fixes — [2026-09-29] (Comprehensive Codebase Audit, Multi-Tenancy IDOR Hardening, SignalR Isolation & RBAC Parity)
+
+- **Comprehensive Security & Bug Audit:**
+  - Performed deep architectural and code review of all controllers, services, SignalR hubs, and Blazor pages across the entire repository.
+  - Resolved git tracking case-collision by consolidating and merging `AGENTS.md` into `agent.md` and adding `.agents/rules/operating_rules.md` for native Antigravity IDE configuration loading.
+- **Multi-Tenancy IDOR Vulnerability Patches:**
+  - **`AdvanceRequestController.cs`:** Removed vulnerable unauthenticated `[HttpDelete("admin-cleanup")]` with `[AllowAnonymous]`. Enforced active tenant scoping on `ApproveRequest`, `RejectRequest`, and `DeleteRequest`. Guarded `GetActiveOrganizationId()` null references.
+  - **`LeaveRequestController.cs`:** Enforced tenant validation in `UpdateStatus` and `DeleteRequest`. Added null-safe projections for employee user names to prevent runtime `NullReferenceException` crashes.
+  - **`PayrollController.cs`:** Enforced tenant scoping on `DeletePayrollPeriod`, `ComputePayroll`, `GetPayslips`, `UpdatePayslip`, and `FinalizePeriod`. Fixed date-type comparison mismatch between `DateOnly` and `DateTime` in E-Loan deduction period calculations.
+  - **`CompanyExpenseController.cs`:** Patched IDOR multi-tenancy leak in `DeleteExpense` by enforcing `e.OrganizationId == orgId.Value`.
+  - **`AttendanceController.cs`:** Scoped `GetEmployeeFingerprints`, `DeleteFingerprint`, and `EnrollSuccess` to active organization. Replaced global SignalR broadcasts (`Clients.All`) with tenant-scoped group broadcasts (`Clients.Group($"org_{orgId}")`).
+  - **`BoardsController.cs`:** Patched IDOR multi-tenancy vulnerabilities and added active tenant scoping to `CreateList`, `CreateCard`, `UpdateCard`, `MoveCard`, `DeleteList`, `DeleteCard`, `MoveList`, `CreateLabel`, `AddLabelToCard`, `RemoveLabelFromCard`, `AddComment`, `AddChecklist`, `AddChecklistItem`, `ToggleChecklistItem`, and `DeleteChecklist`. Fixed `targetEmployee == null` dereference in `AddMember`. Added comprehensive null-safe navigation for board creator, assignees, and comment user projections.
+- **SignalR Real-Time Security Hardening:**
+  - **`AttendanceHub.cs`:** Added `[Authorize]` attribute and automatic enrollment into the caller's organization group (`$"org_{orgId}"`) on connection, preventing unauthorized or cross-tenant live attendance event exposure.
+  - **`BoardHub.cs`:** Added `[Authorize]` attribute and validated board tenant ownership in `JoinBoardGroup`, preventing unauthorized users or other organizations from subscribing to board updates.
+  - **`ChatHub.cs`:** Replaced unsafe `Guid.Parse` with `Guid.TryParse` in `JoinRoom` to prevent unhandled 500 exceptions on malformed input.
+- **RBAC & Module Policy Synchronization:**
+  - **`OrganizationsController.cs`:** Added missing `"Backups"` and `"AuditLogs"` module access claims to newly created organization admin roles.
+  - **`TimeOffPoliciesController.cs`:** Added `[Authorize(Policy = "RequireTimeOff")]` attribute to `CreatePolicy`, `UpdatePolicy`, and `DeletePolicy` to prevent regular employees from altering organization leave policies.
+  - **`LocationsController.cs`:** Added `[Authorize(Policy = "RequireLocations")]` to `GetActiveFieldEmployees` to protect live employee GPS tracking data.
+  - **`OfficeCore.Web/Program.cs`:** Added `"Backups"` and `"AuditLogs"` policies to Blazor WebAssembly authorization services. Enhanced `ApiBaseUrl` resolution to respect configured base URIs.
+  - **Blazor Pages Authorization:** Updated `Backups.razor` and `AuditLogs.razor` to require `RequireBackups` and `RequireAuditLogs`. Updated `WorkSchedules.razor`, `RoleManagement.razor`, and `LeaveApprovals.razor` to use policy-based authorization (`RequireWorkSchedules`, `RequireRoles`, `RequireLeaveApprovals`).
+- **Registration & Performance Improvements:**
+  - **`AuthController.cs`:** Ensured `PhoneNumberConfirmed` is set to `false` upon user registration unless verified via phone OTP.
+  - **`ChatController.cs`:** Eliminated N+1 query problem by replacing per-room `CountAsync` loop with a single grouped join query for unread chat message counts.
+  - **Clean Compiler Build:** Resolved all warnings across the entire solution, achieving 0 compiler warnings and 0 errors. Rebuilt Tailwind CSS v4 assets.
+
 ### Added & Enhanced — [2026-09-29] (Free Email OTP Verification for User Registration)
 
 - **Email OTP Verification Engine (`EmailOtpService.cs`, `AuthController.cs`, `SignUp.razor`, `appsettings.json`):**

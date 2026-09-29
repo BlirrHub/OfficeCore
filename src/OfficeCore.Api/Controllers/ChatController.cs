@@ -54,26 +54,19 @@ public class ChatController : ControllerBase
 
         var lastMessageByRoom = lastMessages.ToDictionary(m => m.ChatRoomId);
 
-        // Fetch unread counts in bulk (one query)
-        var memberReadTimes = rooms
-            .SelectMany(r => r.Members)
-            .Where(m => m.UserId == employee.Id)
-            .ToDictionary(m => m.ChatRoomId, m => m.LastReadAt);
-
+        // Fetch unread counts in bulk (one single SQL query instead of N+1)
         var unreadCounts = await _context.ChatMessages
             .Where(m => roomIds.Contains(m.ChatRoomId))
-            .GroupBy(m => m.ChatRoomId)
+            .Join(_context.ChatRoomMembers.Where(crm => crm.UserId == employee.Id),
+                  m => m.ChatRoomId,
+                  crm => crm.ChatRoomId,
+                  (m, crm) => new { m.ChatRoomId, m.CreatedAt, crm.LastReadAt })
+            .Where(x => x.LastReadAt == null || x.CreatedAt > x.LastReadAt)
+            .GroupBy(x => x.ChatRoomId)
             .Select(g => new { RoomId = g.Key, Count = g.Count() })
             .ToListAsync();
 
-        // Build unread count per room in-memory (comparing against LastReadAt)
-        var unreadByRoom = new Dictionary<Guid, int>();
-        foreach (var room in rooms)
-        {
-            var lastRead = room.Members.FirstOrDefault(m => m.UserId == employee.Id)?.LastReadAt;
-            unreadByRoom[room.Id] = await _context.ChatMessages
-                .CountAsync(m => m.ChatRoomId == room.Id && (lastRead == null || m.CreatedAt > lastRead));
-        }
+        var unreadByRoom = unreadCounts.ToDictionary(x => x.RoomId, x => x.Count);
 
         var result = rooms
             .Select(r =>

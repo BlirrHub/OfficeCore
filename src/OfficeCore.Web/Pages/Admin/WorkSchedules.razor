@@ -1,5 +1,5 @@
 @page "/admin/workschedules"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "RequireWorkSchedules")]
 @inject HttpClient Http
 @inject ToastService ToastService
 

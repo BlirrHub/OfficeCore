@@ -21,7 +21,10 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddTransient<OfficeCore.Web.Client.Auth.CookieHandler>();
 
 var baseUri = new Uri(builder.HostEnvironment.BaseAddress);
-var apiUrl = $"{baseUri.Scheme}://{baseUri.Host}:5026";
+var configuredApiUrl = builder.Configuration["ApiBaseUrl"];
+var apiUrl = !string.IsNullOrWhiteSpace(configuredApiUrl) 
+    ? configuredApiUrl.TrimEnd('/')
+    : $"{baseUri.Scheme}://{baseUri.Host}:5026";
 builder.Configuration["ApiBaseUrl"] = apiUrl;
 
 builder.Services.AddHttpClient("Default", client => 
@@ -33,7 +36,12 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 // Auth services
 builder.Services.AddAuthorizationCore(options =>
 {
-    var modules = new[] { "Dashboard", "Clients", "Attendance", "Boards", "Payroll", "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals" };
+    var modules = new[] { 
+        "Dashboard", "Clients", "Attendance", "Boards", "Payroll", 
+        "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", 
+        "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals",
+        "Backups", "AuditLogs"
+    };
     foreach (var module in modules)
     {
         options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));

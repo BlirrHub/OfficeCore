@@ -62,14 +62,14 @@ public class LeaveRequestController : ControllerBase
 
         var requests = await _context.LeaveRequests
             .Include(r => r.Employee)
-                .ThenInclude(e => e.User)
+                .ThenInclude(e => e!.User)
             .Where(r => r.OrganizationId == orgId)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new
             {
                 r.Id,
                 r.EmployeeId,
-                EmployeeName = r.Employee != null ? r.Employee.User.FirstName + " " + r.Employee.User.LastName : "Unknown",
+                EmployeeName = r.Employee != null && r.Employee.User != null ? r.Employee.User.FirstName + " " + r.Employee.User.LastName : "Unknown",
                 r.Type,
                 r.StartDate,
                 r.EndDate,
@@ -86,9 +86,10 @@ public class LeaveRequestController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SubmitRequest([FromForm] CreateLeaveRequestDto request)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
-        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
         string? attachmentPath = null;
 
@@ -118,14 +119,14 @@ public class LeaveRequestController : ControllerBase
             AttachmentPath = attachmentPath,
             Status = LeaveRequestStatus.Pending,
             CreatedAt = DateTime.UtcNow,
-            OrganizationId = orgId
+            OrganizationId = orgId.Value
         };
 
         _context.LeaveRequests.Add(leaveRequest);
         await _context.SaveChangesAsync();
 
         // Notify admins in this org so the Leave Approvals page updates live
-        await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestCreated", new
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated", new
         {
             leaveRequest.Id,
             leaveRequest.EmployeeId,
@@ -144,10 +145,12 @@ public class LeaveRequestController : ControllerBase
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateLeaveStatusDto request)
     {
         var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var leaveRequest = await _context.LeaveRequests
             .Include(r => r.Employee)
-                .ThenInclude(e => e.User)
-            .FirstOrDefaultAsync(r => r.Id == id);
+                .ThenInclude(e => e!.User)
+            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
         if (leaveRequest == null) return NotFound();
 
         var oldStatus = leaveRequest.Status;
@@ -229,15 +232,18 @@ public class LeaveRequestController : ControllerBase
     [Authorize(Policy = "RequireLeaveApprovals")]
     public async Task<IActionResult> DeleteRequest(Guid id)
     {
-        var leaveRequest = await _context.LeaveRequests.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var leaveRequest = await _context.LeaveRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
         if (leaveRequest == null) return NotFound();
 
-        var orgId = leaveRequest.OrganizationId;
+        var leaveOrgId = leaveRequest.OrganizationId;
         _context.LeaveRequests.Remove(leaveRequest);
         await _context.SaveChangesAsync();
 
         // Notify org members so the list updates live
-        await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestDeleted", id);
+        await _hub.Clients.Group($"org_{leaveOrgId}").SendAsync("LeaveRequestDeleted", id);
 
         return Ok(new { message = "Leave request deleted successfully" });
     }

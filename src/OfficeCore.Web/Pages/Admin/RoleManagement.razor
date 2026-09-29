@@ -1,5 +1,5 @@
 @page "/admin/roles"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "RequireRoles")]
 @inject HttpClient Http
 @inject ToastService ToastService
 

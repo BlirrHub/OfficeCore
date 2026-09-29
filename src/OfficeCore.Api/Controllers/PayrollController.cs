@@ -44,7 +44,10 @@ public class PayrollController : ControllerBase
     [HttpDelete("periods/{id}")]
     public async Task<IActionResult> DeletePayrollPeriod(Guid id)
     {
-        var period = await _context.PayrollPeriods.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
         if (period == null) return NotFound();
 
         if (period.Status == PayrollStatus.Finalized || period.Status == PayrollStatus.Paid)
@@ -91,11 +94,17 @@ public class PayrollController : ControllerBase
     [HttpPost("periods/{id}/compute")]
     public async Task<IActionResult> ComputePayroll(Guid id)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
+        if (period == null) return NotFound();
+
         try
         {
             await _computationService.ComputePayrollPeriodAsync(id);
-            var period = await _context.PayrollPeriods.FindAsync(id);
-            await _audit.LogPayrollAsync(AuditActions.Calculate, $"Computed payroll calculations for period {period?.StartDate:yyyy-MM-dd} to {period?.EndDate:yyyy-MM-dd}", id);
+            var updatedPeriod = await _context.PayrollPeriods.FindAsync(id);
+            await _audit.LogPayrollAsync(AuditActions.Calculate, $"Computed payroll calculations for period {updatedPeriod?.StartDate:yyyy-MM-dd} to {updatedPeriod?.EndDate:yyyy-MM-dd}", id);
             return Ok();
         }
         catch (Exception ex)
@@ -107,16 +116,22 @@ public class PayrollController : ControllerBase
     [HttpGet("periods/{id}/payslips")]
     public async Task<IActionResult> GetPayslips(Guid id)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var periodExists = await _context.PayrollPeriods.AnyAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
+        if (!periodExists) return NotFound();
+
         var payslips = await _context.Payslips
             .Include(p => p.Employee)
-                .ThenInclude(e => e.User)
-            .Where(p => p.PayrollPeriodId == id)
+                .ThenInclude(e => e!.User)
+            .Where(p => p.PayrollPeriodId == id && p.OrganizationId == orgId.Value)
             .ToListAsync();
         
         return Ok(payslips.Select(p => new {
             p.Id,
             p.EmployeeId,
-            EmployeeName = $"{p.Employee?.User?.FirstName} {p.Employee?.User?.LastName}",
+            EmployeeName = p.Employee?.User != null ? $"{p.Employee.User.FirstName} {p.Employee.User.LastName}".Trim() : "Unknown",
             p.BasicPay,
             p.TotalLeavePay,
             p.TotalOvertimePay,
@@ -136,11 +151,14 @@ public class PayrollController : ControllerBase
     [HttpPut("payslips/{id}")]
     public async Task<IActionResult> UpdatePayslip(Guid id, [FromBody] PayslipUpdateRequest request)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
         var payslip = await _context.Payslips
             .Include(p => p.PayrollPeriod)
             .Include(p => p.Employee)
-                .ThenInclude(e => e.User)
-            .FirstOrDefaultAsync(p => p.Id == id);
+                .ThenInclude(e => e!.User)
+            .FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
         if (payslip == null) return NotFound();
         if (payslip.PayrollPeriod?.Status == PayrollStatus.Finalized || payslip.PayrollPeriod?.Status == PayrollStatus.Paid)
             return BadRequest("Cannot update a finalized payslip.");
@@ -189,7 +207,10 @@ public class PayrollController : ControllerBase
     [HttpPost("periods/{id}/finalize")]
     public async Task<IActionResult> FinalizePeriod(Guid id)
     {
-        var period = await _context.PayrollPeriods.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
         if (period == null) return NotFound();
 
         if (period.Status == PayrollStatus.Finalized)
@@ -199,11 +220,12 @@ public class PayrollController : ControllerBase
         period.FinalizedAt = DateTime.UtcNow;
 
         // Deduct remaining balance from active advances
-        var payslips = await _context.Payslips.Where(p => p.PayrollPeriodId == id && p.AdvancesDeduction > 0).ToListAsync();
+        var payslips = await _context.Payslips.Where(p => p.PayrollPeriodId == id && p.OrganizationId == orgId.Value && p.AdvancesDeduction > 0).ToListAsync();
         foreach (var payslip in payslips)
         {
             var activeAdvances = await _context.AdvanceRequests
-                .Where(ar => ar.EmployeeId == payslip.EmployeeId && ar.Status == AdvanceStatus.Approved && (ar.RemainingBalance == null || ar.RemainingBalance > 0))
+                .Where(ar => ar.EmployeeId == payslip.EmployeeId && ar.OrganizationId == orgId.Value && ar.Status == AdvanceStatus.Approved && (ar.RemainingBalance == null || ar.RemainingBalance > 0))
+                .OrderBy(ar => ar.RequestDate)
                 .ToListAsync();
 
             decimal deductionToApply = payslip.AdvancesDeduction;
@@ -214,7 +236,15 @@ public class PayrollController : ControllerBase
                 decimal deduction = 0m;
                 if (advance.Type == AdvanceType.ELoan)
                 {
-                    deduction = (advance.InstallmentAmount ?? 0m) / 2m; // Assuming 1 cutoff deduction
+                    // Delay E-Loan deduction to periods that start after approval
+                    if (period.StartDate > DateOnly.FromDateTime(advance.ResolutionDate ?? advance.RequestDate))
+                    {
+                        deduction = (advance.InstallmentAmount ?? 0m) / 2m; // Assuming 1 cutoff deduction
+                    }
+                    else
+                    {
+                        continue;
+                    }
                 }
                 else
                 {
@@ -227,16 +257,13 @@ public class PayrollController : ControllerBase
 
                 advance.RemainingBalance -= deduction;
                 deductionToApply -= deduction;
-
-                // If balance is 0, we can just leave it or mark as a custom status if needed. 
-                // Since there's no Paid status, we rely on RemainingBalance == 0.
             }
         }
 
         await _context.SaveChangesAsync();
 
-        var totalNetPay = await _context.Payslips.Where(p => p.PayrollPeriodId == id).SumAsync(p => p.NetPay);
-        var payslipCount = await _context.Payslips.CountAsync(p => p.PayrollPeriodId == id);
+        var totalNetPay = await _context.Payslips.Where(p => p.PayrollPeriodId == id && p.OrganizationId == orgId.Value).SumAsync(p => p.NetPay);
+        var payslipCount = await _context.Payslips.CountAsync(p => p.PayrollPeriodId == id && p.OrganizationId == orgId.Value);
         await _audit.LogPayrollAsync(AuditActions.Approve, $"Finalized and locked payroll period {period.StartDate:yyyy-MM-dd} to {period.EndDate:yyyy-MM-dd} ({payslipCount} employees, Total Net Payout: ₱{totalNetPay:N2})", id);
 
         return Ok();

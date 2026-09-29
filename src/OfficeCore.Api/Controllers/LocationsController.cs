@@ -117,6 +117,7 @@ public class LocationsController : ControllerBase
     /// Retrieves the most recent GPS location for all field employees who clocked in or pinged recently.
     /// </summary>
     [HttpGet("active")]
+    [Authorize(Policy = "RequireLocations")]
     public async Task<ActionResult<IEnumerable<ActiveFieldEmployeeDto>>> GetActiveFieldEmployees()
     {
         var orgId = _tenantService.CurrentOrganizationId;

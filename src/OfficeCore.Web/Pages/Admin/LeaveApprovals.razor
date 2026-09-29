@@ -1,5 +1,5 @@
 @page "/admin/leave-approvals"
-@attribute [Authorize(Roles = "Admin,HR")]
+@attribute [Authorize(Policy = "RequireLeaveApprovals")]
 @inject HttpClient Http
 @inject OfficeCore.Web.Services.ToastService ToastService
 @inject NavigationManager Navigation

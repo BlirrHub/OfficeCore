@@ -311,7 +311,7 @@
                 ToastService.ShowError("Failed to compute payroll.");
             }
         }
-        catch (Exception ex)
+        catch
         {
             ToastService.ShowError("Error computing payroll.");
         }
@@ -338,7 +338,7 @@
                 ToastService.ShowError("Failed to finalize payroll.");
             }
         }
-        catch (Exception ex)
+        catch
         {
             ToastService.ShowError("Error finalizing payroll.");
         }

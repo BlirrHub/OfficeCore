@@ -211,7 +211,7 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
 
-        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+        await _hubContext.Clients.Group($"org_{orgId.Value}").SendAsync("ReceiveAttendanceUpdate");
 
         var actionText = type == AttendanceType.ClockIn ? "Clocked In" : "Clocked Out";
         return Ok(new
@@ -322,7 +322,7 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
 
-        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+        await _hubContext.Clients.Group($"org_{orgId.Value}").SendAsync("ReceiveAttendanceUpdate");
 
         var empName = $"{employee.User?.FirstName} {employee.User?.LastName}".Trim();
         await _audit.LogAttendanceAsync(
@@ -350,7 +350,7 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Remove(record);
         await _context.SaveChangesAsync();
 
-        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+        await _hubContext.Clients.Group($"org_{orgId.Value}").SendAsync("ReceiveAttendanceUpdate");
 
         await _audit.LogAttendanceAsync(
             AuditActions.Delete,
@@ -389,8 +389,11 @@ public class AttendanceController : ControllerBase
     [Authorize(Policy = "RequireAttendance")]
     public async Task<IActionResult> GetEmployeeFingerprints(string employeeId)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
         var prints = await _context.EmployeeFingerprints
-            .Where(f => f.EmployeeId == employeeId)
+            .Where(f => f.EmployeeId == employeeId && f.OrganizationId == orgId.Value)
             .Select(f => new { f.Id, f.FingerprintId, f.EnrolledAt })
             .ToListAsync();
 
@@ -401,7 +404,11 @@ public class AttendanceController : ControllerBase
     [Authorize(Policy = "RequireAttendance")]
     public async Task<IActionResult> DeleteFingerprint(int id)
     {
-        var fp = await _context.EmployeeFingerprints.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        var fp = await _context.EmployeeFingerprints
+            .FirstOrDefaultAsync(f => f.Id == id && f.OrganizationId == orgId.Value);
         if (fp == null) return NotFound();
 
         _context.EmployeeFingerprints.Remove(fp);
@@ -414,14 +421,18 @@ public class AttendanceController : ControllerBase
     [Authorize(Policy = "RequireAttendance")]
     public async Task<IActionResult> EnrollSuccess([FromBody] EnrollSuccessDto dto)
     {
-        var employee = await _context.Employees.FindAsync(dto.EmployeeId);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.Id == dto.EmployeeId && e.OrganizationId == orgId.Value);
         if (employee == null) return BadRequest("Employee not found");
 
         _context.EmployeeFingerprints.Add(new EmployeeFingerprint
         {
             EmployeeId = dto.EmployeeId,
             FingerprintId = dto.FingerprintId,
-            OrganizationId = employee.OrganizationId
+            OrganizationId = orgId.Value
         });
 
         await _context.SaveChangesAsync();
@@ -468,7 +479,7 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
 
-        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+        await _hubContext.Clients.Group($"org_{mapping.OrganizationId}").SendAsync("ReceiveAttendanceUpdate");
 
         return Ok(new { message = "Attendance logged.", type = type.ToString() });
     }
@@ -521,7 +532,7 @@ public class AttendanceController : ControllerBase
 
         var (inserted, duplicates, updatedMappings) = await _biometricReportService.CommitBiometricAttendanceAsync(dto, orgId.Value);
 
-        await _hubContext.Clients.All.SendCoreAsync("ReceiveAttendanceUpdate", Array.Empty<object>());
+        await _hubContext.Clients.Group($"org_{orgId.Value}").SendAsync("ReceiveAttendanceUpdate");
 
         await _audit.LogAttendanceAsync(
             AuditActions.Create,

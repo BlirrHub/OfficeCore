@@ -461,7 +461,7 @@
                 await _serialModule.InvokeVoidAsync("startEnrollment", SelectedEmployeeId);
                 _enrollStatus = "Waiting for finger...";
             }
-            catch (Exception ex)
+            catch
             {
                 ToastService.ShowError("Serial communication failed.");
                 _isEnrolling = false;

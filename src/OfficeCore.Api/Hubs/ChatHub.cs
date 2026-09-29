@@ -33,12 +33,14 @@ public class ChatHub : Hub
 
     public async Task JoinRoom(string roomId)
     {
+        if (!Guid.TryParse(roomId, out var roomGuid)) return;
+
         // Verify the user is actually a member of this room before allowing them to subscribe
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return;
 
         var isMember = await _context.ChatRoomMembers
-            .AnyAsync(m => m.ChatRoomId == Guid.Parse(roomId) && m.UserId == employee.Id);
+            .AnyAsync(m => m.ChatRoomId == roomGuid && m.UserId == employee.Id);
 
         if (isMember)
         {

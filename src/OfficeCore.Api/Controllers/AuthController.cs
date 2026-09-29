@@ -140,7 +140,7 @@ public class AuthController : ControllerBase
             Email = request.Email,
             EmailConfirmed = true,
             PhoneNumber = !string.IsNullOrWhiteSpace(request.PhoneNumber) ? Services.SmsOtpService.NormalizePhoneNumber(request.PhoneNumber) : null,
-            PhoneNumberConfirmed = !string.IsNullOrWhiteSpace(request.PhoneNumber),
+            PhoneNumberConfirmed = false,
 
             FirstName = request.FirstName,
             LastName = request.LastName,

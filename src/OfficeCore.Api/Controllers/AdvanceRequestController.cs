@@ -37,12 +37,13 @@ public class AdvanceRequestController : ControllerBase
     [HttpGet("my")]
     public async Task<IActionResult> GetMyRequests()
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
-        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
         var requests = await _context.AdvanceRequests
-            .Where(r => r.EmployeeId == employee.Id && r.OrganizationId == orgId)
+            .Where(r => r.EmployeeId == employee.Id && r.OrganizationId == orgId.Value)
             .OrderByDescending(r => r.RequestDate)
             .ToListAsync();
 
@@ -59,7 +60,7 @@ public class AdvanceRequestController : ControllerBase
         // Fetch first, then project in-memory to avoid SQLite string concat translation issues
         var requests = await _context.AdvanceRequests
             .Include(r => r.Employee)
-                .ThenInclude(e => e.User)
+                .ThenInclude(e => e!.User)
             .Where(r => r.OrganizationId == orgId)
             .OrderByDescending(r => r.RequestDate)
             .ToListAsync();
@@ -73,8 +74,8 @@ public class AdvanceRequestController : ControllerBase
             r.RequestDate,
             r.RemainingBalance,
             r.InstallmentAmount,
-            EmployeeName = r.Employee != null
-                ? $"{r.Employee.User?.FirstName} {r.Employee.User?.LastName}".Trim()
+            EmployeeName = r.Employee?.User != null
+                ? $"{r.Employee.User.FirstName} {r.Employee.User.LastName}".Trim()
                 : "Unknown"
         });
 
@@ -84,9 +85,10 @@ public class AdvanceRequestController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateRequest(CreateAdvanceRequestDto dto)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
-        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
         var request = new AdvanceRequest
         {
@@ -97,7 +99,7 @@ public class AdvanceRequestController : ControllerBase
             Note = dto.Note ?? string.Empty,
             Status = AdvanceStatus.Pending,
             RequestDate = DateTime.UtcNow,
-            OrganizationId = orgId
+            OrganizationId = orgId.Value
         };
         
         // ELoan initial balance is the requested amount. CA also needs a remaining balance to be deducted.
@@ -111,7 +113,7 @@ public class AdvanceRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Notify all org members (admins on Ledger, employee on Advances)
-        await _hub.Clients.Group($"org_{orgId}").SendAsync("AdvanceRequestCreated", new
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestCreated", new
         {
             request.Id,
             request.EmployeeId,
@@ -127,11 +129,12 @@ public class AdvanceRequestController : ControllerBase
     [HttpPut("{id}/cancel")]
     public async Task<IActionResult> CancelRequest(Guid id)
     {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
-        var orgId = _tenant.GetActiveOrganizationId()!.Value;
 
-        var request = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.EmployeeId == employee.Id && r.OrganizationId == orgId);
+        var request = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.EmployeeId == employee.Id && r.OrganizationId == orgId.Value);
         
         if (request == null)
             return NotFound();
@@ -158,7 +161,10 @@ public class AdvanceRequestController : ControllerBase
     [Authorize(Policy = "RequireLedger")]
     public async Task<IActionResult> ApproveRequest(Guid id, [FromBody] ApproveRequestDto dto)
     {
-        var request = await _context.AdvanceRequests.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var request = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
         if (request == null) return NotFound();
 
         if (request.Status != AdvanceStatus.Pending)
@@ -200,7 +206,10 @@ public class AdvanceRequestController : ControllerBase
     [Authorize(Policy = "RequireLedger")]
     public async Task<IActionResult> RejectRequest(Guid id)
     {
-        var request = await _context.AdvanceRequests.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var request = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
         if (request == null) return NotFound();
 
         if (request.Status != AdvanceStatus.Pending)
@@ -289,26 +298,14 @@ public class AdvanceRequestController : ControllerBase
         public decimal? InstallmentAmount { get; set; }
     }
 
-    [HttpDelete("admin-cleanup")]
-    [AllowAnonymous]
-    public async Task<IActionResult> AdminCleanup()
-    {
-        var adminAdvances = await _context.AdvanceRequests
-            .Include(ar => ar.Employee)
-            .Where(ar => ar.Employee != null && ar.Employee.User.Email == "admin@officecore.com")
-            .ToListAsync();
-            
-        _context.AdvanceRequests.RemoveRange(adminAdvances);
-        await _context.SaveChangesAsync();
-        
-        return Ok(new { Message = $"Deleted {adminAdvances.Count} records" });
-    }
-
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequirePayroll")] // Only payroll admins can delete
     public async Task<IActionResult> DeleteRequest(Guid id)
     {
-        var advanceRequest = await _context.AdvanceRequests.FindAsync(id);
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var advanceRequest = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
         if (advanceRequest == null) return NotFound();
 
         var advanceOrgId = advanceRequest.OrganizationId;
