@@ -64,6 +64,7 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
         claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyAttendance"));
         claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyLeaves"));
         claimsIdentity.AddClaim(new Claim("ModuleAccess", "Advances"));
+        claimsIdentity.AddClaim(new Claim("ModuleAccess", "Boards"));
 
         foreach (var er in employeeRoles)
         {

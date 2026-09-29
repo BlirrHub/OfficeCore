@@ -35,34 +35,26 @@
                 </div>
             }
 
-            <!-- 1. Dashboard (Default Module) -->
             <NavLink href="dashboard" Match="NavLinkMatch.All" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
                 <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9.75L12 3l9 6.75V21a.75.75 0 01-.75.75H15.75a.75.75 0 01-.75-.75v-5.25H9V21a.75.75 0 01-.75.75H3.75A.75.75 0 013 21V9.75z" /></svg>
                 <span class="@(IsCollapsed ? "hidden" : "block")">Dashboard</span>
             </NavLink>
 
-            <!-- 2. My Attendance (Default Module) -->
             <NavLink href="my-attendance" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
                 <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <span class="@(IsCollapsed ? "hidden" : "block")">My Attendance</span>
             </NavLink>
 
-            <!-- 3. Boards (Customizable Module) -->
-            @if (context.User.HasClaim("ModuleAccess", "Boards"))
-            {
-                <NavLink href="boards" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
-                    <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg>
-                    <span class="@(IsCollapsed ? "hidden" : "block")">Boards</span>
-                </NavLink>
-            }
+            <NavLink href="boards" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
+                <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg>
+                <span class="@(IsCollapsed ? "hidden" : "block")">Boards</span>
+            </NavLink>
 
-            <!-- 4. My Leaves (Default Module) -->
             <NavLink href="myleaves" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
-                <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0118 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
                 <span class="@(IsCollapsed ? "hidden" : "block")">My Leaves</span>
             </NavLink>
 
-            <!-- 5. Advances & Loans (Default Module - Moved under Main) -->
             <NavLink href="advances" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
                 <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <span class="@(IsCollapsed ? "hidden" : "block")">Advances & Loans</span>
@@ -119,24 +111,6 @@
                     </div>
                 }
 
-                <!-- Clients (Moved under Administration) -->
-                @if (context.User.HasClaim("ModuleAccess", "Clients"))
-                {
-                    <NavLink href="clients" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
-                        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
-                        <span class="@(IsCollapsed ? "hidden" : "block")">Clients</span>
-                    </NavLink>
-                }
-
-                <!-- Attendance MSS (Moved under Administration) -->
-                @if (context.User.HasClaim("ModuleAccess", "Attendance"))
-                {
-                    <NavLink href="admin/attendance" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
-                        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>
-                        <span class="@(IsCollapsed ? "hidden" : "block")">Attendance</span>
-                    </NavLink>
-                }
-
                 @if (context.User.HasClaim("ModuleAccess", "Users"))
                 {
                     <NavLink href="admin/users" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
@@ -149,6 +123,20 @@
                     <NavLink href="admin/roles" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
                         <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
                         <span class="@(IsCollapsed ? "hidden" : "block")">Roles</span>
+                    </NavLink>
+                }
+                @if (context.User.HasClaim("ModuleAccess", "Clients"))
+                {
+                    <NavLink href="clients" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
+                        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+                        <span class="@(IsCollapsed ? "hidden" : "block")">Clients</span>
+                    </NavLink>
+                }
+                @if (context.User.HasClaim("ModuleAccess", "Attendance"))
+                {
+                    <NavLink href="admin/attendance" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
+                        <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>
+                        <span class="@(IsCollapsed ? "hidden" : "block")">Attendance</span>
                     </NavLink>
                 }
                 @if (context.User.HasClaim("ModuleAccess", "LeaveApprovals"))
