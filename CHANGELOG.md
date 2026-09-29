@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Enhanced — [2026-09-29] (On-Premises Client Branching Strategy & ACBA Biometric Importer Extraction)
+
+- **On-Premises Client Branching Model (`ACBA` Branch):**
+  - Established a dedicated per-client branching strategy for on-premises client customization.
+  - Created a dedicated `ACBA` client branch containing the customized biometric attendance importer (`BiometricImportHub.razor`) and specialized import tabs.
+- **Base Branches Modernization (`development`, `master`, `production`):**
+  - Removed specialized ACBA attendance import tab and modal markup from `Attendance.razor`.
+  - Removed `BiometricImportHub.razor` from base branches, keeping the core product lean, standardized, and ready for general distribution without niche client dependencies.
+
 ### Added & Enhanced — [2026-09-29] (Minimalist Landing Page, Sign In/Up Polish, Phone OTP Verification & Confirm Password)
 
 - **Minimalist Modern Landing Page (`Home.razor`):**
