@@ -175,7 +175,7 @@ public class AuthController : ControllerBase
             return Unauthorized();
 
         // Gather role claims (module access) and find TitleRoles from Organization roles
-        var moduleClaims = new List<string> { "Dashboard", "MyAttendance", "MyLeaves", "Advances" };
+        var moduleClaims = new List<string> { "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards" };
         var titleRoles = new List<string>();
         var roles = new List<string>();
 

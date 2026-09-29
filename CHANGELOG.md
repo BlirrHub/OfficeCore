@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Unified — [2026-09-29] (Design System Standard & Blazor UI Component Library)
+
+- **Blazor UI Component Library (`Components/UI/`):**
+  - Designed and built a reusable, cohesive component library in `src/OfficeCore.Web/Components/UI/` to eliminate fragmented styling and ensure design unity across modules:
+    - `PageHeader.razor`: Standardized page title, description, and dynamic `<Actions>` slot.
+    - `AppButton.razor`: Consistent buttons supporting variants (`primary`, `secondary`, `danger`, `ghost`, `outline`), size tiers (`sm`, `md`, `lg`), subtle shadow glows, and integrated spinner loading state.
+    - `AppCard.razor`: Dark glassmorphism container (`bg-zinc-950/80 border border-zinc-800/80 rounded-2xl shadow-xl`) with header, header actions, and footer slots.
+    - `AppModal.razor`: Standard modal overlay with backdrop blur, customizable width constraints, entry animation, and structured header/body/footer.
+    - `AppBadge.razor`: Unified status tags with pill borders and colored status dots (`primary`, `success`, `warning`, `danger`, `info`, `default`).
+    - `EmptyState.razor`: Consistent empty state placeholder with modern iconography, typography, and call-to-action button slot.
+  - Registered `OfficeCore.Web.Client.Components.UI` globally in `_Imports.razor`.
+- **Page Modernization & Unification:**
+  - Migrated `Advances.razor`, `MyLeaves.razor`, and `RoleManagement.razor` to leverage the new UI components, establishing visual consistency for headers, tables, modal forms, and badges.
+- **System & Live Browser End-to-End Verification:**
+  - Validated API runtime on `http://localhost:5026` with PostgreSQL 18.
+  - Performed live authenticated HTTP session validation on `api/auth/login`, `api/organizations/my`, `api/organizations/{id}/select`, and `/api/auth/me`.
+  - Verified backend endpoints: `api/boards`, `api/leaves/my`, `api/advances/my`, `api/attendance/today`, `api/clients`, `api/roles`, and `api/users` all returning 200 OK.
+  - Recompiled Tailwind CSS v4 assets and verified Blazor compilation with 0 errors and 0 warnings.
+
 ### Enhanced & Reorganized — [2026-09-29] (Default Modules Isolation, Standalone My Attendance & Navigation Hierarchy Realignment)
 
 - **Default Modules Configuration for All Accounts:**

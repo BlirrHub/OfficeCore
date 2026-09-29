@@ -1,0 +1,36 @@
+@namespace OfficeCore.Web.Client.Components.UI
+
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 @GetBadgeClasses() @Class">
+    @if (Dot)
+    {
+        <span class="size-1.5 rounded-full @GetDotClass()"></span>
+    }
+    @ChildContent
+</span>
+
+@code {
+    [Parameter] public string Variant { get; set; } = "default"; // default | primary | success | warning | danger | info
+    [Parameter] public bool Dot { get; set; } = false;
+    [Parameter] public string Class { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string GetBadgeClasses() => Variant.ToLowerInvariant() switch
+    {
+        "primary" or "fuchsia" => "bg-fuchsia-950/40 text-fuchsia-300 ring-fuchsia-500/30",
+        "success" or "emerald" => "bg-emerald-950/40 text-emerald-300 ring-emerald-500/30",
+        "warning" or "amber" => "bg-amber-950/40 text-amber-300 ring-amber-500/30",
+        "danger" or "rose" => "bg-rose-950/40 text-rose-300 ring-rose-500/30",
+        "info" or "sky" => "bg-sky-950/40 text-sky-300 ring-sky-500/30",
+        _ => "bg-zinc-800/80 text-zinc-300 ring-zinc-700/50"
+    };
+
+    private string GetDotClass() => Variant.ToLowerInvariant() switch
+    {
+        "primary" or "fuchsia" => "bg-fuchsia-400",
+        "success" or "emerald" => "bg-emerald-400",
+        "warning" or "amber" => "bg-amber-400",
+        "danger" or "rose" => "bg-rose-400",
+        "info" or "sky" => "bg-sky-400",
+        _ => "bg-zinc-400"
+    };
+}

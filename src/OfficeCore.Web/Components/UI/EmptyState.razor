@@ -1,0 +1,35 @@
+@namespace OfficeCore.Web.Client.Components.UI
+
+<div class="flex flex-col items-center justify-center py-16 px-4 text-center @Class">
+    <div class="size-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4 text-zinc-500 shadow-inner">
+        @if (Icon != null)
+        {
+            @Icon
+        }
+        else
+        {
+            <svg class="size-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+        }
+    </div>
+    <h3 class="text-base font-semibold text-white mb-1">@Title</h3>
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <p class="text-sm text-zinc-400 max-w-sm mb-6">@Description</p>
+    }
+    @if (Action != null)
+    {
+        <div class="flex items-center gap-3">
+            @Action
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "No items found";
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public RenderFragment? Action { get; set; }
+    [Parameter] public string Class { get; set; } = string.Empty;
+}
