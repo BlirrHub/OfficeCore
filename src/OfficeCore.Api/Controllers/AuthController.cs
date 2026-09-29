@@ -15,19 +15,22 @@ public class AuthController : ControllerBase
     private readonly RoleManager<AppRole> _roleManager;
     private readonly AppDbContext _context;
     private readonly Services.TenantService _tenant;
+    private readonly Services.ISmsOtpService _smsOtpService;
 
     public AuthController(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         RoleManager<AppRole> roleManager,
         AppDbContext context,
-        Services.TenantService tenant)
+        Services.TenantService tenant,
+        Services.ISmsOtpService smsOtpService)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _roleManager = roleManager;
         _context = context;
         _tenant = tenant;
+        _smsOtpService = smsOtpService;
     }
 
     [HttpPost("login")]
@@ -50,17 +53,65 @@ public class AuthController : ControllerBase
         return Unauthorized(new { message = "Invalid login attempt." });
     }
 
+    [HttpPost("send-otp")]
+    public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.PhoneNumber))
+            return BadRequest(new { message = "Phone number is required." });
+
+        var (success, message, debugCode) = await _smsOtpService.SendOtpAsync(request.PhoneNumber);
+        if (!success)
+            return BadRequest(new { message });
+
+        return Ok(new 
+        { 
+            message,
+            debugCode,
+            phoneNumber = Services.SmsOtpService.NormalizePhoneNumber(request.PhoneNumber)
+        });
+    }
+
+    [HttpPost("verify-otp")]
+    public IActionResult VerifyOtp([FromBody] VerifyOtpRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.PhoneNumber) || string.IsNullOrWhiteSpace(request.Code))
+            return BadRequest(new { message = "Phone number and verification code are required." });
+
+        bool isValid = _smsOtpService.VerifyOtp(request.PhoneNumber, request.Code);
+        if (!isValid)
+            return BadRequest(new { message = "Invalid or expired verification code." });
+
+        return Ok(new { message = "Phone number verified successfully.", verified = true });
+    }
+
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
-            return BadRequest("User already exists.");
+            return BadRequest("User already exists with this email address.");
+
+        // Validate phone number and OTP code if provided or required
+        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+        {
+            if (string.IsNullOrWhiteSpace(request.OtpCode))
+            {
+                return BadRequest("Phone verification code is required.");
+            }
+
+            bool isOtpValid = _smsOtpService.VerifyOtp(request.PhoneNumber, request.OtpCode);
+            if (!isOtpValid)
+            {
+                return BadRequest("Invalid or expired phone verification code.");
+            }
+        }
 
         var user = new ApplicationUser
         {
             UserName = request.Email,
             Email = request.Email,
+            PhoneNumber = !string.IsNullOrWhiteSpace(request.PhoneNumber) ? Services.SmsOtpService.NormalizePhoneNumber(request.PhoneNumber) : null,
+            PhoneNumberConfirmed = !string.IsNullOrWhiteSpace(request.PhoneNumber),
             FirstName = request.FirstName,
             LastName = request.LastName,
             MustChangePassword = false // It's their own password, so they don't need to change it on first login
@@ -221,6 +272,19 @@ public class RegisterRequest
     public required string LastName { get; set; }
     public required string Email { get; set; }
     public required string Password { get; set; }
+    public string? PhoneNumber { get; set; }
+    public string? OtpCode { get; set; }
+}
+
+public class SendOtpRequest
+{
+    public required string PhoneNumber { get; set; }
+}
+
+public class VerifyOtpRequest
+{
+    public required string PhoneNumber { get; set; }
+    public required string Code { get; set; }
 }
 
 public class ChangePasswordRequest

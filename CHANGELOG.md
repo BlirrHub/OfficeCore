@@ -6,7 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added & Fixed — [2026-09-28] (In-App Photo/Document Viewer, Chat File Attachments, LAN Client Avatar Fix & Workspaces Cleanup)
+### Added & Enhanced — [2026-09-29] (Minimalist Landing Page, Sign In/Up Polish, Phone OTP Verification & Confirm Password)
+
+- **Minimalist Modern Landing Page (`Home.razor`):**
+  - Revamped the primary landing page with a modern minimalist aesthetic: subtle glassmorphic panels, refined typography, ambient radial illumination, and responsive desktop/mobile navigation.
+  - Added a live application browser preview window showcasing real-time attendance, net payroll calculations, and hardware biometric status.
+  - Added operational feature pillars (Biometric Hardware, Philippine Payroll Engine, and Kanban Boards with WebSockets) and quick metrics highlights.
+- **Enhanced Sign In UI (`Login.razor`):**
+  - Refined the Sign In interface with minimalist glassmorphic cards, improved spacing, quick demo access chips (Admin & Employee), subtle theme parity, and quick Google OAuth integration.
+- **Enhanced Sign Up UI & Flow (`SignUp.razor`):**
+  - Added **Phone Number OTP Verification**: users input their mobile number and request a 6-digit verification code. Displays real-time validation, resend timers, and a convenient simulation auto-fill helper for development and local network workstations.
+  - Added **Confirm Password** field with real-time match validation before submission.
+  - Maintained sleek minimalist styling with dual-theme compatibility (Dark and Light modes).
+- **Backend SMS OTP Engine (`SmsOtpService.cs`, `AuthController.cs`, `Program.cs`):**
+  - Implemented `ISmsOtpService` and `SmsOtpService` with thread-safe in-memory caching, 5-minute expiration windows, and phone number normalization.
+  - Added `POST /api/auth/send-otp` and `POST /api/auth/verify-otp` endpoints.
+  - Updated `POST /api/auth/register` and `RegisterRequest` to validate phone number and OTP code upon account creation.
+
 
 - **In-App Media & Document Viewer Modal (`MediaViewerModal.razor`, `fileInterop.js`, `index.html`):**
   - Created a reusable, high-performance modal component (`MediaViewerModal.razor`) for viewing images and documents inline without leaving the app.
