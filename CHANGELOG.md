@@ -6,6 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-09-29] (Git Repository Large Binary Cleanup & GitHub Push Unblocked)
+
+- **Removed Installer Binaries from Git History (All Branches):**
+  - `dist/Setup-OfficeCore-Client.exe` (~270MB) and `dist/Setup-OfficeCore-Server.exe` (~300MB) were previously committed to the repository, exceeding GitHub's 100MB file size limit and blocking all pushes to `production` and `ACBA`.
+  - Rewrote all branch histories using `git filter-branch` to permanently remove these large binaries from every commit across `master`, `development`, `production`, and `ACBA`.
+  - Ran `git gc --aggressive --prune=now` to purge old blob objects and reclaim local disk space.
+  - Updated `.gitignore` to unconditionally exclude the entire `dist/` directory — installer binaries are now built locally on demand via `.\publish-installers.ps1` and never tracked in version control.
+- **Branch Sync to `production` & `ACBA` (All Changes from `development`):**
+  - Merged all `development` commits (security fixes, default modules, navigation hierarchy, Blazor UI component library) into `production` (commit `5d92e97`) and `ACBA` (commit `f6c62c8`).
+  - Resolved two conflicts on `ACBA`:
+    - `Attendance.razor`: Integrated `production`'s My Attendance link + 3-tab layout (Company Records, Biometric Import ACBA, Device Settings) while preserving `<BiometricImportHub>` and `HandleImportCompleted`.
+    - `wwwroot/app.css`: Resolved by rebuilding Tailwind CSS v4 via `npm run css:build`.
+- **ACBA Branch Published to GitHub:** `ACBA` is now a new remote branch at `origin/ACBA` — [create a pull request](https://github.com/BlirrHub/OfficeCore/pull/new/ACBA) if needed.
+- **All 4 Branches Now Up to Date on GitHub:** `master`, `development`, `production`, and `ACBA` all successfully pushed after history rewrite.
+
+
+
 ### Enhanced & Unified — [2026-09-29] (Design System Standard & Blazor UI Component Library)
 
 - **Blazor UI Component Library (`Components/UI/`):**
