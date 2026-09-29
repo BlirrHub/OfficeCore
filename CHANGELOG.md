@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Enhanced — [2026-09-29] (Free Email OTP Verification for User Registration)
+
+- **Email OTP Verification Engine (`EmailOtpService.cs`, `AuthController.cs`, `SignUp.razor`, `appsettings.json`):**
+  - Switched the user registration verification flow from SMS to **Email OTP** to eliminate recurring cellular gateway fees.
+  - Implemented `IEmailOtpService` / `EmailOtpService` with support for standard SMTP (e.g., free Gmail App Password, Resend, Brevo) with an HTML email template and automatic simulation fallback for offline LAN environments.
+  - Updated `SignUp.razor` so users verify their email address via a 6-digit code before account creation, while retaining Mobile Number as an optional/standard user profile contact field without requiring SMS verification.
+  - Updated `AuthController.cs` to enforce email verification during `POST /api/auth/register` and set `EmailConfirmed = true`.
+
 ### Fixed & Enhanced — [2026-09-29] (Registration Phone OTP Verification & Browser Password Eye Parity)
 
 - **Registration Phone OTP Lifecycle Fix (`SmsOtpService.cs`, `AuthController.cs`):**

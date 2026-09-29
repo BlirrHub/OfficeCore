@@ -127,6 +127,8 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransforma
 builder.Services.AddScoped<OfficeCore.Api.Services.IAuditService, OfficeCore.Api.Services.AuditService>();
 builder.Services.AddScoped<OfficeCore.Api.Services.BiometricReportService>();
 builder.Services.AddSingleton<OfficeCore.Api.Services.ISmsOtpService, OfficeCore.Api.Services.SmsOtpService>();
+builder.Services.AddSingleton<OfficeCore.Api.Services.IEmailOtpService, OfficeCore.Api.Services.EmailOtpService>();
+
 
 // ─── Build ────────────────────────────────────────────────────────────────────
 var app = builder.Build();

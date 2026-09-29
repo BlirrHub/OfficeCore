@@ -16,7 +16,7 @@
     <div class="absolute -top-40 -left-40 size-96 rounded-full bg-fuchsia-600/10 blur-[130px] pointer-events-none"></div>
     <div class="absolute -bottom-40 -right-40 size-96 rounded-full bg-violet-600/10 blur-[130px] pointer-events-none"></div>
 
-    <div class="w-full max-w-lg relative z-10 my-4">
+    <div class="w-full max-w-lg relative z-10 my-6">
         <!-- Logo / brand -->
         <div class="text-center mb-6">
             <div class="relative inline-flex items-center justify-center mb-3">
@@ -43,9 +43,9 @@
 
             @if (!string.IsNullOrEmpty(_infoMessage))
             {
-                <div class="mb-5 flex items-start gap-3 rounded-xl bg-fuchsia-950/40 border border-fuchsia-800/60 px-4 py-3 text-xs sm:text-sm text-fuchsia-300">
-                    <svg class="size-4 shrink-0 text-fuchsia-400 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                <div class="mb-5 flex items-start gap-3 rounded-xl bg-emerald-950/60 border border-emerald-800/80 px-4 py-3 text-xs sm:text-sm text-emerald-300 animate-in fade-in">
+                    <svg class="size-4 shrink-0 text-emerald-400 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>@_infoMessage</span>
                 </div>
@@ -55,7 +55,7 @@
                 <DataAnnotationsValidator />
 
                 <div class="space-y-4">
-                    <!-- Name inputs -->
+                    <!-- Name row -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                         <div>
                             <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">First name</label>
@@ -75,22 +75,12 @@
                         </div>
                     </div>
 
-                    <!-- Email input -->
-                    <div>
-                        <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Email address</label>
-                        <InputText @bind-Value="_model.Email" type="email"
-                                   class="block w-full rounded-xl bg-zinc-900/70 border border-zinc-800 px-3.5 py-2.5 text-white text-sm
-                                          placeholder:text-zinc-600 focus:outline-none focus:border-fuchsia-500/80 focus:ring-2 focus:ring-fuchsia-500/20 transition-all"
-                                   placeholder="jane@company.com" autocomplete="email" />
-                        <ValidationMessage For="() => _model.Email" class="mt-1 text-xs text-red-400" />
-                    </div>
-
-                    <!-- Phone Number & OTP Section -->
+                    <!-- Email & OTP Section -->
                     <div class="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3.5 space-y-3">
                         <div>
                             <div class="flex items-center justify-between mb-1">
-                                <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Mobile Number</label>
-                                @if (_isPhoneVerified)
+                                <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Email address</label>
+                                @if (_isEmailVerified)
                                 {
                                     <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
                                         <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor">
@@ -102,12 +92,12 @@
                             </div>
                             <div class="flex gap-2">
                                 <div class="relative flex-1">
-                                    <InputText @bind-Value="_model.PhoneNumber" type="tel" disabled="@_isPhoneVerified"
+                                    <InputText @bind-Value="_model.Email" type="email" disabled="@_isEmailVerified"
                                                class="block w-full rounded-xl bg-zinc-900/70 border border-zinc-800 px-3.5 py-2.5 text-white text-sm
                                                       placeholder:text-zinc-600 focus:outline-none focus:border-fuchsia-500/80 focus:ring-2 focus:ring-fuchsia-500/20 transition-all disabled:opacity-75 disabled:cursor-not-allowed"
-                                               placeholder="0917 123 4567 or +63..." autocomplete="tel" />
+                                               placeholder="jane@company.com" autocomplete="email" />
                                 </div>
-                                <button type="button" @onclick="SendOtpCode" disabled="@(_isSendingOtp || _isPhoneVerified || string.IsNullOrWhiteSpace(_model.PhoneNumber))"
+                                <button type="button" @onclick="SendOtpCode" disabled="@(_isSendingOtp || _isEmailVerified || string.IsNullOrWhiteSpace(_model.Email))"
                                         class="shrink-0 px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-zinc-700/60 cursor-pointer">
                                     @if (_isSendingOtp)
                                     {
@@ -125,17 +115,17 @@
                                     }
                                     else
                                     {
-                                        <span>Send OTP</span>
+                                        <span>Send Code</span>
                                     }
                                 </button>
                             </div>
-                            <ValidationMessage For="() => _model.PhoneNumber" class="mt-1 text-xs text-red-400" />
+                            <ValidationMessage For="() => _model.Email" class="mt-1 text-xs text-red-400" />
                         </div>
 
-                        @if (_otpSent && !_isPhoneVerified)
+                        @if (_otpSent && !_isEmailVerified)
                         {
                             <div class="pt-2 border-t border-zinc-800/80 space-y-2 animate-in fade-in">
-                                <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">6-Digit SMS Code</label>
+                                <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">6-Digit Verification Code</label>
                                 <div class="flex gap-2">
                                     <InputText @bind-Value="_model.OtpCode" maxlength="6"
                                                class="block w-full rounded-xl bg-zinc-900/90 border border-fuchsia-500/50 px-3.5 py-2 text-white text-sm tracking-widest font-mono text-center
@@ -162,6 +152,16 @@
                                 }
                             </div>
                         }
+                    </div>
+
+                    <!-- Mobile Number (Standard Profile Field) -->
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Mobile number</label>
+                        <InputText @bind-Value="_model.PhoneNumber" type="tel"
+                                   class="block w-full rounded-xl bg-zinc-900/70 border border-zinc-800 px-3.5 py-2.5 text-white text-sm
+                                          placeholder:text-zinc-600 focus:outline-none focus:border-fuchsia-500/80 focus:ring-2 focus:ring-fuchsia-500/20 transition-all"
+                                   placeholder="0917 123 4567 or +63..." autocomplete="tel" />
+                        <ValidationMessage For="() => _model.PhoneNumber" class="mt-1 text-xs text-red-400" />
                     </div>
 
                     <!-- Password and Confirm Password inputs -->
@@ -254,7 +254,7 @@
     private bool _isSendingOtp;
     private bool _isVerifyingOtp;
     private bool _otpSent;
-    private bool _isPhoneVerified;
+    private bool _isEmailVerified;
     private string? _debugOtp;
 
     protected override async Task OnInitializedAsync()
@@ -271,22 +271,22 @@
         _errorMessage = null;
         _infoMessage = null;
 
-        if (string.IsNullOrWhiteSpace(_model.PhoneNumber) || _model.PhoneNumber.Trim().Length < 8)
+        if (string.IsNullOrWhiteSpace(_model.Email) || !_model.Email.Contains('@'))
         {
-            _errorMessage = "Please enter a valid phone number before requesting an OTP code.";
+            _errorMessage = "Please enter a valid email address before requesting a verification code.";
             return;
         }
 
         _isSendingOtp = true;
         try
         {
-            var response = await Http.PostAsJsonAsync("/api/auth/send-otp", new { phoneNumber = _model.PhoneNumber });
+            var response = await Http.PostAsJsonAsync("/api/auth/send-otp", new { email = _model.Email });
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OtpResponse>();
                 _otpSent = true;
                 _debugOtp = result?.DebugCode;
-                _infoMessage = "Verification code has been dispatched. Enter the 6-digit code below.";
+                _infoMessage = result?.Message ?? "Verification code has been dispatched. Enter the 6-digit code below.";
             }
             else
             {
@@ -320,14 +320,14 @@
         {
             var response = await Http.PostAsJsonAsync("/api/auth/verify-otp", new 
             { 
-                phoneNumber = _model.PhoneNumber,
+                email = _model.Email,
                 code = _model.OtpCode 
             });
 
             if (response.IsSuccessStatusCode)
             {
-                _isPhoneVerified = true;
-                _infoMessage = "Phone number verified successfully!";
+                _isEmailVerified = true;
+                _infoMessage = "Email address verified successfully!";
             }
             else
             {
@@ -358,9 +358,9 @@
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(_model.PhoneNumber) && !_isPhoneVerified)
+        if (!_isEmailVerified)
         {
-            _errorMessage = "Please verify your phone number using the SMS OTP code before signing up.";
+            _errorMessage = "Please verify your email address using the 6-digit verification code before creating your account.";
             _isLoading = false;
             return;
         }
@@ -402,7 +402,7 @@
     {
         public string? Message { get; set; }
         public string? DebugCode { get; set; }
-        public string? PhoneNumber { get; set; }
+        public string? Email { get; set; }
     }
 
     private class ApiErrorResponse
@@ -422,8 +422,7 @@
         [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Invalid email format")]
         public string Email { get; set; } = string.Empty;
 
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Phone number is required")]
-        public string PhoneNumber { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
 
         public string OtpCode { get; set; } = string.Empty;
 

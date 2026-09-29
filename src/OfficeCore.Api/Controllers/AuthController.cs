@@ -16,6 +16,7 @@ public class AuthController : ControllerBase
     private readonly AppDbContext _context;
     private readonly Services.TenantService _tenant;
     private readonly Services.ISmsOtpService _smsOtpService;
+    private readonly Services.IEmailOtpService _emailOtpService;
 
     public AuthController(
         SignInManager<ApplicationUser> signInManager,
@@ -23,7 +24,8 @@ public class AuthController : ControllerBase
         RoleManager<AppRole> roleManager,
         AppDbContext context,
         Services.TenantService tenant,
-        Services.ISmsOtpService smsOtpService)
+        Services.ISmsOtpService smsOtpService,
+        Services.IEmailOtpService emailOtpService)
     {
         _signInManager = signInManager;
         _userManager = userManager;
@@ -31,6 +33,7 @@ public class AuthController : ControllerBase
         _context = context;
         _tenant = tenant;
         _smsOtpService = smsOtpService;
+        _emailOtpService = emailOtpService;
     }
 
     [HttpPost("login")]
@@ -56,32 +59,65 @@ public class AuthController : ControllerBase
     [HttpPost("send-otp")]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.PhoneNumber))
-            return BadRequest(new { message = "Phone number is required." });
+        if (string.IsNullOrWhiteSpace(request.Email) && string.IsNullOrWhiteSpace(request.PhoneNumber))
+            return BadRequest(new { message = "Email or phone number is required." });
 
-        var (success, message, debugCode) = await _smsOtpService.SendOtpAsync(request.PhoneNumber);
-        if (!success)
-            return BadRequest(new { message });
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            var existingUser = await _userManager.FindByEmailAsync(request.Email);
+            if (existingUser != null)
+                return BadRequest(new { message = "An account with this email address already exists." });
 
-        return Ok(new 
-        { 
-            message,
-            debugCode,
-            phoneNumber = Services.SmsOtpService.NormalizePhoneNumber(request.PhoneNumber)
-        });
+            var (success, message, debugCode) = await _emailOtpService.SendOtpAsync(request.Email);
+            if (!success)
+                return BadRequest(new { message });
+
+            return Ok(new 
+            { 
+                message,
+                debugCode,
+                email = Services.EmailOtpService.NormalizeEmail(request.Email)
+            });
+        }
+        else
+        {
+            var (success, message, debugCode) = await _smsOtpService.SendOtpAsync(request.PhoneNumber!);
+            if (!success)
+                return BadRequest(new { message });
+
+            return Ok(new 
+            { 
+                message,
+                debugCode,
+                phoneNumber = Services.SmsOtpService.NormalizePhoneNumber(request.PhoneNumber!)
+            });
+        }
     }
 
     [HttpPost("verify-otp")]
     public IActionResult VerifyOtp([FromBody] VerifyOtpRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.PhoneNumber) || string.IsNullOrWhiteSpace(request.Code))
-            return BadRequest(new { message = "Phone number and verification code are required." });
+        if (string.IsNullOrWhiteSpace(request.Code))
+            return BadRequest(new { message = "Verification code is required." });
 
-        bool isValid = _smsOtpService.VerifyOtp(request.PhoneNumber, request.Code);
-        if (!isValid)
-            return BadRequest(new { message = "Invalid or expired verification code." });
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            bool isValid = _emailOtpService.VerifyOtp(request.Email, request.Code);
+            if (!isValid)
+                return BadRequest(new { message = "Invalid or expired email verification code." });
 
-        return Ok(new { message = "Phone number verified successfully.", verified = true });
+            return Ok(new { message = "Email address verified successfully.", verified = true });
+        }
+        else if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+        {
+            bool isValid = _smsOtpService.VerifyOtp(request.PhoneNumber, request.Code);
+            if (!isValid)
+                return BadRequest(new { message = "Invalid or expired verification code." });
+
+            return Ok(new { message = "Phone number verified successfully.", verified = true });
+        }
+
+        return BadRequest(new { message = "Email or phone number is required." });
     }
 
     [HttpPost("register")]
@@ -91,23 +127,21 @@ public class AuthController : ControllerBase
         if (existingUser != null)
             return BadRequest("User already exists with this email address.");
 
-        // Validate phone number and OTP code if provided or required
-        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+        // Validate Email OTP verification
+        bool isEmailVerified = _emailOtpService.IsEmailVerified(request.Email, request.OtpCode);
+        if (!isEmailVerified)
         {
-            bool isPhoneVerified = _smsOtpService.IsPhoneVerified(request.PhoneNumber, request.OtpCode);
-            if (!isPhoneVerified)
-            {
-                return BadRequest("Invalid or expired phone verification code.");
-            }
+            return BadRequest("Please verify your email address using the 6-digit verification code first.");
         }
-
 
         var user = new ApplicationUser
         {
             UserName = request.Email,
             Email = request.Email,
+            EmailConfirmed = true,
             PhoneNumber = !string.IsNullOrWhiteSpace(request.PhoneNumber) ? Services.SmsOtpService.NormalizePhoneNumber(request.PhoneNumber) : null,
             PhoneNumberConfirmed = !string.IsNullOrWhiteSpace(request.PhoneNumber),
+
             FirstName = request.FirstName,
             LastName = request.LastName,
             MustChangePassword = false // It's their own password, so they don't need to change it on first login
@@ -274,14 +308,17 @@ public class RegisterRequest
 
 public class SendOtpRequest
 {
-    public required string PhoneNumber { get; set; }
+    public string? Email { get; set; }
+    public string? PhoneNumber { get; set; }
 }
 
 public class VerifyOtpRequest
 {
-    public required string PhoneNumber { get; set; }
+    public string? Email { get; set; }
+    public string? PhoneNumber { get; set; }
     public required string Code { get; set; }
 }
+
 
 public class ChangePasswordRequest
 {
