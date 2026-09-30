@@ -14,8 +14,9 @@ CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 var builder = WebApplication.CreateBuilder(args);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-// Restrict to known origins. In production, add your real domain(s) to
-// "AllowedOrigins" in appsettings.json. Dev origins are always included.
+// Allow any origin that reaches this server — needed for LAN clients connecting
+// via the desktop workstation app from a different machine on the network.
+// Explicitly configured origins in appsettings.json are also included.
 var allowedOrigins = builder.Configuration
     .GetSection("AllowedOrigins")
     .Get<string[]>() ?? Array.Empty<string>();
@@ -32,7 +33,7 @@ var allOrigins = allowedOrigins.Union(devOrigins).ToArray();
 
 builder.Services.AddCors(opt =>
     opt.AddPolicy("BlazorPolicy", p => p
-        .WithOrigins(allOrigins)
+        .SetIsOriginAllowed(_ => true)   // Allow any LAN/WAN origin (desktop clients on other machines)
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()));
