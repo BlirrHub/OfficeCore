@@ -137,11 +137,10 @@
                         class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer @(isSelected 
                             ? "bg-fuchsia-600 text-white shadow-sm" 
                             : "text-zinc-400 hover:text-white hover:bg-zinc-800/60")">
-                    <span>@tab.Icon</span>
-                    <span class="ml-1.5">@tab.Label</span>
+                    <span>@tab.Label</span>
                     @if (_summary?.EntityCounts != null && tab.Value != null && _summary.EntityCounts.TryGetValue(tab.Value, out var count))
                     {
-                        <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] @(isSelected ? "bg-white/20" : "bg-zinc-800")">
+                        <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium @(isSelected ? "bg-white/20 text-white" : "bg-zinc-800 text-zinc-400")">
                             @count
                         </span>
                     }
@@ -303,9 +302,8 @@
 
                                 <!-- Category Badge -->
                                 <td class="py-3.5 px-4 whitespace-nowrap">
-                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-800/80 text-zinc-300 border border-zinc-700/60 flex items-center gap-1 w-max">
-                                        <span>@GetCategoryIcon(log.EntityName)</span>
-                                        <span>@log.EntityName</span>
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-zinc-800/80 text-zinc-300 border border-zinc-700/60 inline-flex items-center">
+                                        @log.EntityName
                                     </span>
                                 </td>
 
@@ -327,8 +325,9 @@
                                     @if (!string.IsNullOrEmpty(log.OldValues) || !string.IsNullOrEmpty(log.NewValues))
                                     {
                                         <button type="button" @onclick="() => OpenInspectModal(log)"
-                                                class="px-2.5 py-1 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-[11px] font-semibold border border-indigo-800/60 transition-all cursor-pointer">
-                                            🔍 Diff Changes
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-[11px] font-semibold border border-indigo-800/60 transition-all cursor-pointer">
+                                            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                                            <span>Diff Changes</span>
                                         </button>
                                     }
                                     else
@@ -497,18 +496,18 @@
     // Inspection Modal State
     private AuditLogItem? _inspectLog;
 
-    private record CategoryTab(string? Value, string Label, string Icon);
+    private record CategoryTab(string? Value, string Label);
 
     private readonly List<CategoryTab> _categoryTabs = new()
     {
-        new(null, "All Categories", "📜"),
-        new("Payroll", "Payroll", "💰"),
-        new("Employee", "Employee & Rates", "👤"),
-        new("Attendance", "Attendance", "⏱️"),
-        new("Leave", "Leaves", "🌴"),
-        new("Advance", "Advances", "💳"),
-        new("Backup", "Backups & DB", "📦"),
-        new("Roles", "Security & Roles", "🛡️")
+        new(null, "All Categories"),
+        new("Payroll", "Payroll"),
+        new("Employee", "Employee & Rates"),
+        new("Attendance", "Attendance"),
+        new("Leave", "Leaves"),
+        new("Advance", "Advances"),
+        new("Backup", "Backups & DB"),
+        new("Roles", "Security & Roles")
     };
 
     private bool HasActiveFilters =>
@@ -723,18 +722,7 @@
         _ => "bg-zinc-800 text-zinc-300 border-zinc-700"
     };
 
-    private static string GetCategoryIcon(string category) => category switch
-    {
-        "Payroll" => "💰",
-        "Employee" => "👤",
-        "Attendance" => "⏱️",
-        "Leave" => "🌴",
-        "Advance" => "💳",
-        "Backup" => "📦",
-        "Roles" => "🛡️",
-        "Organization" => "🏢",
-        _ => "📜"
-    };
+
 
     private static string FormatJson(string? json)
     {

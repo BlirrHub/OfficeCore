@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### UI Modernization & Enterprise Cleanup — [2026-09-30] (Replaced Informal Emojis with Professional SVG Icons & Status Badges)
+
+- **Removed Informal Unicode Emojis Across Web UI:**
+  - Standardized enterprise styling across `OfficeCore.Web` by replacing informal emoji characters with tailored Heroicons SVGs and sleek status dot indicators.
+  - **User Management (`UserManagement.razor`):** Replaced `👑 OWNER` badge with a sleek amber dot status badge (`Owner`) consistent with table badge standards.
+  - **Audit Logs (`AuditLogs.razor`):** Removed emoji prefixes across all category filters (`All Categories`, `Payroll`, `Employee & Rates`, `Attendance`, `Leaves`, `Advances`, `Backups & DB`, `Security & Roles`), cleaned table badge renderers, replaced `🔍 Diff Changes` with an SVG search/diff icon, and replaced modal close text with an SVG icon.
+  - **Notification Center (`NotificationCenter.razor`):** Replaced emoji avatars (`🚀`, `🌴`, `💵`, `📍`, `🔔`) with dynamic SVG category icons (system, leave, cash advance, location) matching the dark glassmorphic design system.
+  - **Dashboard (`Dashboard.razor`):** Replaced section headers (`Team Operations`, `My Personal Status`) and all quick action shortcuts with clean, accessible SVG icons.
+  - **Time Off (`TimeOff.razor`):** Replaced empty state clipboard emoji with a document SVG and updated policy leave type badges (`Sick Leave`, `Vacation Leave`) with color-coded dot badges.
+  - **Authentication & Onboarding (`Login.razor`, `SignUp.razor`):** Replaced crown and person demo account emojis with clean shield/user SVGs, and replaced simulation OTP emoji with an info icon.
+  - **Locations (`Locations.razor`):** Replaced map pin emoji with an SVG pin icon on the Center on Map action button.
+- **Tailwind Asset Rebuild:**
+  - Successfully recompiled `wwwroot/app.css` using Tailwind CSS v4 CLI.
+
 ### Documentation & Agent Directives — [2026-09-30] (Roadmap & Ideation Workflow Consolidation, Obsolete Markdown Pruning)
 
 - **Mandatory Ideation & Planning Protocol (`ROADMAP.md`, `agent.md`, `.agents/rules/operating.md`):**

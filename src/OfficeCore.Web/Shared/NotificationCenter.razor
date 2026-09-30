@@ -86,8 +86,8 @@
                 @if (_notifications.Count == 0)
                 {
                     <div class="p-8 text-center space-y-2 oc-notif-item">
-                        <div class="size-10 rounded-full bg-zinc-800 mx-auto flex items-center justify-center text-lg text-zinc-400">
-                            🔔
+                        <div class="size-10 rounded-full bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400">
+                            <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
                         </div>
                         <p class="text-xs font-medium text-zinc-300">You're all caught up!</p>
                         <p class="text-[11px] text-zinc-500">Live workspace notifications will appear here in real time.</p>
@@ -101,8 +101,23 @@
                              class="p-3.5 transition-colors cursor-pointer flex items-start gap-3 relative group oc-notif-item @(!item.IsRead ? "bg-fuchsia-950/20" : "")">
                             
                             <!-- Icon Pill -->
-                            <div class="size-8 rounded-xl bg-zinc-800 flex items-center justify-center text-sm shrink-0 border border-zinc-700/60">
-                                @item.Icon
+                            <div class="size-8 rounded-xl bg-zinc-800/80 flex items-center justify-center shrink-0 border border-zinc-700/60">
+                                @if (item.Category == "Leave")
+                                {
+                                    <svg class="size-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                                }
+                                else if (item.Category == "Advance")
+                                {
+                                    <svg class="size-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                }
+                                else if (item.Category == "Location")
+                                {
+                                    <svg class="size-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                                }
+                                else
+                                {
+                                    <svg class="size-4 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
+                                }
                             </div>
 
                             <!-- Content -->
@@ -158,7 +173,7 @@
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
-        public string Icon { get; set; } = "🔔";
+        public string Icon { get; set; } = string.Empty;
         public string? TargetUrl { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public bool IsRead { get; set; } = false;
@@ -174,7 +189,6 @@
                 Title = "Welcome to OfficeCore",
                 Message = "Your workstation is connected and operational.",
                 Category = "System",
-                Icon = "🚀",
                 Timestamp = DateTime.UtcNow,
                 IsRead = false,
                 TargetUrl = "/dashboard"
@@ -203,7 +217,6 @@
                     Title = "New Leave Request Submitted",
                     Message = "An employee submitted a time-off request awaiting review.",
                     Category = "Leave",
-                    Icon = "🌴",
                     TargetUrl = "/admin/leave-approvals"
                 });
             });
@@ -215,7 +228,6 @@
                     Title = "Leave Request Status Updated",
                     Message = "A leave request was reviewed or modified.",
                     Category = "Leave",
-                    Icon = "🌴",
                     TargetUrl = "/myleaves"
                 });
             });
@@ -228,7 +240,6 @@
                     Title = "New Advance Request Filed",
                     Message = "An employee filed a salary advance or E-Loan request.",
                     Category = "Advance",
-                    Icon = "💵",
                     TargetUrl = "/ledger"
                 });
             });
@@ -240,7 +251,6 @@
                     Title = "Advance / Loan Updated",
                     Message = "An advance request status has been updated.",
                     Category = "Advance",
-                    Icon = "💵",
                     TargetUrl = "/advances"
                 });
             });
@@ -253,7 +263,6 @@
                     Title = "Field Worker Active",
                     Message = "A team member broadcast their live location.",
                     Category = "Location",
-                    Icon = "📍",
                     TargetUrl = "/locations"
                 });
             });
