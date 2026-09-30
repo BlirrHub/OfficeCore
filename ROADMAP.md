@@ -44,7 +44,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [x] **Hierarchical Administrator Access Control:** Main Admin can manage assigned admins; assigned admins cannot modify owner or peers.
 - [x] **Default Modules Configuration:** Dashboard, My Attendance, My Leaves, Advances unconditionally active for all authenticated users.
 - [x] **Audit Log Explorer:** Administrative ledger (`/admin/audit-logs`) tracking sensitive actions (salary edits, role changes, organization settings).
-- [ ] **Multi-Use Time-Expiring Invite Codes:** Allow workspace invite codes to be used multiple times until a set expiration window (e.g., 24h, 7d, 30d) instead of single-use invalidation.
+- [x] **Multi-Use Time-Expiring Invite Codes:** (DECIDED TO KEEP SINGLE USE) Decided against multi-use codes; updated UI to clarify they are single-use.
 - [ ] **Simplified Invite Code UX:** Remove the full URL invite link from User Management, displaying only the clean, portable Invite Code (e.g. `OC-7X9B2K`) designed for native desktop client entry.
 - [ ] **Custom Organization Branding:** Allow workspaces to upload custom company logos, favicon, and brand accent colors.
 - [ ] **Single Sign-On (SSO):** Google Workspace and Microsoft Entra ID (Azure AD) OAuth2 login integration.
