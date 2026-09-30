@@ -143,18 +143,6 @@
                                         }
                                     </button>
                                 </div>
-                                @if (!string.IsNullOrEmpty(_debugOtp))
-                                {
-                                    <div class="flex items-center justify-between text-[11px] text-zinc-400 bg-zinc-900/90 p-2 rounded-lg border border-zinc-800">
-                                        <span class="flex items-center gap-1.5">
-                                            <svg class="size-3.5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            <span>Simulation OTP: <strong class="text-fuchsia-400 font-mono">@_debugOtp</strong></span>
-                                        </span>
-                                        <button type="button" @onclick="() => _model.OtpCode = _debugOtp" class="text-fuchsia-400 hover:underline font-semibold cursor-pointer">Auto-fill</button>
-                                    </div>
-                                }
                             </div>
                         }
                     </div>
@@ -260,7 +248,6 @@
     private bool _isVerifyingOtp;
     private bool _otpSent;
     private bool _isEmailVerified;
-    private string? _debugOtp;
 
     protected override async Task OnInitializedAsync()
     {
@@ -290,7 +277,6 @@
             {
                 var result = await response.Content.ReadFromJsonAsync<OtpResponse>();
                 _otpSent = true;
-                _debugOtp = result?.DebugCode;
                 _infoMessage = result?.Message ?? "Verification code has been dispatched. Enter the 6-digit code below.";
             }
             else

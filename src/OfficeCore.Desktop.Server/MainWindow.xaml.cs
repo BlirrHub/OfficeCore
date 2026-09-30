@@ -35,6 +35,12 @@ public partial class MainWindow : Window
             var env = await CoreWebView2Environment.CreateAsync(null, udataDir);
 
             await webView.EnsureCoreWebView2Async(env);
+
+            // ── Production Security: disable right-click menu and DevTools (F12) ──
+            webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+
+
             webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
             webView.CoreWebView2.WebResourceRequested += (s, args) =>
             {

@@ -77,8 +77,7 @@ public class SmsOtpService : ISmsOtpService
         _logger.LogInformation("📱 [SMS OTP Verification] To: {PhoneNumber} | Code: {Code} | Valid for 5 mins", normalized, code);
         _logger.LogInformation("====================================================");
 
-        // In development / local network demo environments, we return DebugCode so the UI can auto-suggest or test cleanly.
-        return Task.FromResult<(bool, string, string?)>((true, "Verification code sent to your phone.", code));
+        return Task.FromResult<(bool, string, string?)>((true, "Verification code sent to your phone.", null));
     }
 
     public bool VerifyOtp(string phoneNumber, string code)

@@ -118,6 +118,8 @@ public class ServerProcessManager : IDisposable
                     // Check local directories for published API binaries
                     var directExe = Path.Combine(baseDir, "OfficeCore.Api.exe");
                     var directDll = Path.Combine(baseDir, "OfficeCore.Api.dll");
+                    var subApiExe = Path.Combine(baseDir, "Api", "OfficeCore.Api.exe");
+                    var subApiDll = Path.Combine(baseDir, "Api", "OfficeCore.Api.dll");
                     var subServerExe = Path.Combine(baseDir, "Server", "OfficeCore.Api.exe");
                     var subStationExe = Path.Combine(baseDir, "OfficeCore-Server-Station", "OfficeCore.Api.exe");
 
@@ -127,6 +129,31 @@ public class ServerProcessManager : IDisposable
                         {
                             FileName = directExe,
                             WorkingDirectory = baseDir,
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            CreateNoWindow = true
+                        };
+                    }
+                    else if (File.Exists(subApiExe))
+                    {
+                        startInfo = new ProcessStartInfo
+                        {
+                            FileName = subApiExe,
+                            WorkingDirectory = Path.GetDirectoryName(subApiExe)!,
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            CreateNoWindow = true
+                        };
+                    }
+                    else if (File.Exists(subApiDll))
+                    {
+                        startInfo = new ProcessStartInfo
+                        {
+                            FileName = "dotnet",
+                            Arguments = $"\"{subApiDll}\"",
+                            WorkingDirectory = Path.GetDirectoryName(subApiDll)!,
                             UseShellExecute = false,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,

@@ -72,8 +72,6 @@ public class EmailOtpService : IEmailOtpService
         var fromEmail = _config["Email:FromEmail"] ?? smtpUser ?? "noreply@officecore.local";
         var fromName = _config["Email:FromName"] ?? "OfficeCore";
 
-        bool dispatchedViaSmtp = false;
-
         if (!string.IsNullOrWhiteSpace(smtpHost) && !string.IsNullOrWhiteSpace(smtpUser) && !string.IsNullOrWhiteSpace(smtpPass))
         {
             try
@@ -111,7 +109,6 @@ public class EmailOtpService : IEmailOtpService
 
                 mail.To.Add(normalized);
                 await client.SendMailAsync(mail);
-                dispatchedViaSmtp = true;
                 _logger.LogInformation("📧 Successfully sent OTP email via SMTP to {Email}", normalized);
             }
             catch (Exception ex)
@@ -120,11 +117,8 @@ public class EmailOtpService : IEmailOtpService
             }
         }
 
-        string msg = dispatchedViaSmtp
-            ? "Verification code sent to your email inbox."
-            : "Verification code sent. (If running offline without SMTP configured, use the provided simulation code).";
-
-        return (true, msg, code);
+        string msg = "Verification code sent to your email inbox.";
+        return (true, msg, null);
     }
 
     public bool VerifyOtp(string email, string code)

@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ACBA Production Hardening & Specification Alignment — [2026-09-30]
+
+- **Removed Demo Data Seeder (`DbSeeder.cs`):**
+  - Eliminated mock employee accounts, test attendance logs, sample payroll cutoffs, and demo boards on the ACBA branch so databases start completely clean with migration auto-execution and global admin identity role registration.
+- **Removed Demo Account Access (`Login.razor`):**
+  - Removed quick demo buttons and credentials autofill from the login view.
+- **Disabled OTP Simulation (`SignUp.razor`, `EmailOtpService.cs`, `SmsOtpService.cs`):**
+  - Removed the simulation OTP display banner and autofill button in registration.
+  - Sanitized OTP dispatch services so debug codes are never returned in API payloads, requiring authentic email/SMS codes.
+- **Hardened Inspector & DevTools Restrictions (`MainWindow.xaml.cs`, `index.html`):**
+  - Disabled right-click context menu and DevTools/inspect element shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U) across Desktop Client, Desktop Server, and Web frontends.
+- **Preserved Biometric Importer Integration (`BiometricImportHub.razor`, `Attendance.razor`):**
+  - Retained dedicated ACBA Biometric Import Hub for USB/standalone scanner XLS parsing alongside core attendance features.
+
 ### UI Modernization & Enterprise Cleanup — [2026-09-30] (Replaced Informal Emojis with Professional SVG Icons & Status Badges)
 
 - **Removed Informal Unicode Emojis Across Web UI:**

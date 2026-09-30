@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
@@ -93,6 +94,46 @@ public partial class MainWindow : Window
                     }
                 }
 
+                // 1b. Extract embedded Api.zip bundle or fallback to local Api directories
+                var apiDir = Path.Combine(_installDir, "Api");
+                if (!Directory.Exists(apiDir)) Directory.CreateDirectory(apiDir);
+
+                using var apiZipStream = assembly.GetManifestResourceStream("OfficeCore.Server.Installer.Api.zip")
+                                         ?? assembly.GetManifestResourceStream("Api.zip");
+
+                if (apiZipStream != null)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        InstallProgressBar.Value = 50;
+                        StatusMessageText.Text = "Extracting OfficeCore API & Web services bundle...";
+                    });
+
+                    using var archive = new ZipArchive(apiZipStream, ZipArchiveMode.Read);
+                    archive.ExtractToDirectory(_installDir, overwriteFiles: true);
+                }
+                else
+                {
+                    // Fallback to local published Api directory if running unbundled installer
+                    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    string[] candidateApiDirs = [
+                        Path.Combine(baseDir, "Api"),
+                        Path.Combine(baseDir, "..", "..", "..", "..", "dist", "temp_api_payload", "Api"),
+                        Path.Combine(baseDir, "..", "..", "..", "..", "dist", "OfficeCore-ServerStation-Portable", "Api"),
+                        Path.Combine(baseDir, "..", "..", "..", "..", "dist", "OfficeCore-Api")
+                    ];
+
+                    foreach (var cand in candidateApiDirs)
+                    {
+                        var fullCand = Path.GetFullPath(cand);
+                        if (Directory.Exists(fullCand))
+                        {
+                            CopyDirectory(fullCand, apiDir);
+                            break;
+                        }
+                    }
+                }
+
                 // Copy this installer as uninstaller
                 if (!string.IsNullOrEmpty(currentExe) && File.Exists(currentExe))
                 {
@@ -102,7 +143,7 @@ public partial class MainWindow : Window
 
                 Dispatcher.Invoke(() =>
                 {
-                    InstallProgressBar.Value = 65;
+                    InstallProgressBar.Value = 75;
                     StatusMessageText.Text = "Creating shortcuts and system registry...";
                 });
 
@@ -215,6 +256,21 @@ public partial class MainWindow : Window
         catch
         {
             // Fallback shortcut creation ignored if COM not allowed
+        }
+    }
+
+    private static void CopyDirectory(string sourceDir, string targetDir)
+    {
+        Directory.CreateDirectory(targetDir);
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var dest = Path.Combine(targetDir, Path.GetFileName(file));
+            File.Copy(file, dest, true);
+        }
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            var destSub = Path.Combine(targetDir, Path.GetFileName(subDir));
+            CopyDirectory(subDir, destSub);
         }
     }
 }

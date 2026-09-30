@@ -15,6 +15,9 @@
     <EmbeddedResource Include="..\..\dist\OfficeCore-ServerStation-Portable\OfficeCore.ServerStation.exe" Condition="Exists('..\..\dist\OfficeCore-ServerStation-Portable\OfficeCore.ServerStation.exe')">
       <Link>OfficeCore.ServerStation.exe</Link>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\dist\temp_api_payload\Api.zip" Condition="Exists('..\..\dist\temp_api_payload\Api.zip')">
+      <Link>Api.zip</Link>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
