@@ -141,6 +141,26 @@
                             </Button.Resources>
                         </Button>
 
+                        <Button Content="◀" Click="GoBackButton_Click" ToolTip="Go Back"
+                                Background="#18181B" Foreground="#F4F4F5" BorderBrush="#27272A" BorderThickness="1"
+                                Padding="10,5" FontSize="11" Cursor="Hand" Margin="0,0,6,0">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+
+                        <Button Content="▶" Click="GoForwardButton_Click" ToolTip="Go Forward"
+                                Background="#18181B" Foreground="#F4F4F5" BorderBrush="#27272A" BorderThickness="1"
+                                Padding="10,5" FontSize="11" Cursor="Hand" Margin="0,0,6,0">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+
                         <Button Content="🔄 Reload" Click="ReloadButton_Click" 
                                 Background="#18181B" Foreground="#A1A1AA" BorderBrush="#27272A" BorderThickness="1"
                                 Padding="10,5" FontSize="11" Cursor="Hand" Margin="0,0,6,0">

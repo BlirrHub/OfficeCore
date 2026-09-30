@@ -152,6 +152,11 @@
             </div>
             
             <div class="p-6 border-t border-zinc-800 bg-zinc-900/30 flex justify-end gap-3">
+                <button type="button" @onclick="PrintPayslip" class="mr-auto px-4 py-2 text-sm font-medium text-emerald-400 hover:text-white bg-emerald-950/30 border border-emerald-900/50 hover:bg-emerald-900/50 rounded-lg transition-colors flex items-center gap-2">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                    Print
+                </button>
+                
                 <button type="button" @onclick="OnClose" class="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors">
                     @(IsReadOnly ? "Close" : "Cancel")
                 </button>
@@ -181,6 +186,7 @@
     [Parameter] public bool IsReadOnly { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback OnSaved { get; set; }
+    @inject IJSRuntime JSRuntime
 
     private UpdateRequest updateRequest = new();
     private bool isSaving = false;
@@ -232,6 +238,11 @@
         {
             isSaving = false;
         }
+    }
+
+    private async Task PrintPayslip()
+    {
+        await JSRuntime.InvokeVoidAsync("window.open", $"/print-payslip/{Payslip.Id}", "_blank");
     }
 
     public class UpdateRequest

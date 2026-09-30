@@ -58,9 +58,9 @@
     @if (_isOpen)
     {
         <!-- Transparent backdrop to dismiss on outside click -->
-        <div class="fixed inset-0 z-40 bg-transparent" @onclick="CloseDropdown"></div>
+        <div class="fixed inset-0 z-[90] bg-transparent" @onclick="CloseDropdown"></div>
 
-        <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-zinc-800 shadow-2xl shadow-black z-50 overflow-hidden flex flex-col max-h-[480px] oc-notif-dropdown">
+        <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-zinc-800 shadow-2xl shadow-black z-[100] overflow-hidden flex flex-col max-h-[480px] oc-notif-dropdown">
             <!-- Header -->
             <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between oc-notif-header">
                 <div class="flex items-center gap-2">

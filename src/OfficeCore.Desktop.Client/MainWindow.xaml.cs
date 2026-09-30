@@ -163,6 +163,22 @@ public partial class MainWindow : Window
         webView.CoreWebView2?.Reload();
     }
 
+    private void GoBackButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (webView.CoreWebView2 != null && webView.CoreWebView2.CanGoBack)
+        {
+            webView.CoreWebView2.GoBack();
+        }
+    }
+
+    private void GoForwardButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (webView.CoreWebView2 != null && webView.CoreWebView2.CanGoForward)
+        {
+            webView.CoreWebView2.GoForward();
+        }
+    }
+
     private void ToggleToolbar_Click(object sender, RoutedEventArgs e)
     {
         if (WebFullToolbar.Visibility == Visibility.Visible)

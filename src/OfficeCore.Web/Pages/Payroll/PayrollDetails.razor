@@ -32,6 +32,10 @@
         @if (period != null)
         {
             <div class="flex items-center gap-3">
+                <button @onclick="ExportSummaryCsv" class="flex items-center gap-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-sm font-medium transition-all">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <span>Export Summary CSV</span>
+                </button>
                 @if (period.Status == 0 || period.Status == 1) // Draft or Computed
                 {
                     <button @onclick="() => showDeleteModal = true" class="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-4 py-2 rounded-xl text-sm font-medium transition-all" title="Archive Period">
@@ -373,6 +377,12 @@
         {
             ToastService.ShowError("Error archiving period.");
         }
+    }
+
+    private async Task ExportSummaryCsv()
+    {
+        var url = $"/api/payroll/periods/{Id}/export/summary";
+        await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
     }
 
     private void OpenPayslipModal(PayslipDto payslip)

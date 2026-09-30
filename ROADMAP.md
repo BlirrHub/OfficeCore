@@ -25,11 +25,11 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 | **P1** | **Automated Database Backup & 1-Click Restore** | Server Station & Web API | ✅ Completed | Automated scheduled & manual PostgreSQL dumps, safe restore wizard with pre-restore snapshot, retention policy, download archives, and Desktop Server Station controls |
 | **P1** | **Audit Trail Logging System** | Core Web API & Admin | ✅ Completed | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
 | **P1** | **Workspace Owner Visibility & Hierarchical RBAC** | Identity, Admin & Payroll | ✅ Completed | Main Admin (workspace creator) visible in directory, included in payroll when IsEmployee, with strict hierarchical RBAC protecting owner from assigned admins |
-| **P1** | **Attendance & Payroll/Payslip Exporter** | Payroll Engine & Attendance | 🟢 Ready | Printable PDF/HTML individual employee payslips, comprehensive payroll summary Excel/CSV, and DTR / punch summary logs |
+| **P1** | **Attendance & Payroll/Payslip Exporter** | Payroll Engine & Attendance | ✅ Completed | Printable PDF/HTML individual employee payslips, comprehensive payroll summary Excel/CSV, and DTR / punch summary logs |
 | **P1** | **Board Access Security & Owner-Restricted Membership** | Kanban Boards | ✅ Completed | Security policy enforcing that only Workspace Owner or Admins can add/remove members; non-admin board owners cannot add members; clean UX notice |
 | **P2** | **Chat Mentions & Task/Board Cross-Linking** | Chat System | 🟡 In Planning | Autocomplete `@user` mentions with alerts; `#task` and `#board` inline badges linking directly to cards and boards |
-| **P2** | **Dashboard Assigned Task Due Date Urgency Colors** | Dashboard & Kanban | 🟢 Ready | Color-coded alert badges (overdue, due today, upcoming) on dashboard task cards matching board card urgency styling |
-| **P2** | **Desktop Host Navigation Controls (Back/Forward)** | Desktop Host Windows | 🟢 Ready | Previous (Back) and Next (Forward) history buttons embedded in Desktop Client and Server Station top header bars |
+| **P2** | **Dashboard Assigned Task Due Date Urgency Colors** | Dashboard & Kanban | ✅ Completed | Color-coded alert badges (overdue, due today, upcoming) on dashboard task cards matching board card urgency styling |
+| **P2** | **Desktop Host Navigation Controls (Back/Forward)** | Desktop Host Windows | ✅ Completed | Previous (Back) and Next (Forward) history buttons embedded in Desktop Client and Server Station top header bars |
 | **P2** | **Server Installer Silent PostgreSQL Check/Install** | Server Installer | 🟡 In Planning | Setup wizard checks if PostgreSQL is installed; if missing, runs silent embedded setup |
 | **P2** | **In-App Auto-Updater for Server & Client** | Desktop Apps | 🟣 Backlog | Background version check against GitHub releases or API endpoint |
 | **P3** | **Software Licensing & Seat Management** | Server Station & Licensing | 🟣 Backlog | Hardware fingerprinting, offline signed keys, seat tiers *(Deferred until after initial test runs)* |
@@ -59,8 +59,8 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [ ] **Tenant-Level Data Export:** Organization admins can export their workspace's discrete records as an encrypted or portable JSON/ZIP package.
 
 ### 💰 Payroll & Compensation
-- [ ] **Printable & PDF Payslip Generation:** One-click bulk and individual PDF payslip generator with company logo and signature lines.
-- [ ] **Payroll & Attendance Summary Exporter:** Comprehensive summary export (Excel/CSV) for payroll cutoffs, employee earnings, deductions, and attendance punch logs.
+- [x] **Printable & PDF Payslip Generation:** One-click bulk and individual PDF payslip generator with company logo and signature lines.
+- [x] **Payroll & Attendance Summary Exporter:** Comprehensive summary export (Excel/CSV) for payroll cutoffs, employee earnings, deductions, and attendance punch logs.
 - [ ] **Configurable Tax & Statutory Deductions:** Support for regional tax tiers, social security, health insurance, and provident fund formulas.
 - [ ] **Automated Payslip Distribution:** Send encrypted PDF payslips to employee email addresses upon payroll finalization.
 - [ ] **Bank Disbursement Batch Export:** Export payroll totals into standardized CSV/Excel formats accepted by commercial banks.
@@ -68,7 +68,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 ### ⏱️ Attendance, Biometrics & Field Tracking
 - [x] **Standalone My Attendance Module:** Dedicated ESS attendance page (`/my-attendance`) with digital clock, live punch status, metrics, and SignalR live updates.
 - [x] **Attendance Management Consolidation:** Company-wide punch management (`/admin/attendance`) restricted to management roles.
-- [ ] **Attendance Log & DTR Exporter:** Export Daily Time Records (DTR), punch summaries, and tardiness reports to Excel/CSV.
+- [x] **Attendance Log & DTR Exporter:** Export Daily Time Records (DTR), punch summaries, and tardiness reports to Excel/CSV.
 - [ ] **Real-Time Attendance Sync & In-Page Refresh:** Live punch reflection on `/admin/attendance` when staff punch in/out, plus an in-page `↻ Refresh` button for immediate re-fetching without browser/host reload.
 - [ ] **Geofenced Mobile Clock-In:** Verify mobile punch coordinates are within authorized office location radiuses.
 - [ ] **Facial Recognition Punch Option:** Optional browser webcam-based face recognition alongside the AS608 fingerprint scanner.
@@ -76,9 +76,9 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [ ] **Rider Route Playback:** Timeline scrubber on `Locations.razor` to replay historical coordinates for any field staff member.
 
 ### 🌴 Leave Management (PTO) & Advances / Ledger
-- [ ] **Real-Time Live Ledger & Advances Sync:** Live SignalR event broadcasting when employees file Cash Advance (CA) or eLoan requests so admin Ledger updates instantly; live update when admin approves/disburses.
-- [ ] **Real-Time Leave Approvals & My Leaves Sync:** Live SignalR update when leave requests are filed (notifying admins) and when approved/rejected (updating employee balance and status live).
-- [ ] **Dedicated In-Page Refresh Buttons:** Add consistent `↻ Refresh` button controls to Ledger, Advances, Leave Approvals, and My Leaves headers for rapid single-click data re-fetching.
+- [x] **Real-Time Live Ledger & Advances Sync:** Live SignalR event broadcasting when employees file Cash Advance (CA) or eLoan requests so admin Ledger updates instantly; live update when admin approves/disburses.
+- [x] **Real-Time Leave Approvals & My Leaves Sync:** Live SignalR update when leave requests are filed (notifying admins) and when approved/rejected (updating employee balance and status live).
+- [x] **Dedicated In-Page Refresh Buttons:** Add consistent `↻ Refresh` button controls to Ledger, Advances, Leave Approvals, and My Leaves headers for rapid single-click data re-fetching.
 - [ ] **Leave Accrual & Balance Policies:** Configurable annual vacation/sick leave credits that accrue monthly or annually.
 - [ ] **Multi-Level Approval Chains:** Route approval to designated team leads before escalating to HR.
 - [ ] **Company Leave Calendar:** Organization-wide monthly calendar showing approved leaves to prevent understaffing.
@@ -95,13 +95,13 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [ ] **Milestone & Sprint Tracking:** Group cards into time-boxed sprints with burndown metrics.
 
 ### 📊 Dashboard & Work Overview
-- [ ] **Assigned Task Due Date Alert Highlighting:** Color-coded urgency styling (e.g. red for overdue, amber for due today/tomorrow, emerald for upcoming) on "My Tasks" cards in the main dashboard matching the board card tags.
+- [x] **Assigned Task Due Date Alert Highlighting:** Color-coded urgency styling (e.g. red for overdue, amber for due today/tomorrow, emerald for upcoming) on "My Tasks" cards in the main dashboard matching the board card tags.
 - [ ] **Quick Punch Clock Widget:** Quick clock-in/out button directly accessible on the main dashboard header without navigating to My Attendance.
 
 ### 🖥️ Desktop & Native Workstations
 - [x] **Two-Tier Native Application Architecture:** Host Server Station (`OfficeCore.Desktop.Server`) and Client Terminal (`OfficeCore.Desktop.Client`).
 - [x] **Standalone 1-Click Installers:** `publish-installers.ps1` script generating `Setup-OfficeCore-Server.exe` and `Setup-OfficeCore-Client.exe`.
-- [ ] **Host Window Navigation Controls:** Add browser-style Previous (Back) and Next (Forward) navigation buttons to the native desktop host header bar for quick page history traversal.
+- [x] **Host Window Navigation Controls:** Add browser-style Previous (Back) and Next (Forward) navigation buttons to the native desktop host header bar for quick page history traversal.
 - [ ] **Background Auto-Update Mechanism:** Seamless update notification and silent in-place updater for client and server.
 - [ ] **System Tray Minimization:** Option to minimize Server Station and Workstation to the Windows Notification Area / System Tray instead of taskbar.
 - [ ] **LAN Auto-Discovery (mDNS / UDP Broadcast):** Allow workstation client to automatically discover host Server Station IP without typing URL.
@@ -117,7 +117,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [ ] **Read Receipts & Typing Indicators:** Live typing bubbles and delivered/seen timestamps via SignalR.
 
 ### 🔔 Notification Center
-- [ ] **Click-Outside-to-Dismiss:** Automatically close the notification dropdown/drawer when clicking anywhere outside the notification panel.
+- [x] **Click-Outside-to-Dismiss:** Automatically close the notification dropdown/drawer when clicking anywhere outside the notification panel.
 - [ ] **Expanded Notification Triggers:** Add system notifications for pending leave requests, leave approvals/rejections, loan/CA requests, disbursements, card assignments, chat @mentions, and task due date alerts.
 
 ### 🔑 Software Licensing & Product Key System *(Future Concept — Deferred)*
