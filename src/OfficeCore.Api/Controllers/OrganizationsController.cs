@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using OfficeCore.Api.Hubs;
 using OfficeCore.Api.Models;
 using System.Security.Claims;
 
@@ -14,11 +16,16 @@ public class OrganizationsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IHubContext<ChatHub> _chatHub;
 
-    public OrganizationsController(AppDbContext context, UserManager<ApplicationUser> userManager)
+    public OrganizationsController(
+        AppDbContext context, 
+        UserManager<ApplicationUser> userManager,
+        IHubContext<ChatHub> chatHub)
     {
         _context = context;
         _userManager = userManager;
+        _chatHub = chatHub;
     }
 
     [HttpGet("my")]
@@ -399,6 +406,12 @@ public class OrganizationsController : ControllerBase
         invitation.AcceptedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        try
+        {
+            await _chatHub.Clients.Group($"org_{invitation.OrganizationId}_chat").SendAsync("MemberJoined");
+        }
+        catch { }
 
         return Ok(new
         {

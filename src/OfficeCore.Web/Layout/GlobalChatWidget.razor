@@ -950,16 +950,7 @@
         if (string.IsNullOrEmpty(_currentUserId)) return;
 
         // Load employees in org for chat searches (returns Employee.Id as Id)
-        try 
-        { 
-            _allUsers = await Http.GetFromJsonAsync<List<UserDto>>("/api/chat/users") ?? new();
-            var me = _allUsers.FirstOrDefault(u => u.ApplicationUserId == _currentUserId);
-            if (me != null) _currentEmployeeId = me.Id;
-        } 
-        catch { }
-        
-        // Remove current employee from selectable lists
-        _allUsers.RemoveAll(u => u.Id == _currentEmployeeId);
+        await ReloadUsers();
 
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(new Uri(Http.BaseAddress!, "hubs/chat"), options =>
@@ -1054,6 +1045,13 @@
             InvokeAsync(StateHasChanged);
         });
 
+        _hubConnection.On("MemberJoined", async () =>
+        {
+            await ReloadUsers();
+            await LoadRooms();
+            await InvokeAsync(StateHasChanged);
+        });
+
         try
         {
             await _hubConnection.StartAsync();
@@ -1064,6 +1062,19 @@
             Console.WriteLine($"Failed to connect to Chat SignalR: {ex.Message}");
         }
         await LoadRooms();
+    }
+
+    private async Task ReloadUsers()
+    {
+        try 
+        { 
+            var users = await Http.GetFromJsonAsync<List<UserDto>>("/api/chat/users") ?? new();
+            var me = users.FirstOrDefault(u => u.ApplicationUserId == _currentUserId);
+            if (me != null) _currentEmployeeId = me.Id;
+            users.RemoveAll(u => u.Id == _currentEmployeeId);
+            _allUsers = users;
+        } 
+        catch { }
     }
 
     private void ToggleChat()

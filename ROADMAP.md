@@ -109,7 +109,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 ### 💬 Chat & Internal Collaboration
 - [x] **Multi-Line Auto-Expanding Chat Input Box:** Replaced single-line horizontal-scrolling text input with an auto-expanding `<textarea>` supporting word-wrapping, multi-line display (height up to ~5 lines), <kbd>Enter</kbd> to send, and <kbd>Shift</kbd>+<kbd>Enter</kbd> for line breaks.
-- [ ] **Real-Time Member Discovery on Join:** Broadcast a SignalR `MemberJoined` event to all active chat clients when a new user registers or joins the workspace, immediately adding them to existing online users' direct message list without requiring a refresh.
+- [x] **Real-Time Member Discovery on Join:** Broadcast a SignalR `MemberJoined` event to all active chat clients when a new user registers or joins the workspace, immediately adding them to existing online users' direct message list without requiring a refresh.
 - [ ] **Group User @Mentions:** Tag and notify specific users in group discussions using `@username` autocomplete with visual highlights and desktop alerts.
 - [ ] **Board & Task References in Chat:** Link boards and cards directly in conversations using `#task` or `#board` pills that link directly to the modal or board view.
 - [ ] **Department & Project Channels:** Dedicated group chat channels alongside direct 1-on-1 messages.

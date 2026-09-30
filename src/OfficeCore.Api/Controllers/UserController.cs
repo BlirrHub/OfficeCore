@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using OfficeCore.Api.Hubs;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
 
@@ -16,17 +18,20 @@ public class UserController : ControllerBase
     private readonly AppDbContext _context;
     private readonly TenantService _tenant;
     private readonly IAuditService _audit;
+    private readonly IHubContext<ChatHub> _chatHub;
 
     public UserController(
         UserManager<ApplicationUser> userManager,
         AppDbContext context,
         TenantService tenant,
-        IAuditService audit)
+        IAuditService audit,
+        IHubContext<ChatHub> chatHub)
     {
         _userManager = userManager;
         _context = context;
         _tenant = tenant;
         _audit = audit;
+        _chatHub = chatHub;
     }
 
     [HttpGet]
@@ -157,6 +162,12 @@ public class UserController : ControllerBase
             AuditActions.Create,
             $"Created new employee profile for {request.FirstName} {request.LastName} ({request.Email}, ID: {request.EmployeeId}, Daily Rate: ₱{request.DailyRate:N2})",
             employee.Id);
+
+        try
+        {
+            await _chatHub.Clients.Group($"org_{orgId.Value}_chat").SendAsync("MemberJoined");
+        }
+        catch { }
 
         return Ok(new { message = "User created successfully", userId = user.Id });
     }

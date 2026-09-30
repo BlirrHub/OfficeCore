@@ -26,6 +26,7 @@ public class ChatHub : Hub
         {
             var orgId = _tenant.GetActiveOrganizationId();
             await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId}_employee_{employee.Id}");
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId}_chat");
         }
 
         await base.OnConnectedAsync();
