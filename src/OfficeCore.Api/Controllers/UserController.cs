@@ -45,7 +45,7 @@ public class UserController : ControllerBase
             .Include(e => e.GovernmentRecord)
             .Include(e => e.EmployeeRoles)
                 .ThenInclude(er => er.Role)
-            .Where(e => e.OrganizationId == orgId && e.UserId != createdByUserId)
+            .Where(e => e.OrganizationId == orgId)
             .ToListAsync();
 
         var result = employees.Select(e => new
@@ -64,6 +64,7 @@ public class UserController : ControllerBase
             e.ResignedDate,
             e.IsEligibleForLeave,
             e.WorkScheduleId,
+            IsOwner = e.UserId == createdByUserId,
             GovernmentRecord = e.GovernmentRecord != null ? new
             {
                 e.GovernmentRecord.IsEligibleForDeductions,
@@ -165,14 +166,33 @@ public class UserController : ControllerBase
     {
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
+        
+        var currentUserId = _userManager.GetUserId(User);
+
+        var org = await _context.Organizations.FindAsync(orgId);
+        var createdByUserId = org?.CreatedByUserId;
 
         var employee = await _context.Employees
             .Include(e => e.User)
             .Include(e => e.GovernmentRecord)
+            .Include(e => e.EmployeeRoles)
+                .ThenInclude(er => er.Role)
             .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
 
         if (employee == null || employee.User == null)
             return NotFound();
+
+        bool isTargetOwner = employee.UserId == createdByUserId;
+        bool isCurrentUserOwner = currentUserId == createdByUserId;
+        bool isTargetAdmin = employee.EmployeeRoles.Any(er => er.Role?.Name == "Admin");
+
+        // Rule: Only the workspace owner can edit the workspace owner
+        if (isTargetOwner && !isCurrentUserOwner)
+            return Forbid();
+
+        // Rule: Only the workspace owner can edit other admins
+        if (isTargetAdmin && !isCurrentUserOwner && currentUserId != employee.UserId)
+            return Forbid();
 
         var oldState = new
         {
@@ -184,7 +204,8 @@ public class UserController : ControllerBase
         };
 
         employee.EmployeeId = request.EmployeeId;
-        employee.IsActive = request.IsActive;
+        employee.IsActive = isTargetOwner ? true : request.IsActive; // Owner is always active
+
         employee.IsEmployee = request.IsEmployee;
         employee.DailyRate = request.DailyRate;
         employee.UseCustomDailyRate = request.UseCustomDailyRate;
@@ -209,7 +230,7 @@ public class UserController : ControllerBase
         _context.Employees.Update(employee);
         await _context.SaveChangesAsync();
 
-        if (request.Roles != null)
+        if (request.Roles != null && !isTargetOwner)
         {
 
             var currentEmployeeRoles = await _context.EmployeeRoles
@@ -264,11 +285,17 @@ public class UserController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
+        var org = await _context.Organizations.FindAsync(orgId);
+        var createdByUserId = org?.CreatedByUserId;
+
         var employee = await _context.Employees
             .Include(e => e.User)
             .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
         if (employee == null)
             return NotFound();
+
+        if (employee.UserId == createdByUserId)
+            return BadRequest(new { message = "The workspace owner cannot be resigned." });
 
         employee.IsActive = false;
         employee.ResignedDate = DateTime.SpecifyKind(request.ResignedDate, DateTimeKind.Utc);
@@ -311,11 +338,17 @@ public class UserController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
+        var org = await _context.Organizations.FindAsync(orgId);
+        var createdByUserId = org?.CreatedByUserId;
+
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
 
         if (employee == null)
             return NotFound();
+
+        if (employee.UserId == createdByUserId)
+            return BadRequest(new { message = "The workspace owner cannot be removed." });
 
         // Remove the employee from this organization
         _context.Employees.Remove(employee);

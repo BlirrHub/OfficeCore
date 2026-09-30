@@ -6,6 +6,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-09-30] (Workspace Owner Visibility, Headcount Reconciliation & Hierarchical RBAC)
+
+- **Workspace Owner Visibility & Headcount Alignment:**
+  - Resolved discrepancy where workspace dashboard headcount counted 2 users while user administration only displayed 1.
+  - Removed explicit `e.UserId != createdByUserId` exclusions in `UserController.cs` (`GetUsers()`) so the workspace owner is visible in the administration table alongside regular users.
+  - Removed exclusion filter in `PayrollComputationService.cs` to ensure workspace owners are included in payroll computations whenever marked as an employee (`IsEmployee = true`).
+- **Hierarchical Role-Based Access Control (RBAC):**
+  - Introduced hierarchical administration rules distinguishing the **Main Admin (Workspace Creator / Owner)** from **Assigned Administrators**:
+    - **Main Admin (Owner):** Retains supreme administrative authority. Can edit their own employee profile details (ID, schedule, rates), and can edit other assigned admins and employees. Cannot be deactivated, resigned, deleted, or stripped of admin privileges.
+    - **Assigned Admins:** Can manage standard employees, but are strictly prohibited from modifying the Main Admin (Owner) or other administrators.
+  - Enforced backend validation checks in `UserController.cs` (`UpdateUser`, `ResignUser`, `DeleteUser`) to block unauthorized edits or removal attempts against workspace owners or peers.
+- **User Management UI Modernization (`UserManagement.razor`):**
+  - Added a distinct "👑 Owner" indicator badge in the user directory and edit drawer.
+  - Conditionally disabled account deactivation toggle, role selection pill buttons, resignation modal, and deletion modal when viewing or editing the workspace owner.
+  - Rebuilt Tailwind CSS v4 assets to ensure UI styling consistency.
+
 ### Fixed — [2026-09-29] (Git Repository Large Binary Cleanup & GitHub Push Unblocked)
 
 - **Removed Installer Binaries from Git History (All Branches):**

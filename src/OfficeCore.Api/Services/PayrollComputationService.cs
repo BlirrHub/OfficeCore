@@ -29,7 +29,7 @@ public class PayrollComputationService : IPayrollComputationService
         var employees = await _context.Employees
             .Include(e => e.User)
             .Include(e => e.GovernmentRecord)
-            .Where(e => e.IsActive && e.IsEmployee && e.OrganizationId == period.OrganizationId && e.UserId != createdByUserId)
+            .Where(e => e.IsActive && e.IsEmployee && e.OrganizationId == period.OrganizationId)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Days)
             .Include(e => e.WorkSchedule)
