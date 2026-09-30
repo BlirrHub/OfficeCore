@@ -44,6 +44,8 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [x] **Hierarchical Administrator Access Control:** Main Admin can manage assigned admins; assigned admins cannot modify owner or peers.
 - [x] **Default Modules Configuration:** Dashboard, My Attendance, My Leaves, Advances unconditionally active for all authenticated users.
 - [x] **Audit Log Explorer:** Administrative ledger (`/admin/audit-logs`) tracking sensitive actions (salary edits, role changes, organization settings).
+- [ ] **Multi-Use Time-Expiring Invite Codes:** Allow workspace invite codes to be used multiple times until a set expiration window (e.g., 24h, 7d, 30d) instead of single-use invalidation.
+- [ ] **Simplified Invite Code UX:** Remove the full URL invite link from User Management, displaying only the clean, portable Invite Code (e.g. `OC-7X9B2K`) designed for native desktop client entry.
 - [ ] **Custom Organization Branding:** Allow workspaces to upload custom company logos, favicon, and brand accent colors.
 - [ ] **Single Sign-On (SSO):** Google Workspace and Microsoft Entra ID (Azure AD) OAuth2 login integration.
 
@@ -67,12 +69,16 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [x] **Standalone My Attendance Module:** Dedicated ESS attendance page (`/my-attendance`) with digital clock, live punch status, metrics, and SignalR live updates.
 - [x] **Attendance Management Consolidation:** Company-wide punch management (`/admin/attendance`) restricted to management roles.
 - [ ] **Attendance Log & DTR Exporter:** Export Daily Time Records (DTR), punch summaries, and tardiness reports to Excel/CSV.
+- [ ] **Real-Time Attendance Sync & In-Page Refresh:** Live punch reflection on `/admin/attendance` when staff punch in/out, plus an in-page `↻ Refresh` button for immediate re-fetching without browser/host reload.
 - [ ] **Geofenced Mobile Clock-In:** Verify mobile punch coordinates are within authorized office location radiuses.
 - [ ] **Facial Recognition Punch Option:** Optional browser webcam-based face recognition alongside the AS608 fingerprint scanner.
 - [ ] **Shift Rotation & Roster Scheduler:** Visual calendar schedule builder for rotating night/day employee shifts.
 - [ ] **Rider Route Playback:** Timeline scrubber on `Locations.razor` to replay historical coordinates for any field staff member.
 
-### 🌴 Leave Management (PTO) & Advances
+### 🌴 Leave Management (PTO) & Advances / Ledger
+- [ ] **Real-Time Live Ledger & Advances Sync:** Live SignalR event broadcasting when employees file Cash Advance (CA) or eLoan requests so admin Ledger updates instantly; live update when admin approves/disburses.
+- [ ] **Real-Time Leave Approvals & My Leaves Sync:** Live SignalR update when leave requests are filed (notifying admins) and when approved/rejected (updating employee balance and status live).
+- [ ] **Dedicated In-Page Refresh Buttons:** Add consistent `↻ Refresh` button controls to Ledger, Advances, Leave Approvals, and My Leaves headers for rapid single-click data re-fetching.
 - [ ] **Leave Accrual & Balance Policies:** Configurable annual vacation/sick leave credits that accrue monthly or annually.
 - [ ] **Multi-Level Approval Chains:** Route approval to designated team leads before escalating to HR.
 - [ ] **Company Leave Calendar:** Organization-wide monthly calendar showing approved leaves to prevent understaffing.
@@ -80,7 +86,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 ### 📋 Kanban Boards & Project Management
 - [x] **Boards as Default Core Module:** Available for team project collaboration across workspaces.
-- [ ] **Workspace Owner Restricted Board Membership:** Enforce security policy where only the Workspace Owner can add/invite members to a board (board creator/members cannot add external members).
+- [ ] **Board Member Provisioning & Visibility Alignment:** Resolve member selection dropdown for board owners (providing non-admin board owners access to the safe workspace employee candidate directory) or enforce explicit Workspace Owner/Admin exclusivity.
 - [ ] **Fine-Grained Board Access Controls & Roles:** Granular permission matrix defining who can add members, who can delete/archive the board, who can manage columns, and board-level admin privileges.
 - [ ] **Subtasks & Checklist Progress:** Add checklists to cards with completion percentage bars on column previews.
 - [ ] **Card Comments & Activity Stream:** Real-time conversation thread and audit history on individual task cards.
@@ -102,11 +108,17 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [ ] **Offline Cache & Resilient Sync:** Cache recent dashboard and board state locally in case of temporary LAN disconnection.
 
 ### 💬 Chat & Internal Collaboration
+- [ ] **Multi-Line Auto-Expanding Chat Input Box:** Replace single-line horizontal-scrolling text input with an auto-expanding `<textarea>` supporting word-wrapping, multi-line display (height up to ~5 lines), <kbd>Enter</kbd> to send, and <kbd>Shift</kbd>+<kbd>Enter</kbd> for line breaks.
+- [ ] **Real-Time Member Discovery on Join:** Broadcast a SignalR `MemberJoined` event to all active chat clients when a new user registers or joins the workspace, immediately adding them to existing online users' direct message list without requiring a refresh.
 - [ ] **Group User @Mentions:** Tag and notify specific users in group discussions using `@username` autocomplete with visual highlights and desktop alerts.
 - [ ] **Board & Task References in Chat:** Link boards and cards directly in conversations using `#task` or `#board` pills that link directly to the modal or board view.
 - [ ] **Department & Project Channels:** Dedicated group chat channels alongside direct 1-on-1 messages.
 - [ ] **Rich Media & File Sharing:** In-line image previews and file downloads within chat threads.
 - [ ] **Read Receipts & Typing Indicators:** Live typing bubbles and delivered/seen timestamps via SignalR.
+
+### 🔔 Notification Center
+- [ ] **Click-Outside-to-Dismiss:** Automatically close the notification dropdown/drawer when clicking anywhere outside the notification panel.
+- [ ] **Expanded Notification Triggers:** Add system notifications for pending leave requests, leave approvals/rejections, loan/CA requests, disbursements, card assignments, chat @mentions, and task due date alerts.
 
 ### 🔑 Software Licensing & Product Key System *(Future Concept — Deferred)*
 > **Note:** Long-term architectural consideration for commercial on-premises deployments. Explicitly postponed from near-term implementation.
