@@ -8,10 +8,33 @@ public class ServerConfig
 {
     public string DbHost { get; set; } = "localhost";
     public int DbPort { get; set; } = 5432;
-    public string DbName { get; set; } = "officecoredevdb";
+    public string DbName { get; set; } = GetDefaultDbName();
     public string DbUser { get; set; } = "postgres";
     public string DbPassword { get; set; } = "password";
     public bool AutoStartServer { get; set; } = false;
+
+    private static string GetDefaultDbName()
+    {
+#if DEBUG
+        try
+        {
+            var dir = AppDomain.CurrentDomain.BaseDirectory;
+            while (dir != null)
+            {
+                var headFile = Path.Combine(dir, ".git", "HEAD");
+                if (File.Exists(headFile))
+                {
+                    if (File.ReadAllText(headFile).Contains("refs/heads/development"))
+                        return "officecoredevdb";
+                    break;
+                }
+                dir = Directory.GetParent(dir)?.FullName;
+            }
+        }
+        catch { }
+#endif
+        return "OfficeCoreDb";
+    }
 
     public string BuildConnectionString()
     {
