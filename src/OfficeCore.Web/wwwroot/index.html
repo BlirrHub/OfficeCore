@@ -73,6 +73,11 @@
                 e.preventDefault();
                 e.stopPropagation();
             }
+
+            // Prevent Enter from creating an empty newline in chat textarea
+            if (e.target && e.target.id === 'chat-input-textarea' && e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+            }
         });
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
