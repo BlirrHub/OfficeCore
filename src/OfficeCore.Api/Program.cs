@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
 using System.Threading.RateLimiting;
 using OfficeCore.Api.Data;
 using OfficeCore.Api.Models;
@@ -59,6 +60,18 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+// ─── Data Protection ─────────────────────────────────────────────────────────
+// Persist keys to disk so auth cookies survive API process restarts.
+// Without this, ASP.NET uses ephemeral in-memory keys — any restart invalidates
+// all active sessions, causing users to be logged out immediately after login.
+var dpKeysPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "OfficeCore", "DataProtection");
+Directory.CreateDirectory(dpKeysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dpKeysPath))
+    .SetApplicationName("OfficeCore");
+
 // ─── Database ─────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -87,8 +100,14 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     {
         options.Cookie.Name = "OfficeCoreAuth";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.Cookie.SameSite = SameSiteMode.Lax;
+        // Plain HTTP server — Secure flag is not set.
+        options.Cookie.SecurePolicy = CookieSecurePolicy.None;
+        // SameSite=None: ensures WebView2 always sends the cookie regardless of
+        // navigation context (forceLoad:true triggers a top-level navigation that
+        // SameSite=Lax can suppress for embedded fetch requests in some WebView2 builds).
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
     });
 
 builder.Services.AddAuthorization(options =>
