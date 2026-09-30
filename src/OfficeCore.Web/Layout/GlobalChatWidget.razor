@@ -746,7 +746,7 @@
 
                                         @if (!string.IsNullOrWhiteSpace(msg.Content))
                                         {
-                                            <div class="px-3 py-2 text-xs rounded-2xl @(isMine ? "bg-fuchsia-600 text-white rounded-br-xs shadow-md shadow-fuchsia-950/40" : "bg-zinc-800 text-zinc-100 rounded-bl-xs")">
+                                            <div class="px-3 py-2 text-xs rounded-2xl break-words whitespace-pre-wrap select-text @(isMine ? "bg-fuchsia-600 text-white rounded-br-xs shadow-md shadow-fuchsia-950/40" : "bg-zinc-800 text-zinc-100 rounded-bl-xs")">
                                                 @msg.Content
                                             </div>
                                         }
@@ -802,10 +802,10 @@
                         </div>
                     }
 
-                    <form @onsubmit="SendMessage" class="flex items-center gap-2">
+                    <form @onsubmit="SendMessage" class="flex items-end gap-2">
                         <!-- Attachment Input & Button -->
                         <label for="chat-file-input" title="Attach image or document"
-                               class="size-8.5 rounded-full bg-zinc-800/90 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer border border-zinc-700/60 @(_isUploadingAttachment ? "pointer-events-none opacity-50" : "")">
+                               class="size-8.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer border border-zinc-700/60 mb-1 @(_isUploadingAttachment ? "pointer-events-none opacity-50" : "")">
                             @if (_isUploadingAttachment)
                             {
                                 <div class="animate-spin size-3.5 border-2 border-fuchsia-400 border-t-transparent rounded-full"></div>
@@ -819,12 +819,18 @@
                         </label>
                         <InputFile id="chat-file-input" OnChange="HandleChatFileUpload" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
 
-                        <input type="text" @bind="_newMessageContent" @bind:event="oninput" @onkeyup="HandleKeyUp" 
-                               placeholder="@(_activeRoom?.Type == 1 ? $"Message {_activeRoom?.Name}..." : "Type a message...")" 
-                               class="flex-1 bg-zinc-950 border border-zinc-800 rounded-full px-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+                        <div class="flex-1 relative flex flex-col">
+                            <textarea id="chat-input-textarea"
+                                      @bind="_newMessageContent" @bind:event="oninput" 
+                                      @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp"
+                                      rows="3"
+                                      placeholder="@(_activeRoom?.Type == 1 ? $"Message {_activeRoom?.Name}..." : "Type a message... (Shift+Enter for newline)")" 
+                                      class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors resize-none custom-scrollbar min-h-[72px] max-h-[130px] leading-relaxed"></textarea>
+                        </div>
 
                         <button type="submit" disabled="@(string.IsNullOrWhiteSpace(_newMessageContent) && string.IsNullOrEmpty(_pendingAttachmentUrl))" 
-                                class="size-8.5 rounded-full bg-fuchsia-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fuchsia-500 transition-colors shrink-0 shadow-md shadow-fuchsia-900/30 cursor-pointer">
+                                class="size-8.5 rounded-xl bg-fuchsia-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fuchsia-500 transition-colors shrink-0 shadow-md shadow-fuchsia-900/30 cursor-pointer mb-1"
+                                title="Send message (Enter)">
                             <svg class="size-3.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                         </button>
                     </form>
@@ -1452,6 +1458,14 @@
             _messages.Remove(optimisticMsg);
             _messages.RemoveAll(m => m.Id == tempId);
             StateHasChanged();
+        }
+    }
+
+    private async Task HandleKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
         }
     }
 
