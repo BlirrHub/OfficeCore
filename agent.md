@@ -6,20 +6,24 @@
 
 ## 0. Mandatory Operating Directives & Workflow
 
-1. **CHANGELOG Updates (Strict Add-Only Policy):**
+1. **Ideation, Planning & Roadmap Synchronization (Always Check & Update ROADMAP.md & agent.md):**
+   - **ALWAYS check [agent.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/agent.md) and [ROADMAP.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/ROADMAP.md)** before engaging in any ideation, scoping, architectural design, or feature planning.
+   - **ALWAYS update [ROADMAP.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/ROADMAP.md)** whenever brainstorming, receiving user feature requests, creating backlog tasks, or planning new features. Keep priorities (P1-P4), status tags, and module pipelines current.
+   - **When a feature is finished**, mark it as ✅ **Completed** in `ROADMAP.md` and log the technical details in `CHANGELOG.md`.
+2. **CHANGELOG Updates (Strict Add-Only Policy):**
    - After completing any update, bug fix, refactor, or feature, **ALWAYS update [CHANGELOG.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/CHANGELOG.md)** under `## [Unreleased]`.
    - **DO NOT REMOVE OR DELETE ANYTHING:** You must never remove, truncate, or overwrite existing entries, milestones, or history from `CHANGELOG.md`. Only append new entries or update recent entries with additional details.
-2. **Occasional & Timely Git Commits:**
+3. **Occasional & Timely Git Commits:**
    - Commit changes to Git frequently and whenever completing a feature, bug fix, or milestone.
    - Do not leave modifications uncommitted across tasks.
    - Use clean, conventional commit messages (`feat:`, `fix:`, `refactor:`, `chore:`).
-3. **Multi-Tenancy & Tenant Scoping:**
+4. **Multi-Tenancy & Tenant Scoping:**
    - Every workspace-scoped entity must implement `ITenantEntity` and include `OrganizationId`. All queries and mutations in controllers must be scoped to the active tenant.
-4. **Theme Parity:**
+5. **Theme Parity:**
    - All pages and components must support both **Dark Mode** and **Light Mode** seamlessly with no contrast or visibility flaws.
-5. **Tailwind CSS v4:**
+6. **Tailwind CSS v4:**
    - Whenever adding or altering Tailwind classes, run `npm.cmd run css:build` in `src/OfficeCore.Web` so they are compiled to `wwwroot/app.css`.
-6. **Preserve Existing Functionality:**
+7. **Preserve Existing Functionality:**
    - Do not delete working code, existing entity configurations, or docstrings unless explicitly instructed.
 
 ---
@@ -58,11 +62,13 @@ OfficeCore/
 ├── OfficeCore.slnx                         # Solution file (.NET 9)
 ├── README.md                               # Master project overview & system documentation
 ├── package.json                            # Root NPM scripts (concurrently runner)
-├── CHANGELOG.md                            # Comprehensive version and change history
-├── agent.md                                # This document (AI agent instructions)
-├── PROJECT_STATUS.md                       # High-level product milestones & feature tracking
-├── ROADMAP.md                              # Planning, feature pipeline, upcoming backlog & ideas
-├── RUNNING.md                              # Local setup and launch instructions
+├── CHANGELOG.md                            # Comprehensive version and change history (Strict Add-Only)
+├── ROADMAP.md                              # Planning, feature pipeline, upcoming backlog & ideas (Check & Update on Ideation)
+├── agent.md                                # This document (AI agent master architecture & operating guide)
+├── .agents/                                # Antigravity IDE workspace configuration root
+│   └── rules/                              # Workspace rules auto-loaded by AI agents
+│       └── operating.md                    # Core operational directives & rules of engagement
+├── publish-installers.ps1                  # Packaging script for Server & Client installers
 ├── hardware/
 │   └── ESP32_Fingerprint_Device/           # C++ Arduino firmware for biometric scanners
 └── src/
@@ -288,20 +294,25 @@ On this machine (Windows PowerShell), Node.js tools require `.cmd` extensions to
 
 When performing tasks on OfficeCore, all AI agents must follow these non-negotiable rules:
 
-1. **Never Break Multi-Tenancy:**
+1. **MANDATORY: Check agent.md & ROADMAP.md on Every Ideation or Planning Session:**
+   - Before designing, scoping, or planning features, always review `agent.md` for architecture rules and `ROADMAP.md` for existing pipeline status.
+   - Update `ROADMAP.md` whenever new ideas or features are proposed, keeping priority tiers and statuses organized.
+2. **Never Break Multi-Tenancy:**
    - Any new entity must have `OrganizationId` and implement `ITenantEntity`.
    - Never write an API endpoint that updates, retrieves, or deletes records without scoping by `OrganizationId`.
-2. **Never Break Theme Parity:**
+3. **Never Break Theme Parity:**
    - Whenever you create or modify a page, modal, or component, verify that it renders legibly and beautifully in **both** Dark Mode and Light Mode.
-3. **Always Rebuild Tailwind CSS:**
+4. **Always Rebuild Tailwind CSS:**
    - If you introduce new Tailwind utility classes, run `npm.cmd run css:build` in `src/OfficeCore.Web` so the classes are compiled into `wwwroot/app.css`.
-4. **Preserve Code Comments & Architecture:**
+5. **Preserve Code Comments & Architecture:**
    - Maintain existing docstrings, entity configurations, and comments. Never delete working functionality unless explicitly requested by the user.
-5. **MANDATORY: Update CHANGELOG.md on Every Task & Session:**
+6. **MANDATORY: Update CHANGELOG.md on Every Task & Session:**
    - At the completion of every task or feature update, immediately update `CHANGELOG.md` under `## [Unreleased]`.
    - **STRICT ADD-ONLY POLICY:** When updating `CHANGELOG.md`, **ONLY ADD NEW ENTRIES OR EXPAND RECENT ENTRIES**.
    - **NEVER** delete, truncate, remove, or overwrite existing changelog entries, previous dates, or legacy project milestones. Every piece of historical documentation must be preserved permanently.
-6. **Occasional Git Commits:**
+7. **Mark Completed Items in ROADMAP.md:**
+   - Whenever a task or roadmap item is finished, update its checkbox and status badge in `ROADMAP.md` to ✅ **Completed**.
+8. **Occasional Git Commits:**
    - Commit working changes to Git frequently and whenever completing a feature, bug fix, or milestone.
    - Do not leave large sets of uncommitted modifications accumulated over multiple chats.
    - Use clean, conventional commit messages (`feat:`, `fix:`, `refactor:`, `chore:`) that accurately describe the changes made.

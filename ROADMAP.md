@@ -1,6 +1,9 @@
 # OfficeCore — Planning, Roadmap & Feature Pipeline
 
-> **Purpose:** This document tracks planned features, architectural improvements, backlog tasks, and ideas for OfficeCore. Update this file whenever planning new features, scoping implementations, or brainstorming enhancements.
+> **MANDATORY OPERATING DIRECTIVE FOR AI AGENTS:**
+> 1. **Always check [agent.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/agent.md) and this [ROADMAP.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/ROADMAP.md)** before engaging in any ideation, scoping, architectural design, or new feature planning.
+> 2. **Always update this file** whenever brainstorming, receiving user feature requests, creating backlog tasks, or adjusting priorities.
+> 3. **When a feature is implemented**, update its status here to ✅ **Completed** and record detailed technical notes in [CHANGELOG.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/CHANGELOG.md).
 
 ---
 
@@ -9,21 +12,22 @@
 - 🟢 **Ready for Implementation:** Scoped and ready to be built.
 - 🔵 **In Progress:** Actively under development.
 - 🟣 **Backlog / Ideas:** Future considerations, awaiting prioritization.
-- ✅ **Completed:** Finished and moved to [CHANGELOG.md](file:///d:/Apps/Antigravity/Projects/OfficeCore/CHANGELOG.md) & [PROJECT_STATUS.md](file:///d:/Apps/Antigravity/Projects/OfficeCore/PROJECT_STATUS.md).
+- ✅ **Completed:** Finished and documented in [CHANGELOG.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/CHANGELOG.md).
 
 ---
 
 ## 🎯 1. Immediate Focus & Office Test-Run Triad
 
-These 3 features form the **Office Test-Run Foundation** to safely operate OfficeCore on-premises in a live office environment:
+These features form the **Office Test-Run Foundation** to safely operate OfficeCore on-premises in a live office environment:
 
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :---: | :--- |
 | **P1** | **Automated Database Backup & 1-Click Restore** | Server Station & Web API | ✅ Completed | Automated scheduled & manual PostgreSQL dumps, safe restore wizard with pre-restore snapshot, retention policy, download archives, and Desktop Server Station controls |
 | **P1** | **Audit Trail Logging System** | Core Web API & Admin | ✅ Completed | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
+| **P1** | **Workspace Owner Visibility & Hierarchical RBAC** | Identity, Admin & Payroll | ✅ Completed | Main Admin (workspace creator) visible in directory, included in payroll when IsEmployee, with strict hierarchical RBAC protecting owner from assigned admins |
 | **P1** | **Payroll Export & Individual Payslip Generation** | Payroll Engine & Web | 🟢 Ready | Printable PDF/HTML individual employee payslips (with company branding & signature lines) and complete Payroll Run Excel/CSV export |
 | **P2** | **Server Installer Silent PostgreSQL Check/Install** | Server Installer | 🟡 In Planning | Setup wizard checks if PostgreSQL is installed; if missing, runs silent embedded setup |
-| **P2** | In-App Auto-Updater for Server & Client | Desktop Apps | 🟣 Backlog | Background version check against GitHub releases or API endpoint |
+| **P2** | **In-App Auto-Updater for Server & Client** | Desktop Apps | 🟣 Backlog | Background version check against GitHub releases or API endpoint |
 | **P3** | **Software Licensing & Seat Management** | Server Station & Licensing | 🟣 Backlog | Hardware fingerprinting, offline signed keys, seat tiers *(Deferred until after initial test runs)* |
 | **P4** | **General Ledger & Double-Entry Accounting** | Accounting Module | 🟣 Backlog | Chart of Accounts, Journal Vouchers, Accounts Payable/Receivable, and BIR Tax Forms (Long-term vision) |
 
@@ -31,20 +35,33 @@ These 3 features form the **Office Test-Run Foundation** to safely operate Offic
 
 ## 🚀 2. Feature Pipeline by Module
 
-### 🖥️ Desktop & Native Workstations
-- [ ] **Background Auto-Update Mechanism:** Seamless update notification and silent in-place updater for `OfficeCore.Client` and `OfficeCore.ServerStation`.
-- [ ] **System Tray Minimization:** Option to minimize Server Station and Workstation to the Windows Notification Area / System Tray instead of taskbar.
-- [ ] **LAN Auto-Discovery (mDNS / UDP Broadcast):** Allow workstation client to automatically discover the host Server Station IP on the local subnet without typing the URL.
-- [ ] **Offline Cache & Resilient Sync:** Cache recent dashboard and board state locally in case of temporary LAN disconnection.
+### 🏢 Multi-Tenancy & Administration
+- [x] **Workspace Owner Visibility & Headcount Reconciliation:** Show creator in user administration, include in payroll calculations, lock owner roles from modification.
+- [x] **Hierarchical Administrator Access Control:** Main Admin can manage assigned admins; assigned admins cannot modify owner or peers.
+- [x] **Default Modules Configuration:** Dashboard, My Attendance, My Leaves, Advances unconditionally active for all authenticated users.
+- [x] **Audit Log Explorer:** Administrative ledger (`/admin/audit-logs`) tracking sensitive actions (salary edits, role changes, organization settings).
+- [ ] **Custom Organization Branding:** Allow workspaces to upload custom company logos, favicon, and brand accent colors.
+- [ ] **Single Sign-On (SSO):** Google Workspace and Microsoft Entra ID (Azure AD) OAuth2 login integration.
 
-### 📋 Kanban Boards & Project Management
-- [ ] **Subtasks & Checklist Progress:** Add checklists to cards with completion percentage bars on column previews.
-- [ ] **Card Comments & Activity Stream:** Real-time conversation thread and audit history on individual task cards.
-- [ ] **File Attachments on Cards:** Drag-and-drop document and image uploads attached directly to tasks.
-- [ ] **Board Swimlanes:** Group board cards horizontally by assignee, priority, or epic/sprint.
-- [ ] **Milestone & Sprint Tracking:** Group cards into time-boxed sprints with burndown metrics.
+### 💾 Database Backup & Disaster Recovery System
+- [x] **One-Click Manual Backup:** Button in Server Station and Admin portal to immediately dump PostgreSQL database into timestamped archive (`.sql` / `.dump`).
+- [x] **Scheduled Automated Backups:** Configurable recurring background schedule (Daily, Weekly, Custom cron) with automatic status logging.
+- [x] **Backup Retention Policies:** Configurable auto-prune rules to optimize disk usage (keep last N backups).
+- [x] **Safe Database Restore Wizard:** Interactive restore tool with pre-flight database connection validation, safety confirmation barrier, and automatic pre-restore safety snapshot.
+- [x] **Server Station Backup Health Card:** Visual dashboard indicator showing last backup timestamp, file size, storage space, and status alerts.
+- [ ] **Custom Storage Paths & Secondary Locations:** Option to save backups to secondary hard drives, NAS shares, or external media for physical redundancy.
+- [ ] **Tenant-Level Data Export:** Organization admins can export their workspace's discrete records as an encrypted or portable JSON/ZIP package.
+
+### 💰 Payroll & Compensation
+- [ ] **Printable & PDF Payslip Generation:** One-click bulk and individual PDF payslip generator with company logo and signature lines.
+- [ ] **Payroll Run Excel/CSV Export:** Comprehensive summary export for accounting, bank disbursements, and tax reporting.
+- [ ] **Configurable Tax & Statutory Deductions:** Support for regional tax tiers, social security, health insurance, and provident fund formulas.
+- [ ] **Automated Payslip Distribution:** Send encrypted PDF payslips to employee email addresses upon payroll finalization.
+- [ ] **Bank Disbursement Batch Export:** Export payroll totals into standardized CSV/Excel formats accepted by commercial banks.
 
 ### ⏱️ Attendance, Biometrics & Field Tracking
+- [x] **Standalone My Attendance Module:** Dedicated ESS attendance page (`/my-attendance`) with digital clock, live punch status, metrics, and SignalR live updates.
+- [x] **Attendance Management Consolidation:** Company-wide punch management (`/admin/attendance`) restricted to management roles.
 - [ ] **Geofenced Mobile Clock-In:** Verify mobile punch coordinates are within authorized office location radiuses.
 - [ ] **Facial Recognition Punch Option:** Optional browser webcam-based face recognition alongside the AS608 fingerprint scanner.
 - [ ] **Shift Rotation & Roster Scheduler:** Visual calendar schedule builder for rotating night/day employee shifts.
@@ -56,11 +73,21 @@ These 3 features form the **Office Test-Run Foundation** to safely operate Offic
 - [ ] **Company Leave Calendar:** Organization-wide monthly calendar showing approved leaves to prevent understaffing.
 - [ ] **Advance Auto-Caps:** Enforce maximum loan advance limits based on employee tenure or monthly salary ratio.
 
-### 💰 Payroll & Compensation
-- [ ] **Configurable Tax & Statutory Deductions:** Support for regional tax tiers, social security, health insurance, and provident fund formulas.
-- [ ] **PDF Payslip Generation:** One-click bulk PDF payslip generator with company logo and signature lines.
-- [ ] **Automated Payslip Distribution:** Send encrypted PDF payslips to employee email addresses upon payroll finalization.
-- [ ] **Bank Disbursement Batch Export:** Export payroll totals into standardized CSV/Excel formats accepted by commercial banks.
+### 📋 Kanban Boards & Project Management
+- [x] **Boards as Default Core Module:** Available for team project collaboration across workspaces.
+- [ ] **Subtasks & Checklist Progress:** Add checklists to cards with completion percentage bars on column previews.
+- [ ] **Card Comments & Activity Stream:** Real-time conversation thread and audit history on individual task cards.
+- [ ] **File Attachments on Cards:** Drag-and-drop document and image uploads attached directly to tasks.
+- [ ] **Board Swimlanes:** Group board cards horizontally by assignee, priority, or epic/sprint.
+- [ ] **Milestone & Sprint Tracking:** Group cards into time-boxed sprints with burndown metrics.
+
+### 🖥️ Desktop & Native Workstations
+- [x] **Two-Tier Native Application Architecture:** Host Server Station (`OfficeCore.Desktop.Server`) and Client Terminal (`OfficeCore.Desktop.Client`).
+- [x] **Standalone 1-Click Installers:** `publish-installers.ps1` script generating `Setup-OfficeCore-Server.exe` and `Setup-OfficeCore-Client.exe`.
+- [ ] **Background Auto-Update Mechanism:** Seamless update notification and silent in-place updater for client and server.
+- [ ] **System Tray Minimization:** Option to minimize Server Station and Workstation to the Windows Notification Area / System Tray instead of taskbar.
+- [ ] **LAN Auto-Discovery (mDNS / UDP Broadcast):** Allow workstation client to automatically discover host Server Station IP without typing URL.
+- [ ] **Offline Cache & Resilient Sync:** Cache recent dashboard and board state locally in case of temporary LAN disconnection.
 
 ### 💬 Chat & Internal Collaboration
 - [ ] **Department & Project Channels:** Dedicated group chat channels alongside direct 1-on-1 messages.
@@ -68,36 +95,19 @@ These 3 features form the **Office Test-Run Foundation** to safely operate Offic
 - [ ] **Read Receipts & Typing Indicators:** Live typing bubbles and delivered/seen timestamps via SignalR.
 - [ ] **@Mentions & Push Notifications:** Desktop sound and visual badge alert when mentioned in chat or assigned to a task.
 
-### 🏢 Multi-Tenancy & Administration
-- [ ] **Audit Log Explorer:** Administrative ledger tracking all sensitive actions (salary edits, role changes, organization settings).
-- [ ] **Custom Organization Branding:** Allow workspaces to upload custom company logos, favicon, and brand accent colors.
-- [ ] **Single Sign-On (SSO):** Google Workspace and Microsoft Entra ID (Azure AD) OAuth2 login integration.
-
-### 💾 Database Backup & Disaster Recovery System
-- [ ] **One-Click Manual Backup:** Button in Server Station and Admin portal to immediately dump the PostgreSQL database into a timestamped archive (`.sql` / compressed `.dump`).
-- [ ] **Scheduled Automated Backups:** Configurable recurring background schedule (Daily, Weekly, Custom cron) with automatic status logging.
-- [ ] **Backup Retention Policies:** Configurable auto-prune rules to keep disk usage optimized (e.g. keep last 7 daily, 4 weekly, auto-delete older archives).
-- [ ] **Custom Storage Paths & Secondary Locations:** Option to save backups to secondary hard drives, NAS shares, or external media for physical redundancy.
-- [ ] **Safe Database Restore Wizard:** Interactive restore tool with pre-flight database connection validation, safety confirmation barrier, and automatic pre-restore safety snapshot.
-- [ ] **Tenant-Level Data Export:** Organization admins can export their workspace's discrete records (employees, attendance logs, payroll, boards) as an encrypted or portable JSON/ZIP package.
-- [ ] **Server Station Backup Health Card:** Visual dashboard indicator showing last backup timestamp, file size, storage space remaining, and success/failure alerts.
-
-### 🔑 Software Licensing & Product Key System *(Future Concept — Not Implemented Soon)*
+### 🔑 Software Licensing & Product Key System *(Future Concept — Deferred)*
 > **Note:** Long-term architectural consideration for commercial on-premises deployments. Explicitly postponed from near-term implementation.
-- [ ] **Hardware Fingerprint Generation:** Server Station generates a unique host machine identifier based on CPU ID, motherboard UUID, or network interface MAC address.
-- [ ] **Cryptographic License Verification:** Offline public/private key verification (Ed25519 / RSA signature) so servers do not require an active external internet connection to validate licenses.
-- [ ] **Tiered License Capabilities:**
-  - **Community / Starter Tier:** Free tier capped at a maximum employee count (e.g. up to 10 staff) with basic modules.
-  - **Professional Tier:** Unlimited employees, active hardware biometric integration, advanced payroll.
-  - **Enterprise Tier:** Multi-organization hosting, audit logs, priority update channel, custom branding.
-- [ ] **License Management UI:** Clean registration screen in Server Station showing active tier, registered company name, expiration/renewal date, and seat utilization meters.
-- [ ] **Grace Period & Non-Destructive Warnings:** Graceful warnings before expiration without abrupt lockouts or risk of business data loss.
+- [ ] **Hardware Fingerprint Generation:** Server Station generates a unique host machine identifier.
+- [ ] **Cryptographic License Verification:** Offline public/private key verification (Ed25519 / RSA signature).
+- [ ] **Tiered License Capabilities:** Community / Starter, Professional, Enterprise.
+- [ ] **License Management UI:** Clean registration screen in Server Station showing tier and seat utilization.
+- [ ] **Grace Period & Non-Destructive Warnings:** Graceful warnings before expiration without abrupt lockouts.
 
 ---
 
 ## 💡 3. Quick Ideas & Brainstorming Scratchpad
 
-> Use this section to quickly drop unrefined thoughts, user feedback, or feature ideas before formalizing them into the pipeline.
+> Use this section to quickly drop unrefined thoughts, user feedback, or feature ideas during ideation sessions before formalizing them into the pipeline.
 
 - *Idea:* Add a dark/light mode toggle shortcut directly in the desktop top bar.
 - *Idea:* Export Kanban boards to Excel/CSV for client reporting.

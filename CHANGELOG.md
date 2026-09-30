@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Documentation & Agent Directives — [2026-09-30] (Roadmap & Ideation Workflow Consolidation, Obsolete Markdown Pruning)
+
+- **Mandatory Ideation & Planning Protocol (`ROADMAP.md`, `agent.md`, `.agents/rules/operating.md`):**
+  - Enforced directive requiring all AI agents and engineers to consult `agent.md` and `ROADMAP.md` before planning, scoping, or designing new features or architectural changes.
+  - Added directive requiring `ROADMAP.md` to be continuously updated during brainstorming, ideation, and planning sessions (updating priorities P1–P4, scope, and status tags), and marking items as completed upon delivery.
+  - Synchronized workspace operating rules in `.agents/rules/operating.md` using the complete, updated `agent.md` architecture guide for automatic ingestion by Antigravity IDE.
+- **Obsolete Documentation Cleanup:**
+  - Removed deprecated and redundant files `PROJECT_STATUS.md` and `RUNNING.md`, centralizing architecture, developer setup, and operational guidance directly in `README.md`, `agent.md`, and `ROADMAP.md`.
+  - Updated all internal documentation links and repository structure maps across `README.md` and `agent.md`.
+
 ### Fixed & Enhanced — [2026-09-30] (Workspace Owner Visibility, Headcount Reconciliation & Hierarchical RBAC)
 
 - **Workspace Owner Visibility & Headcount Alignment:**

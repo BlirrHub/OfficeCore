@@ -87,12 +87,12 @@ Designed specifically for on-premises deployment, OfficeCore eliminates subscrip
 ```text
 OfficeCore/
 ├── README.md                               # This file — master project overview & system guide
-├── RUNNING.md                              # Local setup, run guide, and CLI commands
 ├── ROADMAP.md                              # Feature pipeline, upcoming backlog & architecture plans
-├── PROJECT_STATUS.md                       # Comprehensive checklist of implemented features
-├── CHANGELOG.md                            # Detailed chronological record of all changes
+├── CHANGELOG.md                            # Detailed chronological record of all changes (strict add-only)
 ├── agent.md                                # Master AI agent operating instructions & architecture
-├── AGENTS.md                               # Strictly enforced operational directives
+├── .agents/                                # Antigravity IDE workspace configuration root
+│   └── rules/                              # Rules automatically loaded by AI agents
+│       └── operating.md                    # Mandatory workflow and architectural directives
 ├── publish-installers.ps1                  # Automated release script for standalone installers
 ├── hardware/
 │   └── ESP32_Fingerprint_Device/           # C++ Arduino firmware for biometric scanners
@@ -132,14 +132,13 @@ To build standalone 1-click installer executables (`dist/Setup-OfficeCore-Client
 powershell -ExecutionPolicy Bypass -File ./publish-installers.ps1
 ```
 
-For complete startup flags, default credentials, and hardware setup instructions, see [RUNNING.md](file:///d:/Apps/Antigravity/Projects/OfficeCore/RUNNING.md).
+For complete startup flags, default credentials, and hardware setup instructions, see [agent.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/agent.md).
 
 ---
 
 ## 📖 Documentation Index
 
-- 🚀 [RUNNING.md](file:///d:/Apps/Antigravity/Projects/OfficeCore/RUNNING.md) — Comprehensive developer setup and launch instructions.
-- 🎯 [ROADMAP.md](file:///d:/Apps/Antigravity/Projects/OfficeCore/ROADMAP.md) — Master planning, upcoming feature pipeline, and backlog.
-- ✅ [PROJECT_STATUS.md](file:///d:/Apps/Antigravity/Projects/OfficeCore/PROJECT_STATUS.md) — High-level product milestones and completed capabilities.
-- 📝 [CHANGELOG.md](file:///d:/Apps/Antigravity/Projects/OfficeCore/CHANGELOG.md) — Full historical changelog (strict add-only policy).
-- 🧠 [agent.md](file:///d:/Apps/Antigravity/Projects/OfficeCore/agent.md) — System architecture, database conventions, and code standards.
+- 🎯 [ROADMAP.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/ROADMAP.md) — Master planning, upcoming feature pipeline, and backlog.
+- 📝 [CHANGELOG.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/CHANGELOG.md) — Full historical changelog (strict add-only policy).
+- 🧠 [agent.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/agent.md) — System architecture, database conventions, and code standards.
+- ⚙️ [operating.md](file:///c:/Users/i5%207th/Documents/Antigravity/Projects/OfficeCore/.agents/rules/operating.md) — Antigravity IDE automated operating rules.
