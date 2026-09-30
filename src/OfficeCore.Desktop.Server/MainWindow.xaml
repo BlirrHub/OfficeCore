@@ -244,7 +244,7 @@
 
                                 <StackPanel Margin="0,0,0,10">
                                     <TextBlock Text="Database Name" FontSize="11" Foreground="#A1A1AA" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="DbNameInput" Style="{StaticResource ModernTextBox}" Text="officecoredevdb"/>
+                                    <TextBox x:Name="DbNameInput" Style="{StaticResource ModernTextBox}" Text="OfficeCoreDb"/>
                                 </StackPanel>
 
                                 <Grid Margin="0,0,0,16">
