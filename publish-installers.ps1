@@ -25,20 +25,36 @@ dotnet publish "$rootDir/src/OfficeCore.Client.Installer/OfficeCore.Client.Insta
 Copy-Item "$tempClientDir/Setup-OfficeCore-Client.exe" "$distDir/Setup-OfficeCore-Client.exe" -Force
 Remove-Item $tempClientDir -Recurse -Force
 
-# 3. Publish Portable Server Station
-Write-Host "[3/4] Publishing OfficeCore Server Station Portable..." -ForegroundColor Cyan
+# 3. Publish OfficeCore Backend API (Unified Web/API Services)
+Write-Host "[3/5] Publishing OfficeCore API & Web services..." -ForegroundColor Cyan
+$apiDist = Join-Path $distDir "temp_api_payload"
+$apiOut = Join-Path $apiDist "Api"
+if (Test-Path $apiDist) { Remove-Item $apiDist -Recurse -Force }
+New-Item -ItemType Directory -Path $apiOut -Force | Out-Null
+dotnet publish "$rootDir/src/OfficeCore.Api/OfficeCore.Api.csproj" -c Release -r win-x64 --self-contained false -o $apiOut
+
+# Zip the Api payload for embedded resource packaging
+$apiZip = Join-Path $apiDist "Api.zip"
+Write-Host "Creating API payload archive: $apiZip..." -ForegroundColor Gray
+Compress-Archive -Path "$apiOut" -DestinationPath $apiZip -Force
+
+# 4. Publish Portable Server Station
+Write-Host "[4/5] Publishing OfficeCore Server Station Portable..." -ForegroundColor Cyan
 $serverDist = Join-Path $distDir "OfficeCore-ServerStation-Portable"
 dotnet publish "$rootDir/src/OfficeCore.Desktop.Server/OfficeCore.Desktop.Server.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $serverDist
+# Copy the published API alongside the portable server station
+Copy-Item $apiOut (Join-Path $serverDist "Api") -Recurse -Force
 
-# 4. Build Server Setup Wizard
-Write-Host "[4/4] Publishing Setup-OfficeCore-Server.exe..." -ForegroundColor Cyan
+# 5. Build Server Setup Wizard (With embedded server and API payload)
+Write-Host "[5/5] Publishing Setup-OfficeCore-Server.exe..." -ForegroundColor Cyan
 $tempServerDir = Join-Path $distDir "temp_server_installer"
 dotnet publish "$rootDir/src/OfficeCore.Server.Installer/OfficeCore.Server.Installer.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $tempServerDir
 Copy-Item "$tempServerDir/Setup-OfficeCore-Server.exe" "$distDir/Setup-OfficeCore-Server.exe" -Force
 Remove-Item $tempServerDir -Recurse -Force
+Remove-Item $apiDist -Recurse -Force
 
 Write-Host "Build completed successfully! Packages generated in: $distDir" -ForegroundColor Green
 Write-Host "  - dist/Setup-OfficeCore-Client.exe (Workstation Setup)" -ForegroundColor Yellow
-Write-Host "  - dist/Setup-OfficeCore-Server.exe (Server Host Setup)" -ForegroundColor Yellow
+Write-Host "  - dist/Setup-OfficeCore-Server.exe (Server Host Setup with bundled API)" -ForegroundColor Yellow
 Write-Host "  - dist/OfficeCore-Client-Portable/" -ForegroundColor Gray
-Write-Host "  - dist/OfficeCore-ServerStation-Portable/" -ForegroundColor Gray
+Write-Host "  - dist/OfficeCore-ServerStation-Portable/ (with bundled Api/)" -ForegroundColor Gray
