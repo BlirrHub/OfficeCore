@@ -129,8 +129,8 @@ public class OrganizationsController : ControllerBase
                 ClaimValue = module
             });
             
-            // Give members basic access
-            if (module == "Dashboard" || module == "Attendance" || module == "Boards" || module == "MyLeaves" || module == "Advances")
+            // Give members basic access (self-service only, Attendance is admin-only)
+            if (module == "Dashboard" || module == "Boards" || module == "MyLeaves" || module == "Advances")
             {
                 memberRole.Claims.Add(new OrganizationRoleClaim
                 {

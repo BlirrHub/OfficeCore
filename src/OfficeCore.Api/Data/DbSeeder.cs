@@ -190,7 +190,7 @@ public static class DbSeeder
             }
 
             // Standard member self-service claims
-            if (module is "Dashboard" or "Boards" or "MyLeaves" or "Advances" or "Attendance")
+            if (module is "Dashboard" or "Boards" or "MyLeaves" or "Advances")
             {
                 if (!memberOrgRole.Claims.Any(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == module))
                 {
@@ -201,6 +201,15 @@ public static class DbSeeder
                         ClaimType = "ModuleAccess",
                         ClaimValue = module
                     });
+                }
+            }
+            else if (module == "Attendance")
+            {
+                var existingMemberAttendanceClaim = memberOrgRole.Claims
+                    .FirstOrDefault(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == "Attendance");
+                if (existingMemberAttendanceClaim != null)
+                {
+                    context.OrganizationRoleClaims.Remove(existingMemberAttendanceClaim);
                 }
             }
 
@@ -258,7 +267,7 @@ public static class DbSeeder
             }
         }
 
-        // Ensure all Employee roles across all organizations have Attendance module access
+        // Ensure standard Employee roles do not have admin Attendance module access
         var allEmployeeRoles = await context.OrganizationRoles
             .Include(r => r.Claims)
             .Where(r => r.Name == "Employee")
@@ -266,15 +275,11 @@ public static class DbSeeder
 
         foreach (var empRole in allEmployeeRoles)
         {
-            if (!empRole.Claims.Any(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == "Attendance"))
+            var adminAttendanceClaim = empRole.Claims
+                .FirstOrDefault(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == "Attendance");
+            if (adminAttendanceClaim != null)
             {
-                context.OrganizationRoleClaims.Add(new OrganizationRoleClaim
-                {
-                    Id = Guid.NewGuid(),
-                    OrganizationRoleId = empRole.Id,
-                    ClaimType = "ModuleAccess",
-                    ClaimValue = "Attendance"
-                });
+                context.OrganizationRoleClaims.Remove(adminAttendanceClaim);
             }
         }
 
