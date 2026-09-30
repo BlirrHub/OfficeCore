@@ -299,8 +299,9 @@ public class BoardsController : ControllerBase
         var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         bool isWorkspaceOwner = org != null && org.CreatedByUserId == currentUserId;
         bool isWorkspaceAdmin = User.IsInRole("Admin") || User.HasClaim("ModuleAccess", "Users") || User.HasClaim("ModuleAccess", "Roles");
+        bool isBoardOwner = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Owner);
 
-        if (!isWorkspaceOwner && !isWorkspaceAdmin)
+        if (!isWorkspaceOwner && !isWorkspaceAdmin && !isBoardOwner)
             return Forbid();
 
         var targetEmployee = await _context.Employees
@@ -342,15 +343,16 @@ public class BoardsController : ControllerBase
         var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId);
         if (board == null) return NotFound();
 
-        // Members can remove themselves, but only Workspace Owner or Workspace Admin can remove others
+        // Members can remove themselves, but only Workspace Owner, Workspace Admin, or Board Owner can remove others
         if (employee.Id != targetUserId)
         {
             var org = await _context.Organizations.FindAsync(orgId);
             var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             bool isWorkspaceOwner = org != null && org.CreatedByUserId == currentUserId;
             bool isWorkspaceAdmin = User.IsInRole("Admin") || User.HasClaim("ModuleAccess", "Users") || User.HasClaim("ModuleAccess", "Roles");
+            bool isBoardOwner = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Owner);
 
-            if (!isWorkspaceOwner && !isWorkspaceAdmin)
+            if (!isWorkspaceOwner && !isWorkspaceAdmin && !isBoardOwner)
                 return Forbid();
         }
 

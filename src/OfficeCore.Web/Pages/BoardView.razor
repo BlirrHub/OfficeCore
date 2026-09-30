@@ -917,6 +917,11 @@ else
                 {
                     _isOwner = myMember.Role == BoardRole.Owner;
                     _isViewer = myMember.Role == BoardRole.Viewer;
+                    
+                    if (_isOwner)
+                    {
+                        _canManageBoardMembers = true;
+                    }
                 }
 
                 if (_canManageBoardMembers && _allUsers.Count == 0)
