@@ -61,20 +61,7 @@
     <script src="js/mapInterop.js?v=6"></script>
     <script src="js/fileInterop.js"></script>
     <script>
-        // Security: disable right-click context menu and DevTools / function keys (F12, etc.)
-        document.addEventListener('contextmenu', function (e) {
-            e.preventDefault();
-        });
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'F12' || 
-                e.keyCode === 123 ||
-                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
-                (e.ctrlKey && (e.key === 'U' || e.key === 'u'))) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            // Prevent Enter from creating an empty newline in chat textarea
+        document.addEventListener('keydown', function(e) {
             if (e.target && e.target.id === 'chat-input-textarea' && e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
             }

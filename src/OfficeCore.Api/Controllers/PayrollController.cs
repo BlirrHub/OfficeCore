@@ -148,6 +148,74 @@ public class PayrollController : ControllerBase
         }));
     }
 
+    [HttpGet("periods/{id}/export/summary")]
+    public async Task<IActionResult> ExportPayrollSummaryCsv(Guid id)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
+        if (period == null) return NotFound();
+
+        var payslips = await _context.Payslips
+            .Include(p => p.Employee)
+                .ThenInclude(e => e!.User)
+            .Where(p => p.PayrollPeriodId == id && p.OrganizationId == orgId.Value)
+            .ToListAsync();
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Employee Name,Basic Pay,Leave Pay,Overtime Pay,Gross Pay,SSS,PhilHealth,Pag-IBIG,Tax,Advances,Other Allowances,Other Deductions,Net Pay");
+
+        foreach (var p in payslips)
+        {
+            var empName = p.Employee?.User != null ? $"{p.Employee.User.FirstName} {p.Employee.User.LastName}".Trim() : "Unknown";
+            empName = empName.Replace("\"", "\"\"");
+            sb.AppendLine($"\"{empName}\",{p.BasicPay},{p.TotalLeavePay},{p.TotalOvertimePay},{p.GrossPay},{p.SssDeduction},{p.PhilHealthDeduction},{p.PagIbigDeduction},{p.TaxDeduction},{p.AdvancesDeduction},{p.OtherAllowances},{p.OtherDeductions},{p.NetPay}");
+        }
+
+        var fileName = $"PayrollSummary_{period.StartDate:yyyyMMdd}_{period.EndDate:yyyyMMdd}.csv";
+        return File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", fileName);
+    }
+
+    [HttpGet("payslips/{id}")]
+    public async Task<IActionResult> GetPayslip(Guid id)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var payslip = await _context.Payslips
+            .Include(p => p.PayrollPeriod)
+            .Include(p => p.Employee)
+                .ThenInclude(e => e!.User)
+            .FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
+
+        if (payslip == null) return NotFound();
+
+        return Ok(new
+        {
+            payslip.Id,
+            payslip.EmployeeId,
+            EmployeeName = payslip.Employee?.User != null ? $"{payslip.Employee.User.FirstName} {payslip.Employee.User.LastName}".Trim() : "Unknown",
+            payslip.BasicPay,
+            payslip.TotalLeavePay,
+            payslip.TotalOvertimePay,
+            payslip.GrossPay,
+            payslip.SssDeduction,
+            payslip.PhilHealthDeduction,
+            payslip.PagIbigDeduction,
+            payslip.TaxDeduction,
+            payslip.AdvancesDeduction,
+            payslip.OtherAllowances,
+            payslip.OtherDeductions,
+            payslip.NetPay,
+            payslip.CalculationDetailsJson,
+            PayrollPeriod = new {
+                payslip.PayrollPeriod?.StartDate,
+                payslip.PayrollPeriod?.EndDate
+            }
+        });
+    }
+
     [HttpPut("payslips/{id}")]
     public async Task<IActionResult> UpdatePayslip(Guid id, [FromBody] PayslipUpdateRequest request)
     {

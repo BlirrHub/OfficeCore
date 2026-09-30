@@ -296,6 +296,54 @@ public class AttendanceController : ControllerBase
         return Ok(dtos);
     }
 
+    [HttpGet("export")]
+    [Authorize(Policy = "RequireAttendance")]
+    public async Task<IActionResult> ExportAttendance([FromQuery] string? employeeId = null, [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
+        var query = _context.AttendanceRecords
+            .Include(a => a.Employee)
+                .ThenInclude(e => e!.User)
+            .Where(a => a.OrganizationId == orgId.Value);
+
+        if (!string.IsNullOrWhiteSpace(employeeId))
+        {
+            query = query.Where(a => a.EmployeeId == employeeId);
+        }
+
+        if (startDate.HasValue)
+        {
+            var startUtc = DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc);
+            query = query.Where(a => a.Timestamp >= startUtc);
+        }
+
+        if (endDate.HasValue)
+        {
+            var endUtc = DateTime.SpecifyKind(endDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            query = query.Where(a => a.Timestamp < endUtc);
+        }
+
+        var records = await query
+            .OrderBy(a => a.Timestamp)
+            .ToListAsync();
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Employee Name,Timestamp,Type,Source");
+
+        foreach (var r in records)
+        {
+            var empName = r.Employee?.User != null ? $"{r.Employee.User.FirstName} {r.Employee.User.LastName}".Trim() : "Unknown";
+            empName = empName.Replace("\"", "\"\"");
+            var localTime = r.Timestamp.ToLocalTime().ToString("yyyy-MM-dd hh:mm tt");
+            sb.AppendLine($"\"{empName}\",{localTime},{r.Type},{r.Source}");
+        }
+
+        var fileName = $"AttendanceExport_{DateTime.Now:yyyyMMddHHmmss}.csv";
+        return File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", fileName);
+    }
+
     [HttpPost("admin-create")]
     [Authorize(Policy = "RequireAttendance")]
     public async Task<IActionResult> AdminCreateAttendanceRecord([FromBody] AdminCreateAttendanceDto dto)
