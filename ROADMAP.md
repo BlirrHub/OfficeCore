@@ -26,7 +26,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 | **P1** | **Audit Trail Logging System** | Core Web API & Admin | ✅ Completed | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
 | **P1** | **Workspace Owner Visibility & Hierarchical RBAC** | Identity, Admin & Payroll | ✅ Completed | Main Admin (workspace creator) visible in directory, included in payroll when IsEmployee, with strict hierarchical RBAC protecting owner from assigned admins |
 | **P1** | **Attendance & Payroll/Payslip Exporter** | Payroll Engine & Attendance | 🟢 Ready | Printable PDF/HTML individual employee payslips, comprehensive payroll summary Excel/CSV, and DTR / punch summary logs |
-| **P1** | **Board Access Security & Owner-Restricted Membership** | Kanban Boards | 🟢 Ready | Security policy enforcing that only Workspace Owner can add members; granular permissions for board deletion and column management |
+| **P1** | **Board Access Security & Owner-Restricted Membership** | Kanban Boards | ✅ Completed | Security policy enforcing that only Workspace Owner or Admins can add/remove members; non-admin board owners cannot add members; clean UX notice |
 | **P2** | **Chat Mentions & Task/Board Cross-Linking** | Chat System | 🟡 In Planning | Autocomplete `@user` mentions with alerts; `#task` and `#board` inline badges linking directly to cards and boards |
 | **P2** | **Dashboard Assigned Task Due Date Urgency Colors** | Dashboard & Kanban | 🟢 Ready | Color-coded alert badges (overdue, due today, upcoming) on dashboard task cards matching board card urgency styling |
 | **P2** | **Desktop Host Navigation Controls (Back/Forward)** | Desktop Host Windows | 🟢 Ready | Previous (Back) and Next (Forward) history buttons embedded in Desktop Client and Server Station top header bars |
@@ -86,7 +86,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 ### 📋 Kanban Boards & Project Management
 - [x] **Boards as Default Core Module:** Available for team project collaboration across workspaces.
-- [ ] **Board Member Provisioning & Visibility Alignment:** Resolve member selection dropdown for board owners (providing non-admin board owners access to the safe workspace employee candidate directory) or enforce explicit Workspace Owner/Admin exclusivity.
+- [x] **Board Member Provisioning & Visibility Alignment:** Enforced Workspace Owner and Admin exclusivity for board member addition/removal, with clean explanatory notice for regular board owners and secured API endpoints.
 - [ ] **Fine-Grained Board Access Controls & Roles:** Granular permission matrix defining who can add members, who can delete/archive the board, who can manage columns, and board-level admin privileges.
 - [ ] **Subtasks & Checklist Progress:** Add checklists to cards with completion percentage bars on column previews.
 - [ ] **Card Comments & Activity Stream:** Real-time conversation thread and audit history on individual task cards.
