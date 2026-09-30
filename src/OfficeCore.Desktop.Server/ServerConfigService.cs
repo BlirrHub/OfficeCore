@@ -8,7 +8,7 @@ public class ServerConfig
 {
     public string DbHost { get; set; } = "localhost";
     public int DbPort { get; set; } = 5432;
-    public string DbName { get; set; } = "OfficeCoreDb";
+    public string DbName { get; set; } = "officecoredevdb";
     public string DbUser { get; set; } = "postgres";
     public string DbPassword { get; set; } = "password";
     public bool AutoStartServer { get; set; } = false;
