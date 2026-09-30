@@ -37,3 +37,7 @@ dist/*
 # Biometric test/client reports
 *.xls
 *.xlsx
+
+# User uploads & runtime media
+src/OfficeCore.Api/wwwroot/uploads/**
+!src/OfficeCore.Api/wwwroot/uploads/.gitkeep

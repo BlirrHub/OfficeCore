@@ -25,7 +25,11 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 | **P1** | **Automated Database Backup & 1-Click Restore** | Server Station & Web API | ✅ Completed | Automated scheduled & manual PostgreSQL dumps, safe restore wizard with pre-restore snapshot, retention policy, download archives, and Desktop Server Station controls |
 | **P1** | **Audit Trail Logging System** | Core Web API & Admin | ✅ Completed | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
 | **P1** | **Workspace Owner Visibility & Hierarchical RBAC** | Identity, Admin & Payroll | ✅ Completed | Main Admin (workspace creator) visible in directory, included in payroll when IsEmployee, with strict hierarchical RBAC protecting owner from assigned admins |
-| **P1** | **Payroll Export & Individual Payslip Generation** | Payroll Engine & Web | 🟢 Ready | Printable PDF/HTML individual employee payslips (with company branding & signature lines) and complete Payroll Run Excel/CSV export |
+| **P1** | **Attendance & Payroll/Payslip Exporter** | Payroll Engine & Attendance | 🟢 Ready | Printable PDF/HTML individual employee payslips, comprehensive payroll summary Excel/CSV, and DTR / punch summary logs |
+| **P1** | **Board Access Security & Owner-Restricted Membership** | Kanban Boards | 🟢 Ready | Security policy enforcing that only Workspace Owner can add members; granular permissions for board deletion and column management |
+| **P2** | **Chat Mentions & Task/Board Cross-Linking** | Chat System | 🟡 In Planning | Autocomplete `@user` mentions with alerts; `#task` and `#board` inline badges linking directly to cards and boards |
+| **P2** | **Dashboard Assigned Task Due Date Urgency Colors** | Dashboard & Kanban | 🟢 Ready | Color-coded alert badges (overdue, due today, upcoming) on dashboard task cards matching board card urgency styling |
+| **P2** | **Desktop Host Navigation Controls (Back/Forward)** | Desktop Host Windows | 🟢 Ready | Previous (Back) and Next (Forward) history buttons embedded in Desktop Client and Server Station top header bars |
 | **P2** | **Server Installer Silent PostgreSQL Check/Install** | Server Installer | 🟡 In Planning | Setup wizard checks if PostgreSQL is installed; if missing, runs silent embedded setup |
 | **P2** | **In-App Auto-Updater for Server & Client** | Desktop Apps | 🟣 Backlog | Background version check against GitHub releases or API endpoint |
 | **P3** | **Software Licensing & Seat Management** | Server Station & Licensing | 🟣 Backlog | Hardware fingerprinting, offline signed keys, seat tiers *(Deferred until after initial test runs)* |
@@ -54,7 +58,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 ### 💰 Payroll & Compensation
 - [ ] **Printable & PDF Payslip Generation:** One-click bulk and individual PDF payslip generator with company logo and signature lines.
-- [ ] **Payroll Run Excel/CSV Export:** Comprehensive summary export for accounting, bank disbursements, and tax reporting.
+- [ ] **Payroll & Attendance Summary Exporter:** Comprehensive summary export (Excel/CSV) for payroll cutoffs, employee earnings, deductions, and attendance punch logs.
 - [ ] **Configurable Tax & Statutory Deductions:** Support for regional tax tiers, social security, health insurance, and provident fund formulas.
 - [ ] **Automated Payslip Distribution:** Send encrypted PDF payslips to employee email addresses upon payroll finalization.
 - [ ] **Bank Disbursement Batch Export:** Export payroll totals into standardized CSV/Excel formats accepted by commercial banks.
@@ -62,6 +66,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 ### ⏱️ Attendance, Biometrics & Field Tracking
 - [x] **Standalone My Attendance Module:** Dedicated ESS attendance page (`/my-attendance`) with digital clock, live punch status, metrics, and SignalR live updates.
 - [x] **Attendance Management Consolidation:** Company-wide punch management (`/admin/attendance`) restricted to management roles.
+- [ ] **Attendance Log & DTR Exporter:** Export Daily Time Records (DTR), punch summaries, and tardiness reports to Excel/CSV.
 - [ ] **Geofenced Mobile Clock-In:** Verify mobile punch coordinates are within authorized office location radiuses.
 - [ ] **Facial Recognition Punch Option:** Optional browser webcam-based face recognition alongside the AS608 fingerprint scanner.
 - [ ] **Shift Rotation & Roster Scheduler:** Visual calendar schedule builder for rotating night/day employee shifts.
@@ -75,25 +80,33 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 ### 📋 Kanban Boards & Project Management
 - [x] **Boards as Default Core Module:** Available for team project collaboration across workspaces.
+- [ ] **Workspace Owner Restricted Board Membership:** Enforce security policy where only the Workspace Owner can add/invite members to a board (board creator/members cannot add external members).
+- [ ] **Fine-Grained Board Access Controls & Roles:** Granular permission matrix defining who can add members, who can delete/archive the board, who can manage columns, and board-level admin privileges.
 - [ ] **Subtasks & Checklist Progress:** Add checklists to cards with completion percentage bars on column previews.
 - [ ] **Card Comments & Activity Stream:** Real-time conversation thread and audit history on individual task cards.
 - [ ] **File Attachments on Cards:** Drag-and-drop document and image uploads attached directly to tasks.
 - [ ] **Board Swimlanes:** Group board cards horizontally by assignee, priority, or epic/sprint.
 - [ ] **Milestone & Sprint Tracking:** Group cards into time-boxed sprints with burndown metrics.
 
+### 📊 Dashboard & Work Overview
+- [ ] **Assigned Task Due Date Alert Highlighting:** Color-coded urgency styling (e.g. red for overdue, amber for due today/tomorrow, emerald for upcoming) on "My Tasks" cards in the main dashboard matching the board card tags.
+- [ ] **Quick Punch Clock Widget:** Quick clock-in/out button directly accessible on the main dashboard header without navigating to My Attendance.
+
 ### 🖥️ Desktop & Native Workstations
 - [x] **Two-Tier Native Application Architecture:** Host Server Station (`OfficeCore.Desktop.Server`) and Client Terminal (`OfficeCore.Desktop.Client`).
 - [x] **Standalone 1-Click Installers:** `publish-installers.ps1` script generating `Setup-OfficeCore-Server.exe` and `Setup-OfficeCore-Client.exe`.
+- [ ] **Host Window Navigation Controls:** Add browser-style Previous (Back) and Next (Forward) navigation buttons to the native desktop host header bar for quick page history traversal.
 - [ ] **Background Auto-Update Mechanism:** Seamless update notification and silent in-place updater for client and server.
 - [ ] **System Tray Minimization:** Option to minimize Server Station and Workstation to the Windows Notification Area / System Tray instead of taskbar.
 - [ ] **LAN Auto-Discovery (mDNS / UDP Broadcast):** Allow workstation client to automatically discover host Server Station IP without typing URL.
 - [ ] **Offline Cache & Resilient Sync:** Cache recent dashboard and board state locally in case of temporary LAN disconnection.
 
 ### 💬 Chat & Internal Collaboration
+- [ ] **Group User @Mentions:** Tag and notify specific users in group discussions using `@username` autocomplete with visual highlights and desktop alerts.
+- [ ] **Board & Task References in Chat:** Link boards and cards directly in conversations using `#task` or `#board` pills that link directly to the modal or board view.
 - [ ] **Department & Project Channels:** Dedicated group chat channels alongside direct 1-on-1 messages.
 - [ ] **Rich Media & File Sharing:** In-line image previews and file downloads within chat threads.
 - [ ] **Read Receipts & Typing Indicators:** Live typing bubbles and delivered/seen timestamps via SignalR.
-- [ ] **@Mentions & Push Notifications:** Desktop sound and visual badge alert when mentioned in chat or assigned to a task.
 
 ### 🔑 Software Licensing & Product Key System *(Future Concept — Deferred)*
 > **Note:** Long-term architectural consideration for commercial on-premises deployments. Explicitly postponed from near-term implementation.
