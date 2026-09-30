@@ -294,8 +294,13 @@ public class BoardsController : ControllerBase
         var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId);
         if (board == null) return NotFound();
 
-        var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
-        if (currentUserMember == null || currentUserMember.Role != BoardRole.Owner)
+        // Only Workspace Owner or Workspace Admin can add/modify board members
+        var org = await _context.Organizations.FindAsync(orgId);
+        var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        bool isWorkspaceOwner = org != null && org.CreatedByUserId == currentUserId;
+        bool isWorkspaceAdmin = User.IsInRole("Admin") || User.HasClaim("ModuleAccess", "Users") || User.HasClaim("ModuleAccess", "Roles");
+
+        if (!isWorkspaceOwner && !isWorkspaceAdmin)
             return Forbid();
 
         var targetEmployee = await _context.Employees
@@ -337,9 +342,17 @@ public class BoardsController : ControllerBase
         var board = await _context.Boards.Include(b => b.Members).FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId);
         if (board == null) return NotFound();
 
-        var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
-        if (employee.Id != targetUserId && (currentUserMember == null || currentUserMember.Role != BoardRole.Owner))
-            return Forbid();
+        // Members can remove themselves, but only Workspace Owner or Workspace Admin can remove others
+        if (employee.Id != targetUserId)
+        {
+            var org = await _context.Organizations.FindAsync(orgId);
+            var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            bool isWorkspaceOwner = org != null && org.CreatedByUserId == currentUserId;
+            bool isWorkspaceAdmin = User.IsInRole("Admin") || User.HasClaim("ModuleAccess", "Users") || User.HasClaim("ModuleAccess", "Roles");
+
+            if (!isWorkspaceOwner && !isWorkspaceAdmin)
+                return Forbid();
+        }
 
         var targetMember = board.Members.FirstOrDefault(m => m.UserId == targetUserId);
         if (targetMember != null)

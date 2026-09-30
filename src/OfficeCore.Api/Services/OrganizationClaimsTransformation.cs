@@ -59,6 +59,12 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
         var claimsIdentity = new ClaimsIdentity();
         claimsIdentity.AddClaim(new Claim("TenantTransformed", "true"));
 
+        var org = await _context.Organizations.FindAsync(orgId.Value);
+        if (org != null && org.CreatedByUserId == userId)
+        {
+            claimsIdentity.AddClaim(new Claim("IsWorkspaceOwner", "true"));
+        }
+
         // Default modules for all authenticated accounts in the workspace
         claimsIdentity.AddClaim(new Claim("ModuleAccess", "Dashboard"));
         claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyAttendance"));
