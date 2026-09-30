@@ -110,6 +110,8 @@ public class ServerProcessManager : IDisposable
                         RedirectStandardError = true,
                         CreateNoWindow = true
                     };
+                    // Use Development only when running from source
+                    startInfo.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Development";
                 }
                 else
                 {
@@ -168,11 +170,14 @@ public class ServerProcessManager : IDisposable
                             CreateNoWindow = true
                         };
                     }
+
+                    // Published builds always run in Production — prevents dev-only middleware
+                    // (e.g. HTTPS redirection dev defaults) from activating for deployed clients
+                    startInfo.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Production";
                 }
 
                 startInfo.EnvironmentVariables["ConnectionStrings__DefaultConnection"] = config.BuildConnectionString();
                 startInfo.EnvironmentVariables["ASPNETCORE_URLS"] = "http://0.0.0.0:5026";
-                startInfo.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Development";
 
                 _serverProcess = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 

@@ -143,7 +143,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// NOTE: Do NOT use UseHttpsRedirection() — the server runs on plain HTTP (http://0.0.0.0:5026).
+// HTTPS redirects cause Blazor WASM fetch requests from LAN clients to silently fail
+// because a credentialed fetch cannot follow a cross-scheme 307 redirect.
 app.UseCors("BlazorPolicy");
 app.UseRateLimiter();
 
