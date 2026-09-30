@@ -100,12 +100,8 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     {
         options.Cookie.Name = "OfficeCoreAuth";
         options.Cookie.HttpOnly = true;
-        // Plain HTTP server — Secure flag is not set.
-        options.Cookie.SecurePolicy = CookieSecurePolicy.None;
-        // SameSite=None: ensures WebView2 always sends the cookie regardless of
-        // navigation context (forceLoad:true triggers a top-level navigation that
-        // SameSite=Lax can suppress for embedded fetch requests in some WebView2 builds).
-        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SameSite = SameSiteMode.Lax;
         options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
     });

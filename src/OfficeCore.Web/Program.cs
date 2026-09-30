@@ -24,7 +24,7 @@ var baseUri = new Uri(builder.HostEnvironment.BaseAddress);
 var configuredApiUrl = builder.Configuration["ApiBaseUrl"];
 var apiUrl = !string.IsNullOrWhiteSpace(configuredApiUrl) 
     ? configuredApiUrl.TrimEnd('/')
-    : $"{baseUri.Scheme}://{baseUri.Host}:5026";
+    : (baseUri.Port == 5261 ? $"{baseUri.Scheme}://{baseUri.Host}:5026" : $"{baseUri.Scheme}://{baseUri.Authority}".TrimEnd('/'));
 builder.Configuration["ApiBaseUrl"] = apiUrl;
 
 builder.Services.AddHttpClient("Default", client => 
