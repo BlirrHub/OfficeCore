@@ -371,11 +371,25 @@ public class OrganizationsController : ControllerBase
         if (invitation == null)
             return NotFound("Invalid invitation token.");
 
+        // Prevent joining if already a member
+        var alreadyMember = await _context.Employees
+            .AnyAsync(e => e.UserId == userId && e.OrganizationId == invitation.OrganizationId);
+            
+        if (alreadyMember)
+            return BadRequest("You are already a member of this workspace.");
+
         if (invitation.ExpiresAt < DateTime.UtcNow)
             return BadRequest("Invitation has expired.");
 
-        if (invitation.IsAccepted)
-            return BadRequest("Invitation has already been accepted.");
+        // If it's targeted to an email, it's single use. Generic links are unlimited use.
+        if (!string.IsNullOrEmpty(invitation.Email))
+        {
+            if (invitation.IsAccepted)
+                return BadRequest("This email invitation has already been accepted.");
+                
+            invitation.IsAccepted = true;
+            invitation.AcceptedAt = DateTime.UtcNow;
+        }
 
         // Create the employee record
         var employee = new Employee
@@ -400,10 +414,6 @@ public class OrganizationsController : ControllerBase
                 OrganizationRoleId = memberRole.Id
             });
         }
-        
-        // Mark invitation as accepted
-        invitation.IsAccepted = true;
-        invitation.AcceptedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 

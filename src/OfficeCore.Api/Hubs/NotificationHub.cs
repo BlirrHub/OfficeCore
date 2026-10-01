@@ -21,10 +21,19 @@ public class NotificationHub : Hub
     public override async Task OnConnectedAsync()
     {
         var orgId = _tenant.GetActiveOrganizationId();
+        var userId = _tenant.GetUserId();
+        
+        Console.WriteLine($"[SignalR] NotificationHub connected. ConnectionId: {Context.ConnectionId}, UserId: {userId}, OrgId: {orgId}");
+        
         if (orgId.HasValue)
         {
             // Join the org-wide group so all members of this org receive relevant events
             await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId}");
+            Console.WriteLine($"[SignalR] Added to group org_{orgId}");
+        }
+        else
+        {
+            Console.WriteLine($"[SignalR] WARNING: No active organization ID found for connection {Context.ConnectionId}");
         }
 
         await base.OnConnectedAsync();

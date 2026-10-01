@@ -113,15 +113,7 @@ public class AdvanceRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Notify all org members (admins on Ledger, employee on Advances)
-        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestCreated", new
-        {
-            request.Id,
-            request.EmployeeId,
-            request.Type,
-            request.RequestedAmount,
-            request.Status,
-            request.RequestDate
-        });
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestCreated");
 
         return CreatedAtAction(nameof(GetMyRequests), new { id = request.Id }, request);
     }
@@ -148,11 +140,7 @@ public class AdvanceRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Notify org so the employee's Advances page reflects the cancellation live
-        await _hub.Clients.Group($"org_{orgId}").SendAsync("AdvanceRequestUpdated", new
-        {
-            Id = id,
-            request.Status
-        });
+        await _hub.Clients.Group($"org_{orgId}").SendAsync("AdvanceRequestUpdated");
 
         return NoContent();
     }
@@ -192,12 +180,7 @@ public class AdvanceRequestController : ControllerBase
 
         // Notify org so the employee's Advances page reflects approval live
         var approvedOrgId = request.OrganizationId;
-        await _hub.Clients.Group($"org_{approvedOrgId}").SendAsync("AdvanceRequestUpdated", new
-        {
-            Id = id,
-            request.Status,
-            request.InstallmentAmount
-        });
+        await _hub.Clients.Group($"org_{approvedOrgId}").SendAsync("AdvanceRequestUpdated");
 
         return NoContent();
     }
@@ -229,11 +212,7 @@ public class AdvanceRequestController : ControllerBase
 
         // Notify org so the employee's Advances page reflects rejection live
         var rejectedOrgId = request.OrganizationId;
-        await _hub.Clients.Group($"org_{rejectedOrgId}").SendAsync("AdvanceRequestUpdated", new
-        {
-            Id = id,
-            request.Status
-        });
+        await _hub.Clients.Group($"org_{rejectedOrgId}").SendAsync("AdvanceRequestUpdated");
 
         return NoContent();
     }
@@ -280,15 +259,7 @@ public class AdvanceRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Notify org so both admin Ledger and employee Advances pages update live
-        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestCreated", new
-        {
-            request.Id,
-            request.EmployeeId,
-            request.Type,
-            request.RequestedAmount,
-            request.Status,
-            request.RequestDate
-        });
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestCreated");
 
         return CreatedAtAction(nameof(GetAllRequests), new { id = request.Id }, request);
     }
@@ -313,7 +284,7 @@ public class AdvanceRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Notify org members
-        await _hub.Clients.Group($"org_{advanceOrgId}").SendAsync("AdvanceRequestDeleted", id);
+        await _hub.Clients.Group($"org_{advanceOrgId}").SendAsync("AdvanceRequestDeleted");
 
         return Ok(new { Message = "Advance/Loan request deleted successfully" });
     }

@@ -4,6 +4,8 @@
 @inject NavigationManager Nav
 @inject HttpClient Http
 @inject ToastService ToastService
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.SignalR.Client
 
 <PageTitle>Dashboard - OfficeCore</PageTitle>
 
@@ -661,6 +663,7 @@
     private string? _firstName;
     private DashboardStatsDto? _stats;
     private bool _isLoading = false;
+    private HubConnection? _hubConnection;
 
     public class DashboardPermissionsDto
     {
@@ -738,6 +741,40 @@
         }
 
         await LoadDashboardStats();
+        await ConnectToHub();
+    }
+
+    private async Task ConnectToHub()
+    {
+        var hubUrl = new Uri(Http.BaseAddress!, "hubs/notifications").ToString();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        Func<Task> reloadData = async () =>
+        {
+            await LoadDashboardStats();
+            await InvokeAsync(StateHasChanged);
+        };
+
+        _hubConnection.On("LeaveRequestCreated", reloadData);
+        _hubConnection.On("LeaveRequestUpdated", reloadData);
+        _hubConnection.On("LeaveRequestDeleted", reloadData);
+        _hubConnection.On("AdvanceRequestCreated", reloadData);
+        _hubConnection.On("AdvanceRequestUpdated", reloadData);
+        _hubConnection.On("AdvanceRequestDeleted", reloadData);
+        _hubConnection.On("ExpenseCreated", reloadData);
+        _hubConnection.On("ExpenseDeleted", reloadData);
+
+        try { await _hubConnection.StartAsync(); } catch { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+            await _hubConnection.DisposeAsync();
     }
 
     private async Task LoadDashboardStats()

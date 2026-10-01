@@ -506,6 +506,19 @@
             await InvokeAsync(StateHasChanged);
         });
 
+        // Reload expenses
+        _hubConnection.On("ExpenseCreated", async () =>
+        {
+            await LoadExpenses();
+            await InvokeAsync(StateHasChanged);
+        });
+        
+        _hubConnection.On("ExpenseDeleted", async () =>
+        {
+            await LoadExpenses();
+            await InvokeAsync(StateHasChanged);
+        });
+
         try { await _hubConnection.StartAsync(); } catch { /* Hub is optional; page works without it */ }
     }
 
