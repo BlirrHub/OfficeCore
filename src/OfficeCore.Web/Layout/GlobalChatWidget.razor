@@ -747,7 +747,7 @@
                                         @if (!string.IsNullOrWhiteSpace(msg.Content))
                                         {
                                             <div class="px-3 py-2 text-xs rounded-2xl break-words whitespace-pre-wrap select-text @(isMine ? "bg-fuchsia-600 text-white rounded-br-xs shadow-md shadow-fuchsia-950/40" : "bg-zinc-800 text-zinc-100 rounded-bl-xs")">
-                                                @msg.Content
+                                                @FormatMessageContent(msg.Content, isMine)
                                             </div>
                                         }
                                     </div>
@@ -820,6 +820,30 @@
                         <InputFile id="chat-file-input" OnChange="HandleChatFileUpload" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
 
                         <div class="flex-1 relative flex flex-col">
+                            <!-- Mention Autocomplete -->
+                            @if (_showMentions && _mentionCandidates.Any())
+                            {
+                                <div class="absolute bottom-full left-0 mb-2 w-56 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl overflow-hidden z-50 flex flex-col max-h-48 custom-scrollbar overflow-y-auto">
+                                    <div class="px-2.5 py-1.5 bg-zinc-800 text-[10px] font-semibold text-zinc-400">Mentions</div>
+                                    @foreach(var user in _mentionCandidates)
+                                    {
+                                        <div class="px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer flex items-center gap-2 transition-colors" @onclick="() => InsertMention(user)">
+                                            <div class="size-5 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden shrink-0">
+                                                @if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
+                                                {
+                                                    <img src="@(MediaUrlHelper.Resolve(user.ProfilePictureUrl, Configuration))" class="w-full h-full object-cover" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-[8px] font-bold">@(user.FirstName?.FirstOrDefault() ?? '?')</span>
+                                                }
+                                            </div>
+                                            <span class="truncate">@user.FirstName @user.LastName</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            
                             <textarea id="chat-input-textarea"
                                       @bind="_newMessageContent" @bind:event="oninput" 
                                       @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp"
@@ -884,7 +908,84 @@
     private ChatRoomDto? _activeRoom = null;
     private bool _isLoadingMessages = false;
     private List<ChatMessageDto> _messages = new();
-    private string _newMessageContent = string.Empty;
+    
+    private string _newMessageContentValue = string.Empty;
+    private string _newMessageContent 
+    {
+        get => _newMessageContentValue;
+        set 
+        {
+            _newMessageContentValue = value;
+            CheckForMentions(value);
+        }
+    }
+
+    private bool _showMentions = false;
+    private List<UserDto> _mentionCandidates = new();
+    private string _currentMentionSearch = string.Empty;
+
+    private void CheckForMentions(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            _showMentions = false;
+            return;
+        }
+
+        var lastWord = text.Split(new[] { ' ', '\n' }).LastOrDefault();
+        if (lastWord != null && lastWord.StartsWith("@"))
+        {
+            _showMentions = true;
+            _currentMentionSearch = lastWord.Substring(1);
+            _mentionCandidates = _allUsers.Where(u => 
+                (u.FirstName + u.LastName).Contains(_currentMentionSearch, StringComparison.OrdinalIgnoreCase) ||
+                u.FirstName.Contains(_currentMentionSearch, StringComparison.OrdinalIgnoreCase)
+            ).Take(5).ToList();
+        }
+        else
+        {
+            _showMentions = false;
+        }
+    }
+
+    private void InsertMention(UserDto user)
+    {
+        var lastIndex = _newMessageContentValue.LastIndexOf('@');
+        if (lastIndex >= 0)
+        {
+            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"@{user.FirstName}{user.LastName} ";
+        }
+        _showMentions = false;
+    }
+
+    private MarkupString FormatMessageContent(string content, bool isMine)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return new MarkupString("");
+        
+        var encoded = System.Net.WebUtility.HtmlEncode(content);
+        
+        // Highlight Mentions: @Firstname or @FirstnameLastname
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded, 
+            @"@(\w+)", 
+            "<span class=\"font-bold text-fuchsia-300\">@$1</span>");
+
+        // Highlight Tasks: #task-123
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded, 
+            @"#(task-\w+)", 
+            "<a href=\"/boards\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>#$1</a>", 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Highlight Boards: #board-123
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded, 
+            @"#(board-\w+)", 
+            "<a href=\"/boards\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>#$1</a>", 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return new MarkupString(encoded);
+    }
 
     private bool _isTyping = false;
     private string? _typingUserName;

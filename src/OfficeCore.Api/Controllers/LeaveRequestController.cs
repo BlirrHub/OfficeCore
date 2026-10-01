@@ -126,16 +126,7 @@ public class LeaveRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Notify admins in this org so the Leave Approvals page updates live
-        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated", new
-        {
-            leaveRequest.Id,
-            leaveRequest.EmployeeId,
-            leaveRequest.Type,
-            leaveRequest.StartDate,
-            leaveRequest.EndDate,
-            leaveRequest.Status,
-            leaveRequest.CreatedAt
-        });
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated");
 
         return Ok(leaveRequest);
     }
@@ -170,11 +161,7 @@ public class LeaveRequestController : ControllerBase
         // Notify all org members so the employee sees the status change live
         if (orgId.HasValue)
         {
-            await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestUpdated", new
-            {
-                Id = id,
-                leaveRequest.Status
-            });
+            await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestUpdated");
         }
 
         return Ok(new { message = "Status updated successfully" });
@@ -214,16 +201,7 @@ public class LeaveRequestController : ControllerBase
             leaveRequest.Id);
 
         // Notify org members of the newly approved leave
-        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated", new
-        {
-            leaveRequest.Id,
-            leaveRequest.EmployeeId,
-            leaveRequest.Type,
-            leaveRequest.StartDate,
-            leaveRequest.EndDate,
-            leaveRequest.Status,
-            leaveRequest.CreatedAt
-        });
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated");
 
         return Ok(leaveRequest);
     }
@@ -243,7 +221,7 @@ public class LeaveRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Notify org members so the list updates live
-        await _hub.Clients.Group($"org_{leaveOrgId}").SendAsync("LeaveRequestDeleted", id);
+        await _hub.Clients.Group($"org_{leaveOrgId}").SendAsync("LeaveRequestDeleted");
 
         return Ok(new { message = "Leave request deleted successfully" });
     }

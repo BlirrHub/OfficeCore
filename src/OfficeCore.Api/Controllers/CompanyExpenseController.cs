@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using Microsoft.AspNetCore.SignalR;
+using OfficeCore.Api.Hubs;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -13,11 +15,13 @@ public class CompanyExpenseController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly TenantService _tenant;
+    private readonly IHubContext<NotificationHub> _hub;
 
-    public CompanyExpenseController(AppDbContext context, TenantService tenant)
+    public CompanyExpenseController(AppDbContext context, TenantService tenant, IHubContext<NotificationHub> hub)
     {
         _context = context;
         _tenant = tenant;
+        _hub = hub;
     }
 
     [HttpGet]
@@ -53,6 +57,8 @@ public class CompanyExpenseController : ControllerBase
         _context.CompanyExpenses.Add(expense);
         await _context.SaveChangesAsync();
 
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("ExpenseCreated");
+
         return Ok(expense);
     }
 
@@ -68,6 +74,8 @@ public class CompanyExpenseController : ControllerBase
 
         _context.CompanyExpenses.Remove(expense);
         await _context.SaveChangesAsync();
+
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("ExpenseDeleted");
 
         return NoContent();
     }
