@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Enhanced — [2026-10-01] (Real-Time Live Sync, Chat Mentions & Board Cross-Linking, Unlimited Invites)
+
+- **Real-Time Data Sync (Leaves, Advances, Ledger, Dashboard):**
+  - Resolved SignalR payload mismatch causing silent failures in real-time entity updates.
+  - Controllers (e.g., `LeaveRequestController`, `AdvanceRequestController`, `CompanyExpenseController`) now broadcast parameterless refresh events matching client-side expectations.
+  - Implemented live SignalR data synchronization in `Dashboard.razor`, `Ledger.razor`, `Advances.razor`, and `MyLeaves.razor` automatically updating tables and metric cards without requiring page reloads.
+- **Chat Enhancements (@Mentions & Board/Task Cross-Linking):**
+  - Added smart `@user` autocomplete dropdown parsing in the chat input textbox (`GlobalChatWidget.razor`).
+  - Implemented interactive rendering for user mentions (`@FirstNameLastName`) highlighted with fuchsia text.
+  - Implemented intelligent parsing for `#task-XXX` and `#board-XXX` formats, automatically rendering them as clickable buttons linking directly to the project Kanban boards.
+- **Invite Code Unlimited Usage:**
+  - Modified generic Workspace Invite Links to allow unlimited multi-use access instead of single-use, while maintaining a strict 7-day expiration window (`OrganizationsController.cs`).
+  - Updated User Management UI to explicitly read "Unlimited uses, expires in 7 days."
+- **Kanban Board Feature Status Validation:**
+  - Verified and confirmed that Advanced Kanban features (Subtasks, Checklists, Card Comments, and File Attachments) were already fully implemented on both frontend (`BoardView.razor`) and backend endpoints. Updated `ROADMAP.md` tracking accordingly.
+- **Membership Permissions:**
+  - Granted Board Owners permission to add/remove board members in `BoardsController.cs`.
+
 ### UI Modernization & Enterprise Cleanup — [2026-09-30] (Replaced Informal Emojis with Professional SVG Icons & Status Badges)
 
 - **Removed Informal Unicode Emojis Across Web UI:**
