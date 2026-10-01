@@ -108,6 +108,34 @@ public class BoardsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchBoardsAndTasks([FromQuery] string q)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
+        
+        if (string.IsNullOrWhiteSpace(q)) return Ok(new { boards = new object[0], tasks = new object[0] });
+
+        var lowerQ = q.ToLower();
+
+        var boards = await _context.Boards
+            .Where(b => b.OrganizationId == orgId && b.Members.Any(m => m.UserId == employee.Id) && b.Name.ToLower().Contains(lowerQ))
+            .Take(5)
+            .Select(b => new { Id = b.Id.ToString(), Name = b.Name, Type = "Board" })
+            .ToListAsync();
+
+        var tasks = await _context.BoardCards
+            .Where(c => c.List.Board.OrganizationId == orgId && 
+                        c.List.Board.Members.Any(m => m.UserId == employee.Id) && 
+                        c.Title.ToLower().Contains(lowerQ))
+            .Take(10)
+            .Select(c => new { Id = c.Id.ToString(), Name = c.Title, Type = "Task", BoardName = c.List.Board.Name })
+            .ToListAsync();
+
+        return Ok(new { boards, tasks });
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetBoard(Guid id)
     {
