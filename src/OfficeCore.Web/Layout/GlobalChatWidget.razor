@@ -938,6 +938,8 @@
     private bool _isLoadingMessages = false;
     private List<ChatMessageDto> _messages = new();
     
+    private HashSet<string> _myBoardIds = new();
+    
     private string _newMessageContentValue = string.Empty;
     private string _newMessageContent 
     {
@@ -1006,7 +1008,7 @@
         var lastIndex = _newMessageContentValue.LastIndexOf('#');
         if (lastIndex >= 0)
         {
-            var prefix = tag.Type == "Board" ? "#board-" : "#task-";
+            var prefix = tag.Type == "Board" ? "#board-" : $"#task-{tag.BoardId}_";
             _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"[{tag.Name}]({prefix}{tag.Id}) ";
         }
         _showTags = false;
@@ -1041,39 +1043,69 @@
             @"@(\w+)", 
             "<span class=\"font-bold text-fuchsia-300\">@$1</span>");
 
-        // Parse Markdown links for Tasks: [Task Name](#task-id)
+        // Parse Markdown links for Boards and Tasks: [Name](#type-ids)
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
-            @"\[([^\]]+)\]\(#(task-[a-zA-Z0-9\-]+)\)", 
-            "<a href=\"/boards\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>$1</a>", 
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        // Fallback for raw #task-id (to prevent breaking hyphenation)
-        encoded = System.Text.RegularExpressions.Regex.Replace(
-            encoded, 
-            @"(?<!\]\()#(task-[a-zA-Z0-9\-]+)", 
+            @"\[([^\]]+)\]\(#(board|task)-([a-zA-Z0-9\-_]+)\)", 
             match => {
-                var fullId = match.Groups[1].Value;
-                var shortDisplay = fullId.Length > 13 ? fullId.Substring(0, 13) + "..." : fullId;
-                return $"<a href=\"/boards\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>#{shortDisplay}</a>";
+                var name = match.Groups[1].Value;
+                var type = match.Groups[2].Value.ToLower(); // "board" or "task"
+                var ids = match.Groups[3].Value; 
+                
+                string boardId = ids;
+                string? taskId = null;
+                if (type == "task" && ids.Contains("_"))
+                {
+                    var parts = ids.Split('_');
+                    boardId = parts[0];
+                    taskId = parts[1];
+                }
+
+                if (_myBoardIds.Contains(boardId))
+                {
+                    if (type == "board")
+                        return $"<a href=\"/boards/{boardId}\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>{name}</a>";
+                    else
+                        return $"<a href=\"/boards/{boardId}?taskId={taskId}\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>{name}</a>";
+                }
+                else
+                {
+                    var colorClass = type == "board" ? "text-amber-400/50" : "text-emerald-400/50";
+                    var iconPath = type == "board" ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
+                    return $"<span class=\"font-bold {colorClass} inline-flex items-center gap-0.5 cursor-not-allowed\" title=\"You don't have access to this {type}\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>{name}</span>";
+                }
             }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-        // Parse Markdown links for Boards: [Board Name](#board-id)
+        // Fallbacks for raw #task-id and #board-id
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
-            @"\[([^\]]+)\]\(#(board-[a-zA-Z0-9\-]+)\)", 
-            "<a href=\"/boards\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>$1</a>", 
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        // Fallback for raw #board-id
-        encoded = System.Text.RegularExpressions.Regex.Replace(
-            encoded, 
-            @"(?<!\]\()#(board-[a-zA-Z0-9\-]+)", 
+            @"(?<!\]\()#(task|board)-([a-zA-Z0-9\-_]+)", 
             match => {
-                var fullId = match.Groups[1].Value;
-                var shortDisplay = fullId.Length > 14 ? fullId.Substring(0, 14) + "..." : fullId;
-                return $"<a href=\"/boards\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>#{shortDisplay}</a>";
+                var type = match.Groups[1].Value.ToLower();
+                var fullId = match.Groups[2].Value;
+                var shortDisplay = fullId.Length > 13 ? fullId.Substring(0, 13) + "..." : fullId;
+                var colorClass = type == "board" ? "text-amber-400" : "text-emerald-400";
+                var iconPath = type == "board" ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
+                
+                string boardId = fullId;
+                string? taskId = null;
+                if (type == "task" && fullId.Contains("_"))
+                {
+                    var parts = fullId.Split('_');
+                    boardId = parts[0];
+                    taskId = parts[1];
+                }
+
+                if (_myBoardIds.Contains(boardId))
+                {
+                    var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
+                    return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</a>";
+                }
+                else
+                {
+                    return $"<span class=\"font-bold {colorClass}/50 inline-flex items-center gap-0.5 cursor-not-allowed\" title=\"You don't have access to this {type}\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</span>";
+                }
             }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
@@ -1136,6 +1168,18 @@
         _ => _rooms
     };
 
+    private class BasicBoardDto { public Guid Id { get; set; } }
+
+    private async Task LoadMyBoards()
+    {
+        try {
+            var res = await Http.GetFromJsonAsync<List<BasicBoardDto>>("/api/boards");
+            if (res != null) {
+                _myBoardIds = res.Select(b => b.Id.ToString()).ToHashSet();
+            }
+        } catch { }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthProvider.GetAuthenticationStateAsync();
@@ -1145,6 +1189,7 @@
 
         // Load employees in org for chat searches (returns Employee.Id as Id)
         await ReloadUsers();
+        await LoadMyBoards();
 
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(new Uri(Http.BaseAddress!, "hubs/chat"), options =>

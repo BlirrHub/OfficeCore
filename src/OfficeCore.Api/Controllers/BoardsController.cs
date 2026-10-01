@@ -136,7 +136,7 @@ public class BoardsController : ControllerBase
 
         var tasks = await taskQuery
             .Take(10)
-            .Select(c => new { Id = c.Id.ToString(), Name = c.Title, Type = "Task", BoardName = c.List.Board.Name })
+            .Select(c => new { Id = c.Id.ToString(), Name = c.Title, Type = "Task", BoardName = c.List.Board.Name, BoardId = c.List.BoardId.ToString() })
             .ToListAsync();
 
         return Ok(new { boards, tasks });
