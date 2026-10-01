@@ -844,6 +844,35 @@
                                 </div>
                             }
                             
+                            <!-- Tag Autocomplete -->
+                            @if (_showTags && _tagCandidates.Any())
+                            {
+                                <div class="absolute bottom-full left-0 mb-2 w-72 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl overflow-hidden z-50 flex flex-col max-h-56 custom-scrollbar overflow-y-auto">
+                                    <div class="px-2.5 py-1.5 bg-zinc-800 text-[10px] font-semibold text-zinc-400">Boards & Tasks</div>
+                                    @foreach(var tag in _tagCandidates)
+                                    {
+                                        <div class="px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer flex flex-col gap-0.5 transition-colors" @onclick="() => InsertTag(tag)">
+                                            <div class="flex items-center gap-2">
+                                                @if (tag.Type == "Board")
+                                                {
+                                                    <svg class="size-3.5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+                                                    <span class="font-bold text-amber-400 truncate">@tag.Name</span>
+                                                }
+                                                else
+                                                {
+                                                    <svg class="size-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                                                    <span class="font-bold text-emerald-400 truncate">@tag.Name</span>
+                                                }
+                                            </div>
+                                            @if (tag.Type == "Task" && !string.IsNullOrEmpty(tag.BoardName))
+                                            {
+                                                <span class="text-[10px] text-zinc-500 ml-5.5 truncate">in @tag.BoardName</span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            
                             <textarea id="chat-input-textarea"
                                       @bind="_newMessageContent" @bind:event="oninput" 
                                       @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp"
@@ -924,17 +953,23 @@
     private List<UserDto> _mentionCandidates = new();
     private string _currentMentionSearch = string.Empty;
 
+    private bool _showTags = false;
+    private List<SearchTagDto> _tagCandidates = new();
+    private string _currentTagSearch = string.Empty;
+
     private void CheckForMentions(string text)
     {
         if (string.IsNullOrEmpty(text))
         {
             _showMentions = false;
+            _showTags = false;
             return;
         }
 
         var lastWord = text.Split(new[] { ' ', '\n' }).LastOrDefault();
         if (lastWord != null && lastWord.StartsWith("@"))
         {
+            _showTags = false;
             _showMentions = true;
             _currentMentionSearch = lastWord.Substring(1);
             _mentionCandidates = _allUsers.Where(u => 
@@ -942,9 +977,17 @@
                 u.FirstName.Contains(_currentMentionSearch, StringComparison.OrdinalIgnoreCase)
             ).Take(5).ToList();
         }
+        else if (lastWord != null && lastWord.StartsWith("#"))
+        {
+            _showMentions = false;
+            _showTags = true;
+            _currentTagSearch = lastWord.Substring(1);
+            _ = SearchTagsAsync(_currentTagSearch);
+        }
         else
         {
             _showMentions = false;
+            _showTags = false;
         }
     }
 
@@ -956,6 +999,34 @@
             _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"@{user.FirstName}{user.LastName} ";
         }
         _showMentions = false;
+    }
+
+    private void InsertTag(SearchTagDto tag)
+    {
+        var lastIndex = _newMessageContentValue.LastIndexOf('#');
+        if (lastIndex >= 0)
+        {
+            var prefix = tag.Type == "Board" ? "#board-" : "#task-";
+            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"{prefix}{tag.Id} ";
+        }
+        _showTags = false;
+    }
+
+    private async Task SearchTagsAsync(string q)
+    {
+        try 
+        {
+            var res = await Http.GetFromJsonAsync<SearchTagsResponse>($"/api/boards/search?q={Uri.EscapeDataString(q)}");
+            if (res != null)
+            {
+                var candidates = new List<SearchTagDto>();
+                candidates.AddRange(res.Boards);
+                candidates.AddRange(res.Tasks);
+                _tagCandidates = candidates;
+                StateHasChanged();
+            }
+        }
+        catch { }
     }
 
     private MarkupString FormatMessageContent(string content, bool isMine)
@@ -1765,6 +1836,20 @@
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? ProfilePictureUrl { get; set; }
+    }
+
+    public class SearchTagDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public string? BoardName { get; set; }
+    }
+
+    private class SearchTagsResponse
+    {
+        public List<SearchTagDto> Boards { get; set; } = new();
+        public List<SearchTagDto> Tasks { get; set; } = new();
     }
 
     private class RoomCreationResponse
