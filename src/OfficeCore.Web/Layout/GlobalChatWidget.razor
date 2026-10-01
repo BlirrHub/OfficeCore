@@ -1007,7 +1007,7 @@
         if (lastIndex >= 0)
         {
             var prefix = tag.Type == "Board" ? "#board-" : "#task-";
-            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"{prefix}{tag.Id} ";
+            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"[{tag.Name}]({prefix}{tag.Id}) ";
         }
         _showTags = false;
     }
@@ -1041,18 +1041,40 @@
             @"@(\w+)", 
             "<span class=\"font-bold text-fuchsia-300\">@$1</span>");
 
-        // Highlight Tasks: #task-123
+        // Parse Markdown links for Tasks: [Task Name](#task-id)
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
-            @"#(task-\w+)", 
-            "<a href=\"/boards\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>#$1</a>", 
+            @"\[([^\]]+)\]\(#(task-[a-zA-Z0-9\-]+)\)", 
+            "<a href=\"/boards\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>$1</a>", 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-        // Highlight Boards: #board-123
+        // Fallback for raw #task-id (to prevent breaking hyphenation)
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
-            @"#(board-\w+)", 
-            "<a href=\"/boards\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>#$1</a>", 
+            @"(?<!\]\()#(task-[a-zA-Z0-9\-]+)", 
+            match => {
+                var fullId = match.Groups[1].Value;
+                var shortDisplay = fullId.Length > 13 ? fullId.Substring(0, 13) + "..." : fullId;
+                return $"<a href=\"/boards\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>#{shortDisplay}</a>";
+            }, 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Parse Markdown links for Boards: [Board Name](#board-id)
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded, 
+            @"\[([^\]]+)\]\(#(board-[a-zA-Z0-9\-]+)\)", 
+            "<a href=\"/boards\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>$1</a>", 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Fallback for raw #board-id
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded, 
+            @"(?<!\]\()#(board-[a-zA-Z0-9\-]+)", 
+            match => {
+                var fullId = match.Groups[1].Value;
+                var shortDisplay = fullId.Length > 14 ? fullId.Substring(0, 14) + "..." : fullId;
+                return $"<a href=\"/boards\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>#{shortDisplay}</a>";
+            }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         return new MarkupString(encoded);
