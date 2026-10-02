@@ -924,6 +924,8 @@
 </style>
 
 @code {
+    private Dictionary<string, string> _draftMentions = new(StringComparer.OrdinalIgnoreCase);
+
     private bool _isOpen = false;
     private HubConnection? _hubConnection;
     private string _currentUserId = string.Empty;  // ApplicationUser.Id from claims
@@ -998,7 +1000,10 @@
         var lastIndex = _newMessageContentValue.LastIndexOf('@');
         if (lastIndex >= 0)
         {
-            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"@{user.FirstName}{user.LastName} ";
+            var plainText = $"@{user.FirstName}{user.LastName}";
+            var markdown = $"[{user.FirstName} {user.LastName}](@user-{user.Id})";
+            _draftMentions[plainText] = markdown;
+            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"{plainText} ";
         }
         _showMentions = false;
     }
@@ -1008,8 +1013,11 @@
         var lastIndex = _newMessageContentValue.LastIndexOf('#');
         if (lastIndex >= 0)
         {
+            var plainText = $"#{tag.Name.Replace(" ", "-")}";
             var prefix = tag.Type == "Board" ? "#board-" : $"#task-{tag.BoardId}_";
-            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"[{tag.Name}]({prefix}{tag.Id}) ";
+            var markdown = $"[{tag.Name}]({prefix}{tag.Id})";
+            _draftMentions[plainText] = markdown;
+            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"{plainText} ";
         }
         _showTags = false;
     }
@@ -1654,11 +1662,19 @@
         if ((string.IsNullOrWhiteSpace(_newMessageContent) && string.IsNullOrEmpty(_pendingAttachmentUrl)) || _activeRoom == null) return;
 
         var content = _newMessageContent?.Trim() ?? string.Empty;
+
+        // Apply markdown mappings before sending
+        foreach(var kvp in _draftMentions.OrderByDescending(k => k.Key.Length))
+        {
+            content = content.Replace(kvp.Key, kvp.Value);
+        }
+
         var attUrl = _pendingAttachmentUrl;
         var attName = _pendingAttachmentName;
         var attSize = _pendingAttachmentSize;
 
         _newMessageContent = string.Empty;
+        _draftMentions.Clear();
         ClearPendingAttachment();
 
         var tempId = Guid.NewGuid();
