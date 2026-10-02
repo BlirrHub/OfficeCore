@@ -10,11 +10,16 @@ All notable changes to this project will be documented in this file.
 
 - **Kanban Board Customization & Security:**
   - Implemented custom color-coded Board Labels, allowing board owners and admins to create labels with specific hex colors and attach them to cards.
+  - Implemented List Color Customization, allowing users to customize the background and header color of individual lists/columns via a color picker (`ColorHex` field and EF Core migration included).
   - Visually hid all board structure modification elements (add/delete lists, add/delete cards) for users with `Member` and `Viewer` roles to prevent confusion.
   - Enforced strict frontend restrictions blocking `Member` and `Viewer` roles from removing assignees from cards.
   - Fixed a backend user lookup bug in `BoardsController` where `Employee.Id` mapping was rejected in favor of `ApplicationUser.Id`, allowing correct addition of board members.
   - Added the missing `Admin` role option in the board member management dropdown for existing members.
   - Dynamically disabled due date modification and assignee selection for users without structural edit permissions.
+- **Employee Requests:**
+  - Implemented Request Cancellation for employees, allowing them to instantly cancel their own *Pending* Cash Advances, E-Loans, and Leave requests directly from `MyLeaves.razor` and `Advances.razor`.
+- **Chat Improvements:**
+  - Implemented an invisible plain-text mapping logic in `GlobalChatWidget.razor` that hides raw markdown tags (e.g., `[@DemoAdmin](...)`) in the chat text box, allowing users to type and see perfectly clean `@` mentions and `#` tags while still rendering correct markdown behind the scenes upon submission.
 
 ### Added & Enhanced — [2026-10-01] (Real-Time Live Sync, Chat Mentions & Board Cross-Linking, Unlimited Invites)
 
