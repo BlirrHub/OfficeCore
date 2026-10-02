@@ -706,6 +706,7 @@ else
                                 </select>
                                 <select @bind="_newMemberRole" class="w-28 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none appearance-none">
                                     <option value="@BoardRole.Member">Member</option>
+                                    <option value="@BoardRole.Admin">Admin</option>
                                     <option value="@BoardRole.Viewer">Viewer</option>
                                 </select>
                             </div>
@@ -790,8 +791,10 @@ else
     private BoardDto? _board;
     private bool _isLoading = true;
     private bool _isOwner = false;
+    private bool _isAdmin = false;
     private bool _isViewer = false;
     private bool _canManageBoardMembers = false;
+    private bool _canEditMemberRoles = false;
     private List<EmployeeDto> _allUsers = new();
 
     // Drag and Drop state
@@ -838,7 +841,7 @@ else
     private DateTime _lastActionTime = DateTime.MinValue;
     private void MarkAction() => _lastActionTime = DateTime.UtcNow;
 
-    public enum BoardRole { Viewer = 0, Member = 1, Owner = 2 }
+    public enum BoardRole { Viewer = 0, Member = 1, Owner = 2, Admin = 3 }
 
     private HubConnection? hubConnection;
 
@@ -890,7 +893,7 @@ else
     {
         try
         {
-            var users = await Http.GetFromJsonAsync<List<EmployeeDto>>("/api/user");
+            var users = await Http.GetFromJsonAsync<List<EmployeeDto>>("/api/chat/users");
             if (users != null) _allUsers = users;
         }
         catch { }
@@ -911,14 +914,22 @@ else
                     || user.HasClaim("ModuleAccess", "Users") 
                     || user.HasClaim("ModuleAccess", "Roles") 
                     || user.HasClaim("IsWorkspaceOwner", "true");
+                
+                _canEditMemberRoles = _canManageBoardMembers;
 
                 var myMember = _board.Members.FirstOrDefault(m => m.User.ApplicationUserId == userId);
                 if (myMember != null)
                 {
                     _isOwner = myMember.Role == BoardRole.Owner;
+                    _isAdmin = myMember.Role == BoardRole.Admin;
                     _isViewer = myMember.Role == BoardRole.Viewer;
                     
                     if (_isOwner)
+                    {
+                        _canManageBoardMembers = true;
+                        _canEditMemberRoles = true;
+                    }
+                    if (_isAdmin)
                     {
                         _canManageBoardMembers = true;
                     }

@@ -7,7 +7,8 @@ public enum BoardRole
 {
     Viewer = 0,
     Member = 1,
-    Owner = 2
+    Owner = 2,
+    Admin = 3
 }
 
 public class BoardMember : ITenantEntity{

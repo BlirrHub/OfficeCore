@@ -334,8 +334,9 @@ public class BoardsController : ControllerBase
         bool isWorkspaceOwner = org != null && org.CreatedByUserId == currentUserId;
         bool isWorkspaceAdmin = User.IsInRole("Admin") || User.HasClaim("ModuleAccess", "Users") || User.HasClaim("ModuleAccess", "Roles");
         bool isBoardOwner = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Owner);
+        bool isBoardAdmin = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Admin);
 
-        if (!isWorkspaceOwner && !isWorkspaceAdmin && !isBoardOwner)
+        if (!isWorkspaceOwner && !isWorkspaceAdmin && !isBoardOwner && !isBoardAdmin)
             return Forbid();
 
         var targetEmployee = await _context.Employees
@@ -348,6 +349,10 @@ public class BoardsController : ControllerBase
         
         if (targetMember != null)
         {
+            // Admins cannot edit existing member roles
+            if (!isWorkspaceOwner && !isWorkspaceAdmin && !isBoardOwner)
+                return Forbid();
+
             targetMember.Role = req.Role;
         }
         else
@@ -385,8 +390,9 @@ public class BoardsController : ControllerBase
             bool isWorkspaceOwner = org != null && org.CreatedByUserId == currentUserId;
             bool isWorkspaceAdmin = User.IsInRole("Admin") || User.HasClaim("ModuleAccess", "Users") || User.HasClaim("ModuleAccess", "Roles");
             bool isBoardOwner = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Owner);
+            bool isBoardAdmin = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Admin);
 
-            if (!isWorkspaceOwner && !isWorkspaceAdmin && !isBoardOwner)
+            if (!isWorkspaceOwner && !isWorkspaceAdmin && !isBoardOwner && !isBoardAdmin)
                 return Forbid();
         }
 
@@ -421,8 +427,8 @@ public class BoardsController : ControllerBase
         if (board == null) return NotFound();
 
         var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == userId);
-        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
-            return Forbid(); // Viewers can't create lists
+        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer || currentUserMember.Role == BoardRole.Member)
+            return Forbid(); // Viewers and Members can't create lists
 
         var nextOrder = board.Lists.Any() ? board.Lists.Max(l => l.OrderIndex) + 1 : 0;
 
@@ -470,8 +476,8 @@ public class BoardsController : ControllerBase
         if (list == null) return NotFound();
 
         var currentUserMember = list.Board.Members.FirstOrDefault(m => m.UserId == userId);
-        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
-            return Forbid();
+        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer || currentUserMember.Role == BoardRole.Member)
+            return Forbid(); // Viewers and Members can't create cards
 
         var nextOrder = list.Cards.Any() ? list.Cards.Max(c => c.OrderIndex) + 1 : 0;
 
@@ -532,6 +538,14 @@ public class BoardsController : ControllerBase
         var currentUserMember = card.List.Board.Members.FirstOrDefault(m => m.UserId == userId);
         if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
             return Forbid();
+
+        if (currentUserMember.Role == BoardRole.Member)
+        {
+            // Members cannot change assignees or due dates
+            req.AssigneeIds = card.Assignees.Select(a => a.EmployeeId).ToList();
+            req.AssignedToUserId = card.AssignedToUserId;
+            req.DueDate = card.DueDate;
+        }
 
         var assigneeIds = (req.AssigneeIds != null)
             ? req.AssigneeIds.Distinct().ToList()
@@ -673,7 +687,7 @@ public class BoardsController : ControllerBase
         if (list == null) return NotFound();
 
         var currentUserMember = list.Board.Members.FirstOrDefault(m => m.UserId == userId);
-        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
+        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer || currentUserMember.Role == BoardRole.Member)
             return Forbid();
 
         _context.BoardLists.Remove(list);
@@ -701,7 +715,7 @@ public class BoardsController : ControllerBase
         if (card == null) return NotFound();
 
         var currentUserMember = card.List.Board.Members.FirstOrDefault(m => m.UserId == userId);
-        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
+        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer || currentUserMember.Role == BoardRole.Member)
             return Forbid();
 
         _context.BoardCards.Remove(card);
@@ -733,7 +747,7 @@ public class BoardsController : ControllerBase
         if (board == null) return NotFound();
 
         var currentUserMember = board.Members.FirstOrDefault(m => m.UserId == userId);
-        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
+        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer || currentUserMember.Role == BoardRole.Member)
             return Forbid();
 
         var targetList = board.Lists.FirstOrDefault(l => l.Id == listId);
@@ -956,7 +970,7 @@ public class BoardsController : ControllerBase
 
         // Check if user is a member of the board and has editing privileges (not a Viewer)
         var member = card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
-        if (member == null || member.Role == BoardRole.Viewer)
+        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
             return Forbid();
 
         if (file == null || file.Length == 0) return BadRequest("File is empty.");

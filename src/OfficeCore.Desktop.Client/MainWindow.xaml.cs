@@ -52,7 +52,28 @@ public partial class MainWindow : Window
 
         if (_config.AutoConnect && !string.IsNullOrWhiteSpace(_config.ServerUrl))
         {
-            ConnectToServer(_config.ServerUrl);
+            _ = AttemptAutoConnectAsync(_config.ServerUrl);
+        }
+    }
+
+    private async Task AttemptAutoConnectAsync(string url)
+    {
+        StatusFeedbackText.Text = "Auto-connecting to server...";
+        StatusFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FACC15"));
+        ConnectButton.IsEnabled = false;
+
+        bool isReachable = await PingServerAsync(url);
+        ConnectButton.IsEnabled = true;
+
+        if (isReachable)
+        {
+            ConnectToServer(url);
+        }
+        else
+        {
+            StatusFeedbackText.Text = $"✗ Server offline or unreachable at {url}.";
+            StatusFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+            // Keep user on the Connect screen so they can edit URL or test ping, rather than freezing WebView
         }
     }
 
@@ -152,10 +173,12 @@ public partial class MainWindow : Window
 
     private void DisconnectButton_Click(object sender, RoutedEventArgs e)
     {
-        webView.CoreWebView2?.Navigate("about:blank");
+        if (webView.CoreWebView2 != null && webView.Source != null && webView.Source.ToString() != "about:blank")
+        {
+            webView.CoreWebView2.Navigate("about:blank");
+        }
         WebViewContainer.Visibility = Visibility.Collapsed;
         ConnectPanel.Visibility = Visibility.Visible;
-        StatusFeedbackText.Text = "";
     }
 
     private void ReloadButton_Click(object sender, RoutedEventArgs e)
@@ -195,15 +218,19 @@ public partial class MainWindow : Window
 
     private void WebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
-        if (!e.IsSuccess && webView.Source != null && webView.Source.ToString() != "about:blank")
+        if (!e.IsSuccess)
         {
-            MessageBox.Show(
-                $"Failed to connect to the server at:\n{webView.Source}\n\nMake sure the OfficeCore Server Station is running on the host machine and your device is on the same network.",
-                "Server Connection Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var uriStr = webView.Source?.ToString();
+            if (!string.IsNullOrEmpty(uriStr) && !uriStr.Equals("about:blank", StringComparison.OrdinalIgnoreCase))
+            {
+                DisconnectButton_Click(this, new RoutedEventArgs());
+                StatusFeedbackText.Text = $"✗ Could not connect to {uriStr}. Server station might be offline.";
+                StatusFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
 
-            DisconnectButton_Click(this, new RoutedEventArgs());
-            StatusFeedbackText.Text = "✗ Failed to connect. Check if server station is running.";
-            StatusFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+                MessageBox.Show(
+                    $"Failed to connect to the server at:\n{uriStr}\n\nMake sure the OfficeCore Server Station is running on the host machine and your device is on the same network.",
+                    "Server Connection Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
     }
 }
