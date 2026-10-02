@@ -842,6 +842,36 @@ public class BoardsController : ControllerBase
         return Ok(new { label.Id, label.Name, label.ColorHex });
     }
 
+    [HttpDelete("{id}/labels/{labelId}")]
+    public async Task<IActionResult> DeleteLabel(Guid id, Guid labelId)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var board = await _context.Boards
+            .Include(b => b.Members)
+            .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId.Value);
+        if (board == null) return NotFound();
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var member = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer)
+            return Forbid();
+
+        var label = await _context.BoardLabels.FirstOrDefaultAsync(l => l.Id == labelId && l.BoardId == id && l.OrganizationId == orgId.Value);
+        if (label == null) return NotFound();
+
+        var cardLabels = _context.BoardCardLabels.Where(cl => cl.LabelId == labelId);
+        _context.BoardCardLabels.RemoveRange(cardLabels);
+
+        _context.BoardLabels.Remove(label);
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(id);
+        return Ok();
+    }
+
     [HttpPost("cards/{cardId}/labels/{labelId}")]
     public async Task<IActionResult> AddLabelToCard(Guid cardId, Guid labelId)
     {
