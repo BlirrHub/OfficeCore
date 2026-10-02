@@ -640,25 +640,33 @@ else
 
                             @if (_board != null && _board.Labels.Any())
                             {
-                                <div class="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                                <div class="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                                     @foreach (var lbl in _board.Labels)
                                     {
                                         var isActive = _editingCard.Labels.Any(l => l.LabelId == lbl.Id);
-                                        <button type="button" @onclick="() => ToggleLabel(lbl.Id)" disabled="@_isViewer" class="w-full relative flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-left group disabled:cursor-not-allowed @(isActive ? "border-transparent text-white shadow-inner font-bold" : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700")">
-                                            @if (isActive)
+                                        <div class="flex items-center gap-1.5 group/lbl">
+                                            <button type="button" @onclick="() => ToggleLabel(lbl.Id)" disabled="@_isViewer" class="flex-1 min-w-0 relative flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-all text-left disabled:cursor-not-allowed @(isActive ? "border-transparent text-white shadow-inner font-bold" : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-white")" title="@(isActive ? "Click to remove from card" : "Click to add to card")">
+                                                @if (isActive)
+                                                {
+                                                    <div class="absolute inset-0 rounded-lg opacity-20" style="background-color: @lbl.ColorHex;"></div>
+                                                    <div class="absolute inset-0 rounded-lg border-2 opacity-50" style="border-color: @lbl.ColorHex;"></div>
+                                                }
+                                                <span class="flex items-center gap-2 relative z-10 text-xs shadow-black drop-shadow-md min-w-0 truncate">
+                                                    <span class="size-2.5 rounded-full shrink-0" style="background-color: @lbl.ColorHex;"></span>
+                                                    <span class="truncate">@lbl.Name</span>
+                                                </span>
+                                                @if (isActive)
+                                                {
+                                                    <svg class="size-3.5 relative z-10 shrink-0 ml-1" style="color: @lbl.ColorHex;" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                                }
+                                            </button>
+                                            @if (_canEditBoardStructure)
                                             {
-                                                <div class="absolute inset-0 rounded-lg opacity-20" style="background-color: @lbl.ColorHex;"></div>
-                                                <div class="absolute inset-0 rounded-lg border-2 opacity-50" style="border-color: @lbl.ColorHex;"></div>
+                                                <button type="button" @onclick='() => PromptDelete("Delete Label", $"Are you sure you want to delete label \"{lbl.Name}\" from this board? It will be removed from all cards.", async () => await DeleteBoardLabel(lbl))' class="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/80 rounded-lg transition-colors opacity-0 group-hover/lbl:opacity-100 shrink-0" title="Delete label from board">
+                                                    <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                                </button>
                                             }
-                                            <span class="flex items-center gap-2 relative z-10 text-xs shadow-black drop-shadow-md min-w-0 truncate">
-                                                <span class="size-3 rounded-full shrink-0" style="background-color: @lbl.ColorHex;"></span>
-                                                <span class="truncate">@lbl.Name</span>
-                                            </span>
-                                            @if (isActive)
-                                            {
-                                                <svg class="size-3.5 relative z-10 shrink-0 ml-1" style="color: @lbl.ColorHex;" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-                                            }
-                                        </button>
+                                        </div>
                                     }
                                 </div>
                             }
@@ -1538,6 +1546,35 @@ else
             {
                 _editingCard.Labels.Add(new BoardCardLabelDto { LabelId = labelId, Label = labelObj });
             }
+        }
+    }
+
+    private async Task DeleteBoardLabel(BoardLabelDto label)
+    {
+        if (_board == null) return;
+        MarkAction();
+        var response = await Http.DeleteAsync($"/api/boards/{Id}/labels/{label.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            _board.Labels.Remove(label);
+            foreach (var list in _board.Lists)
+            {
+                foreach (var card in list.Cards)
+                {
+                    card.Labels.RemoveAll(l => l.LabelId == label.Id);
+                }
+            }
+            if (_editingCard != null)
+            {
+                _editingCard.Labels.RemoveAll(l => l.LabelId == label.Id);
+            }
+            ToastService.ShowSuccess($"Label \"{label.Name}\" deleted");
+            StateHasChanged();
+        }
+        else
+        {
+            var err = await response.Content.ReadAsStringAsync();
+            ToastService.ShowError("Failed to delete label: " + (string.IsNullOrWhiteSpace(err) ? "Server error" : err));
         }
     }
 
