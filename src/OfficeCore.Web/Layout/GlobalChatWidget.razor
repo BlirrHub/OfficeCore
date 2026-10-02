@@ -390,7 +390,7 @@
                                         }
                                         @if (!string.IsNullOrEmpty(room.LastMessage?.Content))
                                         {
-                                            <span>@room.LastMessage.Content</span>
+                                            <span>@GetPreviewText(room.LastMessage.Content)</span>
                                         }
                                         else if (!string.IsNullOrEmpty(room.LastMessage?.AttachmentUrl))
                                         {
@@ -1029,6 +1029,13 @@
             }
         }
         catch { }
+    }
+
+    private string GetPreviewText(string content)
+    {
+        if (string.IsNullOrEmpty(content)) return content;
+        // Strip out the (#id) part from markdown links but keep the display text
+        return System.Text.RegularExpressions.Regex.Replace(content, @"\[(.*?)\]\(#(board|task)-.*?\)", "$1");
     }
 
     private MarkupString FormatMessageContent(string content, bool isMine)
