@@ -105,16 +105,41 @@ else
                          @ondrop="() => HandleDropOnList(list.Id)">
                         
                         <!-- List Header -->
-                        <div class="p-4 border-b border-zinc-800/50 flex items-center justify-between bg-zinc-900/80 shrink-0 @(_isViewer ? "" : "cursor-grab active:cursor-grabbing")">
+                        <div class="p-4 border-b flex items-center justify-between shrink-0 @(_isViewer ? "" : "cursor-grab active:cursor-grabbing") rounded-t-2xl"
+                             style="background-color: @(string.IsNullOrEmpty(list.ColorHex) ? "rgba(24, 24, 27, 0.8)" : list.ColorHex); border-color: @(string.IsNullOrEmpty(list.ColorHex) ? "rgba(39, 39, 42, 0.5)" : list.ColorHex);">
                             <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-white tracking-wide">@list.Name</h3>
-                                <span class="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-xs font-medium">@list.Cards.Count</span>
+                                @if (_editingListId == list.Id)
+                                {
+                                    <div class="flex items-center gap-2" @onclick:stopPropagation="true">
+                                        <input type="text" @bind="_editingListName" class="bg-zinc-950/50 border border-zinc-700/50 rounded px-2 py-1 text-sm font-bold text-white w-32 focus:outline-none" />
+                                        <input type="color" @bind="_editingListColor" class="h-7 w-7 rounded cursor-pointer border-0 p-0 bg-transparent" />
+                                        <button @onclick="() => SaveListEdit(list)" class="p-1 text-emerald-400 hover:text-emerald-300">
+                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                        </button>
+                                        <button @onclick="CancelListEdit" class="p-1 text-zinc-400 hover:text-white">
+                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <h3 class="font-bold text-white tracking-wide">@list.Name</h3>
+                                    <span class="px-2 py-0.5 rounded-full bg-zinc-950/50 text-white/70 text-xs font-medium border border-white/10">@list.Cards.Count</span>
+                                }
                             </div>
                             @if (_canEditBoardStructure)
                             {
-                                <button @onclick='() => PromptDelete("Delete List", $"Are you sure you want to delete the list \"{list.Name}\"?", async () => await DeleteList(list.Id))' class="text-zinc-500 hover:text-red-400 transition-colors p-1" title="Delete List">
-                                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                                </button>
+                                <div class="flex items-center">
+                                    @if (_editingListId != list.Id)
+                                    {
+                                        <button @onclick="() => StartEditList(list)" class="text-white/50 hover:text-white transition-colors p-1" title="Edit List">
+                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                        </button>
+                                    }
+                                    <button @onclick='() => PromptDelete("Delete List", $"Are you sure you want to delete the list \"{list.Name}\"?", async () => await DeleteList(list.Id))' class="text-white/50 hover:text-red-400 transition-colors p-1" title="Delete List">
+                                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                    </button>
+                                </div>
                             }
                         </div>
                         
@@ -272,6 +297,9 @@ else
                         {
                             <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 shadow-lg">
                                 <input type="text" @bind="_newListName" @bind:event="oninput" @onkeyup="HandleListInputKeyUp" placeholder="Enter list title..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none mb-2" autofocus />
+                                <div class="flex items-center justify-between mb-2">
+                                    <input type="color" @bind="_newListColor" class="h-7 w-7 rounded cursor-pointer border-0 p-0 bg-transparent" title="List Color" />
+                                </div>
                                 <div class="flex items-center justify-end gap-2">
                                     <button @onclick="() => _isAddingList = false" class="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
                                     <button @onclick="CreateList" disabled="@string.IsNullOrWhiteSpace(_newListName)" class="px-3 py-1.5 text-xs font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 disabled:opacity-50 transition-colors">Add List</button>
@@ -822,6 +850,11 @@ else
     // Add List State
     private bool _isAddingList = false;
     private string _newListName = string.Empty;
+    private string _newListColor = "#18181b";
+    
+    private Guid? _editingListId = null;
+    private string _editingListName = string.Empty;
+    private string _editingListColor = string.Empty;
 
     // Modal State
     private bool _showDeleteBoardModal = false;
@@ -1070,7 +1103,7 @@ else
         if (string.IsNullOrWhiteSpace(_newListName) || _board == null) return;
 
         MarkAction();
-        var req = new { Name = _newListName };
+        var req = new { Name = _newListName, ColorHex = _newListColor };
         var response = await Http.PostAsJsonAsync($"/api/boards/{Id}/lists", req);
         
         if (response.IsSuccessStatusCode)
@@ -1083,10 +1116,44 @@ else
             }
             _isAddingList = false;
             _newListName = string.Empty;
+            _newListColor = "#18181b";
         }
         else
         {
             ToastService.ShowError("Failed to create list.");
+        }
+    }
+
+    private void StartEditList(BoardListDto list)
+    {
+        _editingListId = list.Id;
+        _editingListName = list.Name;
+        _editingListColor = list.ColorHex ?? "#18181b";
+    }
+
+    private void CancelListEdit()
+    {
+        _editingListId = null;
+    }
+
+    private async Task SaveListEdit(BoardListDto list)
+    {
+        if (string.IsNullOrWhiteSpace(_editingListName)) return;
+        
+        MarkAction();
+        var req = new { Name = _editingListName, ColorHex = _editingListColor };
+        var res = await Http.PutAsJsonAsync($"/api/boards/lists/{list.Id}", req);
+        if (res.IsSuccessStatusCode)
+        {
+            list.Name = _editingListName;
+            list.ColorHex = _editingListColor;
+            _editingListId = null;
+            StateHasChanged();
+            ToastService.ShowSuccess($"List \"{list.Name}\" updated.");
+        }
+        else
+        {
+            ToastService.ShowError("Failed to update list.");
         }
     }
 
@@ -1555,6 +1622,7 @@ else
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
+        public string? ColorHex { get; set; }
         public List<BoardCardDto> Cards { get; set; } = new();
     }
 

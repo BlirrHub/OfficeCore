@@ -169,7 +169,12 @@
                                 <td class="px-6 py-4 text-right">
                                     @if (request.Status == 0) // Pending
                                     {
-                                        <AppBadge Variant="warning" Dot="true">Pending</AppBadge>
+                                        <div class="flex items-center justify-end gap-2">
+                                            <AppBadge Variant="warning" Dot="true">Pending</AppBadge>
+                                            <button @onclick="() => CancelLeaveRequest(request.Id)" class="p-1 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors" title="Cancel Request">
+                                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
+                                        </div>
                                     }
                                     else if (request.Status == 1) // Approved
                                     {
@@ -239,6 +244,28 @@
         {
             _isLoading = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task CancelLeaveRequest(Guid id)
+    {
+        try
+        {
+            var res = await Http.DeleteAsync($"/api/leaverequest/{id}/cancel");
+            if (res.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Leave request cancelled.");
+                await RefreshData();
+            }
+            else
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                ToastService.ShowError(!string.IsNullOrWhiteSpace(err) ? err : "Failed to cancel request.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error: {ex.Message}");
         }
     }
 
