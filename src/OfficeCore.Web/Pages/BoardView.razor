@@ -618,7 +618,7 @@ else
                         <div class="bg-zinc-950/50 border border-zinc-800/80 p-4 rounded-xl space-y-4 shadow-sm">
                             <h4 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Card Labels</h4>
                             
-                            @if (_canEditBoardStructure)
+                            @if (!_isViewer)
                             {
                                 <div class="space-y-2">
                                     <div class="flex items-center gap-1.5">
@@ -660,9 +660,9 @@ else
                                                     <svg class="size-3.5 relative z-10 shrink-0 ml-1" style="color: @lbl.ColorHex;" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
                                                 }
                                             </button>
-                                            @if (_canEditBoardStructure)
+                                            @if (!_isViewer)
                                             {
-                                                <button type="button" @onclick='() => PromptDelete("Delete Label", $"Are you sure you want to delete label \"{lbl.Name}\" from this board? It will be removed from all cards.", async () => await DeleteBoardLabel(lbl))' class="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/80 rounded-lg transition-colors opacity-0 group-hover/lbl:opacity-100 shrink-0" title="Delete label from board">
+                                                <button type="button" @onclick='() => PromptDelete("Delete Label", $"Are you sure you want to delete label \"{lbl.Name}\" from this board? It will be removed from all cards.", async () => await DeleteBoardLabel(lbl))' class="p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors shrink-0" title="Delete label from board">
                                                     <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                                                 </button>
                                             }
@@ -859,6 +859,10 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
+    [SupplyParameterFromQuery(Name = "taskId")] public Guid? TaskId { get; set; }
+
+    private Guid _currentLoadedBoardId = Guid.Empty;
+    private Guid? _handledTaskId = null;
 
     // Media Viewer State
     private bool _isViewerOpen = false;
@@ -952,12 +956,6 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadBoard(true);
-        if (_canManageBoardMembers)
-        {
-            await LoadAllUsers();
-        }
-
         hubConnection = new HubConnectionBuilder()
             .WithUrl(new Uri(Http.BaseAddress!, "hubs/boards"))
             .WithAutomaticReconnect()
@@ -973,7 +971,10 @@ else
         try
         {
             await hubConnection.StartAsync();
-            await hubConnection.SendAsync("JoinBoardGroup", Id.ToString());
+            if (Id != Guid.Empty)
+            {
+                await hubConnection.SendAsync("JoinBoardGroup", Id.ToString());
+            }
         }
         catch (OperationCanceledException)
         {
@@ -982,6 +983,42 @@ else
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to connect to SignalR hub: {ex.Message}");
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        bool boardChanged = _currentLoadedBoardId != Id;
+        if (boardChanged)
+        {
+            if (hubConnection is not null && _currentLoadedBoardId != Guid.Empty && hubConnection.State == HubConnectionState.Connected)
+            {
+                try { await hubConnection.SendAsync("LeaveBoardGroup", _currentLoadedBoardId.ToString()); } catch { }
+            }
+
+            _currentLoadedBoardId = Id;
+            await LoadBoard(true);
+
+            if (_canManageBoardMembers)
+            {
+                await LoadAllUsers();
+            }
+
+            if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected && Id != Guid.Empty)
+            {
+                try { await hubConnection.SendAsync("JoinBoardGroup", Id.ToString()); } catch { }
+            }
+        }
+
+        // Open card if taskId query param is present
+        if (TaskId.HasValue && TaskId != _handledTaskId && _board != null)
+        {
+            _handledTaskId = TaskId;
+            var targetCard = _board.Lists.SelectMany(l => l.Cards).FirstOrDefault(c => c.Id == TaskId.Value);
+            if (targetCard != null)
+            {
+                EditCard(targetCard);
+            }
         }
     }
 
@@ -1264,6 +1301,8 @@ else
     private void CloseCardModal()
     {
         _showCardModal = false;
+        _editingCard = null;
+        _handledTaskId = null;
     }
 
     private async Task SaveCard()
