@@ -88,7 +88,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 ### 📋 Kanban Boards & Project Management
 - [x] **Boards as Default Core Module:** Available for team project collaboration across workspaces.
 - [x] **Board Member Provisioning & Visibility Alignment:** Enforced Workspace Owner and Admin exclusivity for board member addition/removal, with clean explanatory notice for regular board owners and secured API endpoints.
-- [ ] **Fine-Grained Board Access Controls & Roles:** Granular permission matrix defining who can add members, who can delete/archive the board, who can manage columns, and board-level admin privileges.
+- [x] **Fine-Grained Board Access Controls & Roles:** Granular permission matrix defining who can add members, who can delete/archive the board, who can manage columns, and board-level admin privileges.
 - [x] **Subtasks & Checklist Progress:** Add checklists to cards with completion percentage bars on column previews.
 - [x] **Card Comments & Activity Stream:** Real-time conversation thread and audit history on individual task cards.
 - [x] **File Attachments on Cards:** Drag-and-drop document and image uploads attached directly to tasks.
@@ -115,9 +115,9 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [x] **Real-Time Member Discovery on Join:** Broadcast a SignalR `MemberJoined` event to all active chat clients when a new user registers or joins the workspace, immediately adding them to existing online users' direct message list without requiring a refresh.
 - [x] **Group User @Mentions:** Tag and notify specific users in group discussions using `@username` autocomplete with visual highlights and desktop alerts.
 - [x] **Board & Task References in Chat:** Link boards and cards directly in conversations using `#task` or `#board` pills that link directly to the modal or board view.
-- [ ] **Department & Project Channels:** Dedicated group chat channels alongside direct 1-on-1 messages.
-- [ ] **Rich Media & File Sharing:** In-line image previews and file downloads within chat threads.
-- [ ] **Read Receipts & Typing Indicators:** Live typing bubbles and delivered/seen timestamps via SignalR.
+- [x] **Department & Project Channels:** Dedicated group chat channels alongside direct 1-on-1 messages.
+- [x] **Rich Media & File Sharing:** In-line image previews and file downloads within chat threads.
+- [x] **Read Receipts & Typing Indicators:** Live typing bubbles and delivered/seen timestamps via SignalR.
 
 ### 🔔 Notification Center
 - [x] **Click-Outside-to-Dismiss:** Automatically close the notification dropdown/drawer when clicking anywhere outside the notification panel.
