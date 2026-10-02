@@ -1010,6 +1010,15 @@
 
     private void InsertTag(SearchTagDto tag)
     {
+        if (tag.Type == "Board")
+        {
+            _myBoardIds.Add(tag.Id);
+        }
+        else if (!string.IsNullOrEmpty(tag.BoardId))
+        {
+            _myBoardIds.Add(tag.BoardId);
+        }
+
         var lastIndex = _newMessageContentValue.LastIndexOf('#');
         if (lastIndex >= 0)
         {
@@ -1033,6 +1042,8 @@
                 candidates.AddRange(res.Boards);
                 candidates.AddRange(res.Tasks);
                 _tagCandidates = candidates;
+                foreach (var b in res.Boards) _myBoardIds.Add(b.Id);
+                foreach (var t in res.Tasks) if (!string.IsNullOrEmpty(t.BoardId)) _myBoardIds.Add(t.BoardId);
                 StateHasChanged();
             }
         }
@@ -1067,11 +1078,11 @@
                 var userId = match.Groups[2].Value;
                 if (isMine)
                 {
-                    return $"<span class=\"inline-flex items-center gap-0.5 font-semibold text-fuchsia-100 bg-black/25 border border-white/20 px-1.5 py-0.5 rounded-md text-[11px] align-baseline shadow-xs\" title=\"Mentioned: {name}\">@{name}</span>";
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-bold text-white bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded-md text-xs transition-colors align-baseline\" title=\"Mentioned: {name}\">&#64;{name}</span>";
                 }
                 else
                 {
-                    return $"<span class=\"inline-flex items-center gap-0.5 font-semibold text-fuchsia-300 bg-fuchsia-500/15 border border-fuchsia-500/30 px-1.5 py-0.5 rounded-md text-[11px] align-baseline shadow-xs\" title=\"Mentioned: {name}\">@{name}</span>";
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-medium text-fuchsia-300 bg-fuchsia-500/15 hover:bg-fuchsia-500/25 border border-fuchsia-500/20 px-1.5 py-0.5 rounded-md text-xs transition-colors align-baseline\" title=\"Mentioned: {name}\">&#64;{name}</span>";
                 }
             },
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -1087,29 +1098,29 @@
                 var displayName = u != null ? $"{u.FirstName} {u.LastName}".Trim() : "user";
                 if (isMine)
                 {
-                    return $"<span class=\"inline-flex items-center gap-0.5 font-semibold text-fuchsia-100 bg-black/25 border border-white/20 px-1.5 py-0.5 rounded-md text-[11px] align-baseline shadow-xs\" title=\"Mentioned: {displayName}\">@{displayName}</span>";
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-bold text-white bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded-md text-xs transition-colors align-baseline\" title=\"Mentioned: {displayName}\">&#64;{displayName}</span>";
                 }
                 else
                 {
-                    return $"<span class=\"inline-flex items-center gap-0.5 font-semibold text-fuchsia-300 bg-fuchsia-500/15 border border-fuchsia-500/30 px-1.5 py-0.5 rounded-md text-[11px] align-baseline shadow-xs\" title=\"Mentioned: {displayName}\">@{displayName}</span>";
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-medium text-fuchsia-300 bg-fuchsia-500/15 hover:bg-fuchsia-500/25 border border-fuchsia-500/20 px-1.5 py-0.5 rounded-md text-xs transition-colors align-baseline\" title=\"Mentioned: {displayName}\">&#64;{displayName}</span>";
                 }
             },
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-        // 3. Highlight loose Mentions: @Word (avoiding HTML tag attributes or already replaced spans)
+        // 3. Highlight loose Mentions: @Word (avoiding HTML tag attributes, entities or already replaced spans)
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
-            @"(?<![a-zA-Z0-9/""'=])@([a-zA-Z0-9_]+)", 
+            @"(?<![a-zA-Z0-9/""'=&#;])@([a-zA-Z0-9_]+)", 
             match =>
             {
                 var name = match.Groups[1].Value;
                 if (isMine)
                 {
-                    return $"<span class=\"font-bold text-fuchsia-100 bg-black/20 px-1 py-0.5 rounded text-[11px]\">@{name}</span>";
+                    return $"<span class=\"font-bold text-white bg-white/20 px-1.5 py-0.5 rounded-md text-xs\">&#64;{name}</span>";
                 }
                 else
                 {
-                    return $"<span class=\"font-bold text-fuchsia-300 bg-fuchsia-500/15 px-1 py-0.5 rounded text-[11px]\">@{name}</span>";
+                    return $"<span class=\"font-medium text-fuchsia-300 bg-fuchsia-500/15 px-1.5 py-0.5 rounded-md text-xs\">&#64;{name}</span>";
                 }
             });
 
@@ -1131,19 +1142,18 @@
                     taskId = parts[1];
                 }
 
-                if (_myBoardIds.Contains(boardId))
-                {
-                    if (type == "board")
-                        return $"<a href=\"/boards/{boardId}\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>{name}</a>";
-                    else
-                        return $"<a href=\"/boards/{boardId}?taskId={taskId}\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>{name}</a>";
-                }
-                else
-                {
-                    var colorClass = type == "board" ? "text-amber-400/50" : "text-emerald-400/50";
-                    var iconPath = type == "board" ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
-                    return $"<span class=\"font-bold {colorClass} inline-flex items-center gap-0.5 cursor-not-allowed\" title=\"You don't have access to this {type}\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>{name}</span>";
-                }
+                // Add to known boards
+                _myBoardIds.Add(boardId);
+
+                var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
+                var colorClass = type == "board"
+                    ? (isMine ? "text-amber-300 hover:text-amber-200" : "text-amber-400 hover:text-amber-300")
+                    : (isMine ? "text-emerald-300 hover:text-emerald-200" : "text-emerald-400 hover:text-emerald-300");
+                var iconPath = type == "board" 
+                    ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" 
+                    : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
+
+                return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-1 transition-colors\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>{name}</a>";
             }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
@@ -1155,8 +1165,6 @@
                 var type = match.Groups[1].Value.ToLower();
                 var fullId = match.Groups[2].Value;
                 var shortDisplay = fullId.Length > 13 ? fullId.Substring(0, 13) + "..." : fullId;
-                var colorClass = type == "board" ? "text-amber-400" : "text-emerald-400";
-                var iconPath = type == "board" ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
                 
                 string boardId = fullId;
                 string? taskId = null;
@@ -1167,15 +1175,18 @@
                     taskId = parts[1];
                 }
 
-                if (_myBoardIds.Contains(boardId))
-                {
-                    var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
-                    return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</a>";
-                }
-                else
-                {
-                    return $"<span class=\"font-bold {colorClass}/50 inline-flex items-center gap-0.5 cursor-not-allowed\" title=\"You don't have access to this {type}\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</span>";
-                }
+                // Add to known boards
+                _myBoardIds.Add(boardId);
+
+                var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
+                var colorClass = type == "board"
+                    ? (isMine ? "text-amber-300 hover:text-amber-200" : "text-amber-400 hover:text-amber-300")
+                    : (isMine ? "text-emerald-300 hover:text-emerald-200" : "text-emerald-400 hover:text-emerald-300");
+                var iconPath = type == "board" 
+                    ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" 
+                    : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
+
+                return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-1 transition-colors\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</a>";
             }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
@@ -1394,6 +1405,10 @@
             _activeRoom = null;
             _showGroupDetails = false;
         }
+        else if (_isOpen)
+        {
+            _ = LoadMyBoards();
+        }
     }
 
     private async Task LoadRooms()
@@ -1519,6 +1534,7 @@
         _showGroupDetails = false;
         _showAddMembers = false;
         room.UnreadCount = 0;
+        _ = LoadMyBoards();
         
         try
         {

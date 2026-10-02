@@ -10,9 +10,13 @@ All notable changes to this project will be documented in this file.
 
 - **Chat Mentions & Preview Rendering:**
   - Resolved user mentions rendering raw markdown links (e.g., `[Beatriz Ramos](@user-...)`) in message bubbles and room list previews (`GlobalChatWidget.razor`).
-  - Added dedicated markdown regex parsers in `FormatMessageContent` transforming `[Name](@user-id)` into interactive, high-contrast `@Name` mention pills with theme parity support for both sender bubbles and recipient bubbles.
-  - Added fallback parsers for raw `@user-id` links and loose `@word` handles with proper negative lookbehinds to prevent tag collisions.
+  - Fixed nested box glitch in user mentions where loose mention regex was erroneously double-matching inside previously formatted mention spans.
+  - Redesigned mention pill aesthetics to match enterprise standards: clean frosted white pill (`bg-white/20 text-white font-bold px-1.5 py-0.5 rounded-md`) in outgoing bubbles and sleek tinted pill (`text-fuchsia-300 bg-fuchsia-500/15 font-medium px-1.5 py-0.5 rounded-md`) in incoming bubbles.
   - Updated `GetPreviewText` in `GlobalChatWidget.razor` to strip `[Name](@user-id)` into clean `@Name` snippets in the room list preview.
+- **Real-Time Board & Task Chat Link Access:**
+  - Resolved issue where mentioning newly created boards or tasks showed as disabled (`cursor-not-allowed`) until the page was manually reloaded.
+  - Made board and task cross-links always render as active, clickable hyperlinks (`<a href="...">`) that navigate directly to `/boards/{id}` or `/boards/{id}?taskId={taskId}`.
+  - Implemented dynamic cache updates for `_myBoardIds` in `GlobalChatWidget.razor` during tag search (`SearchTagsAsync`), tag insertion (`InsertTag`), message formatting, room navigation (`OpenRoom`), and widget opening (`ToggleChat`).
 - **Enterprise SVG Icon Standardization:**
   - Removed informal Unicode emojis (`⏱️`, `🌴`, `📌`) from `DashboardController.cs` and `Dashboard.razor`, replacing raw emoji icons in the "Live Team Activity" feed with modern, high-contrast SVG category icon pills matching the design system in `NotificationCenter.razor`.
   - Replaced informal text character close buttons (`✕`) across `GlobalChatWidget.razor`, `AuditLogs.razor`, `Backups.razor`, `Locations.razor`, and `TimeOff.razor` with sleek SVG cross icons.
