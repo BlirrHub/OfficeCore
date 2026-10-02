@@ -340,7 +340,7 @@ public class BoardsController : ControllerBase
             return Forbid();
 
         var targetEmployee = await _context.Employees
-            .FirstOrDefaultAsync(e => e.UserId == req.UserId && e.OrganizationId == orgId);
+            .FirstOrDefaultAsync(e => (e.Id == req.UserId || e.UserId == req.UserId) && e.OrganizationId == orgId);
 
         if (targetEmployee == null)
             return NotFound("Employee not found in this organization.");

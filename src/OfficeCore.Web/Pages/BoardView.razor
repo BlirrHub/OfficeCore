@@ -680,6 +680,7 @@ else
                                         {
                                             <div class="flex items-center gap-2 mt-0.5">
                                                 <select value="@member.Role" @onchange="(e) => ChangeMemberRole(member.User.Id, e.Value?.ToString())" class="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-[1px] text-[10px] font-medium text-zinc-400 hover:text-white focus:outline-none focus:border-fuchsia-500 transition-colors uppercase tracking-wider">
+                                                    <option value="@BoardRole.Admin">Admin</option>
                                                     <option value="@BoardRole.Member">Member</option>
                                                     <option value="@BoardRole.Viewer">Viewer</option>
                                                 </select>
