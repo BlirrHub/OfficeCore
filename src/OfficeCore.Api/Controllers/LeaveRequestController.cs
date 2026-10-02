@@ -225,6 +225,30 @@ public class LeaveRequestController : ControllerBase
 
         return Ok(new { message = "Leave request deleted successfully" });
     }
+
+    [HttpDelete("{id}/cancel")]
+    public async Task<IActionResult> CancelRequest(Guid id)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Unauthorized();
+
+        var leaveRequest = await _context.LeaveRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value && r.EmployeeId == employee.Id);
+        if (leaveRequest == null) return NotFound("Request not found.");
+
+        if (leaveRequest.Status != LeaveRequestStatus.Pending)
+            return BadRequest("Only pending requests can be cancelled.");
+
+        var leaveOrgId = leaveRequest.OrganizationId;
+        _context.LeaveRequests.Remove(leaveRequest);
+        await _context.SaveChangesAsync();
+
+        // Notify org members so the list updates live
+        await _hub.Clients.Group($"org_{leaveOrgId}").SendAsync("LeaveRequestDeleted");
+
+        return Ok(new { message = "Leave request cancelled successfully" });
+    }
 }
 
 public class AdminCreateLeaveRequestDto

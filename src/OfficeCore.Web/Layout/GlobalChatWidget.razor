@@ -167,8 +167,8 @@
                                         @if (!string.IsNullOrEmpty(_newGroupPictureDataUrl))
                                         {
                                             <button type="button" @onclick="ClearNewGroupPicture" title="Remove selected photo"
-                                                    class="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center text-[10px] border border-zinc-600 cursor-pointer shadow">
-                                                ✕
+                                                    class="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center border border-zinc-600 cursor-pointer shadow">
+                                                <svg class="size-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
                                         }
                                     </div>
@@ -390,7 +390,7 @@
                                         }
                                         @if (!string.IsNullOrEmpty(room.LastMessage?.Content))
                                         {
-                                            <span>@room.LastMessage.Content</span>
+                                            <span>@GetPreviewText(room.LastMessage.Content)</span>
                                         }
                                         else if (!string.IsNullOrEmpty(room.LastMessage?.AttachmentUrl))
                                         {
@@ -924,6 +924,8 @@
 </style>
 
 @code {
+    private Dictionary<string, string> _draftMentions = new(StringComparer.OrdinalIgnoreCase);
+
     private bool _isOpen = false;
     private HubConnection? _hubConnection;
     private string _currentUserId = string.Empty;  // ApplicationUser.Id from claims
@@ -998,18 +1000,33 @@
         var lastIndex = _newMessageContentValue.LastIndexOf('@');
         if (lastIndex >= 0)
         {
-            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"@{user.FirstName}{user.LastName} ";
+            var plainText = $"@{user.FirstName}{user.LastName}";
+            var markdown = $"[{user.FirstName} {user.LastName}](@user-{user.Id})";
+            _draftMentions[plainText] = markdown;
+            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"{plainText} ";
         }
         _showMentions = false;
     }
 
     private void InsertTag(SearchTagDto tag)
     {
+        if (tag.Type == "Board")
+        {
+            _myBoardIds.Add(tag.Id);
+        }
+        else if (!string.IsNullOrEmpty(tag.BoardId))
+        {
+            _myBoardIds.Add(tag.BoardId);
+        }
+
         var lastIndex = _newMessageContentValue.LastIndexOf('#');
         if (lastIndex >= 0)
         {
+            var plainText = $"#{tag.Name.Replace(" ", "-")}";
             var prefix = tag.Type == "Board" ? "#board-" : $"#task-{tag.BoardId}_";
-            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"[{tag.Name}]({prefix}{tag.Id}) ";
+            var markdown = $"[{tag.Name}]({prefix}{tag.Id})";
+            _draftMentions[plainText] = markdown;
+            _newMessageContentValue = _newMessageContentValue.Substring(0, lastIndex) + $"{plainText} ";
         }
         _showTags = false;
     }
@@ -1025,10 +1042,24 @@
                 candidates.AddRange(res.Boards);
                 candidates.AddRange(res.Tasks);
                 _tagCandidates = candidates;
+                foreach (var b in res.Boards) _myBoardIds.Add(b.Id);
+                foreach (var t in res.Tasks) if (!string.IsNullOrEmpty(t.BoardId)) _myBoardIds.Add(t.BoardId);
                 StateHasChanged();
             }
         }
         catch { }
+    }
+
+    private string GetPreviewText(string content)
+    {
+        if (string.IsNullOrEmpty(content)) return content;
+        // Strip out user mention markdown into clean @Name
+        var text = System.Text.RegularExpressions.Regex.Replace(content, @"\[([^\]]+)\]\(@user-[a-zA-Z0-9\-_]+\)", "@$1");
+        // Strip out the (#id) part from markdown links but keep the display text
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\[([^\]]+)\]\(#(board|task)-.*?\)", "$1");
+        // Also strip any raw @user-id into @user if any exists
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"@user-[a-zA-Z0-9\-_]+", "@user");
+        return text;
     }
 
     private MarkupString FormatMessageContent(string content, bool isMine)
@@ -1037,13 +1068,63 @@
         
         var encoded = System.Net.WebUtility.HtmlEncode(content);
         
-        // Highlight Mentions: @Firstname or @FirstnameLastname
+        // 1. Parse Markdown links for User Mentions: [Name](@user-id)
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded,
+            @"\[([^\]]+)\]\(@user-([a-zA-Z0-9\-_]+)\)",
+            match =>
+            {
+                var name = match.Groups[1].Value;
+                var userId = match.Groups[2].Value;
+                if (isMine)
+                {
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-bold text-white bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded-md text-xs transition-colors align-baseline\" title=\"Mentioned: {name}\">&#64;{name}</span>";
+                }
+                else
+                {
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-medium text-fuchsia-300 bg-fuchsia-500/15 hover:bg-fuchsia-500/25 border border-fuchsia-500/20 px-1.5 py-0.5 rounded-md text-xs transition-colors align-baseline\" title=\"Mentioned: {name}\">&#64;{name}</span>";
+                }
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // 2. Fallbacks for raw @user-id if any exists
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded,
+            @"(?<!\]\()@user-([a-zA-Z0-9\-_]+)",
+            match =>
+            {
+                var uid = match.Groups[1].Value;
+                var u = _allUsers.FirstOrDefault(x => x.Id == uid);
+                var displayName = u != null ? $"{u.FirstName} {u.LastName}".Trim() : "user";
+                if (isMine)
+                {
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-bold text-white bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded-md text-xs transition-colors align-baseline\" title=\"Mentioned: {displayName}\">&#64;{displayName}</span>";
+                }
+                else
+                {
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-medium text-fuchsia-300 bg-fuchsia-500/15 hover:bg-fuchsia-500/25 border border-fuchsia-500/20 px-1.5 py-0.5 rounded-md text-xs transition-colors align-baseline\" title=\"Mentioned: {displayName}\">&#64;{displayName}</span>";
+                }
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // 3. Highlight loose Mentions: @Word (avoiding HTML tag attributes, entities or already replaced spans)
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
-            @"@(\w+)", 
-            "<span class=\"font-bold text-fuchsia-300\">@$1</span>");
+            @"(?<![a-zA-Z0-9/""'=&#;])@([a-zA-Z0-9_]+)", 
+            match =>
+            {
+                var name = match.Groups[1].Value;
+                if (isMine)
+                {
+                    return $"<span class=\"font-bold text-white bg-white/20 px-1.5 py-0.5 rounded-md text-xs\">&#64;{name}</span>";
+                }
+                else
+                {
+                    return $"<span class=\"font-medium text-fuchsia-300 bg-fuchsia-500/15 px-1.5 py-0.5 rounded-md text-xs\">&#64;{name}</span>";
+                }
+            });
 
-        // Parse Markdown links for Boards and Tasks: [Name](#type-ids)
+        // 4. Parse Markdown links for Boards and Tasks: [Name](#type-ids)
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
             @"\[([^\]]+)\]\(#(board|task)-([a-zA-Z0-9\-_]+)\)", 
@@ -1061,19 +1142,18 @@
                     taskId = parts[1];
                 }
 
-                if (_myBoardIds.Contains(boardId))
-                {
-                    if (type == "board")
-                        return $"<a href=\"/boards/{boardId}\" class=\"font-bold text-amber-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2\" /></svg>{name}</a>";
-                    else
-                        return $"<a href=\"/boards/{boardId}?taskId={taskId}\" class=\"font-bold text-emerald-400 hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4\" /></svg>{name}</a>";
-                }
-                else
-                {
-                    var colorClass = type == "board" ? "text-amber-400/50" : "text-emerald-400/50";
-                    var iconPath = type == "board" ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
-                    return $"<span class=\"font-bold {colorClass} inline-flex items-center gap-0.5 cursor-not-allowed\" title=\"You don't have access to this {type}\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>{name}</span>";
-                }
+                // Add to known boards
+                _myBoardIds.Add(boardId);
+
+                var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
+                var colorClass = type == "board"
+                    ? (isMine ? "text-amber-300 hover:text-amber-200" : "text-amber-400 hover:text-amber-300")
+                    : (isMine ? "text-emerald-300 hover:text-emerald-200" : "text-emerald-400 hover:text-emerald-300");
+                var iconPath = type == "board" 
+                    ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" 
+                    : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
+
+                return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-1 transition-colors\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>{name}</a>";
             }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
@@ -1085,8 +1165,6 @@
                 var type = match.Groups[1].Value.ToLower();
                 var fullId = match.Groups[2].Value;
                 var shortDisplay = fullId.Length > 13 ? fullId.Substring(0, 13) + "..." : fullId;
-                var colorClass = type == "board" ? "text-amber-400" : "text-emerald-400";
-                var iconPath = type == "board" ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
                 
                 string boardId = fullId;
                 string? taskId = null;
@@ -1097,15 +1175,18 @@
                     taskId = parts[1];
                 }
 
-                if (_myBoardIds.Contains(boardId))
-                {
-                    var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
-                    return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-0.5\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</a>";
-                }
-                else
-                {
-                    return $"<span class=\"font-bold {colorClass}/50 inline-flex items-center gap-0.5 cursor-not-allowed\" title=\"You don't have access to this {type}\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</span>";
-                }
+                // Add to known boards
+                _myBoardIds.Add(boardId);
+
+                var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
+                var colorClass = type == "board"
+                    ? (isMine ? "text-amber-300 hover:text-amber-200" : "text-amber-400 hover:text-amber-300")
+                    : (isMine ? "text-emerald-300 hover:text-emerald-200" : "text-emerald-400 hover:text-emerald-300");
+                var iconPath = type == "board" 
+                    ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" 
+                    : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
+
+                return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-1 transition-colors\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</a>";
             }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
@@ -1324,6 +1405,10 @@
             _activeRoom = null;
             _showGroupDetails = false;
         }
+        else if (_isOpen)
+        {
+            _ = LoadMyBoards();
+        }
     }
 
     private async Task LoadRooms()
@@ -1449,6 +1534,7 @@
         _showGroupDetails = false;
         _showAddMembers = false;
         room.UnreadCount = 0;
+        _ = LoadMyBoards();
         
         try
         {
@@ -1647,11 +1733,19 @@
         if ((string.IsNullOrWhiteSpace(_newMessageContent) && string.IsNullOrEmpty(_pendingAttachmentUrl)) || _activeRoom == null) return;
 
         var content = _newMessageContent?.Trim() ?? string.Empty;
+
+        // Apply markdown mappings before sending
+        foreach(var kvp in _draftMentions.OrderByDescending(k => k.Key.Length))
+        {
+            content = content.Replace(kvp.Key, kvp.Value);
+        }
+
         var attUrl = _pendingAttachmentUrl;
         var attName = _pendingAttachmentName;
         var attSize = _pendingAttachmentSize;
 
         _newMessageContent = string.Empty;
+        _draftMentions.Clear();
         ClearPendingAttachment();
 
         var tempId = Guid.NewGuid();
