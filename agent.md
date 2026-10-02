@@ -150,22 +150,17 @@ OfficeCore uses a dynamic, tenant-scoped claims system:
 - It dynamically injects `Claim("ModuleAccess", claimValue)` and `Claim(ClaimTypes.Role, roleName)` into the `ClaimsPrincipal`.
 
 ### 2. Default Modules vs. Configurable Role Modules
-OfficeCore enforces a clear distinction between **Default Modules** (available unconditionally to every authenticated employee in a workspace) and **Configurable Modules** (customizable per role in Role Management):
+OfficeCore enforces a clear distinction between **Default Modules** (available unconditionally to every authenticated employee in a workspace, housed exclusively under **Main**) and **Configurable Modules** (customizable per role in Role Management under **Finance** and **Administration**):
 
-#### Default Modules (Always Active for All Accounts)
-These modules are never toggled or revoked in roles; they are automatically granted via `OrganizationClaimsTransformation` and `CookieAuthStateProvider`:
+#### Default Modules (All under "Main" — Always Active for All Workspace Accounts)
+These modules are never toggled or revoked in roles; they are automatically granted via `OrganizationClaimsTransformation` and `CookieAuthStateProvider` and require only standard `[Authorize]`:
 1. **Dashboard** (`/dashboard`): Workspace summary, personal metrics, team headcount, and activity feeds.
 2. **My Attendance** (`/my-attendance`): Personal workstation time clock, punch in/out, shift details, and punch history.
-3. **My Leaves** (`/myleaves`): Personal sick and vacation leave filing and approval status.
-4. **Advances & Loans** (`/advances`): Personal cash advances and loan requests.
+3. **Boards** (`/boards`): Collaborative Kanban boards, task assignments, checklists, and project tracking.
+4. **My Leaves** (`/myleaves`): Personal sick and vacation leave filing and approval status.
+5. **Advances & Loans** (`/advances`): Personal cash advances and loan requests.
 
-#### Configurable Module Categories (Navigation & Role Management)
-- **Main:**
-  - `Dashboard` (Default)
-  - `My Attendance` (Default)
-  - `Boards` (`RequireBoards`)
-  - `My Leaves` (Default)
-  - `Advances & Loans` (Default — moved under Main)
+#### Configurable Module Categories (Gated by Policies & Dynamic Role Claims in Role Management)
 - **Finance:**
   - `Ledger` (`RequireLedger`): Dynamic allowances and custom employee deductions.
   - `Payroll` (`RequirePayroll`): Batch computation, payroll approval, and payslip distribution.

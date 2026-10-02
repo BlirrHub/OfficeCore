@@ -27,6 +27,8 @@
         gap: 10px;
         height: calc(100vh - 125px);
         overflow: hidden;
+        position: relative;
+        z-index: 1;
     }
 
     /* Map card — fills remaining vertical space */
@@ -39,6 +41,8 @@
         background: #09090b;
         border: 1px solid rgba(39,39,42,0.7);
         box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        isolation: isolate;
+        z-index: 1;
     }
 
     html.light .loc-map-card {
