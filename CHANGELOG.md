@@ -6,7 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Fixed & Enhanced — [2026-10-02] (User Mention Markdown Formatting, Chat Previews & Enterprise SVG Icon Migration)
+### Fixed & Enhanced — [2026-10-03] (Dark Mode Date Pickers, Notification Outside-Click Dismissal, Map Stacking Context & Boards Default Module Architecture)
+
+- **Dark Mode Calendar & Time Picker Visibility:**
+  - Added global WebKit calendar picker indicator CSS styling in `src/OfficeCore.Web/Styles/app.css` for `input[type="date"]`, `input[type="time"]`, and `input[type="datetime-local"]`.
+  - Configured `color-scheme: dark;` and `filter: invert(0.9) brightness(1.2)` on dark mode date/time inputs so native calendar popover indicators are bright and clearly visible on dark input backgrounds (`MyLeaves.razor`, `Attendance.razor`, etc.).
+  - Added seamless `color-scheme: light; filter: none;` parity for light mode themes.
+- **Notification Dropdown Outside-Click Dismissal:**
+  - Resolved issue where clicking outside the notification dropdown failed to dismiss the menu unless clicked inside the 56px top header area.
+  - Eliminated `backdrop-blur-md` on the top `<header>` element in `MainLayout.razor` which previously created an isolated containing block trapping fixed viewport overlays (`fixed inset-0`) inside the header.
+  - Added outside-click dismissal overlay for the workspace switcher dropdown in `MainLayout.razor`.
+- **Location Map Search Bar Z-Index Overlap:**
+  - Isolated the Leaflet map and overlay grid stacking context in `Locations.razor` (`.loc-map-card { isolation: isolate; z-index: 1; }` and `.loc-page { position: relative; z-index: 1; }`).
+  - Elevated `<header>` z-index to `z-40`, guaranteeing the notification center (`z-[100]`) and header dropdowns always float strictly above the floating "Search location…" input and Leaflet controls.
+- **Boards Default Module Architecture Alignment:**
+  - Formally classified `Boards` as an unconditional Default Core Module housed exclusively under **Main** navigation (`/dashboard`, `/my-attendance`, `/boards`, `/myleaves`, `/advances`).
+  - Changed authorization attributes in `Boards.razor` and `BoardView.razor` from `[Authorize(Policy = "RequireBoards")]` to standard `[Authorize]` to match all other default modules.
+  - Updated `agent.md` documentation to reflect that all Default Modules reside under **Main**, and configurable modules are strictly partitioned into **Finance** and **Administration** in Role Management.
 
 - **Chat Mentions & Preview Rendering:**
   - Resolved user mentions rendering raw markdown links (e.g., `[Beatriz Ramos](@user-...)`) in message bubbles and room list previews (`GlobalChatWidget.razor`).
