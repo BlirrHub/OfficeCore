@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Enhanced — [2026-10-02] (Board Labels & Security Fixes)
+
+- **Kanban Board Customization & Security:**
+  - Implemented custom color-coded Board Labels, allowing board owners and admins to create labels with specific hex colors and attach them to cards.
+  - Visually hid all board structure modification elements (add/delete lists, add/delete cards) for users with `Member` and `Viewer` roles to prevent confusion.
+  - Enforced strict frontend restrictions blocking `Member` and `Viewer` roles from removing assignees from cards.
+  - Fixed a backend user lookup bug in `BoardsController` where `Employee.Id` mapping was rejected in favor of `ApplicationUser.Id`, allowing correct addition of board members.
+  - Added the missing `Admin` role option in the board member management dropdown for existing members.
+  - Dynamically disabled due date modification and assignee selection for users without structural edit permissions.
+
 ### Added & Enhanced — [2026-10-01] (Real-Time Live Sync, Chat Mentions & Board Cross-Linking, Unlimited Invites)
 
 - **Real-Time Data Sync (Leaves, Advances, Ledger, Dashboard):**

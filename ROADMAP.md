@@ -83,6 +83,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [ ] **Multi-Level Approval Chains:** Route approval to designated team leads before escalating to HR.
 - [ ] **Company Leave Calendar:** Organization-wide monthly calendar showing approved leaves to prevent understaffing.
 - [ ] **Advance Auto-Caps:** Enforce maximum loan advance limits based on employee tenure or monthly salary ratio.
+- [ ] **Request Cancellation:** Allow requestors of Cash Advance, e-loans, or leaves to cancel their own pending requests.
 
 ### 📋 Kanban Boards & Project Management
 - [x] **Boards as Default Core Module:** Available for team project collaboration across workspaces.
@@ -93,6 +94,8 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [x] **File Attachments on Cards:** Drag-and-drop document and image uploads attached directly to tasks.
 - [ ] **Board Swimlanes:** Group board cards horizontally by assignee, priority, or epic/sprint.
 - [ ] **Milestone & Sprint Tracking:** Group cards into time-boxed sprints with burndown metrics.
+- [x] **Board Customization & Labels:** Board owners and admins can create custom color-coded board labels to attach to cards.
+- [ ] **List Color Customization:** Allow users to customize and change the background or header color of a board list/column.
 
 ### 📊 Dashboard & Work Overview
 - [x] **Assigned Task Due Date Alert Highlighting:** Color-coded urgency styling (e.g. red for overdue, amber for due today/tomorrow, emerald for upcoming) on "My Tasks" cards in the main dashboard matching the board card tags.
