@@ -167,8 +167,8 @@
                                         @if (!string.IsNullOrEmpty(_newGroupPictureDataUrl))
                                         {
                                             <button type="button" @onclick="ClearNewGroupPicture" title="Remove selected photo"
-                                                    class="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center text-[10px] border border-zinc-600 cursor-pointer shadow">
-                                                ✕
+                                                    class="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center border border-zinc-600 cursor-pointer shadow">
+                                                <svg class="size-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
                                         }
                                     </div>
@@ -1042,8 +1042,13 @@
     private string GetPreviewText(string content)
     {
         if (string.IsNullOrEmpty(content)) return content;
+        // Strip out user mention markdown into clean @Name
+        var text = System.Text.RegularExpressions.Regex.Replace(content, @"\[([^\]]+)\]\(@user-[a-zA-Z0-9\-_]+\)", "@$1");
         // Strip out the (#id) part from markdown links but keep the display text
-        return System.Text.RegularExpressions.Regex.Replace(content, @"\[(.*?)\]\(#(board|task)-.*?\)", "$1");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\[([^\]]+)\]\(#(board|task)-.*?\)", "$1");
+        // Also strip any raw @user-id into @user if any exists
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"@user-[a-zA-Z0-9\-_]+", "@user");
+        return text;
     }
 
     private MarkupString FormatMessageContent(string content, bool isMine)
@@ -1052,13 +1057,63 @@
         
         var encoded = System.Net.WebUtility.HtmlEncode(content);
         
-        // Highlight Mentions: @Firstname or @FirstnameLastname
+        // 1. Parse Markdown links for User Mentions: [Name](@user-id)
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded,
+            @"\[([^\]]+)\]\(@user-([a-zA-Z0-9\-_]+)\)",
+            match =>
+            {
+                var name = match.Groups[1].Value;
+                var userId = match.Groups[2].Value;
+                if (isMine)
+                {
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-semibold text-fuchsia-100 bg-black/25 border border-white/20 px-1.5 py-0.5 rounded-md text-[11px] align-baseline shadow-xs\" title=\"Mentioned: {name}\">@{name}</span>";
+                }
+                else
+                {
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-semibold text-fuchsia-300 bg-fuchsia-500/15 border border-fuchsia-500/30 px-1.5 py-0.5 rounded-md text-[11px] align-baseline shadow-xs\" title=\"Mentioned: {name}\">@{name}</span>";
+                }
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // 2. Fallbacks for raw @user-id if any exists
+        encoded = System.Text.RegularExpressions.Regex.Replace(
+            encoded,
+            @"(?<!\]\()@user-([a-zA-Z0-9\-_]+)",
+            match =>
+            {
+                var uid = match.Groups[1].Value;
+                var u = _allUsers.FirstOrDefault(x => x.Id == uid);
+                var displayName = u != null ? $"{u.FirstName} {u.LastName}".Trim() : "user";
+                if (isMine)
+                {
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-semibold text-fuchsia-100 bg-black/25 border border-white/20 px-1.5 py-0.5 rounded-md text-[11px] align-baseline shadow-xs\" title=\"Mentioned: {displayName}\">@{displayName}</span>";
+                }
+                else
+                {
+                    return $"<span class=\"inline-flex items-center gap-0.5 font-semibold text-fuchsia-300 bg-fuchsia-500/15 border border-fuchsia-500/30 px-1.5 py-0.5 rounded-md text-[11px] align-baseline shadow-xs\" title=\"Mentioned: {displayName}\">@{displayName}</span>";
+                }
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // 3. Highlight loose Mentions: @Word (avoiding HTML tag attributes or already replaced spans)
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
-            @"@(\w+)", 
-            "<span class=\"font-bold text-fuchsia-300\">@$1</span>");
+            @"(?<![a-zA-Z0-9/""'=])@([a-zA-Z0-9_]+)", 
+            match =>
+            {
+                var name = match.Groups[1].Value;
+                if (isMine)
+                {
+                    return $"<span class=\"font-bold text-fuchsia-100 bg-black/20 px-1 py-0.5 rounded text-[11px]\">@{name}</span>";
+                }
+                else
+                {
+                    return $"<span class=\"font-bold text-fuchsia-300 bg-fuchsia-500/15 px-1 py-0.5 rounded text-[11px]\">@{name}</span>";
+                }
+            });
 
-        // Parse Markdown links for Boards and Tasks: [Name](#type-ids)
+        // 4. Parse Markdown links for Boards and Tasks: [Name](#type-ids)
         encoded = System.Text.RegularExpressions.Regex.Replace(
             encoded, 
             @"\[([^\]]+)\]\(#(board|task)-([a-zA-Z0-9\-_]+)\)", 

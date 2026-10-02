@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-10-02] (User Mention Markdown Formatting, Chat Previews & Enterprise SVG Icon Migration)
+
+- **Chat Mentions & Preview Rendering:**
+  - Resolved user mentions rendering raw markdown links (e.g., `[Beatriz Ramos](@user-...)`) in message bubbles and room list previews (`GlobalChatWidget.razor`).
+  - Added dedicated markdown regex parsers in `FormatMessageContent` transforming `[Name](@user-id)` into interactive, high-contrast `@Name` mention pills with theme parity support for both sender bubbles and recipient bubbles.
+  - Added fallback parsers for raw `@user-id` links and loose `@word` handles with proper negative lookbehinds to prevent tag collisions.
+  - Updated `GetPreviewText` in `GlobalChatWidget.razor` to strip `[Name](@user-id)` into clean `@Name` snippets in the room list preview.
+- **Enterprise SVG Icon Standardization:**
+  - Removed informal Unicode emojis (`⏱️`, `🌴`, `📌`) from `DashboardController.cs` and `Dashboard.razor`, replacing raw emoji icons in the "Live Team Activity" feed with modern, high-contrast SVG category icon pills matching the design system in `NotificationCenter.razor`.
+  - Replaced informal text character close buttons (`✕`) across `GlobalChatWidget.razor`, `AuditLogs.razor`, `Backups.razor`, `Locations.razor`, and `TimeOff.razor` with sleek SVG cross icons.
+  - Replaced unicode checkmark `✓ Copied` in `UserManagement.razor` with an animated SVG checkmark icon.
+  - Recompiled Tailwind CSS v4 assets (`wwwroot/app.css`).
+
 ### Added & Enhanced — [2026-10-02] (Board Labels & Security Fixes)
 
 - **Kanban Board Customization & Security:**

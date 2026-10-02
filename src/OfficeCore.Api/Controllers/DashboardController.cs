@@ -66,7 +66,7 @@ public class DashboardActivityItemDto
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty; // Attendance, Leave, Task, Advance, Location
-    public string Icon { get; set; } = "📌";
+    public string Icon { get; set; } = "activity";
     public string BadgeColor { get; set; } = "emerald";
     public DateTime Timestamp { get; set; }
 }
@@ -289,7 +289,7 @@ public class DashboardController : ControllerBase
                     Title = $"{name} clocked {(att.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
                     Description = $"Via {att.Source} at {att.Timestamp.ToLocalTime():h:mm tt}",
                     Category = "Attendance",
-                    Icon = "⏱️",
+                    Icon = "attendance",
                     BadgeColor = att.Type == AttendanceType.ClockIn ? "emerald" : "zinc",
                     Timestamp = att.Timestamp.UtcDateTime
                 });
@@ -314,7 +314,7 @@ public class DashboardController : ControllerBase
                     Title = $"{name} requested {l.Type} Leave",
                     Description = $"{l.StartDate:MMM dd} - {l.EndDate:MMM dd} • Status: {l.Status}",
                     Category = "Leave",
-                    Icon = "🌴",
+                    Icon = "leave",
                     BadgeColor = l.Status == LeaveRequestStatus.Approved ? "emerald" : l.Status == LeaveRequestStatus.Rejected ? "red" : "amber",
                     Timestamp = l.CreatedAt
                 });
@@ -346,7 +346,7 @@ public class DashboardController : ControllerBase
                         Title = $"You clocked {(a.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
                         Description = $"At {a.Timestamp.ToLocalTime():h:mm tt} via {a.Source}",
                         Category = "Attendance",
-                        Icon = "⏱️",
+                        Icon = "attendance",
                         BadgeColor = a.Type == AttendanceType.ClockIn ? "emerald" : "zinc",
                         Timestamp = a.Timestamp.UtcDateTime
                     });
