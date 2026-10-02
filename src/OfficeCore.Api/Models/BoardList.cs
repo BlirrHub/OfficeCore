@@ -18,6 +18,9 @@ public class BoardList : ITenantEntity{
 
     public int OrderIndex { get; set; }
 
+    [MaxLength(7)]
+    public string? ColorHex { get; set; }
+
     public List<BoardCard> Cards { get; set; } = new();
 
     public Guid OrganizationId { get; set; }

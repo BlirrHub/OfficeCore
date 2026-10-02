@@ -208,6 +208,7 @@ public class BoardsController : ControllerBase
                 l.Id,
                 l.Name,
                 l.OrderIndex,
+                l.ColorHex,
                 Cards = l.Cards.Select(c => new {
                     c.Id,
                     c.ListId,
@@ -410,6 +411,7 @@ public class BoardsController : ControllerBase
     public class CreateListRequest
     {
         public string Name { get; set; } = string.Empty;
+        public string? ColorHex { get; set; }
     }
 
     [HttpPost("{id}/lists")]
@@ -438,12 +440,49 @@ public class BoardsController : ControllerBase
             BoardId = id,
             Name = req.Name,
             OrderIndex = nextOrder,
+            ColorHex = req.ColorHex,
             OrganizationId = orgId.Value
         };
 
         _context.BoardLists.Add(list);
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(id);
+
+        return Ok(list);
+    }
+
+    public class UpdateListRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? ColorHex { get; set; }
+    }
+
+    [HttpPut("lists/{listId}")]
+    public async Task<IActionResult> UpdateList(Guid listId, [FromBody] UpdateListRequest req)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var userId = employee.Id;
+
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var list = await _context.BoardLists
+            .Include(l => l.Board)
+                .ThenInclude(b => b.Members)
+            .FirstOrDefaultAsync(l => l.Id == listId && l.OrganizationId == orgId.Value);
+
+        if (list == null) return NotFound();
+
+        var currentUserMember = list.Board.Members.FirstOrDefault(m => m.UserId == userId);
+        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer || currentUserMember.Role == BoardRole.Member)
+            return Forbid(); // Viewers and Members can't edit lists
+
+        list.Name = req.Name;
+        list.ColorHex = req.ColorHex;
+
+        await _context.SaveChangesAsync();
+        await NotifyBoardUpdated(list.BoardId);
 
         return Ok(list);
     }
