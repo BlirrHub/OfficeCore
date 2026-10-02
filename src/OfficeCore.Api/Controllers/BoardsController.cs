@@ -810,11 +810,20 @@ public class BoardsController : ControllerBase
     }
 
     // --- LABELS ---
+    public class CreateLabelRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public string ColorHex { get; set; } = "#71717a";
+    }
+
     [HttpPost("{id}/labels")]
-    public async Task<IActionResult> CreateLabel(Guid id, [FromBody] BoardLabel labelReq)
+    public async Task<IActionResult> CreateLabel(Guid id, [FromBody] CreateLabelRequest labelReq)
     {
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(labelReq.Name))
+            return BadRequest("Label name cannot be empty.");
 
         var board = await _context.Boards.FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId.Value);
         if (board == null) return NotFound();
@@ -823,14 +832,14 @@ public class BoardsController : ControllerBase
         {
             Id = Guid.NewGuid(),
             BoardId = id,
-            Name = labelReq.Name,
-            ColorHex = labelReq.ColorHex,
+            Name = labelReq.Name.Trim(),
+            ColorHex = string.IsNullOrWhiteSpace(labelReq.ColorHex) ? "#71717a" : labelReq.ColorHex,
             OrganizationId = orgId.Value
         };
         _context.BoardLabels.Add(label);
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(id);
-        return Ok(label);
+        return Ok(new { label.Id, label.Name, label.ColorHex });
     }
 
     [HttpPost("cards/{cardId}/labels/{labelId}")]

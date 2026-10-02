@@ -105,41 +105,52 @@ else
                          @ondrop="() => HandleDropOnList(list.Id)">
                         
                         <!-- List Header -->
-                        <div class="p-4 border-b flex items-center justify-between shrink-0 @(_isViewer ? "" : "cursor-grab active:cursor-grabbing") rounded-t-2xl"
+                        <div class="p-3.5 border-b flex items-center justify-between shrink-0 @(_isViewer ? "" : "cursor-grab active:cursor-grabbing") rounded-t-2xl transition-colors"
                              style="background-color: @(string.IsNullOrEmpty(list.ColorHex) ? "rgba(24, 24, 27, 0.8)" : list.ColorHex); border-color: @(string.IsNullOrEmpty(list.ColorHex) ? "rgba(39, 39, 42, 0.5)" : list.ColorHex);">
-                            <div class="flex items-center gap-2">
-                                @if (_editingListId == list.Id)
-                                {
-                                    <div class="flex items-center gap-2" @onclick:stopPropagation="true">
-                                        <input type="text" @bind="_editingListName" class="bg-zinc-950/50 border border-zinc-700/50 rounded px-2 py-1 text-sm font-bold text-white w-32 focus:outline-none" />
-                                        <input type="color" @bind="_editingListColor" class="h-7 w-7 rounded cursor-pointer border-0 p-0 bg-transparent" />
-                                        <button @onclick="() => SaveListEdit(list)" class="p-1 text-emerald-400 hover:text-emerald-300">
-                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            @if (_editingListId == list.Id)
+                            {
+                                <div class="w-full flex flex-col gap-2.5" @onclick:stopPropagation="true">
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" @bind="_editingListName" @onkeydown="@(async (e) => { if (e.Key == "Enter") await SaveListEdit(list); else if (e.Key == "Escape") CancelListEdit(); })" class="flex-1 min-w-0 bg-black/50 border border-white/20 focus:border-white/60 rounded-lg px-2.5 py-1 text-sm font-bold text-white focus:outline-none placeholder-white/40 shadow-inner" placeholder="List name..." autofocus />
+                                        <button @onclick="() => SaveListEdit(list)" class="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors shadow-sm" title="Save changes">
+                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
                                         </button>
-                                        <button @onclick="CancelListEdit" class="p-1 text-zinc-400 hover:text-white">
-                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        <button @onclick="CancelListEdit" class="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors" title="Cancel">
+                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                         </button>
                                     </div>
-                                }
-                                else
-                                {
+                                    <div class="flex items-center justify-between gap-1 pt-1.5 border-t border-white/10">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            @foreach (var c in _presetColors)
+                                            {
+                                                <button type="button" @onclick="() => _editingListColor = c" class="size-5 rounded-full border border-white/30 transition-all hover:scale-125 shadow-sm @(_editingListColor == c ? "ring-2 ring-white ring-offset-1 ring-offset-black/50 scale-110" : "")" style="background-color: @c;" title="@c"></button>
+                                            }
+                                        </div>
+                                        <label class="relative flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/50 hover:bg-black/70 border border-white/20 hover:border-white/40 cursor-pointer transition-colors shrink-0 shadow-sm" title="Choose custom color">
+                                            <span class="size-3.5 rounded-full border border-white/30 shadow-inner shrink-0" style="background-color: @(_editingListColor);"></span>
+                                            <span class="text-[10px] font-semibold text-white/90">Custom</span>
+                                            <input type="color" @bind="_editingListColor" class="sr-only" />
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="flex items-center gap-2">
                                     <h3 class="font-bold text-white tracking-wide">@list.Name</h3>
                                     <span class="px-2 py-0.5 rounded-full bg-zinc-950/50 text-white/70 text-xs font-medium border border-white/10">@list.Cards.Count</span>
-                                }
-                            </div>
-                            @if (_canEditBoardStructure)
-                            {
-                                <div class="flex items-center">
-                                    @if (_editingListId != list.Id)
-                                    {
+                                </div>
+                                @if (_canEditBoardStructure)
+                                {
+                                    <div class="flex items-center">
                                         <button @onclick="() => StartEditList(list)" class="text-white/50 hover:text-white transition-colors p-1" title="Edit List">
                                             <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                         </button>
-                                    }
-                                    <button @onclick='() => PromptDelete("Delete List", $"Are you sure you want to delete the list \"{list.Name}\"?", async () => await DeleteList(list.Id))' class="text-white/50 hover:text-red-400 transition-colors p-1" title="Delete List">
-                                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                                    </button>
-                                </div>
+                                        <button @onclick='() => PromptDelete("Delete List", $"Are you sure you want to delete the list \"{list.Name}\"?", async () => await DeleteList(list.Id))' class="text-white/50 hover:text-red-400 transition-colors p-1" title="Delete List">
+                                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                        </button>
+                                    </div>
+                                }
                             }
                         </div>
                         
@@ -295,14 +306,27 @@ else
                     <div class="w-80 shrink-0">
                         @if (_isAddingList)
                         {
-                            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 shadow-lg">
-                                <input type="text" @bind="_newListName" @bind:event="oninput" @onkeyup="HandleListInputKeyUp" placeholder="Enter list title..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none mb-2" autofocus />
-                                <div class="flex items-center justify-between mb-2">
-                                    <input type="color" @bind="_newListColor" class="h-7 w-7 rounded cursor-pointer border-0 p-0 bg-transparent" title="List Color" />
+                            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl space-y-3">
+                                <input type="text" @bind="_newListName" @bind:event="oninput" @onkeyup="HandleListInputKeyUp" placeholder="Enter list title..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" autofocus />
+                                <div class="space-y-1.5">
+                                    <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest">List Color</label>
+                                    <div class="flex items-center justify-between gap-1">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            @foreach (var c in _presetColors)
+                                            {
+                                                <button type="button" @onclick="() => _newListColor = c" class="size-5 rounded-full border border-white/20 transition-all hover:scale-125 shadow-sm @(_newListColor == c ? "ring-2 ring-white ring-offset-1 ring-offset-zinc-900 scale-110" : "")" style="background-color: @c;" title="@c"></button>
+                                            }
+                                        </div>
+                                        <label class="relative flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-700 hover:border-zinc-500 cursor-pointer transition-colors shrink-0 shadow-sm" title="Choose custom color">
+                                            <span class="size-3.5 rounded-full border border-white/20 shadow-inner shrink-0" style="background-color: @(_newListColor);"></span>
+                                            <span class="text-[10px] font-semibold text-zinc-300">Custom</span>
+                                            <input type="color" @bind="_newListColor" class="sr-only" />
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="flex items-center justify-end gap-2">
+                                <div class="flex items-center justify-end gap-2 pt-1 border-t border-zinc-800/80">
                                     <button @onclick="() => _isAddingList = false" class="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
-                                    <button @onclick="CreateList" disabled="@string.IsNullOrWhiteSpace(_newListName)" class="px-3 py-1.5 text-xs font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 disabled:opacity-50 transition-colors">Add List</button>
+                                    <button @onclick="CreateList" disabled="@string.IsNullOrWhiteSpace(_newListName)" class="px-3 py-1.5 text-xs font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 disabled:opacity-50 transition-colors shadow-sm">Add List</button>
                                 </div>
                             </div>
                         }
@@ -501,7 +525,7 @@ else
                 </div>
 
                 <!-- Sidebar (Right) -->
-                <div class="w-full md:w-64 shrink-0 space-y-6">
+                <div class="w-full md:w-72 shrink-0 space-y-6">
                     <div class="bg-zinc-950/50 border border-zinc-800/80 p-4 rounded-xl space-y-4 shadow-sm">
                         <div>
                             <div class="flex items-center justify-between mb-2">
@@ -546,7 +570,7 @@ else
                                 </div>
                             }
 
-                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1 border border-zinc-800 rounded-lg p-1.5 bg-zinc-900/60">
+                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1 border border-zinc-800 rounded-lg p-1.5 bg-zinc-900/60 custom-scrollbar">
                                 @if (_board != null && _board.Members.Any())
                                 {
                                     @foreach (var member in _board.Members)
@@ -596,16 +620,27 @@ else
                             
                             @if (_canEditBoardStructure)
                             {
-                                <div class="flex gap-2">
-                                    <input type="color" @bind="_newLabelColor" class="w-8 h-8 rounded border border-zinc-700 cursor-pointer p-0 bg-transparent shrink-0" />
-                                    <input type="text" @bind="_newLabelName" placeholder="New label name..." class="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-fuchsia-500" />
-                                    <button type="button" @onclick="CreateLabel" disabled="@string.IsNullOrWhiteSpace(_newLabelName)" class="px-2 py-1 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-bold rounded transition-colors disabled:opacity-50">Add</button>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-1.5">
+                                        <label class="relative size-7 rounded-lg border border-zinc-700 hover:border-zinc-500 cursor-pointer flex items-center justify-center shrink-0 shadow-sm overflow-hidden" title="Choose custom color">
+                                            <span class="absolute inset-0" style="background-color: @(_newLabelColor);"></span>
+                                            <input type="color" @bind="_newLabelColor" class="sr-only" />
+                                        </label>
+                                        <input type="text" @bind="_newLabelName" @bind:event="oninput" @onkeydown="@(async (e) => { if (e.Key == "Enter") await CreateLabel(); })" placeholder="New label name..." class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-fuchsia-500" />
+                                        <button type="button" @onclick="CreateLabel" disabled="@string.IsNullOrWhiteSpace(_newLabelName)" class="px-2.5 py-1.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 shrink-0">Add</button>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 flex-wrap pt-0.5">
+                                        @foreach (var c in _presetColors)
+                                        {
+                                            <button type="button" @onclick="() => _newLabelColor = c" class="size-4 rounded-full border border-white/20 transition-all hover:scale-125 @(_newLabelColor == c ? "ring-2 ring-white ring-offset-1 ring-offset-zinc-950 scale-110" : "")" style="background-color: @c;" title="@c"></button>
+                                        }
+                                    </div>
                                 </div>
                             }
 
                             @if (_board != null && _board.Labels.Any())
                             {
-                                <div class="flex flex-col gap-2">
+                                <div class="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                                     @foreach (var lbl in _board.Labels)
                                     {
                                         var isActive = _editingCard.Labels.Any(l => l.LabelId == lbl.Id);
@@ -615,13 +650,13 @@ else
                                                 <div class="absolute inset-0 rounded-lg opacity-20" style="background-color: @lbl.ColorHex;"></div>
                                                 <div class="absolute inset-0 rounded-lg border-2 opacity-50" style="border-color: @lbl.ColorHex;"></div>
                                             }
-                                            <span class="flex items-center gap-2 relative z-10 text-xs shadow-black drop-shadow-md">
-                                                <span class="size-3 rounded-full" style="background-color: @lbl.ColorHex;"></span>
-                                                @lbl.Name
+                                            <span class="flex items-center gap-2 relative z-10 text-xs shadow-black drop-shadow-md min-w-0 truncate">
+                                                <span class="size-3 rounded-full shrink-0" style="background-color: @lbl.ColorHex;"></span>
+                                                <span class="truncate">@lbl.Name</span>
                                             </span>
                                             @if (isActive)
                                             {
-                                                <svg class="size-3.5 relative z-10" style="color: @lbl.ColorHex;" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                                <svg class="size-3.5 relative z-10 shrink-0 ml-1" style="color: @lbl.ColorHex;" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
                                             }
                                         </button>
                                     }
@@ -855,6 +890,17 @@ else
     private Guid? _editingListId = null;
     private string _editingListName = string.Empty;
     private string _editingListColor = string.Empty;
+    private readonly string[] _presetColors = new[]
+    {
+        "#18181b", // Zinc / Default
+        "#0284c7", // Sky / Blue
+        "#0d9488", // Teal
+        "#16a34a", // Emerald / Green
+        "#ca8a04", // Amber / Yellow
+        "#e11d48", // Rose / Red
+        "#9333ea", // Purple
+        "#db2777"  // Fuchsia / Pink
+    };
 
     // Modal State
     private bool _showDeleteBoardModal = false;
@@ -1448,7 +1494,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(_newLabelName) || _board == null) return;
         
-        var req = new { Name = _newLabelName, ColorHex = _newLabelColor };
+        var req = new { Name = _newLabelName.Trim(), ColorHex = _newLabelColor };
         MarkAction();
         var response = await Http.PostAsJsonAsync($"/api/boards/{Id}/labels", req);
         if (response.IsSuccessStatusCode)
@@ -1457,10 +1503,20 @@ else
             if (newLabel != null)
             {
                 _board.Labels.Add(newLabel);
+                if (_editingCard != null)
+                {
+                    await ToggleLabel(newLabel.Id);
+                }
                 _newLabelName = string.Empty;
                 _newLabelColor = "#db2777";
+                ToastService.ShowSuccess($"Created label \"{newLabel.Name}\"");
                 StateHasChanged();
             }
+        }
+        else
+        {
+            var err = await response.Content.ReadAsStringAsync();
+            ToastService.ShowError("Failed to create label: " + (string.IsNullOrWhiteSpace(err) ? "Server error" : err));
         }
     }
 
