@@ -6,6 +6,36 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-10-03] (Chat Attachment Override Bug, Client Business Rich Form & 4 Business Types, Real-Time Dashboard Live Sync & Page Layout Parity)
+
+- **Chat Attachment Override Visual Bug:**
+  - Resolved an issue in `GlobalChatWidget.razor` where sending an attachment or an empty text message with a file would override or visually replace the previous message's attachment.
+  - Added explicit `IsOptimistic` boolean flag to `ChatMessageDto`. Updated the SignalR `ReceiveMessage` event handler to only perform optimistic deduplication against messages with `IsOptimistic == true`.
+  - Added `@key="_inputFileKey"` on `<InputFile />` and incremented key in `ClearPendingAttachment()` to force DOM state re-initialization so subsequent file selections work reliably without stale state.
+  - Added attachment state cleanup on `OpenRoom()` and `CloseRoom()` to prevent cross-room file leakages.
+
+- **Client Business Rich Data Fill-up Form & Tax Classification:**
+  - Extended `Business` domain entity in `OfficeCore.Api` with `TinId` (`[MaxLength(50)]`) and `BusinessType` (`[MaxLength(100)]`) alongside existing `IsVatRegistered` status.
+  - Created and executed EF Core migration `20261003115635_AddBusinessTinAndType` updating PostgreSQL database schema.
+  - Enriched `Clients.razor` with updated `BusinessDto` model, supporting search filtering by TIN and Business Type.
+  - Standardized Business Type selection to the 4 business structures:
+    - `Sole Proprietorship`
+    - `Partnership`
+    - `Corporation`
+    - `Cooperative`
+  - Added interactive VAT status toggle cards (`VAT Registered` vs `Non-VAT`) with dynamic visual feedback.
+  - Enhanced client business card UI in `Clients.razor` displaying Business Type badges (`bg-indigo-950/50 text-indigo-300`), VAT/Non-VAT status badges, and formatted monospace TIN pills.
+
+- **Real-Time Dashboard Live Sync:**
+  - Injected `IHubContext<NotificationHub>` into `BoardsController.cs` and `AttendanceController.cs`.
+  - Added real-time notifications (`BoardUpdated`, `TaskUpdated`, `AttendanceUpdated`) broadcasted to tenant-scoped groups (`org_{orgId}`).
+  - Subscribed `Dashboard.razor`'s SignalR connection to `BoardUpdated`, `TaskUpdated`, `TaskAssigned`, `AttendanceUpdated`, `EmployeeUpdated`, and `MemberJoined` events to reload stats and assigned tasks without needing a manual page refresh.
+
+- **UI Layout & Horizontal Spacing Parity:**
+  - Resolved layout inconsistency where `Dashboard.razor`, `Backups.razor`, and `AuditLogs.razor` had excessive margins and blank space on the left and right compared to `UserManagement`, `Attendance`, and `Clients`.
+  - Removed restrictive `max-w-7xl mx-auto` containers in favor of standard responsive `<div class="space-y-6">` layouts consistent across the entire application.
+
+
 ### Fixed & Enhanced — [2026-10-03] (Dark Mode Date Pickers, Notification Outside-Click Dismissal, Map Stacking Context & Boards Default Module Architecture)
 
 - **Dark Mode Calendar & Time Picker Visibility:**

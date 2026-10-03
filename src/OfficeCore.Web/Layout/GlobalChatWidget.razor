@@ -817,7 +817,7 @@
                                 </svg>
                             }
                         </label>
-                        <InputFile id="chat-file-input" OnChange="HandleChatFileUpload" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
+                        <InputFile @key="_inputFileKey" id="chat-file-input" OnChange="HandleChatFileUpload" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
 
                         <div class="flex-1 relative flex flex-col">
                             <!-- Mention Autocomplete -->
@@ -1292,11 +1292,19 @@
                     if (msg.SenderId == _currentEmployeeId)
                     {
                         var optimistic = _messages.FirstOrDefault(m => 
-                            m.SenderId == _currentEmployeeId && 
-                            m.Content == msg.Content && 
-                            m.Id != msg.Id &&
-                            Math.Abs((msg.CreatedAt - m.CreatedAt).TotalSeconds) < 30);
+                            m.IsOptimistic && 
+                            m.ChatRoomId == roomId && 
+                            (
+                                (!string.IsNullOrEmpty(msg.AttachmentUrl) && m.AttachmentUrl == msg.AttachmentUrl) ||
+                                (!string.IsNullOrEmpty(msg.Content) && m.Content == msg.Content) ||
+                                (string.IsNullOrEmpty(msg.Content) && string.IsNullOrEmpty(msg.AttachmentUrl))
+                            ));
                         
+                        if (optimistic == null)
+                        {
+                            optimistic = _messages.FirstOrDefault(m => m.IsOptimistic && m.ChatRoomId == roomId);
+                        }
+
                         if (optimistic != null)
                         {
                             _messages.Remove(optimistic);
@@ -1534,6 +1542,7 @@
         _showGroupDetails = false;
         _showAddMembers = false;
         room.UnreadCount = 0;
+        ClearPendingAttachment();
         _ = LoadMyBoards();
         
         try
@@ -1557,6 +1566,7 @@
             try { await _hubConnection!.SendAsync("LeaveRoom", _activeRoom.Id.ToString()); } catch { }
             _activeRoom = null;
             _showGroupDetails = false;
+            ClearPendingAttachment();
             await LoadRooms();
         }
     }
@@ -1627,6 +1637,7 @@
     private string? _pendingAttachmentUrl;
     private string? _pendingAttachmentName;
     private long? _pendingAttachmentSize;
+    private int _inputFileKey = 0;
 
     // Media viewer state for chat attachments
     private bool _showMediaViewer = false;
@@ -1667,6 +1678,7 @@
         _pendingAttachmentUrl = null;
         _pendingAttachmentName = null;
         _pendingAttachmentSize = null;
+        _inputFileKey++;
     }
 
     private async Task HandleChatFileUpload(InputFileChangeEventArgs e)
@@ -1759,7 +1771,8 @@
             AttachmentUrl = attUrl,
             AttachmentName = attName,
             AttachmentSize = attSize,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            IsOptimistic = true
         };
         _messages.Add(optimisticMsg);
         StateHasChanged();
@@ -1781,7 +1794,7 @@
                 if (realMsg != null)
                 {
                     _messages.Remove(optimisticMsg);
-                    _messages.RemoveAll(m => m.Id == tempId);
+                    _messages.RemoveAll(m => m.Id == tempId || (m.IsOptimistic && m.ChatRoomId == _activeRoom.Id && m.AttachmentUrl == attUrl));
 
                     if (!_messages.Any(m => m.Id == realMsg.Id))
                     {
@@ -1988,6 +2001,7 @@
         public string? AttachmentName { get; set; }
         public long? AttachmentSize { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool IsOptimistic { get; set; }
     }
 
     public class UserDto

@@ -15,6 +15,7 @@ public class AttendanceController : ControllerBase
     private readonly AppDbContext _context;
     private readonly FingerprintDeviceService _deviceService;
     private readonly IHubContext<OfficeCore.Api.Hubs.AttendanceHub> _hubContext;
+    private readonly IHubContext<OfficeCore.Api.Hubs.NotificationHub> _notificationHub;
     private readonly TenantService _tenant;
     private readonly IAuditService _audit;
     private readonly BiometricReportService _biometricReportService;
@@ -23,6 +24,7 @@ public class AttendanceController : ControllerBase
         AppDbContext context, 
         FingerprintDeviceService deviceService, 
         IHubContext<OfficeCore.Api.Hubs.AttendanceHub> hubContext,
+        IHubContext<OfficeCore.Api.Hubs.NotificationHub> notificationHub,
         TenantService tenant,
         IAuditService audit,
         BiometricReportService biometricReportService)
@@ -30,9 +32,16 @@ public class AttendanceController : ControllerBase
         _context = context;
         _deviceService = deviceService;
         _hubContext = hubContext;
+        _notificationHub = notificationHub;
         _tenant = tenant;
         _audit = audit;
         _biometricReportService = biometricReportService;
+    }
+
+    private async Task BroadcastAttendanceUpdated(Guid orgId)
+    {
+        await _hubContext.Clients.Group($"org_{orgId}").SendAsync("ReceiveAttendanceUpdate");
+        await _notificationHub.Clients.Group($"org_{orgId}").SendAsync("AttendanceUpdated");
     }
 
     // =========================================================================
@@ -211,7 +220,7 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
 
-        await _hubContext.Clients.Group($"org_{orgId.Value}").SendAsync("ReceiveAttendanceUpdate");
+        await BroadcastAttendanceUpdated(orgId.Value);
 
         var actionText = type == AttendanceType.ClockIn ? "Clocked In" : "Clocked Out";
         return Ok(new
@@ -370,7 +379,7 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
 
-        await _hubContext.Clients.Group($"org_{orgId.Value}").SendAsync("ReceiveAttendanceUpdate");
+        await BroadcastAttendanceUpdated(orgId.Value);
 
         var empName = $"{employee.User?.FirstName} {employee.User?.LastName}".Trim();
         await _audit.LogAttendanceAsync(
@@ -398,7 +407,7 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Remove(record);
         await _context.SaveChangesAsync();
 
-        await _hubContext.Clients.Group($"org_{orgId.Value}").SendAsync("ReceiveAttendanceUpdate");
+        await BroadcastAttendanceUpdated(orgId.Value);
 
         await _audit.LogAttendanceAsync(
             AuditActions.Delete,
@@ -527,7 +536,7 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
 
-        await _hubContext.Clients.Group($"org_{mapping.OrganizationId}").SendAsync("ReceiveAttendanceUpdate");
+        await BroadcastAttendanceUpdated(mapping.OrganizationId);
 
         return Ok(new { message = "Attendance logged.", type = type.ToString() });
     }
@@ -580,7 +589,7 @@ public class AttendanceController : ControllerBase
 
         var (inserted, duplicates, updatedMappings) = await _biometricReportService.CommitBiometricAttendanceAsync(dto, orgId.Value);
 
-        await _hubContext.Clients.Group($"org_{orgId.Value}").SendAsync("ReceiveAttendanceUpdate");
+        await BroadcastAttendanceUpdated(orgId.Value);
 
         await _audit.LogAttendanceAsync(
             AuditActions.Create,

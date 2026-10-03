@@ -21,7 +21,11 @@
 These features form the **Office Test-Run Foundation** to safely operate OfficeCore on-premises in a live office environment:
 
 | Priority | Feature / Task | Target Area | Status | Notes |
-| :--- | :--- | :--- | :---: | :--- |
+| :--- | :--- | :--- | :--- | :--- |
+| **P1** | **Chat Attachment Override Visual Bug** | Chat System | ✅ Completed | Fixed optimistic SignalR message deduplication bug and file input reset causing sent attachments to override or replace previous attachments |
+| **P1** | **Client Business Rich Data Fill-up Form** | Clients & CRM | ✅ Completed | Added TIN ID, 4 business types (Sole Proprietorship, Partnership, Corporation, Cooperative), and VAT/Non-VAT tax classification to entities, DB migration, and UI modals |
+| **P1** | **Dashboard Real-Time Live Sync** | Dashboard & Real-Time | ✅ Completed | Subscribed Dashboard to board/task events, attendance punches, and employee updates via NotificationHub for instant zero-refresh updates |
+| **P1** | **UI Layout Parity (Dashboard, DB Backup, Audit Trail)** | UI & Design System | ✅ Completed | Removed restrictive max-w-7xl constraint to match full-width responsive layout parity with User Management, Attendance, and Clients |
 | **P1** | **Automated Database Backup & 1-Click Restore** | Server Station & Web API | ✅ Completed | Automated scheduled & manual PostgreSQL dumps, safe restore wizard with pre-restore snapshot, retention policy, download archives, and Desktop Server Station controls |
 | **P1** | **Audit Trail Logging System** | Core Web API & Admin | ✅ Completed | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
 | **P1** | **Workspace Owner Visibility & Hierarchical RBAC** | Identity, Admin & Payroll | ✅ Completed | Main Admin (workspace creator) visible in directory, included in payroll when IsEmployee, with strict hierarchical RBAC protecting owner from assigned admins |
