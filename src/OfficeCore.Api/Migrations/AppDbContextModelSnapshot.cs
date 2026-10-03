@@ -752,6 +752,10 @@ namespace OfficeCore.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("BusinessType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("ClientId")
                         .HasColumnType("uuid");
 
@@ -767,6 +771,10 @@ namespace OfficeCore.Api.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("PhoneNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("TinId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 

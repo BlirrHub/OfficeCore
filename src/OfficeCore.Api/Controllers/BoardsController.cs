@@ -18,6 +18,7 @@ public class BoardsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<BoardHub> _hubContext;
+    private readonly IHubContext<NotificationHub> _notificationHub;
     private readonly TenantService _tenant;
     private readonly IWebHostEnvironment _env;
 
@@ -25,12 +26,14 @@ public class BoardsController : ControllerBase
         AppDbContext context, 
         UserManager<ApplicationUser> userManager, 
         IHubContext<BoardHub> hubContext, 
+        IHubContext<NotificationHub> notificationHub,
         TenantService tenant,
         IWebHostEnvironment env)
     {
         _context = context;
         _userManager = userManager;
         _hubContext = hubContext;
+        _notificationHub = notificationHub;
         _tenant = tenant;
         _env = env;
     }
@@ -807,6 +810,12 @@ public class BoardsController : ControllerBase
     private async Task NotifyBoardUpdated(Guid boardId)
     {
         await _hubContext.Clients.Group(boardId.ToString()).SendAsync("BoardUpdated");
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId.HasValue)
+        {
+            await _notificationHub.Clients.Group($"org_{orgId.Value}").SendAsync("BoardUpdated");
+            await _notificationHub.Clients.Group($"org_{orgId.Value}").SendAsync("TaskUpdated");
+        }
     }
 
     // --- LABELS ---

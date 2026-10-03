@@ -18,6 +18,12 @@ public class Business : ITenantEntity{
     [Phone]
     [MaxLength(50)]
     public string? PhoneNumber { get; set; }
+
+    [MaxLength(50)]
+    public string? TinId { get; set; }
+    
+    [MaxLength(100)]
+    public string? BusinessType { get; set; }
     
     public bool IsVatRegistered { get; set; }
     

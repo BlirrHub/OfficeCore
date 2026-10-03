@@ -9,7 +9,7 @@
 
 <PageTitle>Dashboard - OfficeCore</PageTitle>
 
-<div class="space-y-8 max-w-7xl mx-auto">
+<div class="space-y-6">
     <!-- Header with Welcome, Role Badge, and Refresh -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
         <div>
@@ -792,6 +792,12 @@
         _hubConnection.On("AdvanceRequestDeleted", reloadData);
         _hubConnection.On("ExpenseCreated", reloadData);
         _hubConnection.On("ExpenseDeleted", reloadData);
+        _hubConnection.On("BoardUpdated", reloadData);
+        _hubConnection.On("TaskUpdated", reloadData);
+        _hubConnection.On("TaskAssigned", reloadData);
+        _hubConnection.On("AttendanceUpdated", reloadData);
+        _hubConnection.On("EmployeeUpdated", reloadData);
+        _hubConnection.On("MemberJoined", reloadData);
 
         try { await _hubConnection.StartAsync(); } catch { }
     }

@@ -96,8 +96,12 @@
                                             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3 group/biz">
                                                 <div class="flex items-start justify-between">
                                                     <div>
-                                                        <div class="font-medium text-zinc-200 flex items-center gap-2">
-                                                            @biz.Name
+                                                        <div class="font-medium text-zinc-200 flex items-center gap-2 flex-wrap">
+                                                            <span>@biz.Name</span>
+                                                            @if (!string.IsNullOrEmpty(biz.BusinessType))
+                                                            {
+                                                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-950/50 text-indigo-300 border border-indigo-800/60">@biz.BusinessType</span>
+                                                            }
                                                             @if (biz.IsVatRegistered)
                                                             {
                                                                 <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-fuchsia-900/30 text-fuchsia-400 border border-fuchsia-900/50">VAT</span>
@@ -107,9 +111,16 @@
                                                                 <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">NON-VAT</span>
                                                             }
                                                         </div>
-                                                        <div class="mt-1 text-xs text-zinc-500 flex flex-col gap-0.5">
-                                                            @if (!string.IsNullOrEmpty(biz.Address)) { <span>@biz.Address</span> }
-                                                            @if (!string.IsNullOrEmpty(biz.PhoneNumber)) { <span>@biz.PhoneNumber</span> }
+                                                        <div class="mt-1.5 text-xs text-zinc-400 flex flex-col gap-0.5">
+                                                            @if (!string.IsNullOrEmpty(biz.TinId))
+                                                            {
+                                                                <div class="flex items-center gap-1.5 text-[11px] text-zinc-300 font-mono">
+                                                                    <span class="text-zinc-500 font-sans font-medium">TIN:</span>
+                                                                    <span class="bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800">@biz.TinId</span>
+                                                                </div>
+                                                            }
+                                                            @if (!string.IsNullOrEmpty(biz.Address)) { <span class="text-zinc-500">@biz.Address</span> }
+                                                            @if (!string.IsNullOrEmpty(biz.PhoneNumber)) { <span class="text-zinc-500">@biz.PhoneNumber</span> }
                                                         </div>
                                                     </div>
                                                     <div class="flex items-center gap-1 opacity-0 group-hover/biz:opacity-100 transition-opacity">
@@ -199,20 +210,52 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-zinc-400 mb-2">Business Name *</label>
-                    <input type="text" @bind="_businessModel.Name" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:outline-none" placeholder="Acme Corp" />
+                    <input type="text" @bind="_businessModel.Name" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none" placeholder="e.g. Acme Corporation" />
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-400 mb-2">Type of Business *</label>
+                        <select @bind="_businessModel.BusinessType" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none text-sm">
+                            <option value="Sole Proprietorship">Sole Proprietorship</option>
+                            <option value="Partnership">Partnership</option>
+                            <option value="Corporation">Corporation</option>
+                            <option value="Cooperative">Cooperative</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-400 mb-2">TIN ID</label>
+                        <input type="text" @bind="_businessModel.TinId" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white font-mono placeholder:font-sans focus:border-fuchsia-500 focus:outline-none text-sm" placeholder="000-123-456-000" />
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-zinc-400 mb-2">Address</label>
-                    <textarea @bind="_businessModel.Address" rows="3" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:outline-none" placeholder="123 Business St..."></textarea>
+                    <textarea @bind="_businessModel.Address" rows="2" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none text-sm" placeholder="123 Business St..."></textarea>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-zinc-400 mb-2">Business Phone Number</label>
-                    <input type="text" @bind="_businessModel.PhoneNumber" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:outline-none" placeholder="+1 (555) 123-4567" />
+                    <input type="text" @bind="_businessModel.PhoneNumber" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none text-sm" placeholder="+1 (555) 123-4567" />
                 </div>
                 
-                <div class="flex items-center gap-3 p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
-                    <input type="checkbox" id="isVat" @bind="_businessModel.IsVatRegistered" class="size-4 rounded border-zinc-700 bg-zinc-900 text-purple-600 focus:ring-purple-600 focus:ring-offset-zinc-900" />
-                    <label for="isVat" class="text-sm font-medium text-zinc-300 select-none">This business is VAT Registered</label>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-400 mb-2">Tax Classification *</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" @onclick="() => _businessModel.IsVatRegistered = true"
+                                class="p-3 rounded-xl border text-left transition-all cursor-pointer @(_businessModel.IsVatRegistered ? "bg-fuchsia-500/10 border-fuchsia-500 text-white shadow-md shadow-fuchsia-950/40" : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700")">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold uppercase tracking-wider text-fuchsia-400">VAT Registered</span>
+                                <span class="size-2 rounded-full @(_businessModel.IsVatRegistered ? "bg-fuchsia-400 ring-4 ring-fuchsia-400/20" : "bg-zinc-700")"></span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400">Standard 12% Output/Input VAT</p>
+                        </button>
+                        <button type="button" @onclick="() => _businessModel.IsVatRegistered = false"
+                                class="p-3 rounded-xl border text-left transition-all cursor-pointer @(!_businessModel.IsVatRegistered ? "bg-zinc-800 border-zinc-600 text-white shadow-md" : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700")">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">Non-VAT</span>
+                                <span class="size-2 rounded-full @(!_businessModel.IsVatRegistered ? "bg-zinc-300 ring-4 ring-zinc-300/20" : "bg-zinc-700")"></span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400">Percentage Tax or Exempt</p>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="mt-8 pt-4 flex gap-3">
@@ -318,7 +361,11 @@
                 query = query.Where(c => 
                     (c.FullName != null && c.FullName.ToLower().Contains(search)) ||
                     (c.Email != null && c.Email.ToLower().Contains(search)) ||
-                    (c.Businesses != null && c.Businesses.Any(b => b.Name != null && b.Name.ToLower().Contains(search)))
+                    (c.Businesses != null && c.Businesses.Any(b => 
+                        (b.Name != null && b.Name.ToLower().Contains(search)) ||
+                        (b.TinId != null && b.TinId.ToLower().Contains(search)) ||
+                        (b.BusinessType != null && b.BusinessType.ToLower().Contains(search))
+                    ))
                 );
             }
             return query;
@@ -347,6 +394,8 @@
                 Name = b.Name, 
                 Address = b.Address, 
                 PhoneNumber = b.PhoneNumber,
+                TinId = b.TinId,
+                BusinessType = b.BusinessType,
                 IsVatRegistered = b.IsVatRegistered
             }).ToList() ?? new List<BusinessDto>()
         };
@@ -357,7 +406,7 @@
     private void ShowAddBusinessModal(ClientDto client)
     {
         _activeClientForBusiness = client;
-        _businessModel = new BusinessDto();
+        _businessModel = new BusinessDto { BusinessType = "Sole Proprietorship" };
         _editingBusiness = false;
         _showBusinessForm = true;
     }
@@ -371,6 +420,8 @@
             Name = biz.Name,
             Address = biz.Address,
             PhoneNumber = biz.PhoneNumber,
+            TinId = biz.TinId,
+            BusinessType = string.IsNullOrEmpty(biz.BusinessType) ? "Sole Proprietorship" : biz.BusinessType,
             IsVatRegistered = biz.IsVatRegistered
         };
         _editingBusiness = true;
@@ -526,6 +577,8 @@
         public string Name { get; set; } = string.Empty;
         public string? Address { get; set; }
         public string? PhoneNumber { get; set; }
+        public string? TinId { get; set; }
+        public string? BusinessType { get; set; }
         public bool IsVatRegistered { get; set; }
     }
 }
