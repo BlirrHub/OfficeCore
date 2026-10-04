@@ -22,6 +22,9 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| **P1** | **Installer Binaries Git Ignore** | Git Architecture | ✅ Completed | Ignored `dist/` and `Setup-*.exe` binaries across branches to prevent repository bloat |
+| **P1** | **E-Loan, Advance & Leave Request/Action Timestamps** | HR, Finance & Leaves | ✅ Completed | Added request and action-taken/resolution timestamps across DB schema, API controllers, and employee/admin UI |
+| **P1** | **Board Member Permissions & Card Attachment Fix** | Kanban Boards | ✅ Completed | Restricted card editing, checklist adding, and label management to admins/owners; fixed member card attachment uploads |
 | **P1** | **Chat Attachment Override Visual Bug** | Chat System | ✅ Completed | Fixed optimistic SignalR message deduplication bug and file input reset causing sent attachments to override or replace previous attachments |
 | **P1** | **Client Business Rich Data Fill-up Form** | Clients & CRM | ✅ Completed | Added TIN ID, 4 business types (Sole Proprietorship, Partnership, Corporation, Cooperative), and VAT/Non-VAT tax classification to entities, DB migration, and UI modals |
 | **P1** | **Dashboard Real-Time Live Sync** | Dashboard & Real-Time | ✅ Completed | Subscribed Dashboard to board/task events, attendance punches, and employee updates via NotificationHub for instant zero-refresh updates |

@@ -264,7 +264,7 @@ public class BoardsController : ControllerBase
                         chk.Title,
                         Items = chk.Items.Select(ci => new { ci.Id, ci.Text, ci.IsCompleted })
                     }),
-                    Attachments = c.Attachments.Select(a => new { a.Id, a.FileName, a.FilePath, a.FileSize, a.UploadedAt })
+                    Attachments = c.Attachments.Select(a => new { a.Id, a.UserId, a.FileName, a.FilePath, a.FileSize, a.UploadedAt })
                 })
             })
         };
@@ -578,16 +578,8 @@ public class BoardsController : ControllerBase
         if (card == null) return NotFound();
 
         var currentUserMember = card.List.Board.Members.FirstOrDefault(m => m.UserId == userId);
-        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer)
+        if (currentUserMember == null || currentUserMember.Role == BoardRole.Viewer || currentUserMember.Role == BoardRole.Member)
             return Forbid();
-
-        if (currentUserMember.Role == BoardRole.Member)
-        {
-            // Members cannot change assignees or due dates
-            req.AssigneeIds = card.Assignees.Select(a => a.EmployeeId).ToList();
-            req.AssignedToUserId = card.AssignedToUserId;
-            req.DueDate = card.DueDate;
-        }
 
         var assigneeIds = (req.AssigneeIds != null)
             ? req.AssigneeIds.Distinct().ToList()
@@ -834,8 +826,17 @@ public class BoardsController : ControllerBase
         if (string.IsNullOrWhiteSpace(labelReq.Name))
             return BadRequest("Label name cannot be empty.");
 
-        var board = await _context.Boards.FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId.Value);
+        var board = await _context.Boards
+            .Include(b => b.Members)
+            .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId.Value);
         if (board == null) return NotFound();
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var member = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
+            return Forbid();
 
         var label = new BoardLabel
         {
@@ -866,7 +867,7 @@ public class BoardsController : ControllerBase
         if (employee == null) return Forbid();
 
         var member = board.Members.FirstOrDefault(m => m.UserId == employee.Id);
-        if (member == null || member.Role == BoardRole.Viewer)
+        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
             return Forbid();
 
         var label = await _context.BoardLabels.FirstOrDefaultAsync(l => l.Id == labelId && l.BoardId == id && l.OrganizationId == orgId.Value);
@@ -887,8 +888,19 @@ public class BoardsController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
-        var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
+        var card = await _context.BoardCards
+            .Include(c => c.List)
+                .ThenInclude(l => l.Board)
+                    .ThenInclude(b => b.Members)
+            .FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
         if (card == null) return NotFound();
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var member = card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
+            return Forbid();
 
         var labelExists = await _context.BoardLabels.AnyAsync(l => l.Id == labelId && l.OrganizationId == orgId.Value);
         if (!labelExists) return NotFound("Label not found.");
@@ -905,13 +917,26 @@ public class BoardsController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
+        var card = await _context.BoardCards
+            .Include(c => c.List)
+                .ThenInclude(l => l.Board)
+                    .ThenInclude(b => b.Members)
+            .FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
+        if (card == null) return NotFound();
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var member = card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
+            return Forbid();
+
         var cardLabel = await _context.BoardCardLabels.FirstOrDefaultAsync(cl => cl.CardId == cardId && cl.LabelId == labelId);
         if (cardLabel != null)
         {
-            var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
             _context.BoardCardLabels.Remove(cardLabel);
             await _context.SaveChangesAsync();
-            if (card != null) await NotifyBoardUpdated(card.List.BoardId);
+            await NotifyBoardUpdated(card.List.BoardId);
         }
         return Ok();
     }
@@ -957,8 +982,19 @@ public class BoardsController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
-        var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
+        var card = await _context.BoardCards
+            .Include(c => c.List)
+                .ThenInclude(l => l.Board)
+                    .ThenInclude(b => b.Members)
+            .FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
         if (card == null) return NotFound();
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var member = card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
+            return Forbid();
 
         var checklist = new BoardCardChecklist
         {
@@ -980,9 +1016,20 @@ public class BoardsController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
-        var checklist = await _context.BoardCardChecklists.Include(c => c.Card).ThenInclude(c => c.List)
+        var checklist = await _context.BoardCardChecklists
+            .Include(c => c.Card)
+                .ThenInclude(c => c.List)
+                    .ThenInclude(l => l.Board)
+                        .ThenInclude(b => b.Members)
             .FirstOrDefaultAsync(c => c.Id == checklistId && c.OrganizationId == orgId.Value);
         if (checklist == null) return NotFound();
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var member = checklist.Card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
+            return Forbid();
 
         var item = new BoardCardChecklistItem
         {
@@ -1006,10 +1053,21 @@ public class BoardsController : ControllerBase
         if (orgId == null) return Forbid();
 
         var item = await _context.BoardCardChecklistItems
-            .Include(i => i.Checklist).ThenInclude(c => c.Card).ThenInclude(c => c.List)
+            .Include(i => i.Checklist)
+                .ThenInclude(c => c.Card)
+                    .ThenInclude(c => c.List)
+                        .ThenInclude(l => l.Board)
+                            .ThenInclude(b => b.Members)
             .FirstOrDefaultAsync(i => i.Id == itemId && i.OrganizationId == orgId.Value);
             
         if (item == null) return NotFound();
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var member = item.Checklist.Card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer)
+            return Forbid();
 
         item.IsCompleted = !item.IsCompleted;
         await _context.SaveChangesAsync();
@@ -1025,10 +1083,20 @@ public class BoardsController : ControllerBase
         if (orgId == null) return Forbid();
 
         var checklist = await _context.BoardCardChecklists
-            .Include(c => c.Card).ThenInclude(c => c.List)
+            .Include(c => c.Card)
+                .ThenInclude(c => c.List)
+                    .ThenInclude(l => l.Board)
+                        .ThenInclude(b => b.Members)
             .FirstOrDefaultAsync(c => c.Id == checklistId && c.CardId == cardId && c.OrganizationId == orgId.Value);
             
         if (checklist == null) return NotFound();
+
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+
+        var member = checklist.Card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
+        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
+            return Forbid();
 
         _context.BoardCardChecklists.Remove(checklist);
         await _context.SaveChangesAsync();
@@ -1039,7 +1107,8 @@ public class BoardsController : ControllerBase
 
     // --- ATTACHMENTS ---
     [HttpPost("cards/{cardId}/attachments")]
-    public async Task<IActionResult> AddAttachment(Guid cardId, IFormFile file)
+    [RequestSizeLimit(25 * 1024 * 1024)]
+    public async Task<IActionResult> AddAttachment(Guid cardId, [FromForm] IFormFile? file)
     {
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Unauthorized("No active workspace selected.");
@@ -1057,16 +1126,16 @@ public class BoardsController : ControllerBase
 
         // Check if user is a member of the board and has editing privileges (not a Viewer)
         var member = card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
-        if (member == null || member.Role == BoardRole.Viewer || member.Role == BoardRole.Member)
+        if (member == null || member.Role == BoardRole.Viewer)
             return Forbid();
 
         if (file == null || file.Length == 0) return BadRequest("File is empty.");
 
-        // Limit file size to 20MB
-        if (file.Length > 20 * 1024 * 1024)
-            return BadRequest("File size exceeds the 20MB limit.");
+        // Limit file size to 25MB
+        if (file.Length > 25 * 1024 * 1024)
+            return BadRequest("File size exceeds the 25MB limit.");
 
-        var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var webRoot = !string.IsNullOrEmpty(_env.WebRootPath) ? _env.WebRootPath : Path.Combine(_env.ContentRootPath, "wwwroot");
         var uploadDir = Path.Combine(webRoot, "uploads", "boards");
         Directory.CreateDirectory(uploadDir);
 
@@ -1098,6 +1167,7 @@ public class BoardsController : ControllerBase
         return Ok(new
         {
             attachment.Id,
+            attachment.UserId,
             attachment.FileName,
             attachment.FilePath,
             attachment.FileSize,
@@ -1125,13 +1195,13 @@ public class BoardsController : ControllerBase
 
         var boardMember = attachment.Card.List.Board.Members.FirstOrDefault(m => m.UserId == employee.Id);
         var isUploader = attachment.UserId == employee.Id;
-        var isBoardOwner = boardMember?.Role == BoardRole.Owner;
+        var isBoardAdminOrOwner = boardMember?.Role == BoardRole.Owner || boardMember?.Role == BoardRole.Admin;
 
-        // Only the uploader or the board owner can delete an attachment
-        if (!isUploader && !isBoardOwner)
+        // Only the uploader or board owner/admin can delete an attachment
+        if (!isUploader && !isBoardAdminOrOwner)
             return Forbid();
 
-        var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var webRoot = !string.IsNullOrEmpty(_env.WebRootPath) ? _env.WebRootPath : Path.Combine(_env.ContentRootPath, "wwwroot");
         var physicalPath = Path.Combine(webRoot, attachment.FilePath.TrimStart('/'));
         if (System.IO.File.Exists(physicalPath))
         {

@@ -108,7 +108,7 @@
                                     {
                                         <tr class="hover:bg-zinc-800/50 transition-colors">
                                         <td class="px-6 py-4 text-zinc-300">
-                                            <div class="font-medium text-white">@req.RequestDate.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                                            <div class="font-medium text-white">@req.RequestDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</div>
                                         </td>
                                         <td class="px-6 py-4">
                                             <div class="font-medium text-white">@req.EmployeeName</div>
@@ -135,30 +135,44 @@
                                             @(req.InstallmentAmount.HasValue ? req.InstallmentAmount.Value.ToString("C") : "-")
                                         </td>
                                         <td class="px-6 py-4 text-center">
-                                            @if (req.Status == AdvanceStatus.Pending)
-                                            {
-                                                <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-yellow-900/20 text-yellow-400 border border-yellow-900/50">
-                                                    Pending
-                                                </span>
-                                            }
-                                            else if (req.Status == AdvanceStatus.Approved)
-                                            {
-                                                <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-green-900/20 text-green-400 border border-green-900/50">
-                                                    Approved
-                                                </span>
-                                            }
-                                            else if (req.Status == AdvanceStatus.Rejected)
-                                            {
-                                                <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-red-900/20 text-red-400 border border-red-900/50">
-                                                    Rejected
-                                                </span>
-                                            }
-                                            else if (req.Status == AdvanceStatus.Cancelled)
-                                            {
-                                                <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                                    Cancelled
-                                                </span>
-                                            }
+                                            <div class="flex flex-col items-center gap-1">
+                                                @if (req.Status == AdvanceStatus.Pending)
+                                                {
+                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-yellow-900/20 text-yellow-400 border border-yellow-900/50">
+                                                        Pending
+                                                    </span>
+                                                }
+                                                else if (req.Status == AdvanceStatus.Approved)
+                                                {
+                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-green-900/20 text-green-400 border border-green-900/50">
+                                                        Approved
+                                                    </span>
+                                                    @if (req.ResolutionDate.HasValue)
+                                                    {
+                                                        <span class="text-[10px] text-zinc-500" title="Approved at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                    }
+                                                }
+                                                else if (req.Status == AdvanceStatus.Rejected)
+                                                {
+                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-red-900/20 text-red-400 border border-red-900/50">
+                                                        Rejected
+                                                    </span>
+                                                    @if (req.ResolutionDate.HasValue)
+                                                    {
+                                                        <span class="text-[10px] text-zinc-500" title="Rejected at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                    }
+                                                }
+                                                else if (req.Status == AdvanceStatus.Cancelled)
+                                                {
+                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                                        Cancelled
+                                                    </span>
+                                                    @if (req.ResolutionDate.HasValue)
+                                                    {
+                                                        <span class="text-[10px] text-zinc-500" title="Cancelled at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                    }
+                                                }
+                                            </div>
                                         </td>
                                         <td class="px-6 py-4 text-right">
                                             <div class="flex justify-end gap-2">
@@ -714,6 +728,7 @@
         public string Note { get; set; } = string.Empty;
         public AdvanceStatus Status { get; set; }
         public DateTime RequestDate { get; set; }
+        public DateTime? ResolutionDate { get; set; }
         public decimal? RemainingBalance { get; set; }
         public decimal? InstallmentAmount { get; set; }
         public string EmployeeName { get; set; } = string.Empty;

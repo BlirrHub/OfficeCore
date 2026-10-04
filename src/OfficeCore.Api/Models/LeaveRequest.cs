@@ -17,6 +17,7 @@ public class LeaveRequest : ITenantEntity{
     public LeaveRequestStatus Status { get; set; } = LeaveRequestStatus.Pending;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ActionTakenAt { get; set; }
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
 }

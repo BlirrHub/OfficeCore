@@ -103,7 +103,7 @@
                             {
                                 <tr class="hover:bg-zinc-800/30 transition-colors">
                                     <td class="px-6 py-4 text-zinc-300">
-                                        <div class="font-medium text-white">@req.RequestDate.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                                        <div class="font-medium text-white">@req.RequestDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</div>
                                         <div class="text-xs text-zinc-500">@req.Note</div>
                                     </td>
                                     <td class="px-6 py-4">
@@ -123,22 +123,36 @@
                                         @(req.Type == AdvanceType.ELoan && req.RemainingBalance.HasValue ? req.RemainingBalance.Value.ToString("C") : "-")
                                     </td>
                                     <td class="px-6 py-4 text-center">
-                                        @if (req.Status == AdvanceStatus.Pending)
-                                        {
-                                            <AppBadge Variant="warning" Dot="true">Pending</AppBadge>
-                                        }
-                                        else if (req.Status == AdvanceStatus.Approved)
-                                        {
-                                            <AppBadge Variant="success" Dot="true">Approved</AppBadge>
-                                        }
-                                        else if (req.Status == AdvanceStatus.Rejected)
-                                        {
-                                            <AppBadge Variant="danger" Dot="true">Rejected</AppBadge>
-                                        }
-                                        else if (req.Status == AdvanceStatus.Cancelled)
-                                        {
-                                            <AppBadge Variant="default" Dot="true">Cancelled</AppBadge>
-                                        }
+                                        <div class="flex flex-col items-center gap-1">
+                                            @if (req.Status == AdvanceStatus.Pending)
+                                            {
+                                                <AppBadge Variant="warning" Dot="true">Pending</AppBadge>
+                                            }
+                                            else if (req.Status == AdvanceStatus.Approved)
+                                            {
+                                                <AppBadge Variant="success" Dot="true">Approved</AppBadge>
+                                                @if (req.ResolutionDate.HasValue)
+                                                {
+                                                    <span class="text-[10px] text-zinc-500" title="Approved at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                }
+                                            }
+                                            else if (req.Status == AdvanceStatus.Rejected)
+                                            {
+                                                <AppBadge Variant="danger" Dot="true">Rejected</AppBadge>
+                                                @if (req.ResolutionDate.HasValue)
+                                                {
+                                                    <span class="text-[10px] text-zinc-500" title="Rejected at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                }
+                                            }
+                                            else if (req.Status == AdvanceStatus.Cancelled)
+                                            {
+                                                <AppBadge Variant="default" Dot="true">Cancelled</AppBadge>
+                                                @if (req.ResolutionDate.HasValue)
+                                                {
+                                                    <span class="text-[10px] text-zinc-500" title="Cancelled at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                }
+                                            }
+                                        </div>
                                     </td>
                                     <td class="px-6 py-4 text-right">
                                         @if (req.Status == AdvanceStatus.Pending)
@@ -308,6 +322,7 @@
         public string Note { get; set; } = string.Empty;
         public AdvanceStatus Status { get; set; }
         public DateTime RequestDate { get; set; }
+        public DateTime? ResolutionDate { get; set; }
         public decimal? RemainingBalance { get; set; }
     }
 }

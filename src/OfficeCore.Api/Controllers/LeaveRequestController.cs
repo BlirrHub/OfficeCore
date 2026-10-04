@@ -76,7 +76,8 @@ public class LeaveRequestController : ControllerBase
                 r.Reason,
                 r.AttachmentPath,
                 r.Status,
-                r.CreatedAt
+                r.CreatedAt,
+                r.ActionTakenAt
             })
             .ToListAsync();
 
@@ -146,6 +147,7 @@ public class LeaveRequestController : ControllerBase
 
         var oldStatus = leaveRequest.Status;
         leaveRequest.Status = request.Status;
+        leaveRequest.ActionTakenAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         var empName = $"{leaveRequest.Employee?.User?.FirstName} {leaveRequest.Employee?.User?.LastName}".Trim();
@@ -188,6 +190,7 @@ public class LeaveRequestController : ControllerBase
             Reason = request.Reason,
             Status = LeaveRequestStatus.Approved,
             CreatedAt = DateTime.UtcNow,
+            ActionTakenAt = DateTime.UtcNow,
             OrganizationId = orgId.Value
         };
 

@@ -350,7 +350,7 @@ else
     <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900 shrink-0">
-                <h3 class="text-lg font-bold text-white tracking-wide">@(_editingCard == null ? "Add Card" : "Edit Card")</h3>
+                <h3 class="text-lg font-bold text-white tracking-wide">@(_editingCard == null ? "Add Card" : (_canEditBoardStructure ? "Edit Card" : "Card Details"))</h3>
                 <button @onclick="CloseCardModal" class="text-zinc-500 hover:text-white transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -362,12 +362,12 @@ else
                 <div class="flex-1 min-w-0 space-y-6">
                     <div>
                     <label class="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Title</label>
-                    <input type="text" @bind="_cardModel.Title" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" autofocus />
+                    <input type="text" @bind="_cardModel.Title" disabled="@(!_canEditBoardStructure)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed" autofocus="@_canEditBoardStructure" />
                 </div>
                 
                 <div>
                     <label class="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Description</label>
-                    <textarea @bind="_cardModel.Description" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none resize-none"></textarea>
+                    <textarea @bind="_cardModel.Description" disabled="@(!_canEditBoardStructure)" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none resize-none disabled:opacity-60 disabled:cursor-not-allowed" placeholder="@(!_canEditBoardStructure ? "No description provided." : "Add a more detailed description...")"></textarea>
                 </div>
 
                 @if (_editingCard != null)
@@ -420,7 +420,7 @@ else
                                             }
                                         </div>
 
-                                        @if (!_isViewer)
+                                        @if (_canEditBoardStructure)
                                         {
                                             <div class="flex items-center gap-2 pt-3 mt-2 border-t border-zinc-800/50">
                                                 <input type="text" value="@(_newChecklistItemTexts.ContainsKey(cl.Id) ? _newChecklistItemTexts[cl.Id] : "")" @onchange="(e) => _newChecklistItemTexts[cl.Id] = e.Value?.ToString() ?? string.Empty" placeholder="Add an item..." class="bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-fuchsia-500 flex-1" />
@@ -441,9 +441,18 @@ else
                                     @if (!_isViewer)
                                     {
                                         <div>
-                                            <InputFile OnChange="HandleFileUpload" id="file-upload" class="hidden" />
-                                            <label for="file-upload" class="cursor-pointer bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded text-xs font-semibold transition-colors border border-zinc-700 flex items-center gap-2">
-                                                Upload File
+                                            <InputFile @key="_fileInputKey" OnChange="HandleFileUpload" id="file-upload" class="hidden" disabled="@_isUploadingAttachment" />
+                                            <label for="file-upload" class="cursor-pointer bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded text-xs font-semibold transition-colors border border-zinc-700 flex items-center gap-2 @(_isUploadingAttachment ? "opacity-50 pointer-events-none" : "")">
+                                                @if (_isUploadingAttachment)
+                                                {
+                                                    <span class="inline-block size-3.5 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin"></span>
+                                                    <span>Uploading...</span>
+                                                }
+                                                else
+                                                {
+                                                    <svg class="size-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.5v15m7.5-7.5h-15"></path></svg>
+                                                    <span>Upload File</span>
+                                                }
                                             </label>
                                         </div>
                                     }
@@ -464,7 +473,7 @@ else
                                                         <p class="text-[10px] text-zinc-600">@((att.FileSize / 1024).ToString("N0")) KB</p>
                                                     </div>
                                                 </button>
-                                                @if (!_isViewer)
+                                                @if (!_isViewer && (_canEditBoardStructure || att.UserId == _currentEmployeeId))
                                                 {
                                                     <button @onclick='() => PromptDelete("Delete Attachment", $"Are you sure you want to delete the attachment \"{att.FileName}\"?", async () => await DeleteAttachment(att))' class="text-zinc-600 hover:text-red-400 md:opacity-0 group-hover:opacity-100 transition-all p-1" title="Delete Attachment">
                                                         <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -618,7 +627,7 @@ else
                         <div class="bg-zinc-950/50 border border-zinc-800/80 p-4 rounded-xl space-y-4 shadow-sm">
                             <h4 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Card Labels</h4>
                             
-                            @if (!_isViewer)
+                            @if (_canEditBoardStructure)
                             {
                                 <div class="space-y-2">
                                     <div class="flex items-center gap-1.5">
@@ -645,7 +654,7 @@ else
                                     {
                                         var isActive = _editingCard.Labels.Any(l => l.LabelId == lbl.Id);
                                         <div class="flex items-center gap-1.5 group/lbl">
-                                            <button type="button" @onclick="() => ToggleLabel(lbl.Id)" disabled="@_isViewer" class="flex-1 min-w-0 relative flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-all text-left disabled:cursor-not-allowed @(isActive ? "border-transparent text-white shadow-inner font-bold" : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-white")" title="@(isActive ? "Click to remove from card" : "Click to add to card")">
+                                            <button type="button" @onclick="() => ToggleLabel(lbl.Id)" disabled="@(!_canEditBoardStructure)" class="flex-1 min-w-0 relative flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-all text-left disabled:cursor-not-allowed @(isActive ? "border-transparent text-white shadow-inner font-bold" : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-white")" title="@(!_canEditBoardStructure ? lbl.Name : (isActive ? "Click to remove from card" : "Click to add to card"))">
                                                 @if (isActive)
                                                 {
                                                     <div class="absolute inset-0 rounded-lg opacity-20" style="background-color: @lbl.ColorHex;"></div>
@@ -660,7 +669,7 @@ else
                                                     <svg class="size-3.5 relative z-10 shrink-0 ml-1" style="color: @lbl.ColorHex;" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
                                                 }
                                             </button>
-                                            @if (!_isViewer)
+                                            @if (_canEditBoardStructure)
                                             {
                                                 <button type="button" @onclick='() => PromptDelete("Delete Label", $"Are you sure you want to delete label \"{lbl.Name}\" from this board? It will be removed from all cards.", async () => await DeleteBoardLabel(lbl))' class="p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors shrink-0" title="Delete label from board">
                                                     <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
@@ -680,8 +689,15 @@ else
             </div>
             
             <div class="px-6 py-4 border-t border-zinc-800 flex justify-end gap-2 bg-zinc-900 shrink-0">
-                <button @onclick="CloseCardModal" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
-                <button @onclick="SaveCard" disabled="@string.IsNullOrWhiteSpace(_cardModel.Title)" class="px-4 py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 disabled:opacity-50 transition-colors">Save Card</button>
+                @if (_canEditBoardStructure)
+                {
+                    <button @onclick="CloseCardModal" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                    <button @onclick="SaveCard" disabled="@string.IsNullOrWhiteSpace(_cardModel.Title)" class="px-4 py-2 text-sm font-bold text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 disabled:opacity-50 transition-colors">Save Card</button>
+                }
+                else
+                {
+                    <button @onclick="CloseCardModal" class="px-4 py-2 text-sm font-bold text-white bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors">Close</button>
+                }
             </div>
         </div>
     </div>
@@ -889,6 +905,9 @@ else
     private bool _canEditMemberRoles = false;
     private bool _canEditBoardStructure = false;
     private List<EmployeeDto> _allUsers = new();
+    private string? _currentEmployeeId = null;
+    private int _fileInputKey = 0;
+    private bool _isUploadingAttachment = false;
 
     // Drag and Drop state
     private BoardCardDto? _draggedCard;
@@ -1062,6 +1081,7 @@ else
                 var myMember = _board.Members.FirstOrDefault(m => m.User.ApplicationUserId == userId);
                 if (myMember != null)
                 {
+                    _currentEmployeeId = myMember.User.Id;
                     _isOwner = myMember.Role == BoardRole.Owner;
                     _isAdmin = myMember.Role == BoardRole.Admin;
                     _isMember = myMember.Role == BoardRole.Member;
@@ -1307,7 +1327,7 @@ else
 
     private async Task SaveCard()
     {
-        if (string.IsNullOrWhiteSpace(_cardModel.Title)) return;
+        if (!_canEditBoardStructure || string.IsNullOrWhiteSpace(_cardModel.Title)) return;
 
         _cardModel.AssignedToUserId = _cardModel.AssigneeIds.FirstOrDefault();
 
@@ -1539,7 +1559,7 @@ else
 
     private async Task CreateLabel()
     {
-        if (string.IsNullOrWhiteSpace(_newLabelName) || _board == null) return;
+        if (string.IsNullOrWhiteSpace(_newLabelName) || _board == null || !_canEditBoardStructure) return;
         
         var req = new { Name = _newLabelName.Trim(), ColorHex = _newLabelColor };
         MarkAction();
@@ -1569,7 +1589,7 @@ else
 
     private async Task ToggleLabel(Guid labelId)
     {
-        if (_editingCard == null) return;
+        if (_editingCard == null || !_canEditBoardStructure) return;
         var existing = _editingCard.Labels.FirstOrDefault(l => l.LabelId == labelId);
         MarkAction();
         if (existing != null)
@@ -1590,7 +1610,7 @@ else
 
     private async Task DeleteBoardLabel(BoardLabelDto label)
     {
-        if (_board == null) return;
+        if (_board == null || !_canEditBoardStructure) return;
         MarkAction();
         var response = await Http.DeleteAsync($"/api/boards/{Id}/labels/{label.Id}");
         if (response.IsSuccessStatusCode)
@@ -1619,7 +1639,7 @@ else
 
     private async Task AddChecklist()
     {
-        if (string.IsNullOrWhiteSpace(_newChecklistTitle) || _editingCard == null) return;
+        if (string.IsNullOrWhiteSpace(_newChecklistTitle) || _editingCard == null || !_canEditBoardStructure) return;
         var req = new { Title = _newChecklistTitle };
         MarkAction();
         var response = await Http.PostAsJsonAsync($"/api/boards/cards/{_editingCard.Id}/checklists", req);
@@ -1638,7 +1658,7 @@ else
 
     private async Task AddChecklistItem(Guid checklistId)
     {
-        if (!_newChecklistItemTexts.TryGetValue(checklistId, out var text) || string.IsNullOrWhiteSpace(text) || _editingCard == null) return;
+        if (!_canEditBoardStructure || !_newChecklistItemTexts.TryGetValue(checklistId, out var text) || string.IsNullOrWhiteSpace(text) || _editingCard == null) return;
         var req = new { Title = text };
         MarkAction();
         var response = await Http.PostAsJsonAsync($"/api/boards/checklists/{checklistId}/items", req);
@@ -1667,7 +1687,7 @@ else
 
     private async Task DeleteChecklist(BoardCardChecklistDto checklist)
     {
-        if (_editingCard == null) return;
+        if (_editingCard == null || !_canEditBoardStructure) return;
         MarkAction();
         var response = await Http.DeleteAsync($"/api/boards/cards/{_editingCard.Id}/checklists/{checklist.Id}");
         if (response.IsSuccessStatusCode)
@@ -1683,14 +1703,30 @@ else
 
     private async Task HandleFileUpload(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)
     {
-        if (_editingCard == null) return;
+        if (_editingCard == null || _isUploadingAttachment) return;
         
-        using var content = new MultipartFormDataContent();
+        var file = e.File;
+        if (file == null) return;
+
+        const long maxAllowedSize = 25 * 1024 * 1024; // 25MB
+        if (file.Size > maxAllowedSize)
+        {
+            ToastService.ShowError("File exceeds the 25MB limit.");
+            _fileInputKey++;
+            return;
+        }
+
+        _isUploadingAttachment = true;
+        StateHasChanged();
+
         try
         {
-            var file = e.File;
-            var maxAllowedSize = 10 * 1024 * 1024; // 10MB
+            using var content = new MultipartFormDataContent();
             var streamContent = new StreamContent(file.OpenReadStream(maxAllowedSize));
+            if (!string.IsNullOrEmpty(file.ContentType))
+            {
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            }
             content.Add(streamContent, "file", file.Name);
 
             MarkAction();
@@ -1698,12 +1734,27 @@ else
             if (response.IsSuccessStatusCode)
             {
                 var attachment = await response.Content.ReadFromJsonAsync<BoardCardAttachmentDto>();
-                if (attachment != null) _editingCard.Attachments.Add(attachment);
+                if (attachment != null)
+                {
+                    _editingCard.Attachments.Add(attachment);
+                    ToastService.ShowSuccess("Attachment uploaded.");
+                }
+            }
+            else
+            {
+                var errMsg = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError(!string.IsNullOrWhiteSpace(errMsg) ? errMsg : "Failed to upload attachment.");
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Ignored for now (e.g. file too large)
+            ToastService.ShowError($"Upload error: {ex.Message}");
+        }
+        finally
+        {
+            _isUploadingAttachment = false;
+            _fileInputKey++;
+            StateHasChanged();
         }
     }
 
@@ -1833,6 +1884,7 @@ else
     public class BoardCardAttachmentDto
     {
         public Guid Id { get; set; }
+        public string? UserId { get; set; }
         public string FileName { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;
         public long FileSize { get; set; }
