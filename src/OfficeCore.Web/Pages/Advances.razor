@@ -242,7 +242,6 @@
         {
             await LoadRequests();
             await InvokeAsync(StateHasChanged);
-            ToastService.ShowSuccess("Your advance/loan request was updated.");
         });
 
         try { await _hubConnection.StartAsync(); } catch { /* Hub is optional; page works without it */ }

@@ -175,7 +175,6 @@ public class AuditController : ControllerBase
 
         var securityCount = await query.CountAsync(a =>
             a.EntityName == AuditModules.Roles ||
-            a.EntityName == AuditModules.Backup ||
             a.EntityName == AuditModules.Organization);
 
         // Group action breakdown
@@ -190,10 +189,9 @@ public class AuditController : ControllerBase
             .Select(g => new { Entity = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Entity, x => x.Count);
 
-        // Recent high-impact critical events (Payroll, Delete, Restore, Security)
+        // Recent high-impact critical events (Payroll, Delete, Security)
         var recentCritical = await query
             .Where(a => a.Action == AuditActions.Delete ||
-                        a.Action == AuditActions.Restore ||
                         a.Action == AuditActions.Security ||
                         a.EntityName == AuditModules.Payroll)
             .OrderByDescending(a => a.CreatedAt)

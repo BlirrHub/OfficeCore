@@ -20,20 +20,17 @@ public class BackupController : ControllerBase
     private readonly TenantService _tenant;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppDbContext _context;
-    private readonly IAuditService _audit;
 
     public BackupController(
         BackupService backupService,
         TenantService tenant,
         UserManager<ApplicationUser> userManager,
-        AppDbContext context,
-        IAuditService audit)
+        AppDbContext context)
     {
         _backupService = backupService;
         _tenant = tenant;
         _userManager = userManager;
         _context = context;
-        _audit = audit;
     }
 
     private async Task<bool> IsAuthorizedForBackupsAsync()
@@ -97,12 +94,6 @@ public class BackupController : ControllerBase
         {
             return BadRequest(new { message = result.Message });
         }
-
-        var backupFileName = result.BackupInfo?.FileName ?? "Manual Backup";
-        await _audit.LogBackupAsync(
-            AuditActions.Create,
-            $"Created manual database snapshot '{(string.IsNullOrWhiteSpace(req?.Label) ? backupFileName : req.Label)}' ({backupFileName})",
-            backupFileName);
 
         return Ok(result);
     }
@@ -173,11 +164,6 @@ public class BackupController : ControllerBase
             return BadRequest(new { message = result.Message, preRestoreSnapshot = result.PreRestoreSnapshotName });
         }
 
-        await _audit.LogBackupAsync(
-            AuditActions.Restore,
-            $"Restored database from snapshot '{fileName}' (Safety pre-restore backup: {result.PreRestoreSnapshotName})",
-            fileName);
-
         return Ok(new
         {
             message = "Database restored successfully.",
@@ -194,11 +180,6 @@ public class BackupController : ControllerBase
         var deleted = await _backupService.DeleteBackupAsync(fileName);
         if (!deleted)
             return NotFound("Backup file not found or could not be deleted.");
-
-        await _audit.LogBackupAsync(
-            AuditActions.Delete,
-            $"Deleted database backup archive '{fileName}'",
-            fileName);
 
         return Ok(new { message = "Backup deleted successfully." });
     }

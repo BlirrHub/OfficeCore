@@ -19,7 +19,7 @@ public class AuditLog : ITenantEntity
     public string Action { get; set; } = string.Empty;
 
     /// <summary>
-    /// Domain entity category: Payroll, Employee, Attendance, Leave, Advance, Roles, Backup, Organization
+    /// Domain entity category: Payroll, Employee, Attendance, Leave, Advance, Roles, Organization
     /// </summary>
     public string EntityName { get; set; } = string.Empty;
 
@@ -77,5 +77,4 @@ public static class AuditModules
     public const string Advance = "Advance";
     public const string Roles = "Roles";
     public const string Organization = "Organization";
-    public const string Backup = "Backup";
 }

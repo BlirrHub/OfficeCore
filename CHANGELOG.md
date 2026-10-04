@@ -6,6 +6,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Refactored — [2026-10-05] (Audit Trail Database Decoupling & Targeted Real-Time Notification Center)
+
+- **Audit Trail Database Operations & Backups Decoupling (`AuditService.cs`, `AuditLog.cs`, `BackupController.cs`, `AuditController.cs`, `AuditLogs.razor`):**
+  - Removed database operation logs, snapshot creation, and restore entries from workspace-level audit logs to ensure host-level server maintenance never pollutes tenant activity ledgers.
+  - Removed `LogBackupAsync` and `AuditModules.Backup` from `IAuditService`, `AuditService`, and `AuditLog.cs`.
+  - Updated `AuditController.cs` to eliminate `Backup` and `Restore` from security metrics and high-impact critical queries.
+  - Refactored `AuditLogs.razor` UI: removed the "Backups & DB" filter tab and repurposed Metric Card 4 as "Security & Roles" (`Roles, access & permissions`).
+
+- **Targeted Notification Architecture & Removal of Intrusive Toasts (`NotificationHub.cs`, `NotificationsController.cs`, `NotificationPayload.cs`, `LeaveApprovals.razor`, `Ledger.razor`, `Advances.razor`, `MyLeaves.razor`):**
+  - Removed disruptive global pop-up toasts for new leave requests, advance/e-loan requests, and status modifications in `LeaveApprovals.razor`, `Ledger.razor`, `Advances.razor`, and `MyLeaves.razor`.
+  - Upgraded `NotificationHub.cs` with smart connection grouping: `user_{userId}` for targeted user alerts, and `org_{orgId}_admins` for workspace administrator/approver notices.
+  - Created `NotificationsController.cs` providing `GET /api/notifications/recent` to seamlessly hydrate user notification center trays on initial load and across browser refreshes.
+
+- **Admin & Requester Event Targeting (`LeaveRequestController.cs`, `AdvanceRequestController.cs`):**
+  - **For Workspace Admins:** Submissions of new Leave Requests or Cash Advance / E-Loan requests are dispatched to `org_{orgId}_admins` with actor name, type, dates, and amounts.
+  - **For Requesting Employees:** Request approval or rejection decisions are dispatched directly to `user_{employee.UserId}` with the explicit outcome (Approved or Rejected), leave dates, or approved/rejected loan amounts.
+
+- **Task Assignment & Due Date Alerts (`BoardsController.cs`, `NotificationsController.cs`):**
+  - Dispatches targeted `Task Assigned` alerts directly to assigned employees when board cards are created or when new assignees are added to existing tasks.
+  - Added automated due date checks flagging tasks due within 48 hours ("Task Closing Due Date") and overdue tasks ("Task Overdue") with board navigation links.
+
+- **Modernized Notification Center UI (`NotificationCenter.razor`):**
+  - Redesigned dropdown with category-specific iconography (Leave, Advance, Task, Location, System) and color-coded status badges: Emerald for Approved, Rose for Rejected, Indigo for Assigned, Amber for Due Soon, and Red for Overdue.
+  - Added "Mark all as read", "Clear all", click-to-navigate action handling, and responsive empty and loading states.
+
 ### Enhanced & Refactored — [2026-10-05] (Server Station Disaster Recovery Console & Workspace Module Decoupling)
 
 - **Decoupled Database Backups from Workspace Admin (`NavMenu.razor`, `RoleManagement.razor`, `Program.cs`, `DbSeeder.cs`, `AuthController.cs`):**

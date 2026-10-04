@@ -322,7 +322,6 @@
         {
             await LoadRequests();
             await InvokeAsync(StateHasChanged);
-            ToastService.ShowSuccess("Your leave request status was updated.");
         });
 
         try { await _hubConnection.StartAsync(); } catch { /* Hub is optional; page works without it */ }

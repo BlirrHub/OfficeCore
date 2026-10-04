@@ -562,6 +562,33 @@ public class BoardsController : ControllerBase
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(list.BoardId);
 
+        // Notify assigned employees
+        if (assigneeIds.Count > 0)
+        {
+            var assignedEmps = await _context.Employees
+                .AsNoTracking()
+                .Where(e => assigneeIds.Contains(e.Id) || (e.UserId != null && assigneeIds.Contains(e.UserId)))
+                .ToListAsync();
+
+            foreach (var emp in assignedEmps)
+            {
+                if (!string.IsNullOrEmpty(emp.UserId) && emp.UserId != employee.UserId)
+                {
+                    var notif = new NotificationPayload
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Title = "Task Assigned",
+                        Message = $"You were assigned to task \"{card.Title}\" on board \"{list.Board.Name}\".",
+                        Category = "Task",
+                        Status = "Assigned",
+                        TargetUrl = $"/boards/{list.BoardId}",
+                        Timestamp = DateTime.UtcNow
+                    };
+                    await _notificationHub.Clients.Group($"user_{emp.UserId}").SendAsync("ReceiveNotification", notif);
+                }
+            }
+        }
+
         return Ok(card);
     }
 
@@ -604,10 +631,12 @@ public class BoardsController : ControllerBase
             _context.BoardCardAssignees.Remove(rem);
         }
 
+        var newlyAddedEmpIds = new List<string>();
         foreach (var empId in assigneeIds)
         {
             if (!currentAssigneeIds.Contains(empId))
             {
+                newlyAddedEmpIds.Add(empId);
                 _context.BoardCardAssignees.Add(new BoardCardAssignee
                 {
                     CardId = card.Id,
@@ -620,6 +649,34 @@ public class BoardsController : ControllerBase
 
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(card.List.BoardId);
+
+        // Notify newly added assignees
+        if (newlyAddedEmpIds.Count > 0)
+        {
+            var newEmps = await _context.Employees
+                .AsNoTracking()
+                .Where(e => newlyAddedEmpIds.Contains(e.Id) || (e.UserId != null && newlyAddedEmpIds.Contains(e.UserId)))
+                .ToListAsync();
+
+            foreach (var emp in newEmps)
+            {
+                if (!string.IsNullOrEmpty(emp.UserId) && emp.UserId != employee.UserId)
+                {
+                    var notif = new NotificationPayload
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Title = "Task Assigned",
+                        Message = $"You were assigned to task \"{card.Title}\" on board \"{card.List.Board.Name}\".",
+                        Category = "Task",
+                        Status = "Assigned",
+                        TargetUrl = $"/boards/{card.List.BoardId}",
+                        Timestamp = DateTime.UtcNow
+                    };
+                    await _notificationHub.Clients.Group($"user_{emp.UserId}").SendAsync("ReceiveNotification", notif);
+                }
+            }
+        }
+
         return Ok(card);
     }
 

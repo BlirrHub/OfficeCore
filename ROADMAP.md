@@ -33,6 +33,8 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 | **P1** | **Audit Trail Logging System** | Core Web API & Admin | ✅ Completed | Immutable audit ledger tracking who created, updated, or deleted payroll, salary rates, attendance punches, leaves, and system settings |
 | **P1** | **Workspace Owner Visibility & Hierarchical RBAC** | Identity, Admin & Payroll | ✅ Completed | Main Admin (workspace creator) visible in directory, included in payroll when IsEmployee, with strict hierarchical RBAC protecting owner from assigned admins |
 | **P1** | **Attendance & Payroll/Payslip Exporter** | Payroll Engine & Attendance | ✅ Completed | Printable PDF/HTML individual employee payslips, comprehensive payroll summary Excel/CSV, and DTR / punch summary logs |
+| **P1** | **Audit Trail DB Operations Decoupling** | Audit Trail & Admin | ✅ Completed | Fully decoupled host-level database operations/backups from workspace audit trail, removed Backup entity category and filter tab |
+| **P1** | **Targeted Real-Time Notification Center** | Notifications & Tasks | ✅ Completed | Removed disruptive toasts; targeted SignalR alerts for admins (pending requests), requesters (approval/rejection outcomes), and assignees (tasks assigned & closing due date) |
 | **P1** | **Board Access Security & Owner-Restricted Membership** | Kanban Boards | ✅ Completed | Security policy enforcing that only Workspace Owner or Admins can add/remove members; non-admin board owners cannot add members; clean UX notice |
 | **P2** | **Chat Mentions & Task/Board Cross-Linking** | Chat System | ✅ Completed | Autocomplete `@user` mentions with alerts; `#task` and `#board` inline badges linking directly to cards and boards |
 | **P2** | **Dashboard Assigned Task Due Date Urgency Colors** | Dashboard & Kanban | ✅ Completed | Color-coded alert badges (overdue, due today, upcoming) on dashboard task cards matching board card urgency styling |
@@ -128,6 +130,8 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 ### 🔔 Notification Center
 - [x] **Click-Outside-to-Dismiss:** Automatically close the notification dropdown/drawer when clicking anywhere outside the notification panel.
 - [x] **Expanded Notification Triggers:** Add system notifications for pending leave requests, leave approvals/rejections, loan/CA requests, disbursements, card assignments, chat @mentions, and task due date alerts.
+- [x] **Targeted User & Admin Group Routing:** Smart SignalR notification routing delivering admin review alerts to workspace managers, personal approval/rejection outcomes to requesting employees, and task assignment & due date notices to assigned members.
+- [x] **Suppressed Intrusive Action Toasts:** Replaced noisy full-screen pop-up toasts for leave, advance, and e-loan submissions/updates with persistent, dedicated Notification Center entries.
 
 ### 🔑 Software Licensing & Product Key System *(Future Concept — Deferred)*
 > **Note:** Long-term architectural consideration for commercial on-premises deployments. Explicitly postponed from near-term implementation.

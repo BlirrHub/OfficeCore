@@ -506,7 +506,6 @@
         {
             await LoadRequests();
             await InvokeAsync(StateHasChanged);
-            ToastService.ShowSuccess("New leave request received.");
         });
 
         // Reload when a status change happens (another admin approved/rejected)

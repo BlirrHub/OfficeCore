@@ -506,7 +506,6 @@
         {
             await LoadRequests();
             await InvokeAsync(StateHasChanged);
-            ToastService.ShowSuccess("New advance/loan request received.");
         });
 
         // Reload when a request status changes (e.g. employee cancelled)

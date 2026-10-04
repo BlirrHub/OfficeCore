@@ -35,7 +35,6 @@ public interface IAuditService
     Task LogEmployeeAsync(string action, string details, string? employeeId = null, object? oldValues = null, object? newValues = null);
 
     Task LogSecurityAsync(string action, string details, string? targetUserId = null, object? metadata = null);
-    Task LogBackupAsync(string action, string details, string? fileName = null);
 }
 
 public class AuditService : IAuditService
@@ -215,10 +214,5 @@ public class AuditService : IAuditService
     public Task LogSecurityAsync(string action, string details, string? targetUserId = null, object? metadata = null)
     {
         return LogAsync(action, AuditModules.Roles, targetUserId, details, null, metadata);
-    }
-
-    public Task LogBackupAsync(string action, string details, string? fileName = null)
-    {
-        return LogAsync(action, AuditModules.Backup, fileName, details);
     }
 }

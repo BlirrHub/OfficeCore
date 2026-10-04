@@ -39,7 +39,7 @@
 <div class="relative">
     <!-- Notification Bell Button -->
     <button @onclick="ToggleDropdown"
-            class="relative text-zinc-400 hover:text-white transition-colors p-2 rounded-xl hover:bg-zinc-900 border border-transparent hover:border-zinc-800"
+            class="relative text-zinc-400 hover:text-white transition-colors p-2 rounded-xl hover:bg-zinc-900 border border-transparent hover:border-zinc-800 cursor-pointer"
             aria-label="Notifications"
             title="Notifications">
         <svg class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -60,7 +60,7 @@
         <!-- Transparent backdrop to dismiss on outside click -->
         <div class="fixed inset-0 z-[90] bg-transparent" @onclick="CloseDropdown"></div>
 
-        <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-zinc-800 shadow-2xl shadow-black z-[100] overflow-hidden flex flex-col max-h-[480px] oc-notif-dropdown">
+        <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-zinc-800 shadow-2xl shadow-black z-[100] overflow-hidden flex flex-col max-h-[500px] oc-notif-dropdown">
             <!-- Header -->
             <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between oc-notif-header">
                 <div class="flex items-center gap-2">
@@ -75,7 +75,7 @@
                 @if (_notifications.Any(n => !n.IsRead))
                 {
                     <button @onclick="MarkAllAsRead"
-                            class="text-[11px] text-fuchsia-400 hover:text-fuchsia-300 font-medium transition-colors">
+                            class="text-[11px] text-fuchsia-400 hover:text-fuchsia-300 font-medium transition-colors cursor-pointer">
                         Mark all as read
                     </button>
                 }
@@ -83,14 +83,21 @@
 
             <!-- Notification List -->
             <div class="overflow-y-auto flex-1 divide-y divide-zinc-800 custom-scrollbar oc-notif-dropdown">
-                @if (_notifications.Count == 0)
+                @if (_isLoading)
                 {
                     <div class="p-8 text-center space-y-2 oc-notif-item">
-                        <div class="size-10 rounded-full bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400">
+                        <div class="size-6 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                        <p class="text-xs text-zinc-400">Loading notifications...</p>
+                    </div>
+                }
+                else if (_notifications.Count == 0)
+                {
+                    <div class="p-8 text-center space-y-2 oc-notif-item">
+                        <div class="size-10 rounded-full bg-zinc-800/80 mx-auto flex items-center justify-center text-zinc-400">
                             <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
                         </div>
-                        <p class="text-xs font-medium text-zinc-300">You're all caught up!</p>
-                        <p class="text-[11px] text-zinc-500">Live workspace notifications will appear here in real time.</p>
+                        <p class="text-xs font-semibold text-zinc-300">You're all caught up!</p>
+                        <p class="text-[11px] text-zinc-500">Workspace alerts, approvals, and assigned tasks will appear here in real time.</p>
                     </div>
                 }
                 else
@@ -100,8 +107,8 @@
                         <div @onclick="() => OnItemClick(item)"
                              class="p-3.5 transition-colors cursor-pointer flex items-start gap-3 relative group oc-notif-item @(!item.IsRead ? "bg-fuchsia-950/20" : "")">
                             
-                            <!-- Icon Pill -->
-                            <div class="size-8 rounded-xl bg-zinc-800/80 flex items-center justify-center shrink-0 border border-zinc-700/60">
+                            <!-- Category / Type Icon Pill -->
+                            <div class="size-8 rounded-xl bg-zinc-800/80 flex items-center justify-center shrink-0 border border-zinc-700/60 mt-0.5">
                                 @if (item.Category == "Leave")
                                 {
                                     <svg class="size-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
@@ -109,6 +116,10 @@
                                 else if (item.Category == "Advance")
                                 {
                                     <svg class="size-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                }
+                                else if (item.Category == "Task")
+                                {
+                                    <svg class="size-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                                 }
                                 else if (item.Category == "Location")
                                 {
@@ -122,11 +133,40 @@
 
                             <!-- Content -->
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-center justify-between gap-2">
-                                    <p class="text-xs font-semibold text-zinc-100 truncate @(!item.IsRead ? "text-white" : "text-zinc-300")">
-                                        @item.Title
-                                    </p>
-                                    <span class="text-[10px] text-zinc-500 shrink-0">
+                                <div class="flex items-center justify-between gap-1.5">
+                                    <div class="flex items-center gap-1.5 min-w-0">
+                                        <p class="text-xs font-semibold truncate @(!item.IsRead ? "text-white" : "text-zinc-300")">
+                                            @item.Title
+                                        </p>
+                                        @if (!string.IsNullOrEmpty(item.Status))
+                                        {
+                                            @if (item.Status == "Approved")
+                                            {
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">Approved</span>
+                                            }
+                                            else if (item.Status == "Rejected")
+                                            {
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0">Rejected</span>
+                                            }
+                                            else if (item.Status == "Assigned")
+                                            {
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">Assigned</span>
+                                            }
+                                            else if (item.Status == "DueSoon")
+                                            {
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">Due Soon</span>
+                                            }
+                                            else if (item.Status == "Overdue")
+                                            {
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 shrink-0 animate-pulse">Overdue</span>
+                                            }
+                                            else if (item.Status == "Pending")
+                                            {
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 shrink-0">Review</span>
+                                            }
+                                        }
+                                    </div>
+                                    <span class="text-[10px] text-zinc-500 shrink-0 whitespace-nowrap">
                                         @FormatTimeAgo(item.Timestamp)
                                     </span>
                                 </div>
@@ -151,7 +191,7 @@
                 <div class="p-2 border-t border-zinc-800 flex items-center justify-between text-[11px] oc-notif-footer">
                     <span class="text-zinc-500 pl-2">Real-time alerts active</span>
                     <button @onclick="ClearAll"
-                            class="px-2.5 py-1 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
+                            class="px-2.5 py-1 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer">
                         Clear all
                     </button>
                 </div>
@@ -162,6 +202,7 @@
 
 @code {
     private bool _isOpen = false;
+    private bool _isLoading = false;
     private HubConnection? _hubConnection;
     private List<NotificationEntry> _notifications = new();
 
@@ -172,8 +213,8 @@
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
-        public string Category { get; set; } = string.Empty;
-        public string Icon { get; set; } = string.Empty;
+        public string Category { get; set; } = "System"; // Leave, Advance, Task, Location, System
+        public string? Status { get; set; } // Approved, Rejected, Assigned, DueSoon, Overdue, Pending
         public string? TargetUrl { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public bool IsRead { get; set; } = false;
@@ -181,21 +222,29 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Seed default initial welcome alert if list empty
-        if (_notifications.Count == 0)
-        {
-            _notifications.Add(new NotificationEntry
-            {
-                Title = "Welcome to OfficeCore",
-                Message = "Your workstation is connected and operational.",
-                Category = "System",
-                Timestamp = DateTime.UtcNow,
-                IsRead = false,
-                TargetUrl = "/dashboard"
-            });
-        }
-
+        await LoadRecentNotificationsAsync();
         await ConnectToNotificationHub();
+    }
+
+    private async Task LoadRecentNotificationsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var items = await Http.GetFromJsonAsync<List<NotificationEntry>>("api/notifications/recent");
+            if (items != null && items.Count > 0)
+            {
+                _notifications = items;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NotificationCenter] Error loading recent notifications: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private async Task ConnectToNotificationHub()
@@ -212,53 +261,16 @@
                 .WithAutomaticReconnect()
                 .Build();
 
-            // 1. Leave Requests
-            _hubConnection.On<object>("LeaveRequestCreated", (data) =>
+            // 1. Primary Rich Targeted Notifications (Admins, Requesters, Task Assignees)
+            _hubConnection.On<NotificationEntry>("ReceiveNotification", (payload) =>
             {
-                AddNotification(new NotificationEntry
+                if (payload != null)
                 {
-                    Title = "New Leave Request Submitted",
-                    Message = "An employee submitted a time-off request awaiting review.",
-                    Category = "Leave",
-                    TargetUrl = "/admin/leave-approvals"
-                });
+                    AddNotification(payload);
+                }
             });
 
-            _hubConnection.On<object>("LeaveRequestUpdated", (data) =>
-            {
-                AddNotification(new NotificationEntry
-                {
-                    Title = "Leave Request Status Updated",
-                    Message = "A leave request was reviewed or modified.",
-                    Category = "Leave",
-                    TargetUrl = "/myleaves"
-                });
-            });
-
-            // 2. Advance / E-Loan Requests
-            _hubConnection.On<object>("AdvanceRequestCreated", (data) =>
-            {
-                AddNotification(new NotificationEntry
-                {
-                    Title = "New Advance Request Filed",
-                    Message = "An employee filed a salary advance or E-Loan request.",
-                    Category = "Advance",
-                    TargetUrl = "/ledger"
-                });
-            });
-
-            _hubConnection.On<object>("AdvanceRequestUpdated", (data) =>
-            {
-                AddNotification(new NotificationEntry
-                {
-                    Title = "Advance / Loan Updated",
-                    Message = "An advance request status has been updated.",
-                    Category = "Advance",
-                    TargetUrl = "/advances"
-                });
-            });
-
-            // 3. Field Location Pings
+            // 2. Field Location Pings
             _hubConnection.On<object>("FieldLocationUpdated", (data) =>
             {
                 AddNotification(new NotificationEntry
@@ -266,7 +278,8 @@
                     Title = "Field Worker Active",
                     Message = "A team member broadcast their live location.",
                     Category = "Location",
-                    TargetUrl = "/locations"
+                    TargetUrl = "/locations",
+                    Timestamp = DateTime.UtcNow
                 });
             });
 
@@ -280,11 +293,15 @@
 
     private void AddNotification(NotificationEntry entry)
     {
+        // Avoid duplicate IDs if already present
+        _notifications.RemoveAll(n => n.Id == entry.Id);
         _notifications.Insert(0, entry);
-        if (_notifications.Count > 30)
+
+        if (_notifications.Count > 40)
         {
             _notifications.RemoveAt(_notifications.Count - 1);
         }
+
         InvokeAsync(StateHasChanged);
     }
 
@@ -328,6 +345,7 @@
         if (diff.TotalMinutes < 1) return "Just now";
         if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
         if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
         return timestamp.ToLocalTime().ToString("MMM dd");
     }
 
