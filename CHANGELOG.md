@@ -6,6 +6,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced — [2026-10-04] (Meta Messenger-Style Chat: Hover Actions, Hover Timestamps, Time Dividers, Message Pinning)
+
+- **Removed Hover Pin from Room List (`GlobalChatWidget.razor`):**
+  - Cleaned up the conversation list on the left side by removing the hover pin icon button on chat rooms, preserving a neat, unencumbered room list.
+
+- **Messenger-Style Message Hover Actions & 3-Dot Menu (`GlobalChatWidget.razor`):**
+  - Added Meta Messenger-style hover action controls alongside chat bubbles:
+    - **More Options (`⋮`)**: Opens a Messenger popup menu with "Unsend", "Forward", "Pin" / "Unpin", and "Report".
+    - **Reply (`↶`)**: Prepares an inline reply bar above the composer with the author name and message excerpt.
+    - **React (`☺`)**: Opens a quick reaction bar with standard emojis (👍, ❤️, 😂, 😮, 😢, 🙏) and displays reaction badges on the message.
+  - Aligned action controls dynamically: to the left of outgoing messages (`isMine`) and to the right of incoming messages (`!isMine`).
+
+- **Hover-Only Message Timestamps (`GlobalChatWidget.razor`):**
+  - Individual message timestamps beneath message bubbles are now hidden by default and smoothly revealed only when hovering over the message bubble container.
+
+- **Dynamic Messenger Time & Date Dividers (`GlobalChatWidget.razor`):**
+  - Centered subtle timestamp and day dividers are rendered between messages when 20+ minutes have elapsed or when crossing a new date boundary.
+  - Matches Messenger formats: `3:12 PM` for today, `Wed 2:46 PM` for earlier this week, and full date strings for older messages.
+
+- **Message Pinning & Unsend Functionality (`GlobalChatWidget.razor`, `ChatController.cs`):**
+  - Implemented message-level pinning persisted per room with visual pin indicators and a pinned message banner in the chat header.
+  - Added pinned messages list to the Chat Info drawer with single-click unpin capability.
+  - Implemented `DELETE /api/chat/messages/{messageId}` endpoint in `ChatController.cs` and client-side unsend support with SignalR `MessageDeleted` real-time broadcasting.
+
 ### Fixed & Enhanced — [2026-10-04] (Role Management Redesign, Workspace Owner Full Access, Ledger & Advances Modal Conversion)
 
 - **Workspace Owner Default Full Access:**

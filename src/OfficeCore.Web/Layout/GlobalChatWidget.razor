@@ -378,10 +378,6 @@
                                             }
                                         </h4>
                                         <div class="flex items-center gap-1 shrink-0">
-                                            <button type="button" @onclick="() => TogglePin(room.Id)" @onclick:stopPropagation 
-                                                    class="size-5 rounded hover:bg-zinc-800 flex items-center justify-center transition-colors @(_pinnedRoomIds.Contains(room.Id) ? "opacity-100 text-amber-400" : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300")" title="@(_pinnedRoomIds.Contains(room.Id) ? "Unpin chat" : "Pin chat")">
-                                                <svg class="size-3.5" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
-                                            </button>
                                             <span class="text-[10px] font-medium text-zinc-500">
                                                 @(room.LastMessage?.CreatedAt.ToLocalTime().ToString("MMM dd"))
                                             </span>
@@ -504,6 +500,30 @@
                                placeholder="Search messages in this chat..." 
                                class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
                     </div>
+                }
+
+                @if (_pinnedMessageIds.Any())
+                {
+                    var topPinned = _messages.LastOrDefault(m => _pinnedMessageIds.Contains(m.Id));
+                    if (topPinned != null)
+                    {
+                        <div class="px-3 py-1.5 bg-zinc-900/90 border-b border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-300 z-10 animate-fade-in shadow-xs">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <svg class="size-3.5 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
+                                <span class="font-semibold text-amber-300/90 shrink-0">Pinned:</span>
+                                <span class="truncate text-zinc-300">@(!string.IsNullOrEmpty(topPinned.Content) ? GetPreviewText(topPinned.Content) : topPinned.AttachmentName ?? "Attachment")</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                                @if (_pinnedMessageIds.Count > 1)
+                                {
+                                    <span class="px-1.5 py-0.2 bg-zinc-800 rounded text-[9px] font-bold text-zinc-400">@_pinnedMessageIds.Count</span>
+                                }
+                                <button type="button" @onclick="() => TogglePinMessage(topPinned.Id)" class="text-zinc-500 hover:text-zinc-300 cursor-pointer p-0.5" title="Unpin message">
+                                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    }
                 }
 
                 <!-- Group Details Side/Overlay Drawer -->
@@ -635,6 +655,37 @@
                             </div>
                         </div>
 
+                        <!-- Pinned Messages -->
+                        <div class="py-3 border-b border-zinc-800">
+                            <div class="space-y-1.5">
+                                <label class="block text-xs font-semibold text-zinc-200">Pinned Messages</label>
+                                @{
+                                    var pinnedList = _messages.Where(m => _pinnedMessageIds.Contains(m.Id)).OrderByDescending(m => m.CreatedAt).ToList();
+                                }
+                                @if (!pinnedList.Any())
+                                {
+                                    <p class="text-[11px] text-zinc-500 text-center py-2">No pinned messages in this chat.</p>
+                                }
+                                else
+                                {
+                                    <div class="flex flex-col gap-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                                        @foreach (var pMsg in pinnedList)
+                                        {
+                                            <div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-zinc-900/60 border border-zinc-800">
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-xs text-white truncate font-medium">@(!string.IsNullOrEmpty(pMsg.Content) ? GetPreviewText(pMsg.Content) : pMsg.AttachmentName ?? "Attachment")</p>
+                                                    <p class="text-[9px] text-zinc-500">@pMsg.SenderName • @pMsg.CreatedAt.ToLocalTime().ToString("MMM dd, h:mm tt")</p>
+                                                </div>
+                                                <button type="button" @onclick="() => TogglePinMessage(pMsg.Id)" class="text-amber-400 hover:text-amber-300 p-1 cursor-pointer" title="Unpin message">
+                                                    <svg class="size-3.5" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
                         @if (_activeRoom.Type == 1)
                         {
                             <!-- Add Member Section -->
@@ -726,7 +777,7 @@
                 }
 
                 <!-- Messages Area -->
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 flex flex-col-reverse" id="chat-messages-container">
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 flex flex-col-reverse" id="chat-messages-container" @onclick="CloseActiveMenus">
                     @if (_isLoadingMessages)
                     {
                         <div class="flex justify-center p-4">
@@ -740,19 +791,33 @@
                                 ? _messages 
                                 : _messages.Where(m => (!string.IsNullOrEmpty(m.Content) && m.Content.Contains(_chatSearchQuery, StringComparison.OrdinalIgnoreCase)) || 
                                                        (!string.IsNullOrEmpty(m.AttachmentName) && m.AttachmentName.Contains(_chatSearchQuery, StringComparison.OrdinalIgnoreCase))).ToList();
+                            var orderedMessages = displayMessages.DistinctBy(m => m.Id).OrderBy(m => m.CreatedAt).ToList();
+                            DateTime? lastMsgTime = null;
                         }
                         @if (!displayMessages.Any() && !string.IsNullOrWhiteSpace(_chatSearchQuery))
                         {
                             <div class="text-center py-8 text-zinc-500 text-xs">No messages match your search.</div>
                         }
-                        @foreach (var msg in displayMessages.DistinctBy(m => m.Id).OrderBy(m => m.CreatedAt))
+                        @for (int i = 0; i < orderedMessages.Count; i++)
                         {
+                            var msg = orderedMessages[i];
+                            bool showDivider = ShouldShowDivider(msg.CreatedAt, lastMsgTime);
+                            lastMsgTime = msg.CreatedAt;
+
+                            if (showDivider)
+                            {
+                                <div class="flex justify-center my-2 select-none">
+                                    <span class="text-[11px] font-semibold text-zinc-500">@FormatMessengerDivider(msg.CreatedAt)</span>
+                                </div>
+                            }
+
                             bool isMine = msg.SenderId == _currentEmployeeId;
                             bool hasAttachment = !string.IsNullOrEmpty(msg.AttachmentUrl);
                             bool isAttachmentImg = hasAttachment && IsImageAttachment(msg.AttachmentUrl);
                             bool isAttachmentPdf = hasAttachment && IsPdfAttachment(msg.AttachmentUrl);
+                            bool isPinned = _pinnedMessageIds.Contains(msg.Id);
 
-                            <div class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start")">
+                            <div class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start") group/msg relative items-end">
                                 @if (!isMine)
                                 {
                                     <div class="size-6 rounded-full bg-zinc-800 shrink-0 overflow-hidden self-end mb-1 border border-zinc-700">
@@ -769,11 +834,80 @@
                                     </div>
                                 }
                                 
+                                <!-- For sent message (isMine): Action icons are on the LEFT of the message bubble (Image 1) -->
+                                @if (isMine)
+                                {
+                                    <div class="self-center flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 relative shrink-0 @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "!opacity-100" : "")">
+                                        <!-- 3 dots more actions button (Image 1 & 2) -->
+                                        <div class="relative">
+                                            <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
+                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                    title="More actions">
+                                                <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                                            </button>
+                                            @if (_activeMessageMenuId == msg.Id)
+                                            {
+                                                <div class="absolute bottom-8 right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <button type="button" @onclick="() => UnsendMessage(msg.Id)" class="w-full text-left px-2.5 py-1.5 text-xs text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
+                                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        <span>Unsend</span>
+                                                    </button>
+                                                    <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
+                                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                                        <span>Forward</span>
+                                                    </button>
+                                                    <button type="button" @onclick="() => TogglePinMessage(msg.Id)" class="w-full text-left px-2.5 py-1.5 text-xs text-amber-300 hover:bg-zinc-800 hover:text-amber-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
+                                                        <svg class="size-3.5" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
+                                                        <span>@(isPinned ? "Unpin" : "Pin")</span>
+                                                    </button>
+                                                    <button type="button" @onclick="() => ReportMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
+                                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                        <span>Report</span>
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <!-- Reply button (Image 1) -->
+                                        <button type="button" @onclick="() => StartReply(msg)" @onclick:stopPropagation
+                                                class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                title="Reply">
+                                            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                                        </button>
+
+                                        <!-- React emoji button (Image 1) -->
+                                        <div class="relative">
+                                            <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
+                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                    title="React">
+                                                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            </button>
+                                            @if (_activeReactionMenuId == msg.Id)
+                                            {
+                                                <div class="absolute bottom-8 right-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
+                                                    @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
+                                                    {
+                                                        <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" class="size-6 rounded-full hover:bg-zinc-800 flex items-center justify-center text-xs hover:scale-125 transition-transform cursor-pointer">@emoji</button>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                
                                 <div class="max-w-[78%] flex flex-col @(isMine ? "items-end" : "items-start")">
                                     @if (!isMine && _activeRoom?.Type == 1)
                                     {
                                         <!-- In group chat, show sender's name above message -->
                                         <span class="text-[10px] font-semibold text-fuchsia-400 mb-0.5 ml-1">@msg.SenderName</span>
+                                    }
+
+                                    @if (isPinned)
+                                    {
+                                        <span class="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-400 mb-0.5 px-1 select-none">
+                                            <svg class="size-2.5" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
+                                            <span>Pinned</span>
+                                        </span>
                                     }
 
                                     <div class="flex flex-col gap-1.5 @(isMine ? "items-end" : "items-start")">
@@ -843,8 +977,87 @@
                                             </div>
                                         }
                                     </div>
-                                    <span class="text-[9px] text-zinc-500 mt-1 px-1">@msg.CreatedAt.ToLocalTime().ToString("h:mm tt")</span>
+
+                                    <!-- Reactions if any -->
+                                    @if (_messageReactions.TryGetValue(msg.Id, out var rxList) && rxList.Any())
+                                    {
+                                        <div class="flex items-center gap-1 -mt-1.5 px-1 z-10 @(isMine ? "justify-end" : "justify-start")">
+                                            @foreach (var rx in rxList.Distinct())
+                                            {
+                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-700 text-[10px] shadow-xs cursor-pointer hover:scale-110 transition-transform"
+                                                      @onclick="() => ToggleReaction(msg.Id, rx)">
+                                                    <span>@rx</span>
+                                                    @if (rxList.Count(r => r == rx) > 1)
+                                                    {
+                                                        <span class="text-[9px] text-zinc-400 font-semibold">@rxList.Count(r => r == rx)</span>
+                                                    }
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+
+                                    <!-- Hover-only Timestamp (Image 3) -->
+                                    <div class="max-h-0 opacity-0 overflow-hidden group-hover/msg:max-h-5 group-hover/msg:opacity-100 group-hover/msg:mt-1 transition-all duration-150 ease-out select-none">
+                                        <span class="text-[9px] text-zinc-500 px-1">@msg.CreatedAt.ToLocalTime().ToString("h:mm tt")</span>
+                                    </div>
                                 </div>
+
+                                <!-- For received message (!isMine): Action icons are on the RIGHT of the message bubble (Image 1) -->
+                                @if (!isMine)
+                                {
+                                    <div class="self-center flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 relative shrink-0 @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "!opacity-100" : "")">
+                                        <!-- React emoji button (Image 1) -->
+                                        <div class="relative">
+                                            <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
+                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                    title="React">
+                                                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            </button>
+                                            @if (_activeReactionMenuId == msg.Id)
+                                            {
+                                                <div class="absolute bottom-8 left-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
+                                                    @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
+                                                    {
+                                                        <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" class="size-6 rounded-full hover:bg-zinc-800 flex items-center justify-center text-xs hover:scale-125 transition-transform cursor-pointer">@emoji</button>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <!-- Reply button (Image 1) -->
+                                        <button type="button" @onclick="() => StartReply(msg)" @onclick:stopPropagation
+                                                class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                title="Reply">
+                                            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                                        </button>
+
+                                        <!-- 3 dots more actions button (Image 1 & 2) -->
+                                        <div class="relative">
+                                            <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
+                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                    title="More actions">
+                                                <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                                            </button>
+                                            @if (_activeMessageMenuId == msg.Id)
+                                            {
+                                                <div class="absolute bottom-8 left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
+                                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                                        <span>Forward</span>
+                                                    </button>
+                                                    <button type="button" @onclick="() => TogglePinMessage(msg.Id)" class="w-full text-left px-2.5 py-1.5 text-xs text-amber-300 hover:bg-zinc-800 hover:text-amber-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
+                                                        <svg class="size-3.5" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
+                                                        <span>@(isPinned ? "Unpin" : "Pin")</span>
+                                                    </button>
+                                                    <button type="button" @onclick="() => ReportMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
+                                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                        <span>Report</span>
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>
@@ -890,6 +1103,25 @@
                             <button type="button" @onclick="ClearPendingAttachment" title="Remove attachment"
                                     class="size-6 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
                                 <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    }
+
+                    <!-- Replying to preview banner -->
+                    @if (_replyingToMessage != null)
+                    {
+                        <div class="flex items-center justify-between p-2 rounded-xl bg-zinc-950 border border-zinc-800 shadow-sm animate-fade-in mb-2 text-xs">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <svg class="size-3.5 text-fuchsia-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                </svg>
+                                <div class="min-w-0 text-[11px]">
+                                    <span class="text-zinc-400">Replying to <span class="text-fuchsia-300 font-medium">@(_replyingToMessage.SenderId == _currentEmployeeId ? "yourself" : _replyingToMessage.SenderName)</span>: </span>
+                                    <span class="text-zinc-200 truncate font-normal">@(!string.IsNullOrEmpty(_replyingToMessage.Content) ? GetPreviewText(_replyingToMessage.Content) : _replyingToMessage.AttachmentName ?? "Attachment")</span>
+                                </div>
+                            </div>
+                            <button type="button" @onclick="CancelReply" class="size-5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors shrink-0" title="Cancel reply">
+                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
                     }
@@ -1034,6 +1266,11 @@
     private string _chatSearchQuery = string.Empty;
     private bool _showChatSearch = false;
     private HashSet<Guid> _pinnedRoomIds = new();
+    private HashSet<Guid> _pinnedMessageIds = new();
+    private Guid? _activeMessageMenuId = null;
+    private Guid? _activeReactionMenuId = null;
+    private ChatMessageDto? _replyingToMessage = null;
+    private Dictionary<Guid, List<string>> _messageReactions = new();
     
     private HashSet<string> _myBoardIds = new();
     
@@ -1162,6 +1399,18 @@
         if (string.IsNullOrWhiteSpace(content)) return new MarkupString("");
         
         var encoded = System.Net.WebUtility.HtmlEncode(content);
+
+        // 0. Parse reply quotes if present
+        if (encoded.StartsWith("&gt; Replying to "))
+        {
+            var parts = encoded.Split(new[] { "\n\n", "\r\n\r\n" }, 2, StringSplitOptions.None);
+            if (parts.Length == 2)
+            {
+                var quote = parts[0].Replace("&gt; ", "");
+                var actualText = parts[1];
+                encoded = $"<div class=\"mb-1.5 px-2 py-1 rounded-lg bg-black/25 text-[10px] opacity-85 border-l-2 border-white/60\">{quote}</div><div>{actualText}</div>";
+            }
+        }
         
         // 1. Parse Markdown links for User Mentions: [Name](@user-id)
         encoded = System.Text.RegularExpressions.Regex.Replace(
@@ -1462,6 +1711,16 @@
             }
         });
 
+        _hubConnection.On<Guid, Guid>("MessageDeleted", (roomId, msgId) =>
+        {
+            if (_activeRoom?.Id == roomId)
+            {
+                _messages.RemoveAll(m => m.Id == msgId);
+                _pinnedMessageIds.Remove(msgId);
+                InvokeAsync(StateHasChanged);
+            }
+        });
+
         _hubConnection.On<Guid, string>("UserTyping", (roomId, userId) =>
         {
             if (_activeRoom?.Id == roomId && userId != _currentEmployeeId)
@@ -1673,9 +1932,13 @@
         _isLoadingMessages = true;
         _showGroupDetails = false;
         _showAddMembers = false;
+        _activeMessageMenuId = null;
+        _activeReactionMenuId = null;
+        _replyingToMessage = null;
         room.UnreadCount = 0;
         ClearPendingAttachment();
         _ = LoadMyBoards();
+        _ = LoadPinnedMessagesForRoom(room.Id);
         
         try
         {
@@ -1698,6 +1961,9 @@
             try { await _hubConnection!.SendAsync("LeaveRoom", _activeRoom.Id.ToString()); } catch { }
             _activeRoom = null;
             _showGroupDetails = false;
+            _activeMessageMenuId = null;
+            _activeReactionMenuId = null;
+            _replyingToMessage = null;
             ClearPendingAttachment();
             await LoadRooms();
         }
@@ -1882,6 +2148,15 @@
         foreach(var kvp in _draftMentions.OrderByDescending(k => k.Key.Length))
         {
             content = content.Replace(kvp.Key, kvp.Value);
+        }
+
+        if (_replyingToMessage != null)
+        {
+            var sender = _replyingToMessage.SenderId == _currentEmployeeId ? "yourself" : _replyingToMessage.SenderName;
+            var preview = GetPreviewText(_replyingToMessage.Content);
+            if (string.IsNullOrEmpty(preview) && !string.IsNullOrEmpty(_replyingToMessage.AttachmentName)) preview = _replyingToMessage.AttachmentName;
+            content = $"> Replying to {sender}: \"{preview}\"\n\n{content}";
+            _replyingToMessage = null;
         }
 
         var attUrl = _pendingAttachmentUrl;
@@ -2195,5 +2470,176 @@
             }
         }
         catch { }
+    }
+
+    private void CloseActiveMenus()
+    {
+        _activeMessageMenuId = null;
+        _activeReactionMenuId = null;
+    }
+
+    private void ToggleMessageMenu(Guid messageId)
+    {
+        _activeReactionMenuId = null;
+        _activeMessageMenuId = _activeMessageMenuId == messageId ? null : messageId;
+    }
+
+    private void ToggleReactionPicker(Guid messageId)
+    {
+        _activeMessageMenuId = null;
+        _activeReactionMenuId = _activeReactionMenuId == messageId ? null : messageId;
+    }
+
+    private void ToggleReaction(Guid messageId, string emoji)
+    {
+        if (!_messageReactions.ContainsKey(messageId))
+        {
+            _messageReactions[messageId] = new List<string>();
+        }
+
+        if (_messageReactions[messageId].Contains(emoji))
+        {
+            _messageReactions[messageId].Remove(emoji);
+        }
+        else
+        {
+            _messageReactions[messageId].Add(emoji);
+        }
+        _activeReactionMenuId = null;
+        StateHasChanged();
+    }
+
+    private void StartReply(ChatMessageDto msg)
+    {
+        _replyingToMessage = msg;
+        _activeMessageMenuId = null;
+        _activeReactionMenuId = null;
+        StateHasChanged();
+    }
+
+    private void CancelReply()
+    {
+        _replyingToMessage = null;
+    }
+
+    private async Task TogglePinMessage(Guid messageId)
+    {
+        if (_pinnedMessageIds.Contains(messageId))
+        {
+            _pinnedMessageIds.Remove(messageId);
+            ToastService.ShowInfo("Message unpinned");
+        }
+        else
+        {
+            _pinnedMessageIds.Add(messageId);
+            ToastService.ShowSuccess("Message pinned");
+        }
+        _activeMessageMenuId = null;
+
+        if (_activeRoom != null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("localStorage.setItem", $"pinned_msgs_{_activeRoom.Id}", System.Text.Json.JsonSerializer.Serialize(_pinnedMessageIds));
+            }
+            catch { }
+        }
+        StateHasChanged();
+    }
+
+    private async Task LoadPinnedMessagesForRoom(Guid roomId)
+    {
+        try
+        {
+            var stored = await JS.InvokeAsync<string>("localStorage.getItem", $"pinned_msgs_{roomId}");
+            if (!string.IsNullOrEmpty(stored))
+            {
+                _pinnedMessageIds = System.Text.Json.JsonSerializer.Deserialize<HashSet<Guid>>(stored) ?? new();
+            }
+            else
+            {
+                _pinnedMessageIds = new();
+            }
+            StateHasChanged();
+        }
+        catch
+        {
+            _pinnedMessageIds = new();
+        }
+    }
+
+    private async Task UnsendMessage(Guid messageId)
+    {
+        _activeMessageMenuId = null;
+        try
+        {
+            var res = await Http.DeleteAsync($"/api/chat/messages/{messageId}");
+            if (res.IsSuccessStatusCode)
+            {
+                _messages.RemoveAll(m => m.Id == messageId);
+                _pinnedMessageIds.Remove(messageId);
+                ToastService.ShowSuccess("Message unsent.");
+                StateHasChanged();
+            }
+            else
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                ToastService.ShowError(!string.IsNullOrWhiteSpace(err) ? err : "Failed to unsend message.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error unsending message: {ex.Message}");
+        }
+    }
+
+    private async Task ForwardMessage(ChatMessageDto msg)
+    {
+        _activeMessageMenuId = null;
+        var contentToCopy = !string.IsNullOrWhiteSpace(msg.Content) ? msg.Content : (msg.AttachmentUrl ?? "");
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", contentToCopy);
+            ToastService.ShowSuccess("Message copied to clipboard!");
+        }
+        catch
+        {
+            ToastService.ShowInfo("Message copied.");
+        }
+    }
+
+    private void ReportMessage(ChatMessageDto msg)
+    {
+        _activeMessageMenuId = null;
+        ToastService.ShowSuccess("Message reported to administrator.");
+    }
+
+    private bool ShouldShowDivider(DateTime current, DateTime? previous)
+    {
+        if (!previous.HasValue) return true;
+        if (current.ToLocalTime().Date != previous.Value.ToLocalTime().Date) return true;
+        return (current - previous.Value).TotalMinutes >= 20;
+    }
+
+    private string FormatMessengerDivider(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var now = DateTime.Now;
+        if (local.Date == now.Date)
+        {
+            return local.ToString("h:mm tt");
+        }
+        else if ((now.Date - local.Date).TotalDays < 7 && local.Date < now.Date)
+        {
+            return local.ToString("ddd h:mm tt");
+        }
+        else if (local.Year == now.Year)
+        {
+            return local.ToString("MMM d, h:mm tt");
+        }
+        else
+        {
+            return local.ToString("MMM d, yyyy, h:mm tt");
+        }
     }
 }

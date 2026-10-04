@@ -207,6 +207,32 @@ public class ChatController : ControllerBase
         return Ok(msgDto);
     }
 
+    [HttpDelete("messages/{messageId}")]
+    public async Task<IActionResult> UnsendMessage(Guid messageId)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var message = await _context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.OrganizationId == orgId.Value);
+        if (message == null) return NotFound("Message not found.");
+
+        if (message.SenderId != employee.Id) return Forbid("You can only unsend your own messages.");
+
+        var roomId = message.ChatRoomId;
+        _context.ChatMessages.Remove(message);
+        await _context.SaveChangesAsync();
+
+        var roomMembers = await _context.ChatRoomMembers.Where(m => m.ChatRoomId == roomId).Select(m => m.UserId).ToListAsync();
+        foreach (var memberId in roomMembers)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{memberId}").SendAsync("MessageDeleted", roomId, messageId);
+        }
+
+        return Ok(new { message = "Message unsent successfully." });
+    }
+
     [HttpPost("rooms/{roomId}/attachment")]
     public async Task<IActionResult> UploadAttachment(Guid roomId, IFormFile file)
     {
