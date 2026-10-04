@@ -6,7 +6,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Fixed & Enhanced — [2026-10-04] (Client Module: OPC Business Type, Business Active/Inactive Status, and Modal UI Height Scrollability)
+### Fixed & Enhanced — [2026-10-04] (Role Management Redesign, Workspace Owner Full Access, Ledger & Advances Modal Conversion)
+
+- **Workspace Owner Default Full Access:**
+  - `OrganizationClaimsTransformation.cs` now detects the workspace owner and automatically grants all module claims (`Dashboard`, `MyAttendance`, `MyLeaves`, `Advances`, `Boards`, `Clients`, `Attendance`, `Ledger`, `Payroll`, `Invoices`, `Users`, `Roles`, `LeaveApprovals`, `WorkSchedules`, `TimeOff`, `Locations`, `Organization`, `Backups`, `AuditLogs`), eliminating the dependency on seeded roles.
+  - `AuthController.cs` `/me` endpoint mirrors this logic so the frontend receives all module claims on login for workspace owners.
+  - `OrganizationsController.cs` no longer seeds hardcoded `Admin` / `Employee` roles on new organization creation — owners use Role Management to create custom roles as needed.
+
+- **Role Management Redesign (`RoleManagement.razor`, `RoleController.cs`):**
+  - Removed `Organization` from the `Administration` module category in the Role Management UI — Organization access is reserved for the workspace owner only via claims transformation.
+  - Removed all hardcoded `Admin`-role protections: role name is now fully editable, the Delete button shows for all roles, and `RoleController.cs` no longer blocks renaming or deleting any role.
+  - Role modal redesigned with `max-h-[90vh] flex flex-col overflow-hidden` layout — fixed header, scrollable body, fixed footer action row.
+
+- **Ledger Expense Form → Modal (`Ledger.razor`):**
+  - Converted the inline "Log Company Expense" card (rendered inside the Expenses tab) into a proper centered modal dialog (`fixed inset-0`, `max-h-[90vh] flex flex-col overflow-hidden`, scrollable body, pinned footer).
+  - Updated the "Create Advance or Loan" modal to use `flex flex-col max-h-[90vh] overflow-hidden` with a scrollable body.
+
+- **Advances Request Form → Modal (`Advances.razor`):**
+  - Converted the inline "Request Advance or E-Loan" card into a proper centered modal dialog with `max-h-[90vh]`, scrollable content body, and pinned action footer.
+
+- **LeaveApprovals Create Leave Modal (`LeaveApprovals.razor`):**
+  - Applied `flex flex-col max-h-[90vh] overflow-hidden` with `shrink-0` header and `overflow-y-auto flex-1` body to the Create Leave admin modal.
+
+
 
 - **OPC (One Person Corporation) Business Type:**
   - Added `OPC (One Person Corporation)` to the business type options in the Client module ([Clients.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/Clients.razor)), expanding registration types alongside Sole Proprietorship, Partnership, Corporation, and Cooperative.

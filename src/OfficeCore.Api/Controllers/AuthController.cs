@@ -183,6 +183,20 @@ public class AuthController : ControllerBase
 
         if (orgId.HasValue)
         {
+            // Check if workspace owner — grant all modules
+            var org = await _context.Organizations.FindAsync(orgId.Value);
+            bool isOwner = org != null && org.CreatedByUserId == user.Id;
+            if (isOwner)
+            {
+                moduleClaims = new List<string>
+                {
+                    "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards",
+                    "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
+                    "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff",
+                    "Locations", "Organization", "Backups", "AuditLogs"
+                };
+            }
+
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.UserId == user.Id && e.OrganizationId == orgId.Value);
 
