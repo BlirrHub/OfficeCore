@@ -6,6 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced — [2026-10-05] (Emoji Reactions Positioning, Per-User Reaction Overwriting & Dynamic Textarea Auto-Sizing)
+
+- **Top-Anchored Emoji Reaction Bar (`GlobalChatWidget.razor`):**
+  - Repositioned the emoji reaction bar (`👍`, `❤️`, `😂`, `😮`, `😢`, `🙏`) directly on top of the chat bubble (`bottom-full mb-1.5`) rather than protruding outward from the action pill.
+  - Set dynamic horizontal alignment (`right-0` for sent messages, `left-0` for received messages) with `whitespace-nowrap` to ensure reactions always extend inward over the message and never face to the right or clip past the chat window edge.
+  - Added upper headroom padding (`pt-8`) to the scrollable messages container so even messages at the top of the history have ample clearance for the reaction bar.
+
+- **Single Reaction Enforcement & Overwriting (`GlobalChatWidget.razor`):**
+  - Updated reaction state tracking to map `[MessageId -> [UserId -> Emoji]]` (`_messageUserReactions`).
+  - Enforced a 1-reaction-per-user rule: selecting a new reaction overwrites any previous emoji reaction the user previously chose on that message; clicking the same reaction un-reacts/removes it.
+  - Updated reaction badge grouping below chat bubbles to accurately reflect aggregated counts per emoji with current user reaction highlighting.
+
+- **Auto-Expanding Chat Input Box (1 to 3 Lines Max) (`GlobalChatWidget.razor`, `index.html`):**
+  - Configured chat `<textarea>` to start with a compact single line (`rows="1"`, `min-h-[38px]`, `height: 38px;`).
+  - Added native CSS `field-sizing: content;` and max height restriction (`max-h-[84px]`), allowing smooth expansion up to 3 lines max as text is typed or new lines are entered, after which an internal custom scrollbar engages.
+  - Implemented delegated input auto-resize listener and `resetChatTextarea` JavaScript interop in `index.html` to guarantee cross-browser auto-resizing and instant reset back to 1 line upon sending a message.
+
 ### Enhanced — [2026-10-04] (Message Bubble Hover Scoping & Menu Simplification)
 
 - **Bubble-Scoped Hover Actions & Timestamps (`GlobalChatWidget.razor`):**

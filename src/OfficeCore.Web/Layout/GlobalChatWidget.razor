@@ -777,7 +777,7 @@
                 }
 
                 <!-- Messages Area -->
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col-reverse" id="chat-messages-container" @onclick="CloseActiveMenus">
+                <div class="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3 pt-8 flex flex-col-reverse" id="chat-messages-container" @onclick="CloseActiveMenus">
                     @if (_isLoadingMessages)
                     {
                         <div class="flex justify-center p-4">
@@ -870,26 +870,33 @@
                                             </button>
 
                                             <!-- React emoji button (Image 1) -->
-                                            <div class="relative">
-                                                <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
-                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
-                                                        title="React">
-                                                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                </button>
-                                                @if (_activeReactionMenuId == msg.Id)
-                                                {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1" : "bottom-full mb-1") left-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
-                                                        @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
-                                                        {
-                                                            <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" class="size-6 rounded-full hover:bg-zinc-800 flex items-center justify-center text-xs hover:scale-125 transition-transform cursor-pointer">@emoji</button>
-                                                        }
-                                                    </div>
-                                                }
-                                            </div>
+                                            <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
+                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeReactionMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
+                                                    title="React">
+                                                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            </button>
                                         </div>
                                     }
                                     
-                                    <div class="chat-msg-bubble-wrap flex flex-col @(isMine ? "items-end" : "items-start") min-w-0">
+                                    <div class="chat-msg-bubble-wrap relative flex flex-col @(isMine ? "items-end" : "items-start") min-w-0">
+                                        <!-- Floating Emoji Reaction Picker directly on top of chat bubble -->
+                                        @if (_activeReactionMenuId == msg.Id)
+                                        {
+                                            var myUserId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
+                                            var userCurrentRx = _messageUserReactions.TryGetValue(msg.Id, out var uMap) && uMap.TryGetValue(myUserId, out var curRx) ? curRx : null;
+
+                                            <div class="absolute bottom-full mb-1.5 @(isMine ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap" @onclick:stopPropagation>
+                                                @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
+                                                {
+                                                    var isSelected = emoji == userCurrentRx;
+                                                    <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" 
+                                                            class="size-6 sm:size-7 rounded-full flex items-center justify-center text-xs sm:text-sm hover:scale-125 transition-transform cursor-pointer @(isSelected ? "bg-fuchsia-600/30 ring-1.5 ring-fuchsia-400 scale-110" : "hover:bg-zinc-800")"
+                                                            title="@(isSelected ? "Remove reaction" : "React")">
+                                                        @emoji
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
                                         @if (!isMine && _activeRoom?.Type == 1)
                                         {
                                             <!-- In group chat, show sender's name above message -->
@@ -973,17 +980,22 @@
                                         </div>
 
                                         <!-- Reactions if any -->
-                                        @if (_messageReactions.TryGetValue(msg.Id, out var rxList) && rxList.Any())
+                                        @if (_messageUserReactions.TryGetValue(msg.Id, out var userRxMap) && userRxMap.Any())
                                         {
+                                            var myUserId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
+                                            var myRx = userRxMap.TryGetValue(myUserId, out var rVal) ? rVal : null;
+                                            var rxGroups = userRxMap.Values.GroupBy(e => e).Select(g => new { Emoji = g.Key, Count = g.Count() }).ToList();
+
                                             <div class="flex items-center gap-1 -mt-1.5 px-1 z-10 @(isMine ? "justify-end" : "justify-start")">
-                                                @foreach (var rx in rxList.Distinct())
+                                                @foreach (var g in rxGroups)
                                                 {
-                                                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-700 text-[10px] shadow-xs cursor-pointer hover:scale-110 transition-transform"
-                                                          @onclick="() => ToggleReaction(msg.Id, rx)">
-                                                        <span>@rx</span>
-                                                        @if (rxList.Count(r => r == rx) > 1)
+                                                    var isMyRx = g.Emoji == myRx;
+                                                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-zinc-900 border text-[10px] shadow-xs cursor-pointer hover:scale-110 transition-transform @(isMyRx ? "border-fuchsia-500/60 bg-fuchsia-950/40 text-fuchsia-200" : "border-zinc-700 text-zinc-300")"
+                                                          @onclick="() => ToggleReaction(msg.Id, g.Emoji)">
+                                                        <span>@g.Emoji</span>
+                                                        @if (g.Count > 1)
                                                         {
-                                                            <span class="text-[9px] text-zinc-400 font-semibold">@rxList.Count(r => r == rx)</span>
+                                                            <span class="text-[9px] text-zinc-400 font-semibold">@g.Count</span>
                                                         }
                                                     </span>
                                                 }
@@ -1001,22 +1013,11 @@
                                     {
                                         <div class="self-center flex items-center gap-0.5 chat-msg-actions relative shrink-0 px-1 py-0.5 rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "is-active" : "")">
                                             <!-- React emoji button (Image 1) -->
-                                            <div class="relative">
-                                                <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
-                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
-                                                        title="React">
-                                                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                </button>
-                                                @if (_activeReactionMenuId == msg.Id)
-                                                {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1" : "bottom-full mb-1") right-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
-                                                        @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
-                                                        {
-                                                            <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" class="size-6 rounded-full hover:bg-zinc-800 flex items-center justify-center text-xs hover:scale-125 transition-transform cursor-pointer">@emoji</button>
-                                                        }
-                                                    </div>
-                                                }
-                                            </div>
+                                            <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
+                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeReactionMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
+                                                    title="React">
+                                                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            </button>
 
                                             <!-- Reply button (Image 1) -->
                                             <button type="button" @onclick="() => StartReply(msg)" @onclick:stopPropagation
@@ -1120,7 +1121,7 @@
                     <form @onsubmit="SendMessage" class="flex items-end gap-2">
                         <!-- Attachment Input & Button -->
                         <label for="chat-file-input" title="Attach image or document"
-                               class="size-8.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer border border-zinc-700/60 mb-1 @(_isUploadingAttachment ? "pointer-events-none opacity-50" : "")">
+                               class="size-8.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer border border-zinc-700/60 mb-0.5 @(_isUploadingAttachment ? "pointer-events-none opacity-50" : "")">
                             @if (_isUploadingAttachment)
                             {
                                 <div class="animate-spin size-3.5 border-2 border-fuchsia-400 border-t-transparent rounded-full"></div>
@@ -1191,13 +1192,14 @@
                             <textarea id="chat-input-textarea"
                                       @bind="_newMessageContent" @bind:event="oninput" 
                                       @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp"
-                                      rows="3"
+                                      rows="1"
                                       placeholder="@(_activeRoom?.Type == 1 ? $"Message {_activeRoom?.Name}..." : "Type a message... (Shift+Enter for newline)")" 
-                                      class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors resize-none custom-scrollbar min-h-[72px] max-h-[130px] leading-relaxed"></textarea>
+                                      class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-[border-color,background-color] resize-none custom-scrollbar min-h-[38px] max-h-[84px] leading-relaxed"
+                                      style="field-sizing: content; min-height: 38px; max-height: 84px; height: 38px;"></textarea>
                         </div>
 
                         <button type="submit" disabled="@(string.IsNullOrWhiteSpace(_newMessageContent) && string.IsNullOrEmpty(_pendingAttachmentUrl))" 
-                                class="size-8.5 rounded-xl bg-fuchsia-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fuchsia-500 transition-colors shrink-0 shadow-md shadow-fuchsia-900/30 cursor-pointer mb-1"
+                                class="size-8.5 rounded-xl bg-fuchsia-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fuchsia-500 transition-colors shrink-0 shadow-md shadow-fuchsia-900/30 cursor-pointer mb-0.5"
                                 title="Send message (Enter)">
                             <svg class="size-3.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                         </button>
@@ -1414,7 +1416,7 @@
     private Guid? _activeMessageMenuId = null;
     private Guid? _activeReactionMenuId = null;
     private ChatMessageDto? _replyingToMessage = null;
-    private Dictionary<Guid, List<string>> _messageReactions = new();
+    private Dictionary<Guid, Dictionary<string, string>> _messageUserReactions = new();
 
     private bool _showForwardModal = false;
     private ChatMessageDto? _messageToForward = null;
@@ -2316,6 +2318,7 @@
         _newMessageContent = string.Empty;
         _draftMentions.Clear();
         ClearPendingAttachment();
+        _ = JS.InvokeVoidAsync("resetChatTextarea");
 
         var tempId = Guid.NewGuid();
         var optimisticMsg = new ChatMessageDto
@@ -2642,19 +2645,23 @@
 
     private void ToggleReaction(Guid messageId, string emoji)
     {
-        if (!_messageReactions.ContainsKey(messageId))
+        if (!_messageUserReactions.TryGetValue(messageId, out var userMap))
         {
-            _messageReactions[messageId] = new List<string>();
+            userMap = new Dictionary<string, string>();
+            _messageUserReactions[messageId] = userMap;
         }
 
-        if (_messageReactions[messageId].Contains(emoji))
+        var userId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
+
+        if (userMap.TryGetValue(userId, out var existingEmoji) && existingEmoji == emoji)
         {
-            _messageReactions[messageId].Remove(emoji);
+            userMap.Remove(userId);
         }
         else
         {
-            _messageReactions[messageId].Add(emoji);
+            userMap[userId] = emoji;
         }
+
         _activeReactionMenuId = null;
         StateHasChanged();
     }

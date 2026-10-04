@@ -69,11 +69,31 @@
     <script src="js/mapInterop.js?v=6"></script>
     <script src="js/fileInterop.js"></script>
     <script>
+        function resizeChatTextarea(el) {
+            if (!el) return;
+            el.style.height = 'auto';
+            var newH = Math.min(Math.max(el.scrollHeight, 38), 84);
+            el.style.height = newH + 'px';
+        }
+
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.id === 'chat-input-textarea') {
+                resizeChatTextarea(e.target);
+            }
+        });
+
         document.addEventListener('keydown', function(e) {
             if (e.target && e.target.id === 'chat-input-textarea' && e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
             }
         });
+
+        window.resetChatTextarea = function() {
+            var el = document.getElementById('chat-input-textarea');
+            if (el) {
+                el.style.height = '38px';
+            }
+        };
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
