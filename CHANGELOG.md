@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced — [2026-10-04] (Message Bubble Hover Scoping & Menu Simplification)
+
+- **Bubble-Scoped Hover Actions & Timestamps (`GlobalChatWidget.razor`):**
+  - Grouped message actions (`⋮`, `↶`, `☺`), bubble contents, and timestamp within `.chat-msg-bubble-group`.
+  - Re-scoped hover effects and CSS rules so hovering empty horizontal row space does not show icons or timestamps; controls and timestamps only appear when hovering directly over the message bubble cluster.
+
+- **Simplified Message Dropdown Actions (`GlobalChatWidget.razor`):**
+  - Removed "Unsend" and "Report" actions from both outgoing and incoming message 3-dot dropdown menus, keeping only "Forward" and "Pin" / "Unpin" for a clean, distraction-free experience.
+
 ### Enhanced — [2026-10-04] (Meta Messenger-Style Chat: Hover Actions, Hover Timestamps, Time Dividers, Message Pinning)
 
 - **Removed Hover Pin from Room List (`GlobalChatWidget.razor`):**
