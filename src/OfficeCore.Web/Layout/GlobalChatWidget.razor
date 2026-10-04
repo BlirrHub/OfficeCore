@@ -834,7 +834,7 @@
                                     </div>
                                 }
                                 
-                                <!-- Message bubble & action buttons cluster: hover activates only here -->
+                                <!-- Message bubble & action buttons cluster: hover activates only when pointing at the bubble wrapper -->
                                 <div class="chat-msg-bubble-group flex items-end gap-1.5 max-w-[85%] @(isMine ? "flex-row" : "flex-row")">
                                     <!-- For sent message (isMine): Action icons are on the LEFT of the message bubble (Image 1) -->
                                     @if (isMine)
@@ -849,7 +849,7 @@
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute bottom-8 right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div class="absolute bottom-full mb-1.5 right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
                                                             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
@@ -878,7 +878,7 @@
                                                 </button>
                                                 @if (_activeReactionMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute bottom-8 right-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
+                                                    <div class="absolute bottom-full mb-1.5 right-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
                                                         @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
                                                         {
                                                             <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" class="size-6 rounded-full hover:bg-zinc-800 flex items-center justify-center text-xs hover:scale-125 transition-transform cursor-pointer">@emoji</button>
@@ -889,7 +889,7 @@
                                         </div>
                                     }
                                     
-                                    <div class="flex flex-col @(isMine ? "items-end" : "items-start") min-w-0">
+                                    <div class="chat-msg-bubble-wrap flex flex-col @(isMine ? "items-end" : "items-start") min-w-0">
                                         @if (!isMine && _activeRoom?.Type == 1)
                                         {
                                             <!-- In group chat, show sender's name above message -->
@@ -1009,7 +1009,7 @@
                                                 </button>
                                                 @if (_activeReactionMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute bottom-8 left-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
+                                                    <div class="absolute bottom-full mb-1.5 left-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
                                                         @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
                                                         {
                                                             <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" class="size-6 rounded-full hover:bg-zinc-800 flex items-center justify-center text-xs hover:scale-125 transition-transform cursor-pointer">@emoji</button>
@@ -1034,7 +1034,7 @@
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute bottom-8 left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div class="absolute bottom-full mb-1.5 left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
                                                             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
@@ -1237,7 +1237,9 @@
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
-    .chat-msg-bubble-group:hover .chat-msg-actions {
+    .chat-msg-bubble-wrap:hover ~ .chat-msg-actions,
+    .chat-msg-actions:hover,
+    .chat-msg-actions.is-active {
         opacity: 1 !important;
         pointer-events: auto !important;
     }
@@ -1246,12 +1248,8 @@
         pointer-events: none;
         transition: opacity 0.15s ease-in-out;
     }
-    .chat-msg-actions.is-active {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-    }
     
-    .chat-msg-bubble-group:hover .chat-msg-time {
+    .chat-msg-bubble-wrap:hover .chat-msg-time {
         max-height: 20px !important;
         opacity: 1 !important;
         margin-top: 2px !important;

@@ -9,8 +9,8 @@ All notable changes to this project will be documented in this file.
 ### Enhanced — [2026-10-04] (Message Bubble Hover Scoping & Menu Simplification)
 
 - **Bubble-Scoped Hover Actions & Timestamps (`GlobalChatWidget.razor`):**
-  - Grouped message actions (`⋮`, `↶`, `☺`), bubble contents, and timestamp within `.chat-msg-bubble-group`.
-  - Re-scoped hover effects and CSS rules so hovering empty horizontal row space does not show icons or timestamps; controls and timestamps only appear when hovering directly over the message bubble cluster.
+  - Scoped message hover detection specifically to `.chat-msg-bubble-wrap` and `.chat-msg-actions` so moving cursor anywhere to the side of the bubble no longer prematurely reveals actions or timestamps.
+  - Positioned the 3-dot context menu and emoji reaction bar directly on top (`bottom-full mb-1.5`) anchored cleanly above the trigger icon, matching Meta Messenger behavior without horizontal side clipping.
 
 - **Simplified Message Dropdown Actions (`GlobalChatWidget.razor`):**
   - Removed "Unsend" and "Report" actions from both outgoing and incoming message 3-dot dropdown menus, keeping only "Forward" and "Pin" / "Unpin" for a clean, distraction-free experience.
