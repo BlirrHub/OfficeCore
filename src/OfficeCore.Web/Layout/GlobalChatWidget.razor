@@ -839,17 +839,17 @@
                                     <!-- For sent message (isMine): Action icons are on the LEFT of the message bubble (Image 1) -->
                                     @if (isMine)
                                     {
-                                        <div class="self-center flex items-center gap-0.5 chat-msg-actions relative shrink-0 @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "is-active" : "")">
+                                        <div class="self-center flex items-center gap-0.5 chat-msg-actions relative shrink-0 px-1 py-0.5 rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "is-active" : "")">
                                             <!-- 3 dots more actions button (Image 1 & 2) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
-                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
                                                         title="More actions">
                                                     <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div class="absolute @(i <= 1 ? "top-full mt-1" : "bottom-full mb-1") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
                                                             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
@@ -864,7 +864,7 @@
 
                                             <!-- Reply button (Image 1) -->
                                             <button type="button" @onclick="() => StartReply(msg)" @onclick:stopPropagation
-                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
                                                     title="Reply">
                                                 <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
                                             </button>
@@ -872,13 +872,13 @@
                                             <!-- React emoji button (Image 1) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
-                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
                                                         title="React">
                                                     <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                 </button>
                                                 @if (_activeReactionMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
+                                                    <div class="absolute @(i <= 1 ? "top-full mt-1" : "bottom-full mb-1") left-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
                                                         @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
                                                         {
                                                             <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" class="size-6 rounded-full hover:bg-zinc-800 flex items-center justify-center text-xs hover:scale-125 transition-transform cursor-pointer">@emoji</button>
@@ -999,17 +999,17 @@
                                     <!-- For received message (!isMine): Action icons are on the RIGHT of the message bubble (Image 1) -->
                                     @if (!isMine)
                                     {
-                                        <div class="self-center flex items-center gap-0.5 chat-msg-actions relative shrink-0 @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "is-active" : "")">
+                                        <div class="self-center flex items-center gap-0.5 chat-msg-actions relative shrink-0 px-1 py-0.5 rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "is-active" : "")">
                                             <!-- React emoji button (Image 1) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
-                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
                                                         title="React">
                                                     <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                 </button>
                                                 @if (_activeReactionMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
+                                                    <div class="absolute @(i <= 1 ? "top-full mt-1" : "bottom-full mb-1") right-0 bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md" @onclick:stopPropagation>
                                                         @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
                                                         {
                                                             <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" class="size-6 rounded-full hover:bg-zinc-800 flex items-center justify-center text-xs hover:scale-125 transition-transform cursor-pointer">@emoji</button>
@@ -1020,7 +1020,7 @@
 
                                             <!-- Reply button (Image 1) -->
                                             <button type="button" @onclick="() => StartReply(msg)" @onclick:stopPropagation
-                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                    class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
                                                     title="Reply">
                                                 <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
                                             </button>
@@ -1028,13 +1028,13 @@
                                             <!-- 3 dots more actions button (Image 1 & 2) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
-                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
                                                         title="More actions">
                                                     <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div class="absolute @(i <= 1 ? "top-full mt-1" : "bottom-full mb-1") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
                                                             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
@@ -1204,6 +1204,116 @@
                     </form>
                 </div>
             }
+
+            <!-- Forward Message Overlay Modal -->
+            @if (_showForwardModal && _messageToForward != null)
+            {
+                <div class="absolute inset-0 bg-zinc-950/95 backdrop-blur-md z-50 flex flex-col p-4 animate-fade-in select-none">
+                    <!-- Modal Header -->
+                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-zinc-800 shrink-0">
+                        <div class="flex items-center gap-2">
+                            <div class="size-7 rounded-lg bg-fuchsia-600/20 text-fuchsia-400 flex items-center justify-center border border-fuchsia-500/30">
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-white uppercase tracking-wider">Forward Message</h4>
+                                <p class="text-[10px] text-zinc-400">Choose a chat to send this message to</p>
+                            </div>
+                        </div>
+                        <button type="button" @onclick="CloseForwardModal" class="size-7 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors border border-zinc-800" title="Close">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Message Preview Card -->
+                    <div class="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 mb-3 shrink-0 flex items-start gap-2.5">
+                        <div class="size-2 rounded-full bg-fuchsia-500 mt-1.5 shrink-0"></div>
+                        <div class="flex-1 min-w-0">
+                            <span class="text-[10px] font-semibold text-zinc-400 block mb-0.5">Original message by @(_messageToForward.SenderId == _currentEmployeeId ? "You" : _messageToForward.SenderName)</span>
+                            @if (!string.IsNullOrEmpty(_messageToForward.Content))
+                            {
+                                <p class="text-xs text-zinc-200 line-clamp-2 italic">"@GetPreviewText(_messageToForward.Content)"</p>
+                            }
+                            @if (!string.IsNullOrEmpty(_messageToForward.AttachmentUrl))
+                            {
+                                <div class="flex items-center gap-1.5 mt-1 text-[11px] text-fuchsia-300 font-medium">
+                                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                    <span class="truncate">@(_messageToForward.AttachmentName ?? "Attachment")</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="mb-2 shrink-0">
+                        <input type="text" @bind="_forwardSearchQuery" @bind:event="oninput" 
+                               placeholder="Search chats to forward to..." 
+                               class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+                    </div>
+
+                    <!-- Conversations List -->
+                    <div class="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-0.5">
+                        @{
+                            var forwardRooms = string.IsNullOrWhiteSpace(_forwardSearchQuery)
+                                ? _rooms
+                                : _rooms.Where(r => {
+                                    if (r.Type == 1) return r.Name?.Contains(_forwardSearchQuery, StringComparison.OrdinalIgnoreCase) == true;
+                                    var other = r.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId);
+                                    return other != null && ($"{other.FirstName} {other.LastName}".Contains(_forwardSearchQuery, StringComparison.OrdinalIgnoreCase));
+                                }).ToList();
+                        }
+                        @if (!forwardRooms.Any())
+                        {
+                            <div class="text-center py-8 text-zinc-500 text-xs">No conversations found.</div>
+                        }
+                        else
+                        {
+                            @foreach (var room in forwardRooms)
+                            {
+                                var isAlreadySent = _forwardedRoomIds.Contains(room.Id);
+                                var roomName = room.Type == 0
+                                    ? $"{room.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId)?.FirstName} {room.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId)?.LastName}"
+                                    : room.Name;
+                                <div class="flex items-center justify-between p-2 rounded-xl bg-zinc-900/50 hover:bg-zinc-800/80 border border-zinc-800/60 transition-colors">
+                                    <div class="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
+                                        <div class="size-8 rounded-xl bg-zinc-800 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden">
+                                            @if (!string.IsNullOrEmpty(room.PictureUrl))
+                                            {
+                                                <img src="@(Configuration["ApiBaseUrl"] + room.PictureUrl)" class="w-full h-full object-cover" />
+                                            }
+                                            else
+                                            {
+                                                <span>@GetGroupInitials(roomName)</span>
+                                            }
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-xs font-semibold text-white truncate">@roomName</p>
+                                            <span class="text-[10px] text-zinc-500">@(room.Type == 1 ? "Group Chat" : "Direct Message")</span>
+                                        </div>
+                                    </div>
+                                    @if (isAlreadySent)
+                                    {
+                                        <span class="px-2.5 py-1 rounded-lg bg-zinc-800 text-emerald-400 text-xs font-medium flex items-center gap-1">
+                                            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+                                            <span>Sent</span>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" @onclick="() => SendForwardToRoom(room)" disabled="@_isForwarding"
+                                                class="px-3 py-1.5 rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50">
+                                            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                            <span>Send</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
         </div>
     }
 
@@ -1239,6 +1349,7 @@
 
     .chat-msg-bubble-group:has(.chat-msg-bubble-wrap:hover) .chat-msg-actions,
     .chat-msg-bubble-group:has(.chat-msg-actions:hover) .chat-msg-actions,
+    .chat-msg-bubble-group:has(.chat-msg-actions.is-active) .chat-msg-actions,
     .chat-msg-actions:hover,
     .chat-msg-actions.is-active {
         opacity: 1 !important;
@@ -1250,7 +1361,14 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transition: opacity 0.15s ease-in-out 0.15s, visibility 0s linear 0.3s;
+        transition: opacity 0.2s ease-in-out 0.2s, visibility 0s linear 0.4s;
+    }
+    /* Invisible hit box bridge so cursor never drops hover between bubble and actions */
+    .chat-msg-actions::before {
+        content: '';
+        position: absolute;
+        inset: -8px -12px;
+        z-index: 0;
     }
     
     .chat-msg-bubble-group:has(.chat-msg-bubble-wrap:hover) .chat-msg-time,
@@ -1297,6 +1415,12 @@
     private Guid? _activeReactionMenuId = null;
     private ChatMessageDto? _replyingToMessage = null;
     private Dictionary<Guid, List<string>> _messageReactions = new();
+
+    private bool _showForwardModal = false;
+    private ChatMessageDto? _messageToForward = null;
+    private string _forwardSearchQuery = string.Empty;
+    private HashSet<Guid> _forwardedRoomIds = new();
+    private bool _isForwarding = false;
     
     private HashSet<string> _myBoardIds = new();
     
@@ -2619,18 +2743,74 @@
         }
     }
 
-    private async Task ForwardMessage(ChatMessageDto msg)
+    private void ForwardMessage(ChatMessageDto msg)
     {
         _activeMessageMenuId = null;
-        var contentToCopy = !string.IsNullOrWhiteSpace(msg.Content) ? msg.Content : (msg.AttachmentUrl ?? "");
+        _activeReactionMenuId = null;
+        _messageToForward = msg;
+        _forwardSearchQuery = string.Empty;
+        _forwardedRoomIds.Clear();
+        _showForwardModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseForwardModal()
+    {
+        _showForwardModal = false;
+        _messageToForward = null;
+        _forwardSearchQuery = string.Empty;
+    }
+
+    private async Task SendForwardToRoom(ChatRoomDto targetRoom)
+    {
+        if (_messageToForward == null || _isForwarding) return;
+
         try
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", contentToCopy);
-            ToastService.ShowSuccess("Message copied to clipboard!");
+            _isForwarding = true;
+            StateHasChanged();
+
+            var req = new
+            {
+                Content = _messageToForward.Content ?? string.Empty,
+                AttachmentUrl = _messageToForward.AttachmentUrl,
+                AttachmentName = _messageToForward.AttachmentName,
+                AttachmentSize = _messageToForward.AttachmentSize
+            };
+
+            var response = await Http.PostAsJsonAsync($"/api/chat/rooms/{targetRoom.Id}/messages", req);
+            if (response.IsSuccessStatusCode)
+            {
+                _forwardedRoomIds.Add(targetRoom.Id);
+                var roomDisplayName = targetRoom.Type == 0
+                    ? (targetRoom.Members.FirstOrDefault(m => m.UserId != _currentEmployeeId)?.FirstName ?? "Direct Chat")
+                    : targetRoom.Name;
+
+                ToastService.ShowSuccess($"Message forwarded to {roomDisplayName}!");
+
+                if (_activeRoom?.Id == targetRoom.Id)
+                {
+                    _messages = await Http.GetFromJsonAsync<List<ChatMessageDto>>($"/api/chat/rooms/{targetRoom.Id}/messages") ?? new();
+                }
+                else
+                {
+                    await LoadRooms();
+                }
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError(!string.IsNullOrWhiteSpace(err) ? err : "Failed to forward message.");
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            ToastService.ShowInfo("Message copied.");
+            ToastService.ShowError($"Error forwarding message: {ex.Message}");
+        }
+        finally
+        {
+            _isForwarding = false;
+            StateHasChanged();
         }
     }
 

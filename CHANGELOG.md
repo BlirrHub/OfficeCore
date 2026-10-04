@@ -16,6 +16,16 @@ All notable changes to this project will be documented in this file.
 - **Simplified Message Dropdown Actions (`GlobalChatWidget.razor`):**
   - Removed "Unsend" and "Report" actions from both outgoing and incoming message 3-dot dropdown menus, keeping only "Forward" and "Pin" / "Unpin" for a clean, distraction-free experience.
 
+- **Action Bar Hitbox Pill Box & Bridge (`GlobalChatWidget.razor`):**
+  - Enclosed message action icons (More, Reply, React) in a solid, glassmorphic pill box (`rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md px-1 py-0.5`).
+  - Added an invisible `::before` hitbox bridge (`inset: -8px -12px`) bridging the action buttons to the message bubble so hovering anywhere within the box or moving between buttons never causes actions to prematurely close or disappear.
+  - Locked action visibility and interaction when any dropdown or reaction picker is actively open (`is-active`).
+
+- **Chat Selection Forward Message Modal (`GlobalChatWidget.razor`):**
+  - Replaced basic clipboard copying with a full Meta Messenger-style Forward Modal dialog overlay.
+  - Displays original message excerpt/attachment preview, searchable list of all direct and group conversations, and instant "Send" action buttons.
+  - Automatically posts the forwarded content/attachment to the selected room and transitions button to "Sent" state with real-time toast feedback.
+
 ### Enhanced — [2026-10-04] (Meta Messenger-Style Chat: Hover Actions, Hover Timestamps, Time Dividers, Message Pinning)
 
 - **Removed Hover Pin from Room List (`GlobalChatWidget.razor`):**
