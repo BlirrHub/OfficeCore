@@ -72,6 +72,7 @@ public class AdvanceRequestController : ControllerBase
             r.Note,
             r.Status,
             r.RequestDate,
+            r.ResolutionDate,
             r.RemainingBalance,
             r.InstallmentAmount,
             EmployeeName = r.Employee?.User != null

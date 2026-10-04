@@ -1288,6 +1288,9 @@ namespace OfficeCore.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ActionTakenAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("AttachmentPath")
                         .HasColumnType("text");
 

@@ -163,8 +163,9 @@
                                         <span class="text-zinc-600 text-xs">—</span>
                                     }
                                 </td>
-                                <td class="px-6 py-4 text-zinc-500">
-                                    @request.CreatedAt.ToString("MMM dd, yyyy")
+                                <td class="px-6 py-4">
+                                    <div class="text-zinc-300 font-medium text-xs">@request.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                                    <div class="text-[11px] text-zinc-500">@request.CreatedAt.ToLocalTime().ToString("h:mm tt")</div>
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     @if (request.Status == 0) // Pending
@@ -178,11 +179,23 @@
                                     }
                                     else if (request.Status == 1) // Approved
                                     {
-                                        <AppBadge Variant="success" Dot="true">Approved</AppBadge>
+                                        <div class="flex flex-col items-end gap-1">
+                                            <AppBadge Variant="success" Dot="true">Approved</AppBadge>
+                                            @if (request.ActionTakenAt.HasValue)
+                                            {
+                                                <span class="text-[10px] text-zinc-500" title="Approved at">@request.ActionTakenAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                            }
+                                        </div>
                                     }
                                     else // Rejected
                                     {
-                                        <AppBadge Variant="danger" Dot="true">Rejected</AppBadge>
+                                        <div class="flex flex-col items-end gap-1">
+                                            <AppBadge Variant="danger" Dot="true">Rejected</AppBadge>
+                                            @if (request.ActionTakenAt.HasValue)
+                                            {
+                                                <span class="text-[10px] text-zinc-500" title="Rejected at">@request.ActionTakenAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                            }
+                                        </div>
                                     }
                                 </td>
                             </tr>
@@ -379,5 +392,6 @@
         public string? AttachmentPath { get; set; }
         public int Status { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? ActionTakenAt { get; set; }
     }
 }

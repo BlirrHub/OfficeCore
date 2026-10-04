@@ -6,6 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-10-04] (Installer .gitignore, E-Loan/Advance & Leave Request/Action Timestamps, Board Member Permissions & Card Attachments Fix)
+
+- **Installers Ignored in Git:**
+  - Updated `.gitignore` across branches to ignore `dist/` and `Setup-*.exe` binaries, preventing large generated installer deliverables from bloating git commits and branch history.
+
+- **Request & Action Taken Timestamps for E-Loans, Advances, and Leaves:**
+  - **Leaves:** Extended `LeaveRequest` entity with `public DateTime? ActionTakenAt { get; set; }`. Generated and applied EF Core migration `20261004101244_AddLeaveActionTakenAt` to PostgreSQL.
+  - Automatically set `ActionTakenAt = DateTime.UtcNow` on approve, reject, and admin creation in `LeaveRequestController.cs`.
+  - Projected `ActionTakenAt` in leave queries and updated `MyLeaves.razor` and `LeaveApprovals.razor` to display formatted request date/time and resolution timestamp on approved/rejected items.
+  - **Advances & E-Loans:** Updated `AdvanceRequestController.cs` to project `ResolutionDate` alongside `RequestDate`.
+  - Updated `Advances.razor` and `Ledger.razor` to render both request date/time and action taken timestamp (approved, rejected, or cancelled) across employee and admin views.
+
+- **Board Member Permissions & Kanban Card Security:**
+  - Enforced strict authorization in `BoardsController.cs` and `BoardView.razor` so regular board members cannot modify card titles, descriptions, due dates, or assignees.
+  - Card Title `<input>` and Description `<textarea>` are rendered in read-only mode for non-admin members, with modal header displaying "Card Details" instead of "Edit Card", and the "Save Card" button hidden in favor of a clean "Close" button.
+  - Restricted Checklist Item addition to Board Admins and Owners (`_canEditBoardStructure`); members can still toggle completion on checklist items they work on.
+  - Restricted Label creation, board label deletion, and card label assignment/toggling to Board Admins and Owners (`_canEditBoardStructure`).
+
+- **Card Attachments Fix & Collaborator Access:**
+  - Resolved card attachments failing to upload: removed unintentional 403 Forbidden check on `BoardRole.Member` in `BoardsController.AddAttachment`, allowing board members to collaborate and upload task deliverables.
+  - Added `[FromForm]` attribute to `AddAttachment`, configured 25MB file upload limit, added ContentType header in multipart payload, and implemented upload loading indicator and error toast reporting.
+  - Updated `DeleteAttachment` to allow deletion by either the original file uploader or Board Admins/Owners.
+  - Updated `GetBoardById` and `AddAttachment` responses to project `UserId`, enabling granular uploader-only delete controls on the frontend.
+
+
+
 ### Fixed & Enhanced — [2026-10-03] (Chat Attachment Override Bug, Client Business Rich Form & 4 Business Types, Real-Time Dashboard Live Sync & Page Layout Parity)
 
 - **Chat Attachment Override Visual Bug:**

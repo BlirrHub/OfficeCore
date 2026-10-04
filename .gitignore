@@ -24,9 +24,10 @@ Thumbs.db
 *.db-shm
 *.db-wal
 
-# Build distribution
-dist/*
-!dist/*.exe
+# Build distribution — never track large installer binaries in git
+# Installers are built locally via: .\publish-installers.ps1
+dist/
+Setup-*.exe
 
 # Desktop Client local config
 **/server_ip.txt

@@ -114,7 +114,7 @@
                                             </div>
                                             <div>
                                                 <div class="text-white font-medium">@request.EmployeeName</div>
-                                                <div class="text-xs text-zinc-500">Requested: @request.CreatedAt.ToString("MMM dd")</div>
+                                                <div class="text-xs text-zinc-500">Requested: @request.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</div>
                                             </div>
                                         </div>
                                     </td>
@@ -145,11 +145,23 @@
                                         }
                                         else if (request.Status == 1)
                                         {
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Approved</span>
+                                            <div class="flex flex-col gap-0.5">
+                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit">Approved</span>
+                                                @if (request.ActionTakenAt.HasValue)
+                                                {
+                                                    <span class="text-[10px] text-zinc-500">@request.ActionTakenAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                }
+                                            </div>
                                         }
                                         else
                                         {
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>
+                                            <div class="flex flex-col gap-0.5">
+                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 w-fit">Rejected</span>
+                                                @if (request.ActionTakenAt.HasValue)
+                                                {
+                                                    <span class="text-[10px] text-zinc-500">@request.ActionTakenAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                }
+                                            </div>
                                         }
                                     </td>
                                     <td class="px-6 py-4 text-right">
@@ -205,7 +217,13 @@
                     </div>
                     <div>
                         <div class="text-white font-medium text-lg">@_selectedRequest.EmployeeName</div>
-                        <div class="text-sm text-zinc-500">Requested on @_selectedRequest.CreatedAt.ToString("MMMM dd, yyyy")</div>
+                        <div class="text-sm text-zinc-500">Requested on @_selectedRequest.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy h:mm tt")</div>
+                        @if (_selectedRequest.ActionTakenAt.HasValue)
+                        {
+                            <div class="text-xs text-zinc-400 mt-1">
+                                <span class="font-medium text-white">@(_selectedRequest.Status == 1 ? "Approved" : "Rejected") on:</span> @_selectedRequest.ActionTakenAt.Value.ToLocalTime().ToString("MMMM dd, yyyy h:mm tt")
+                            </div>
+                        }
                     </div>
                 </div>
 
@@ -583,6 +601,7 @@
         public string? AttachmentPath { get; set; }
         public int Status { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? ActionTakenAt { get; set; }
     }
     
     public class AdminCreateLeaveRequestDto
