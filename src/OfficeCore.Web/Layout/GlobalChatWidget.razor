@@ -321,7 +321,7 @@
                     }
                     else
                     {
-                        @foreach (var room in _filteredRooms)
+                        @foreach (var room in _filteredRooms.OrderByDescending(r => _pinnedRoomIds.Contains(r.Id)).ThenByDescending(r => r.LastMessage?.CreatedAt))
                         {
                             <div @onclick="() => OpenRoom(room)" class="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-900 cursor-pointer transition-colors group">
                                 <div class="relative shrink-0">
@@ -377,9 +377,15 @@
                                                 <span class="px-1.5 py-0.2 rounded bg-fuchsia-500/10 text-fuchsia-400 text-[9px] font-medium border border-fuchsia-500/20">Group</span>
                                             }
                                         </h4>
-                                        <span class="text-[10px] font-medium text-zinc-500 shrink-0">
-                                            @(room.LastMessage?.CreatedAt.ToLocalTime().ToString("MMM dd"))
-                                        </span>
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <button type="button" @onclick="() => TogglePin(room.Id)" @onclick:stopPropagation 
+                                                    class="size-5 rounded hover:bg-zinc-800 flex items-center justify-center transition-colors @(_pinnedRoomIds.Contains(room.Id) ? "opacity-100 text-amber-400" : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300")" title="@(_pinnedRoomIds.Contains(room.Id) ? "Unpin chat" : "Pin chat")">
+                                                <svg class="size-3.5" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
+                                            </button>
+                                            <span class="text-[10px] font-medium text-zinc-500">
+                                                @(room.LastMessage?.CreatedAt.ToLocalTime().ToString("MMM dd"))
+                                            </span>
+                                        </div>
                                     </div>
                                     <p class="text-xs text-zinc-400 truncate @(room.UnreadCount > 0 ? "font-semibold text-white" : "")">
                                         @if (room.Type == 1 && room.LastMessage != null)
@@ -474,14 +480,31 @@
                         </div>
                     </div>
 
-                    <!-- Group Details Toggle Button -->
-                    <button type="button" @onclick="ToggleGroupDetails" title="Chat Info"
-                            class="size-8 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 @(_showGroupDetails ? "bg-zinc-800 text-fuchsia-400" : "")">
-                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </button>
+                    <!-- Search & Info Buttons -->
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" @onclick="() => _showChatSearch = !_showChatSearch" title="Search Chat"
+                                class="size-8 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 @(_showChatSearch ? "bg-zinc-800 text-fuchsia-400" : "")">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </button>
+                        <button type="button" @onclick="ToggleGroupDetails" title="Chat Info"
+                                class="size-8 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 @(_showGroupDetails ? "bg-zinc-800 text-fuchsia-400" : "")">
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
+
+                @if (_showChatSearch)
+                {
+                    <div class="px-3 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0 shadow-sm z-10">
+                        <input type="text" @bind="_chatSearchQuery" @bind:event="oninput" 
+                               placeholder="Search messages in this chat..." 
+                               class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
+                    </div>
+                }
 
                 <!-- Group Details Side/Overlay Drawer -->
                 @if (_showGroupDetails && _activeRoom != null)
@@ -572,14 +595,8 @@
                         }
                         </div>
 
-                        <!-- Search Chat & Media/Files -->
+                        <!-- Shared Media/Files -->
                         <div class="py-3 border-b border-zinc-800">
-                            <div class="mb-3 space-y-1.5">
-                                <label class="block text-xs font-semibold text-zinc-200">Search Chat</label>
-                                <input type="text" @bind="_chatSearchQuery" @bind:event="oninput" 
-                                       placeholder="Search messages..." 
-                                       class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-colors" />
-                            </div>
 
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-semibold text-zinc-200">Shared Media & Files</label>
@@ -1015,6 +1032,8 @@
     private bool _isLoadingMessages = false;
     private List<ChatMessageDto> _messages = new();
     private string _chatSearchQuery = string.Empty;
+    private bool _showChatSearch = false;
+    private HashSet<Guid> _pinnedRoomIds = new();
     
     private HashSet<string> _myBoardIds = new();
     
@@ -1335,6 +1354,43 @@
                 _myBoardIds = res.Select(b => b.Id.ToString()).ToHashSet();
             }
         } catch { }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try 
+            {
+                var storedPins = await JS.InvokeAsync<string>("localStorage.getItem", "pinned_chats");
+                if (!string.IsNullOrEmpty(storedPins))
+                {
+                    _pinnedRoomIds = System.Text.Json.JsonSerializer.Deserialize<HashSet<Guid>>(storedPins) ?? new();
+                    StateHasChanged();
+                }
+            } 
+            catch { }
+        }
+    }
+
+    private async Task TogglePin(Guid roomId)
+    {
+        if (_pinnedRoomIds.Contains(roomId))
+        {
+            _pinnedRoomIds.Remove(roomId);
+        }
+        else
+        {
+            _pinnedRoomIds.Add(roomId);
+        }
+        
+        try 
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "pinned_chats", System.Text.Json.JsonSerializer.Serialize(_pinnedRoomIds));
+        } 
+        catch { }
+        
+        StateHasChanged();
     }
 
     protected override async Task OnInitializedAsync()
