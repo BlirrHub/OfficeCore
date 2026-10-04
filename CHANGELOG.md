@@ -15,7 +15,14 @@ All notable changes to this project will be documented in this file.
   - `OrganizationsController.cs` no longer seeds hardcoded `Admin` / `Employee` roles on new organization creation — owners use Role Management to create custom roles as needed.
 
 - **Global Dark Mode Adjustments:**
-  - Added `color-scheme: dark;` to `html.dark` in `index.html` ensuring native browser components (like date picker calendar icons and scrollbars) render in white/dark themes appropriately instead of defaulting to black.
+  - Added `color-scheme: dark;` to `html.dark` in `index.html`.
+  - Applied `filter: invert(1) brightness(0.7);` to `-webkit-calendar-picker-indicator` for `date`, `time`, and `datetime-local` inputs in dark mode. This completely fixes the invisible/black calendar icon issue across all date pickers in the application.
+
+- **Global Chat Widget Upgrades (`GlobalChatWidget.razor`):**
+  - **Universal Chat Info:** The Chat Info drawer is now available for both Group Chats and Direct Messages, rather than being restricted just to groups.
+  - **Message Search:** Added a "Search Chat" input within the Info drawer that instantly filters the active conversation's messages and attachments.
+  - **Media & Files History:** Added a "Shared Media & Files" gallery in the Info drawer that lists all previously sent images and documents in the current chat, with quick-click access to the attachment viewer.
+  - Added dynamic avatar/header rendering in the Info drawer to distinguish between Direct Messages and Group Chats.
 
 - **MyLeaves Modal Standardization (`MyLeaves.razor`):**
   - Completely replaced the `<AppModal>` component usage with the standard inline modal layout (`max-h-[90vh] flex flex-col overflow-hidden`, `shrink-0` header/footer, `overflow-y-auto flex-1` body) to perfectly match the visual consistency of the Ledger, Advances, and Role Management modals.

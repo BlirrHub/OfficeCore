@@ -25,6 +25,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
         html.dark { color-scheme: dark; }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator,
+        .dark input[type="time"]::-webkit-calendar-picker-indicator,
+        .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(0.7);
+        }
     </style>
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="OfficeCore.Web.Client.styles.css" />
