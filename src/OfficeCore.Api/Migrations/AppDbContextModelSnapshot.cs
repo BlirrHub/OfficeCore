@@ -759,6 +759,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<Guid>("ClientId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsVatRegistered")
                         .HasColumnType("boolean");
 

@@ -6,6 +6,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-10-04] (Client Module: OPC Business Type, Business Active/Inactive Status, and Modal UI Height Scrollability)
+
+- **OPC (One Person Corporation) Business Type:**
+  - Added `OPC (One Person Corporation)` to the business type options in the Client module ([Clients.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/Clients.razor)), expanding registration types alongside Sole Proprietorship, Partnership, Corporation, and Cooperative.
+
+- **Business Active / Inactive Status Management:**
+  - Added `public bool IsActive { get; set; } = true;` to the `Business` entity ([Business.cs](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Api/Models/Business.cs)) and generated/applied EF Core migration `20261004110438_AddBusinessIsActive` with default value `true`.
+  - Added an intuitive Active vs Inactive status selector in the Business modal, enabling operators to mark client businesses as active or inactive when creating or editing them.
+  - Added status badge indicators (`Active` in emerald, `Inactive` in neutral zinc) to each business card in the client table, with inactive businesses styled with subtle muted opacity.
+  - Updated `BusinessDto` and client edit mappings in `Clients.razor` to preserve and persist `IsActive` state on business updates.
+
+- **Modal UI Viewport Fitting & Internal Scrollability:**
+  - Fixed modal height clipping across both the Business Form Modal and Client Form Modal in [Clients.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/Clients.razor).
+  - Configured `max-h-[90vh]` flex column layout with `shrink-0` header and footer, and `overflow-y-auto custom-scrollbar flex-1` on the modal body.
+  - Guaranteed that modal headers, action buttons (Save / Cancel), and inputs remain visible and cleanly accessible on all screen resolutions without overflowing off-screen.
+
 ### Fixed & Enhanced — [2026-10-04] (Board Card Labels Real-Time Sync & Due Date Urgency Indicators)
 
 - **Board Card Labels Real-Time Synchronization:**

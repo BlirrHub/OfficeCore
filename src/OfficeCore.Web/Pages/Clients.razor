@@ -93,11 +93,19 @@
                                     {
                                         @foreach (var biz in client.Businesses)
                                         {
-                                            <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3 group/biz">
+                                            <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3 group/biz @(!biz.IsActive ? "opacity-75 bg-zinc-900/50" : "")">
                                                 <div class="flex items-start justify-between">
                                                     <div>
                                                         <div class="font-medium text-zinc-200 flex items-center gap-2 flex-wrap">
                                                             <span>@biz.Name</span>
+                                                            @if (biz.IsActive)
+                                                            {
+                                                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Active</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-400 border border-zinc-700">Inactive</span>
+                                                            }
                                                             @if (!string.IsNullOrEmpty(biz.BusinessType))
                                                             {
                                                                 <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-950/50 text-indigo-300 border border-indigo-800/60">@biz.BusinessType</span>
@@ -163,14 +171,14 @@
 @if (_showClientForm)
 {
     <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900 shrink-0">
                 <h3 class="text-lg font-bold text-white tracking-wide">@(_editingClient ? "Edit Client" : "New Client")</h3>
                 <button @onclick="CloseModals" class="text-zinc-500 hover:text-white transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            <div class="p-6 space-y-5">
+            <div class="p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
                 <div>
                     <label class="block text-sm font-medium text-zinc-400 mb-2">Full Name *</label>
                     <input type="text" @bind="_clientModel.FullName" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:outline-none" placeholder="Jane Doe" />
@@ -183,11 +191,10 @@
                     <label class="block text-sm font-medium text-zinc-400 mb-2">Phone Number</label>
                     <input type="text" @bind="_clientModel.PhoneNumber" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:outline-none" placeholder="+1 (555) 000-0000" />
                 </div>
-
-                <div class="mt-8 pt-4 flex gap-3">
-                    <button @onclick="CloseModals" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
-                    <button @onclick="SaveClient" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-500 shadow-lg shadow-fuchsia-900/20 transition-all">Save Client</button>
-                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-zinc-800 flex gap-3 bg-zinc-900 shrink-0">
+                <button @onclick="CloseModals" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
+                <button @onclick="SaveClient" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-500 shadow-lg shadow-fuchsia-900/20 transition-all">Save Client</button>
             </div>
         </div>
     </div>
@@ -197,16 +204,16 @@
 @if (_showBusinessForm && _activeClientForBusiness != null)
 {
     <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900 shrink-0">
                 <h3 class="text-lg font-bold text-white tracking-wide">@(_editingBusiness ? "Edit Business" : "Add Business")</h3>
                 <button @onclick="CloseModals" class="text-zinc-500 hover:text-white transition-colors">
                     <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            <div class="p-6 space-y-5">
-                <div class="bg-purple-900/10 border border-purple-500/20 rounded-lg p-3 text-sm text-purple-300 mb-2">
-                    Adding to client: <span class="font-bold text-white">@_activeClientForBusiness.FullName</span>
+            <div class="p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
+                <div class="bg-purple-900/10 border border-purple-500/20 rounded-lg p-3 text-sm text-purple-300">
+                    Client: <span class="font-bold text-white">@_activeClientForBusiness.FullName</span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-zinc-400 mb-2">Business Name *</label>
@@ -219,6 +226,7 @@
                             <option value="Sole Proprietorship">Sole Proprietorship</option>
                             <option value="Partnership">Partnership</option>
                             <option value="Corporation">Corporation</option>
+                            <option value="OPC (One Person Corporation)">OPC (One Person Corporation)</option>
                             <option value="Cooperative">Cooperative</option>
                         </select>
                     </div>
@@ -258,10 +266,32 @@
                     </div>
                 </div>
 
-                <div class="mt-8 pt-4 flex gap-3">
-                    <button @onclick="CloseModals" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
-                    <button @onclick="SaveBusiness" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-500 shadow-lg shadow-fuchsia-900/20 transition-all">Save Business</button>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-400 mb-2">Business Status</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" @onclick="() => _businessModel.IsActive = true"
+                                class="p-3 rounded-xl border text-left transition-all cursor-pointer @(_businessModel.IsActive ? "bg-emerald-500/10 border-emerald-500 text-white shadow-md shadow-emerald-950/40" : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700")">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Active</span>
+                                <span class="size-2 rounded-full @(_businessModel.IsActive ? "bg-emerald-400 ring-4 ring-emerald-400/20" : "bg-zinc-700")"></span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400">Operational & currently engaged</p>
+                        </button>
+                        <button type="button" @onclick="() => _businessModel.IsActive = false"
+                                class="p-3 rounded-xl border text-left transition-all cursor-pointer @(!_businessModel.IsActive ? "bg-zinc-800 border-zinc-600 text-white shadow-md" : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700")">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">Inactive</span>
+                                <span class="size-2 rounded-full @(!_businessModel.IsActive ? "bg-zinc-300 ring-4 ring-zinc-300/20" : "bg-zinc-700")"></span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400">Dormant or closed account</p>
+                        </button>
+                    </div>
                 </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-zinc-800 flex gap-3 bg-zinc-900 shrink-0">
+                <button @onclick="CloseModals" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
+                <button @onclick="SaveBusiness" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-500 shadow-lg shadow-fuchsia-900/20 transition-all">Save Business</button>
             </div>
         </div>
     </div>
@@ -396,7 +426,8 @@
                 PhoneNumber = b.PhoneNumber,
                 TinId = b.TinId,
                 BusinessType = b.BusinessType,
-                IsVatRegistered = b.IsVatRegistered
+                IsVatRegistered = b.IsVatRegistered,
+                IsActive = b.IsActive
             }).ToList() ?? new List<BusinessDto>()
         };
         _editingClient = true;
@@ -406,7 +437,7 @@
     private void ShowAddBusinessModal(ClientDto client)
     {
         _activeClientForBusiness = client;
-        _businessModel = new BusinessDto { BusinessType = "Sole Proprietorship" };
+        _businessModel = new BusinessDto { BusinessType = "Sole Proprietorship", IsActive = true };
         _editingBusiness = false;
         _showBusinessForm = true;
     }
@@ -422,7 +453,8 @@
             PhoneNumber = biz.PhoneNumber,
             TinId = biz.TinId,
             BusinessType = string.IsNullOrEmpty(biz.BusinessType) ? "Sole Proprietorship" : biz.BusinessType,
-            IsVatRegistered = biz.IsVatRegistered
+            IsVatRegistered = biz.IsVatRegistered,
+            IsActive = biz.IsActive
         };
         _editingBusiness = true;
         _showBusinessForm = true;
@@ -580,5 +612,6 @@
         public string? TinId { get; set; }
         public string? BusinessType { get; set; }
         public bool IsVatRegistered { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }
