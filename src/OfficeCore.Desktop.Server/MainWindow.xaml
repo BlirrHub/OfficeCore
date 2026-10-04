@@ -105,8 +105,18 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Top Right Quick Launch -->
+                <!-- Top Right Quick Launch & Disaster Recovery -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="🛠️ Disaster Recovery" Click="OpenBackupConsole_Click" 
+                            Background="#1E1B4B" Foreground="#818CF8" BorderBrush="#312E81" BorderThickness="1"
+                            Padding="12,6" FontSize="12" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,10,0">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="6"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+
                     <Button Content="🚀 Open Local Web App" Click="LaunchLocalApp_Click" 
                             Background="#701A75" Foreground="White" BorderThickness="0"
                             Padding="14,6" FontSize="12" FontWeight="SemiBold" Cursor="Hand">
@@ -466,6 +476,309 @@
 
                 <!-- Embedded Edge Browser -->
                 <wv2:WebView2 Grid.Row="1" x:Name="webView"/>
+            </Grid>
+
+            <!-- ========================================================================= -->
+            <!-- 3. DISASTER RECOVERY & SYSTEM SNAPSHOTS CONSOLE PANEL                    -->
+            <!-- ========================================================================= -->
+            <Grid x:Name="DisasterRecoveryPanel" Visibility="Collapsed" Margin="24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Header and Toolbar -->
+                    <RowDefinition Height="Auto"/> <!-- Metrics 4-Cards Grid -->
+                    <RowDefinition Height="Auto"/> <!-- Collapsible Schedule Settings -->
+                    <RowDefinition Height="*"/>    <!-- Snapshots List Container -->
+                    <RowDefinition Height="Auto"/> <!-- Action Status Feedback -->
+                </Grid.RowDefinitions>
+
+                <!-- Top Header and Action Bar -->
+                <Border Grid.Row="0" Background="#121215" BorderBrush="#27272A" BorderThickness="1" CornerRadius="14" Padding="18,14" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Back Button and Title -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="← Server Dashboard" Click="BackToDashboard_Click"
+                                    Background="#18181B" Foreground="#E4E4E7" BorderBrush="#27272A" BorderThickness="1"
+                                    Padding="12,7" FontSize="12" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,16,0">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <StackPanel VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="PostgreSQL Disaster Recovery &amp; Snapshots" FontSize="16" FontWeight="Bold" Foreground="White" Margin="0,0,8,0"/>
+                                    <Border Background="#1E1B4B" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                        <TextBlock Text="SERVER STATION EXCLUSIVE" FontSize="9" FontWeight="Bold" Foreground="#818CF8"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="Full database snapshots, scheduled background archives, and safety-verified 1-click restore" FontSize="11" Foreground="#A1A1AA" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Action Buttons -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="↻ Refresh" Click="RefreshBackups_Click"
+                                    Background="#18181B" Foreground="#E4E4E7" BorderBrush="#27272A" BorderThickness="1"
+                                    Padding="10,6" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,8,0">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button Content="📂 Open Folder" Click="OpenBackupsFolder_Click"
+                                    Background="#18181B" Foreground="#E4E4E7" BorderBrush="#27272A" BorderThickness="1"
+                                    Padding="10,6" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,8,0">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button Content="⚙ Schedule Settings" Click="ToggleScheduleSettings_Click"
+                                    Background="#18181B" Foreground="#E4E4E7" BorderBrush="#27272A" BorderThickness="1"
+                                    Padding="10,6" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,8,0">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button Content="📥 Import &amp; Restore .dump" Click="UploadBackup_Click"
+                                    Background="#18181B" Foreground="#38BDF8" BorderBrush="#0369A1" BorderThickness="1"
+                                    Padding="12,6" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,8,0">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button x:Name="CreateSnapshotButton" Content="📦 Create Snapshot Now" Click="CreateSnapshot_Click"
+                                    Background="#4338CA" Foreground="White" BorderThickness="0"
+                                    Padding="14,6" FontSize="12" FontWeight="Bold" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Metrics 4-Cards Grid -->
+                <Grid Grid.Row="1" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Metric 1: Engine Status -->
+                    <Border Grid.Column="0" Background="#121215" BorderBrush="#27272A" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                        <StackPanel>
+                            <TextBlock Text="POSTGRES ENGINE STATUS" FontSize="10" FontWeight="Bold" Foreground="#71717A" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="DrEngineStatusText" Text="Detecting..." FontSize="13" FontWeight="Bold" Foreground="#34D399"/>
+                            <TextBlock x:Name="DrEngineBinPathText" Text="C:\Program Files\PostgreSQL\18\bin" FontSize="10" Foreground="#71717A" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Metric 2: Total Snapshots -->
+                    <Border Grid.Column="2" Background="#121215" BorderBrush="#27272A" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                        <StackPanel>
+                            <TextBlock Text="STORED SNAPSHOTS" FontSize="10" FontWeight="Bold" Foreground="#71717A" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="DrTotalSnapshotsText" Text="0 archives" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock x:Name="DrSnapshotsBreakdownText" Text="0 manual, 0 auto, 0 safety" FontSize="10" Foreground="#71717A" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Metric 3: Storage Footprint -->
+                    <Border Grid.Column="4" Background="#121215" BorderBrush="#27272A" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                        <StackPanel>
+                            <TextBlock Text="STORAGE FOOTPRINT" FontSize="10" FontWeight="Bold" Foreground="#71717A" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="DrStorageFootprintText" Text="0.0 MB" FontSize="13" FontWeight="Bold" Foreground="#38BDF8"/>
+                            <TextBlock Text="Compressed PostgreSQL .dump files" FontSize="10" Foreground="#71717A" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Metric 4: Auto-Schedule -->
+                    <Border Grid.Column="6" Background="#121215" BorderBrush="#27272A" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                        <StackPanel>
+                            <TextBlock Text="SCHEDULE ROUTINE" FontSize="10" FontWeight="Bold" Foreground="#71717A" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="DrScheduleRoutineText" Text="Daily at 23:00" FontSize="13" FontWeight="Bold" Foreground="#E879F9"/>
+                            <TextBlock x:Name="DrRetentionText" Text="Retaining last 14 backups" FontSize="10" Foreground="#71717A" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Collapsible Schedule Settings Card -->
+                <Border x:Name="ScheduleSettingsCard" Grid.Row="2" Background="#121215" BorderBrush="#3B0764" BorderThickness="1" CornerRadius="12" Padding="18,14" Margin="0,0,0,16" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Automated Scheduled Backups &amp; Retention Configuration" FontSize="13" FontWeight="Bold" Foreground="#E879F9" Margin="0,0,0,10"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox x:Name="AutoBackupEnabledCheck" Grid.Column="0" Content="Enable Daily Backup" Style="{StaticResource ModernCheckBox}" VerticalAlignment="Center" Margin="0,0,14,0"/>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Run Time (24h HH:mm)" FontSize="10" Foreground="#A1A1AA" Margin="0,0,0,3"/>
+                                <TextBox x:Name="AutoBackupTimeInput" Style="{StaticResource ModernTextBox}" Text="23:00"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <TextBlock Text="Retention Count" FontSize="10" Foreground="#A1A1AA" Margin="0,0,0,3"/>
+                            </StackPanel>
+                            <TextBox x:Name="AutoBackupRetentionInput" Grid.Column="4" Style="{StaticResource ModernTextBox}" Text="14"/>
+
+                            <StackPanel Grid.Column="6" Margin="10,0,10,0">
+                                <TextBlock Text="Custom PostgreSQL Bin Path (Optional)" FontSize="10" Foreground="#A1A1AA" Margin="0,0,0,3"/>
+                                <TextBox x:Name="CustomPgBinPathInput" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="7" Content="Save Schedule" Click="SaveScheduleSettings_Click"
+                                    VerticalAlignment="Bottom" Height="36" Padding="14,0" Background="#701A75" Foreground="White" FontWeight="Bold" FontSize="11" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </Grid>
+                        <TextBlock x:Name="ScheduleSettingsFeedback" Text="" FontSize="11" Foreground="#34D399"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Snapshots List Container -->
+                <Border Grid.Row="3" Background="#121215" BorderBrush="#27272A" BorderThickness="1" CornerRadius="14" Padding="16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Table Header -->
+                        <Grid Grid.Row="0" Margin="12,4,12,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2.5*"/>
+                                <ColumnDefinition Width="1.2*"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1.5*"/>
+                                <ColumnDefinition Width="180"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="SNAPSHOT ARCHIVE" FontSize="10" FontWeight="Bold" Foreground="#71717A"/>
+                            <TextBlock Grid.Column="1" Text="TYPE" FontSize="10" FontWeight="Bold" Foreground="#71717A"/>
+                            <TextBlock Grid.Column="2" Text="DESCRIPTION / LABEL" FontSize="10" FontWeight="Bold" Foreground="#71717A"/>
+                            <TextBlock Grid.Column="3" Text="FILE SIZE" FontSize="10" FontWeight="Bold" Foreground="#71717A"/>
+                            <TextBlock Grid.Column="4" Text="TIMESTAMP" FontSize="10" FontWeight="Bold" Foreground="#71717A"/>
+                            <TextBlock Grid.Column="5" Text="ACTIONS" FontSize="10" FontWeight="Bold" Foreground="#71717A" TextAlignment="Right"/>
+                        </Grid>
+
+                        <!-- Snapshots Scrollable List -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <ItemsControl x:Name="SnapshotsItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#18181B" BorderBrush="#27272A" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="2.5*"/>
+                                                        <ColumnDefinition Width="1.2*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                        <ColumnDefinition Width="1*"/>
+                                                        <ColumnDefinition Width="1.5*"/>
+                                                        <ColumnDefinition Width="180"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- File Name -->
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="📦 " FontSize="12"/>
+                                                        <TextBlock Text="{Binding FileName}" FontFamily="Consolas" FontSize="12" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+
+                                                    <!-- Type Badge -->
+                                                    <Border Grid.Column="1" Background="{Binding TypeBg}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding TypeBadge}" FontSize="9" FontWeight="Bold" Foreground="{Binding TypeColor}"/>
+                                                    </Border>
+
+                                                    <!-- Label -->
+                                                    <TextBlock Grid.Column="2" Text="{Binding DisplayLabel}" FontSize="12" Foreground="#D4D4D8" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                                                    <!-- Size -->
+                                                    <TextBlock Grid.Column="3" Text="{Binding FormattedSize}" FontSize="12" FontWeight="SemiBold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+
+                                                    <!-- Created Date -->
+                                                    <TextBlock Grid.Column="4" Text="{Binding FormattedDate}" FontSize="11" Foreground="#A1A1AA" VerticalAlignment="Center"/>
+
+                                                    <!-- Action Buttons -->
+                                                    <StackPanel Grid.Column="5" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                        <Button Content="↺ Restore" Tag="{Binding FileName}" Click="ItemRestore_Click"
+                                                                Background="#4338CA" Foreground="White" BorderThickness="0" Padding="8,4" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,6,0">
+                                                            <Button.Resources>
+                                                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                                                            </Button.Resources>
+                                                        </Button>
+
+                                                        <Button Content="💾" Tag="{Binding FilePath}" Click="ItemExport_Click" ToolTip="Export copy to chosen location"
+                                                                Background="#27272A" Foreground="#E4E4E7" BorderThickness="0" Padding="8,4" FontSize="11" Cursor="Hand" Margin="0,0,6,0">
+                                                            <Button.Resources>
+                                                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                                                            </Button.Resources>
+                                                        </Button>
+
+                                                        <Button Content="🗑" Tag="{Binding FileName}" Click="ItemDelete_Click" ToolTip="Delete snapshot archive"
+                                                                Background="#27272A" Foreground="#F87171" BorderThickness="0" Padding="8,4" FontSize="11" Cursor="Hand">
+                                                            <Button.Resources>
+                                                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                                                            </Button.Resources>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Border x:Name="NoBackupsPlaceholder" Background="#18181B" BorderBrush="#27272A" BorderThickness="1" CornerRadius="8" Padding="24" Visibility="Collapsed">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="No database snapshots found in archive." FontSize="13" FontWeight="SemiBold" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="Click 'Create Snapshot Now' above to generate an immediate system backup." FontSize="11" Foreground="#71717A" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Action Status Feedback -->
+                <Border Grid.Row="4" Margin="0,10,0,0">
+                    <TextBlock x:Name="DrActionFeedbackText" Text="" FontSize="12" FontWeight="SemiBold" Foreground="#34D399" TextAlignment="Center"/>
+                </Border>
             </Grid>
 
         </Grid>

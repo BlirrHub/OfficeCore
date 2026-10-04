@@ -194,7 +194,7 @@ public class AuthController : ControllerBase
                     "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards",
                     "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
                     "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff",
-                    "Locations", "Organization", "Backups", "AuditLogs"
+                    "Locations", "Organization", "AuditLogs"
                 };
             }
 

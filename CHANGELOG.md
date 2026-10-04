@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Refactored — [2026-10-05] (Server Station Disaster Recovery Console & Workspace Module Decoupling)
+
+- **Decoupled Database Backups from Workspace Admin (`NavMenu.razor`, `RoleManagement.razor`, `Program.cs`, `DbSeeder.cs`, `AuthController.cs`):**
+  - Completely removed the `/admin/backups` module from the Web application's navigation drawer (`NavMenu.razor`), Role Management configurable permission matrices (`RoleManagement.razor`), and default authorization policies.
+  - Eliminated the multi-tenant risk where restoring a whole-database dump from within a single workspace admin menu would inadvertently reset other workspaces and user accounts.
+  - Hardened `BackupController.cs` to strictly authorize loopback requests originating from the local Server Station host machine (`X-OfficeCore-Station: ServerStationOrchestrator`), blocking remote LAN workstation terminals from initiating whole-system database dumps or drops.
+
+- **Native Server Disaster Recovery Console (`OfficeCore.Desktop.Server`):**
+  - Built a dedicated, first-class Disaster Recovery & Database Snapshots console inside `MainWindow.xaml` and `MainWindow.xaml.cs` of the Desktop Server Station WPF host.
+  - Integrated real-time health indicator cards: PostgreSQL engine status (`pg_dump.exe` detection & path display), Total Snapshots count & breakdown (manual, automatic, safety pre-restore), Compressed storage footprint (MB/GB), and Active daily schedule routine.
+  - Implemented 1-Click Snapshot Creation with custom labels, 1-Click Safety-Restoration with pre-restore snapshot generation, External `.dump` import & upload wizard, Direct folder access in Windows Explorer (`Open Folder`), and Copy/Export actions.
+  - Added an inline collapsible Schedule Settings panel allowing server operators to toggle daily automated backups, adjust run time (HH:mm), customize retention count (auto-pruning old snapshots), and set custom PostgreSQL bin paths.
+  - Created `DesktopBackupService.cs` providing unified API client orchestration with graceful local disk fallback when the API process is stopped.
+
 ### Enhanced — [2026-10-05] (Emoji Reactions Positioning, Per-User Reaction Overwriting & Dynamic Textarea Auto-Sizing)
 
 - **Top-Anchored Emoji Reaction Bar (`GlobalChatWidget.razor`):**

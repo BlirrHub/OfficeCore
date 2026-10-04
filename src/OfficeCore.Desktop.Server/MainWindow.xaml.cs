@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -71,13 +73,24 @@ public partial class MainWindow : Window
         WindowTopHeader.Visibility = Visibility.Visible;
         ServerDashboardPanel.Visibility = Visibility.Visible;
         WebViewContainer.Visibility = Visibility.Collapsed;
+        DisasterRecoveryPanel.Visibility = Visibility.Collapsed;
         LanUrlTextBlock.Text = NetworkHelper.GetServerShareUrl(5026);
+    }
+
+    private void ShowDisasterRecoveryView()
+    {
+        WindowTopHeader.Visibility = Visibility.Visible;
+        ServerDashboardPanel.Visibility = Visibility.Collapsed;
+        WebViewContainer.Visibility = Visibility.Collapsed;
+        DisasterRecoveryPanel.Visibility = Visibility.Visible;
+        _ = LoadDisasterRecoveryDataAsync();
     }
 
     private void ShowWebView(string url)
     {
         WindowTopHeader.Visibility = Visibility.Collapsed;
         ServerDashboardPanel.Visibility = Visibility.Collapsed;
+        DisasterRecoveryPanel.Visibility = Visibility.Collapsed;
         WebViewContainer.Visibility = Visibility.Visible;
         WebFullToolbar.Visibility = Visibility.Visible;
         WebMiniBar.Visibility = Visibility.Collapsed;
@@ -238,21 +251,267 @@ public partial class MainWindow : Window
 
     private void OpenBackupConsole_Click(object sender, RoutedEventArgs e)
     {
+        ShowDisasterRecoveryView();
+    }
+
+    #endregion
+
+    #region Disaster Recovery & Database Backups
+
+    private readonly DesktopBackupService _backupService = new();
+    private BackupDashboardData? _currentBackupData;
+
+    private async Task LoadDisasterRecoveryDataAsync()
+    {
+        try
+        {
+            DrActionFeedbackText.Text = "Loading snapshots...";
+            DrActionFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FACC15"));
+
+            var isRunning = _serverManager.CurrentStatus == ServerStatus.Running;
+            var data = await _backupService.LoadDashboardDataAsync(isRunning);
+            _currentBackupData = data;
+
+            // Engine status
+            if (data.IsPgToolsAvailable)
+            {
+                DrEngineStatusText.Text = "✓ Ready (pg_dump detected)";
+                DrEngineStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"));
+            }
+            else
+            {
+                DrEngineStatusText.Text = "✗ Missing pg_dump.exe";
+                DrEngineStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+            }
+            DrEngineBinPathText.Text = !string.IsNullOrEmpty(data.PgBinPath) ? data.PgBinPath : "Configure path in settings below";
+
+            // Snapshots count
+            var total = data.Backups.Count;
+            var autoCount = data.Backups.Count(b => b.IsAutomatic);
+            var preCount = data.Backups.Count(b => b.IsPreRestore);
+            var manualCount = total - autoCount - preCount;
+
+            DrTotalSnapshotsText.Text = $"{total} archives";
+            DrSnapshotsBreakdownText.Text = $"{manualCount} manual, {autoCount} auto, {preCount} safety";
+
+            // Storage footprint
+            DrStorageFootprintText.Text = BackupItemViewModel.FormatBytes(data.TotalSizeBytes);
+
+            // Auto-schedule
+            if (data.Settings.AutoBackupEnabled)
+            {
+                DrScheduleRoutineText.Text = $"Daily at {data.Settings.ScheduledTime}";
+                DrRetentionText.Text = $"Retaining last {data.Settings.RetentionCount} backups";
+            }
+            else
+            {
+                DrScheduleRoutineText.Text = "Schedule Disabled";
+                DrRetentionText.Text = "Automated backups turned off";
+            }
+
+            // Sync settings form
+            AutoBackupEnabledCheck.IsChecked = data.Settings.AutoBackupEnabled;
+            AutoBackupTimeInput.Text = data.Settings.ScheduledTime;
+            AutoBackupRetentionInput.Text = data.Settings.RetentionCount.ToString();
+            CustomPgBinPathInput.Text = data.Settings.CustomPgBinPath ?? "";
+
+            // Bind list
+            SnapshotsItemsControl.ItemsSource = data.Backups;
+            NoBackupsPlaceholder.Visibility = data.Backups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            DrActionFeedbackText.Text = "";
+        }
+        catch (Exception ex)
+        {
+            DrActionFeedbackText.Text = $"Error loading data: {ex.Message}";
+            DrActionFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+        }
+    }
+
+    private void RefreshBackups_Click(object sender, RoutedEventArgs e)
+    {
+        _ = LoadDisasterRecoveryDataAsync();
+    }
+
+    private void OpenBackupsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        _backupService.OpenBackupsFolderInExplorer();
+    }
+
+    private void ToggleScheduleSettings_Click(object sender, RoutedEventArgs e)
+    {
+        ScheduleSettingsCard.Visibility = ScheduleSettingsCard.Visibility == Visibility.Visible
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    private async void SaveScheduleSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (!int.TryParse(AutoBackupRetentionInput.Text.Trim(), out var retention) || retention < 1)
+            retention = 14;
+
+        var settings = new BackupSettingsData
+        {
+            AutoBackupEnabled = AutoBackupEnabledCheck.IsChecked == true,
+            ScheduledTime = string.IsNullOrWhiteSpace(AutoBackupTimeInput.Text) ? "23:00" : AutoBackupTimeInput.Text.Trim(),
+            RetentionCount = retention,
+            CustomPgBinPath = string.IsNullOrWhiteSpace(CustomPgBinPathInput.Text) ? null : CustomPgBinPathInput.Text.Trim()
+        };
+
+        var saved = await _backupService.SaveSettingsAsync(settings);
+        if (saved)
+        {
+            ScheduleSettingsFeedback.Text = "✓ Backup schedule and retention settings saved successfully!";
+            ScheduleSettingsFeedback.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"));
+            _ = LoadDisasterRecoveryDataAsync();
+        }
+        else
+        {
+            ScheduleSettingsFeedback.Text = "✗ Failed to save settings.";
+            ScheduleSettingsFeedback.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+        }
+    }
+
+    private async void CreateSnapshot_Click(object sender, RoutedEventArgs e)
+    {
         if (_serverManager.CurrentStatus != ServerStatus.Running)
         {
-            var res = MessageBox.Show(
-                "The server is not currently running. Would you like to start it now to access the Disaster Recovery Console?",
-                "Server Not Running", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (res == MessageBoxResult.Yes)
-            {
-                SyncConfigFromInputs();
-                _pendingLaunchWhenLive = true;
-                _ = _serverManager.StartServerAsync(_config);
-            }
+            MessageBox.Show("Please start the OfficeCore server before creating a snapshot.", "Server Required", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        ShowWebView("http://localhost:5026/admin/backups");
+        CreateSnapshotButton.IsEnabled = false;
+        DrActionFeedbackText.Text = "Creating complete database snapshot...";
+        DrActionFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FACC15"));
+
+        var (success, msg) = await _backupService.CreateSnapshotAsync("Manual Server Station Snapshot");
+        DrActionFeedbackText.Text = success ? $"✓ {msg}" : $"✗ {msg}";
+        DrActionFeedbackText.Foreground = success 
+            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"))
+            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+
+        CreateSnapshotButton.IsEnabled = true;
+        _ = LoadDisasterRecoveryDataAsync();
+    }
+
+    private async void UploadBackup_Click(object sender, RoutedEventArgs e)
+    {
+        if (_serverManager.CurrentStatus != ServerStatus.Running)
+        {
+            MessageBox.Show("Please start the OfficeCore server before importing a backup.", "Server Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select PostgreSQL Backup File to Restore",
+            Filter = "PostgreSQL Dump (*.dump;*.sql)|*.dump;*.sql|All Files (*.*)|*.*"
+        };
+
+        if (dlg.ShowDialog() == true)
+        {
+            var confirm = MessageBox.Show(
+                $"WARNING: You are about to import and restore:\n{dlg.FileName}\n\n" +
+                "Restoring will take an automatic safety pre-restore snapshot first, then restore the entire database.\n\n" +
+                "Are you sure you want to proceed?",
+                "Confirm Disaster Recovery Restore", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (confirm != MessageBoxResult.Yes) return;
+
+            DrActionFeedbackText.Text = "Importing and restoring database (this may take several minutes)...";
+            DrActionFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FACC15"));
+
+            var (success, msg) = await _backupService.UploadAndRestoreAsync(dlg.FileName);
+            DrActionFeedbackText.Text = success ? $"✓ {msg}" : $"✗ {msg}";
+            DrActionFeedbackText.Foreground = success 
+                ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"))
+                : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+
+            _ = LoadDisasterRecoveryDataAsync();
+        }
+    }
+
+    private async void ItemRestore_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement el || el.Tag is not string fileName || string.IsNullOrWhiteSpace(fileName))
+            return;
+
+        if (_serverManager.CurrentStatus != ServerStatus.Running)
+        {
+            MessageBox.Show("Please start the OfficeCore server before restoring a backup.", "Server Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"WARNING: You are about to restore the system database from:\n{fileName}\n\n" +
+            "An automatic safety pre-restore snapshot will be taken first, and then all records will be restored to this exact point in time.\n\n" +
+            "Do you want to proceed?",
+            "Confirm Database Restoration", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        DrActionFeedbackText.Text = $"Restoring database from '{fileName}' (safety snapshot underway)...";
+        DrActionFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FACC15"));
+
+        var (success, msg) = await _backupService.RestoreSnapshotAsync(fileName);
+        DrActionFeedbackText.Text = success ? $"✓ {msg}" : $"✗ {msg}";
+        DrActionFeedbackText.Foreground = success 
+            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"))
+            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+
+        _ = LoadDisasterRecoveryDataAsync();
+    }
+
+    private void ItemExport_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement el || el.Tag is not string filePath || !File.Exists(filePath))
+            return;
+
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Export Database Snapshot Copy",
+            FileName = Path.GetFileName(filePath),
+            Filter = "PostgreSQL Dump (*.dump)|*.dump|All Files (*.*)|*.*"
+        };
+
+        if (dlg.ShowDialog() == true)
+        {
+            try
+            {
+                File.Copy(filePath, dlg.FileName, overwrite: true);
+                DrActionFeedbackText.Text = $"✓ Snapshot successfully exported to: {dlg.FileName}";
+                DrActionFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to export file: {ex.Message}", "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private async void ItemDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement el || el.Tag is not string fileName || string.IsNullOrWhiteSpace(fileName))
+            return;
+
+        var confirm = MessageBox.Show(
+            $"Are you sure you want to delete database snapshot:\n{fileName}?",
+            "Delete Snapshot", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        var deleted = await _backupService.DeleteSnapshotAsync(fileName);
+        if (deleted)
+        {
+            DrActionFeedbackText.Text = $"✓ Snapshot '{fileName}' deleted.";
+            DrActionFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"));
+            _ = LoadDisasterRecoveryDataAsync();
+        }
+        else
+        {
+            DrActionFeedbackText.Text = $"✗ Failed to delete snapshot '{fileName}'.";
+            DrActionFeedbackText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+        }
     }
 
     private void OnServerStatusChanged(ServerStatus status)

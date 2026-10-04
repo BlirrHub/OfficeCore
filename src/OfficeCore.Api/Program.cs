@@ -112,7 +112,7 @@ builder.Services.AddAuthorization(options =>
         "Dashboard", "MyAttendance", "Clients", "Attendance", "Boards", "MyLeaves",
         "Advances", "Ledger", "Payroll", "Invoices",
         "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization",
-        "Backups", "AuditLogs"
+        "AuditLogs"
     };
     foreach (var module in modules)
     {

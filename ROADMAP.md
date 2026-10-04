@@ -56,14 +56,13 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [ ] **Custom Organization Branding:** Allow workspaces to upload custom company logos, favicon, and brand accent colors.
 - [ ] **Single Sign-On (SSO):** Google Workspace and Microsoft Entra ID (Azure AD) OAuth2 login integration.
 
-### 💾 Database Backup & Disaster Recovery System
-- [x] **One-Click Manual Backup:** Button in Server Station and Admin portal to immediately dump PostgreSQL database into timestamped archive (`.sql` / `.dump`).
-- [x] **Scheduled Automated Backups:** Configurable recurring background schedule (Daily, Weekly, Custom cron) with automatic status logging.
-- [x] **Backup Retention Policies:** Configurable auto-prune rules to optimize disk usage (keep last N backups).
+### 💾 Database Backup & Disaster Recovery System (Dedicated Server Station Engine)
+- [x] **Desktop Server Station Disaster Recovery Console:** Built a dedicated, first-class WPF Disaster Recovery Console directly inside `OfficeCore.Desktop.Server` with PostgreSQL engine status, snapshots table, 1-click snapshot creation, import/restore, and retention configuration.
 - [x] **Safe Database Restore Wizard:** Interactive restore tool with pre-flight database connection validation, safety confirmation barrier, and automatic pre-restore safety snapshot.
-- [x] **Server Station Backup Health Card:** Visual dashboard indicator showing last backup timestamp, file size, storage space, and status alerts.
+- [x] **Scheduled Automated Server Backups:** Configurable recurring background schedule (Daily, Weekly, Custom cron) with automatic status logging.
+- [x] **Backup Retention Policies:** Configurable auto-prune rules to optimize disk usage (keep last N backups).
+- [x] **Decoupled from Workspace Admin:** Fully removed the Database Backups module from the web application (`/admin/backups`, NavMenu, and Role Management claims), preventing workspace admins from accidentally triggering whole-server database restores that wipe other workspaces or accounts.
 - [ ] **Custom Storage Paths & Secondary Locations:** Option to save backups to secondary hard drives, NAS shares, or external media for physical redundancy.
-- [ ] **Tenant-Level Data Export:** Organization admins can export their workspace's discrete records as an encrypted or portable JSON/ZIP package.
 
 ### 💰 Payroll & Compensation
 - [x] **Printable & PDF Payslip Generation:** One-click bulk and individual PDF payslip generator with company logo and signature lines.

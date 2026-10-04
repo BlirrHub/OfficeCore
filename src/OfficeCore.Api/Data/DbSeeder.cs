@@ -173,7 +173,7 @@ public static class DbSeeder
             "Payroll", "Invoices", "Ledger",
             "WorkSchedules", "TimeOff", "Locations",
             "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals",
-            "Backups", "AuditLogs"
+            "AuditLogs"
         };
 
         foreach (var module in allModules)
@@ -244,7 +244,7 @@ public static class DbSeeder
             }
         }
 
-        // Ensure all Admin/Owner roles across all organizations have Backups and AuditLogs
+        // Ensure all Admin/Owner roles across all organizations have AuditLogs
         var allAdminRoles = await context.OrganizationRoles
             .Include(r => r.Claims)
             .Where(r => r.Name == "Admin" || r.Name == "Owner")
@@ -252,7 +252,7 @@ public static class DbSeeder
 
         foreach (var adminRole in allAdminRoles)
         {
-            foreach (var mod in new[] { "Backups", "AuditLogs" })
+            foreach (var mod in new[] { "AuditLogs" })
             {
                 if (!adminRole.Claims.Any(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == mod))
                 {

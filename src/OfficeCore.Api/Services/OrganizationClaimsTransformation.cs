@@ -70,7 +70,7 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
                 "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards",
                 "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
                 "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff",
-                "Locations", "Organization", "Backups", "AuditLogs"
+                "Locations", "Organization", "AuditLogs"
             };
             foreach (var m in allModules)
                 claimsIdentity.AddClaim(new Claim("ModuleAccess", m));

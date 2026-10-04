@@ -38,15 +38,17 @@ public class BackupController : ControllerBase
 
     private async Task<bool> IsAuthorizedForBackupsAsync()
     {
+        var remoteIp = HttpContext.Connection.RemoteIpAddress;
+        var isLoopback = remoteIp != null && System.Net.IPAddress.IsLoopback(remoteIp);
+
         // Allow local Server Station host orchestration requests from loopback
         if (Request.Headers.TryGetValue("X-OfficeCore-Station", out var stationHeader) && stationHeader == "ServerStationOrchestrator")
         {
-            var remoteIp = HttpContext.Connection.RemoteIpAddress;
-            if (remoteIp != null && System.Net.IPAddress.IsLoopback(remoteIp))
-            {
-                return true;
-            }
+            if (isLoopback) return true;
         }
+
+        // Only permit host-local requests from loopback for full database backups
+        if (!isLoopback) return false;
 
         if (User.Identity?.IsAuthenticated != true)
             return false;
@@ -54,22 +56,7 @@ public class BackupController : ControllerBase
         var userId = _userManager.GetUserId(User);
         if (userId == null) return false;
 
-        var orgId = _tenant.GetActiveOrganizationId();
-        if (orgId == null)
-        {
-            // If no active workspace is selected, check if user is the creator of any organization
-            return await _context.Organizations.AnyAsync(o => o.CreatedByUserId == userId);
-        }
-
-        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == orgId.Value);
-        if (org != null && org.CreatedByUserId == userId)
-            return true;
-
-        var isAdmin = await _context.EmployeeRoles
-            .AnyAsync(er => er.Employee != null && er.Employee.UserId == userId && er.Employee.OrganizationId == orgId.Value &&
-                            (er.Role != null && (er.Role.Name == "Admin" || er.Role.Name == "Owner")));
-
-        return isAdmin;
+        return await _context.Organizations.AnyAsync(o => o.CreatedByUserId == userId);
     }
 
     [HttpGet]
