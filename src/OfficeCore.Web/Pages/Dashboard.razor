@@ -601,7 +601,15 @@
                                 var taskLink = task.BoardId != Guid.Empty ? $"/boards/{task.BoardId}" : personalBoardUrl;
                                 <a href="@taskLink" class="flex items-center justify-between p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/50 transition-all text-xs block group">
                                     <div class="flex items-center gap-3 min-w-0">
-                                        <span class="size-2 rounded-full @(task.ListName.Contains("Done", StringComparison.OrdinalIgnoreCase) ? "bg-emerald-400" : "bg-fuchsia-500") shrink-0"></span>
+                                        @{
+                                            var isDone = task.ListName.Contains("Done", StringComparison.OrdinalIgnoreCase);
+                                            var daysDiff = task.DueDate.HasValue ? (task.DueDate.Value.Date - DateTime.UtcNow.Date).TotalDays : 999;
+                                            var dotClass = isDone ? "bg-emerald-400" :
+                                                           (task.DueDate.HasValue && daysDiff <= 3) ? "bg-red-500" :
+                                                           (task.DueDate.HasValue && daysDiff <= 7) ? "bg-orange-500" :
+                                                           "bg-fuchsia-500";
+                                        }
+                                        <span class="size-2 rounded-full @dotClass shrink-0"></span>
                                         <div class="min-w-0">
                                             <p class="font-medium text-zinc-200 group-hover:text-white truncate">@task.Title</p>
                                             <p class="text-[11px] text-zinc-500 mt-0.5">List: <span class="text-zinc-400">@task.ListName</span></p>
@@ -610,17 +618,13 @@
                                     <div class="flex items-center gap-2 shrink-0 ml-3">
                                         @if (task.DueDate.HasValue)
                                         {
-                                            var now = DateTime.Now;
-                                            var due = task.DueDate.Value;
-                                            var daysDiff = (due.Date - now.Date).TotalDays;
-                                            
-                                            var pillClass = "bg-zinc-800 text-zinc-400";
-                                            if (daysDiff < 0) pillClass = "bg-rose-500/10 text-rose-400 border border-rose-500/20";
-                                            else if (daysDiff <= 1) pillClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
-                                            else pillClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                                            var pillClass = isDone ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                                                            daysDiff <= 3 ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                                                            daysDiff <= 7 ? "bg-orange-500/10 text-orange-400 border border-orange-500/20" :
+                                                            "bg-zinc-800 text-zinc-400 border border-zinc-700/40";
                                             
                                             <span class="text-[10px] px-2 py-0.5 rounded-md @pillClass">
-                                                Due @due.ToString("MMM dd")
+                                                Due @task.DueDate.Value.ToString("MMM dd")
                                             </span>
                                         }
                                         else
@@ -774,7 +778,10 @@
         var hubUrl = new Uri(Http.BaseAddress!, "hubs/notifications").ToString();
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl)
+            .WithUrl(hubUrl, options =>
+            {
+                options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler };
+            })
             .WithAutomaticReconnect()
             .Build();
 

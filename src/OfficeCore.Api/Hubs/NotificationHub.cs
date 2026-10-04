@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Hubs;
@@ -11,10 +13,12 @@ namespace OfficeCore.Api.Hubs;
 [Authorize]
 public class NotificationHub : Hub
 {
+    private readonly AppDbContext _context;
     private readonly TenantService _tenant;
 
-    public NotificationHub(TenantService tenant)
+    public NotificationHub(AppDbContext context, TenantService tenant)
     {
+        _context = context;
         _tenant = tenant;
     }
 
@@ -22,6 +26,15 @@ public class NotificationHub : Hub
     {
         var orgId = _tenant.GetActiveOrganizationId();
         var userId = _tenant.GetUserId();
+
+        if (!orgId.HasValue && !string.IsNullOrEmpty(userId))
+        {
+            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == userId);
+            if (employee != null)
+            {
+                orgId = employee.OrganizationId;
+            }
+        }
         
         Console.WriteLine($"[SignalR] NotificationHub connected. ConnectionId: {Context.ConnectionId}, UserId: {userId}, OrgId: {orgId}");
         

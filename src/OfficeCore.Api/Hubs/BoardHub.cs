@@ -23,10 +23,17 @@ public class BoardHub : Hub
         if (!Guid.TryParse(boardId, out var parsedBoardId)) return;
 
         var orgId = _tenant.GetActiveOrganizationId();
-        if (orgId == null) return;
-
-        var boardExists = await _context.Boards
-            .AnyAsync(b => b.Id == parsedBoardId && b.OrganizationId == orgId.Value);
+        bool boardExists;
+        if (orgId.HasValue)
+        {
+            boardExists = await _context.Boards
+                .AnyAsync(b => b.Id == parsedBoardId && b.OrganizationId == orgId.Value);
+        }
+        else
+        {
+            boardExists = await _context.Boards
+                .AnyAsync(b => b.Id == parsedBoardId);
+        }
 
         if (boardExists)
         {

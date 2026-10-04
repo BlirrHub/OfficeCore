@@ -172,7 +172,10 @@ else
                                         <div class="flex flex-wrap gap-1 mb-2">
                                             @foreach(var l in card.Labels)
                                             {
-                                                <span class="w-8 h-2 rounded-full" style="background-color: @l.Label.ColorHex" title="@l.Label.Name"></span>
+                                                var labelObj = l.Label ?? _board?.Labels.FirstOrDefault(x => x.Id == l.LabelId);
+                                                var color = !string.IsNullOrEmpty(labelObj?.ColorHex) ? labelObj.ColorHex : "#71717a";
+                                                var name = labelObj?.Name ?? "Label";
+                                                <span class="w-8 h-2 rounded-full" style="background-color: @color" title="@name"></span>
                                             }
                                         </div>
                                     }
@@ -204,14 +207,16 @@ else
                                         <div class="flex flex-wrap items-center gap-2">
                                             @if (card.DueDate.HasValue)
                                             {
-                                                var isOverdueOrToday = card.DueDate.Value.Date <= DateTime.UtcNow.Date && list.Name.ToLower() != "done";
-                                                var isClose = card.DueDate.Value.Date == DateTime.UtcNow.Date.AddDays(1) && list.Name.ToLower() != "done";
-                                                var dueColor = isOverdueOrToday ? "text-red-400 bg-red-400/10 border border-red-500/20" : 
-                                                               isClose ? "text-amber-400 bg-amber-400/10 border border-amber-500/20" : 
+                                                var isDone = list.Name.Equals("Done", StringComparison.OrdinalIgnoreCase);
+                                                var daysLeft = (card.DueDate.Value.Date - DateTime.UtcNow.Date).TotalDays;
+                                                var isRed = !isDone && daysLeft <= 3;
+                                                var isOrange = !isDone && daysLeft > 3 && daysLeft <= 7;
+                                                var dueColor = isRed ? "text-red-400 bg-red-400/10 border border-red-500/20" : 
+                                                               isOrange ? "text-orange-400 bg-orange-400/10 border border-orange-500/20" : 
                                                                "text-zinc-400 bg-zinc-800/50 border border-zinc-700/50";
                                                 
                                                 <div class="flex items-center gap-1 @dueColor px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide">
-                                                    @if (isOverdueOrToday)
+                                                    @if (isRed || isOrange)
                                                     {
                                                         <svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                                     }
@@ -976,9 +981,20 @@ else
     protected override async Task OnInitializedAsync()
     {
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(Http.BaseAddress!, "hubs/boards"))
+            .WithUrl(new Uri(Http.BaseAddress!, "hubs/boards"), options =>
+            {
+                options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler };
+            })
             .WithAutomaticReconnect()
             .Build();
+
+        hubConnection.Reconnected += async (connectionId) =>
+        {
+            if (Id != Guid.Empty)
+            {
+                try { await hubConnection.SendAsync("JoinBoardGroup", Id.ToString()); } catch { }
+            }
+        };
 
         hubConnection.On("BoardUpdated", async () =>
         {
@@ -1606,6 +1622,7 @@ else
                 _editingCard.Labels.Add(new BoardCardLabelDto { LabelId = labelId, Label = labelObj });
             }
         }
+        StateHasChanged();
     }
 
     private async Task DeleteBoardLabel(BoardLabelDto label)

@@ -247,7 +247,13 @@ public class BoardsController : ControllerBase
                             }
                         } : new List<BoardCardAssigneeResponseDto>()),
                     c.DueDate,
-                    Labels = c.Labels.Select(cl => new { cl.LabelId, Label = new { cl.Label.Id, cl.Label.Name, cl.Label.ColorHex } }),
+                    Labels = c.Labels.Select(cl => {
+                        var lbl = cl.Label ?? board.Labels.FirstOrDefault(l => l.Id == cl.LabelId);
+                        return new {
+                            cl.LabelId,
+                            Label = lbl == null ? null : new { lbl.Id, lbl.Name, lbl.ColorHex }
+                        };
+                    }).Where(cl => cl.Label != null),
                     Comments = c.Comments.Select(cm => new {
                         cm.Id,
                         cm.Text,
@@ -802,11 +808,17 @@ public class BoardsController : ControllerBase
     private async Task NotifyBoardUpdated(Guid boardId)
     {
         await _hubContext.Clients.Group(boardId.ToString()).SendAsync("BoardUpdated");
+        await _hubContext.Clients.All.SendAsync("BoardUpdated");
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId.HasValue)
         {
             await _notificationHub.Clients.Group($"org_{orgId.Value}").SendAsync("BoardUpdated");
             await _notificationHub.Clients.Group($"org_{orgId.Value}").SendAsync("TaskUpdated");
+        }
+        else
+        {
+            await _notificationHub.Clients.All.SendAsync("BoardUpdated");
+            await _notificationHub.Clients.All.SendAsync("TaskUpdated");
         }
     }
 
@@ -905,8 +917,12 @@ public class BoardsController : ControllerBase
         var labelExists = await _context.BoardLabels.AnyAsync(l => l.Id == labelId && l.OrganizationId == orgId.Value);
         if (!labelExists) return NotFound("Label not found.");
 
-        _context.BoardCardLabels.Add(new BoardCardLabel { CardId = cardId, LabelId = labelId });
-        await _context.SaveChangesAsync();
+        var alreadyExists = await _context.BoardCardLabels.AnyAsync(cl => cl.CardId == cardId && cl.LabelId == labelId);
+        if (!alreadyExists)
+        {
+            _context.BoardCardLabels.Add(new BoardCardLabel { CardId = cardId, LabelId = labelId, OrganizationId = orgId.Value });
+            await _context.SaveChangesAsync();
+        }
         await NotifyBoardUpdated(card.List.BoardId);
         return Ok();
     }

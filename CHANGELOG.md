@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-10-04] (Board Card Labels Real-Time Sync & Due Date Urgency Indicators)
+
+- **Board Card Labels Real-Time Synchronization:**
+  - Configured `OfficeCore.Web.Client.Auth.CookieHandler` on `HttpMessageHandlerFactory` in `BoardView.razor`, `Dashboard.razor`, and `NotificationCenter.razor`, ensuring browser cookies and authentication headers are sent with SignalR WebSocket negotiation requests in Blazor WebAssembly.
+  - Updated `BoardHub.cs` so connections join board groups based on board GUID existence even if the active organization cookie is not present during WebSocket negotiation.
+  - Added an automatic fallback in `NotificationHub.cs` to resolve organization ID directly from the employee database record if cookie is absent.
+  - Updated `BoardsController.AddLabelToCard` to assign `OrganizationId` and enforce idempotency check to avoid primary key collisions.
+  - Updated `BoardsController.NotifyBoardUpdated` to broadcast `BoardUpdated` and `TaskUpdated` to both board-specific and organization-wide hub groups and clients.
+  - Updated `BoardsController.GetBoard` to safely project card labels with fallback to board labels dictionary, preventing null reference errors.
+  - Updated `BoardView.razor` label rendering with safe null fallback and added `StateHasChanged()` to `ToggleLabel` for instant local feedback.
+
+- **Due Date Urgency Indicator Colors (Board & Dashboard):**
+  - Updated deadline color indicators across Kanban Board cards ([BoardView.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/BoardView.razor)) and Dashboard Assigned Tasks ([Dashboard.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/Dashboard.razor)):
+    - **3 days or less before deadline (including overdue):** Styled in urgent Red (`text-red-400 bg-red-400/10 border border-red-500/20` / `bg-red-500/10 text-red-400 border border-red-500/20`).
+    - **7 days or less before deadline (4–7 days remaining):** Styled in warning Orange (`text-orange-400 bg-orange-400/10 border border-orange-500/20` / `bg-orange-500/10 text-orange-400 border border-orange-500/20`).
+    - **More than 7 days remaining:** Neutral standard styling (`bg-zinc-800 text-zinc-400`).
+    - **Completed Tasks ("Done"):** Excluded from urgency colors, styled in emerald or neutral complete indicator.
+    - Updated Dashboard personal task status dot to match the due date urgency color palette.
+
 ### Fixed & Enhanced — [2026-10-04] (Installer .gitignore, E-Loan/Advance & Leave Request/Action Timestamps, Board Member Permissions & Card Attachments Fix)
 
 - **Installers Ignored in Git:**
