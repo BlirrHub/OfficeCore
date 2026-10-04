@@ -31,7 +31,7 @@ $apiDist = Join-Path $distDir "temp_api_payload"
 $apiOut = Join-Path $apiDist "Api"
 if (Test-Path $apiDist) { Remove-Item $apiDist -Recurse -Force }
 New-Item -ItemType Directory -Path $apiOut -Force | Out-Null
-dotnet publish "$rootDir/src/OfficeCore.Api/OfficeCore.Api.csproj" -c Release -r win-x64 --self-contained false -o $apiOut
+dotnet publish "$rootDir/src/OfficeCore.Api/OfficeCore.Api.csproj" -c Release -o $apiOut
 
 # Zip the Api payload for embedded resource packaging
 $apiZip = Join-Path $apiDist "Api.zip"
@@ -43,7 +43,9 @@ Write-Host "[4/5] Publishing OfficeCore Server Station Portable..." -ForegroundC
 $serverDist = Join-Path $distDir "OfficeCore-ServerStation-Portable"
 dotnet publish "$rootDir/src/OfficeCore.Desktop.Server/OfficeCore.Desktop.Server.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $serverDist
 # Copy the published API alongside the portable server station
-Copy-Item $apiOut (Join-Path $serverDist "Api") -Recurse -Force
+$targetServerApi = Join-Path $serverDist "Api"
+if (Test-Path $targetServerApi) { Remove-Item $targetServerApi -Recurse -Force }
+Copy-Item $apiOut $serverDist -Recurse -Force
 
 # 5. Build Server Setup Wizard (With embedded server and API payload)
 Write-Host "[5/5] Publishing Setup-OfficeCore-Server.exe..." -ForegroundColor Cyan
