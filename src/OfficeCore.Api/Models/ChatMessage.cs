@@ -26,6 +26,15 @@ public class ChatMessage : ITenantEntity{
     public string? AttachmentName { get; set; }
     public long? AttachmentSize { get; set; }
 
+    public bool IsPinned { get; set; } = false;
+    public DateTime? PinnedAt { get; set; }
+    public string? PinnedById { get; set; }
+
+    [ForeignKey("PinnedById")]
+    public Employee? PinnedBy { get; set; }
+
+    public ICollection<ChatMessageReaction> Reactions { get; set; } = new List<ChatMessageReaction>();
+
     public DateTime CreatedAt { get; set; }
 
     public Guid OrganizationId { get; set; }

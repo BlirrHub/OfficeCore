@@ -1869,6 +1869,61 @@
             {
                 _messages.RemoveAll(m => m.Id == msgId);
                 _pinnedMessageIds.Remove(msgId);
+                _messageUserReactions.Remove(msgId);
+                InvokeAsync(StateHasChanged);
+            }
+        });
+
+        _hubConnection.On<Guid, Guid, bool>("MessagePinUpdated", (roomId, msgId, isPinned) =>
+        {
+            if (_activeRoom?.Id == roomId)
+            {
+                var msg = _messages.FirstOrDefault(m => m.Id == msgId);
+                if (msg != null)
+                {
+                    msg.IsPinned = isPinned;
+                }
+                if (isPinned)
+                {
+                    _pinnedMessageIds.Add(msgId);
+                }
+                else
+                {
+                    _pinnedMessageIds.Remove(msgId);
+                }
+                InvokeAsync(StateHasChanged);
+            }
+        });
+
+        _hubConnection.On<Guid, Guid, string, string?>("MessageReactionUpdated", (roomId, msgId, userId, emoji) =>
+        {
+            if (_activeRoom?.Id == roomId)
+            {
+                if (!_messageUserReactions.TryGetValue(msgId, out var userMap))
+                {
+                    userMap = new Dictionary<string, string>();
+                    _messageUserReactions[msgId] = userMap;
+                }
+
+                if (string.IsNullOrEmpty(emoji))
+                {
+                    userMap.Remove(userId);
+                }
+                else
+                {
+                    userMap[userId] = emoji;
+                }
+
+                var msg = _messages.FirstOrDefault(m => m.Id == msgId);
+                if (msg != null)
+                {
+                    msg.Reactions.RemoveAll(r => r.UserId == userId);
+                    if (!string.IsNullOrEmpty(emoji))
+                    {
+                        msg.Reactions.Add(new ReactionDto { UserId = userId, Emoji = emoji });
+                    }
+                }
+
                 InvokeAsync(StateHasChanged);
             }
         });
@@ -2081,6 +2136,8 @@
     {
         _activeRoom = room;
         _messages.Clear();
+        _pinnedMessageIds.Clear();
+        _messageUserReactions.Clear();
         _isLoadingMessages = true;
         _showGroupDetails = false;
         _showAddMembers = false;
@@ -2090,12 +2147,26 @@
         room.UnreadCount = 0;
         ClearPendingAttachment();
         _ = LoadMyBoards();
-        _ = LoadPinnedMessagesForRoom(room.Id);
         
         try
         {
             await _hubConnection!.SendAsync("JoinRoom", room.Id.ToString());
             _messages = await Http.GetFromJsonAsync<List<ChatMessageDto>>($"/api/chat/rooms/{room.Id}/messages") ?? new();
+
+            _pinnedMessageIds.Clear();
+            _messageUserReactions.Clear();
+            foreach (var m in _messages)
+            {
+                if (m.IsPinned)
+                {
+                    _pinnedMessageIds.Add(m.Id);
+                }
+                if (m.Reactions != null && m.Reactions.Any())
+                {
+                    _messageUserReactions[m.Id] = m.Reactions.ToDictionary(r => r.UserId, r => r.Emoji);
+                }
+            }
+
             await Http.PostAsync($"/api/chat/rooms/{room.Id}/read", null);
         }
         catch { }
@@ -2549,6 +2620,12 @@
         public DateTime? LastReadAt { get; set; }
     }
 
+    public class ReactionDto
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string Emoji { get; set; } = string.Empty;
+    }
+
     public class ChatMessageDto
     {
         public Guid Id { get; set; }
@@ -2562,6 +2639,8 @@
         public long? AttachmentSize { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool IsOptimistic { get; set; }
+        public bool IsPinned { get; set; }
+        public List<ReactionDto> Reactions { get; set; } = new();
     }
 
     public class UserDto
@@ -2643,8 +2722,10 @@
         _activeReactionMenuId = _activeReactionMenuId == messageId ? null : messageId;
     }
 
-    private void ToggleReaction(Guid messageId, string emoji)
+    private async Task ToggleReaction(Guid messageId, string emoji)
     {
+        _activeReactionMenuId = null;
+
         if (!_messageUserReactions.TryGetValue(messageId, out var userMap))
         {
             userMap = new Dictionary<string, string>();
@@ -2653,17 +2734,38 @@
 
         var userId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
 
+        string? resultingEmoji = null;
         if (userMap.TryGetValue(userId, out var existingEmoji) && existingEmoji == emoji)
         {
             userMap.Remove(userId);
+            resultingEmoji = null;
         }
         else
         {
             userMap[userId] = emoji;
+            resultingEmoji = emoji;
         }
 
-        _activeReactionMenuId = null;
+        var msg = _messages.FirstOrDefault(m => m.Id == messageId);
+        if (msg != null)
+        {
+            msg.Reactions.RemoveAll(r => r.UserId == userId);
+            if (!string.IsNullOrEmpty(resultingEmoji))
+            {
+                msg.Reactions.Add(new ReactionDto { UserId = userId, Emoji = resultingEmoji });
+            }
+        }
+
         StateHasChanged();
+
+        try
+        {
+            await Http.PostAsJsonAsync($"/api/chat/messages/{messageId}/react", new { Emoji = emoji });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling reaction: {ex.Message}");
+        }
     }
 
     private void StartReply(ChatMessageDto msg)
@@ -2681,47 +2783,35 @@
 
     private async Task TogglePinMessage(Guid messageId)
     {
+        _activeMessageMenuId = null;
+
+        bool willBePinned;
         if (_pinnedMessageIds.Contains(messageId))
         {
             _pinnedMessageIds.Remove(messageId);
-            ToastService.ShowInfo("Message unpinned");
+            willBePinned = false;
         }
         else
         {
             _pinnedMessageIds.Add(messageId);
-            ToastService.ShowSuccess("Message pinned");
+            willBePinned = true;
         }
-        _activeMessageMenuId = null;
 
-        if (_activeRoom != null)
+        var msg = _messages.FirstOrDefault(m => m.Id == messageId);
+        if (msg != null)
         {
-            try
-            {
-                await JS.InvokeVoidAsync("localStorage.setItem", $"pinned_msgs_{_activeRoom.Id}", System.Text.Json.JsonSerializer.Serialize(_pinnedMessageIds));
-            }
-            catch { }
+            msg.IsPinned = willBePinned;
         }
-        StateHasChanged();
-    }
 
-    private async Task LoadPinnedMessagesForRoom(Guid roomId)
-    {
+        StateHasChanged();
+
         try
         {
-            var stored = await JS.InvokeAsync<string>("localStorage.getItem", $"pinned_msgs_{roomId}");
-            if (!string.IsNullOrEmpty(stored))
-            {
-                _pinnedMessageIds = System.Text.Json.JsonSerializer.Deserialize<HashSet<Guid>>(stored) ?? new();
-            }
-            else
-            {
-                _pinnedMessageIds = new();
-            }
-            StateHasChanged();
+            await Http.PutAsync($"/api/chat/messages/{messageId}/pin", null);
         }
-        catch
+        catch (Exception ex)
         {
-            _pinnedMessageIds = new();
+            Console.WriteLine($"Error toggling pin: {ex.Message}");
         }
     }
 
@@ -2735,7 +2825,7 @@
             {
                 _messages.RemoveAll(m => m.Id == messageId);
                 _pinnedMessageIds.Remove(messageId);
-                ToastService.ShowSuccess("Message unsent.");
+                _messageUserReactions.Remove(messageId);
                 StateHasChanged();
             }
             else

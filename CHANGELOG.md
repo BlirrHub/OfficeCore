@@ -6,6 +6,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Fixed — [2026-10-05] (Chat Pin & Reaction Emotes Real-Time Sync & Toast Cleanup)
+
+- **Persistent & Real-Time Synchronized Chat Message Pins (`ChatMessage.cs`, `AppDbContext.cs`, `ChatController.cs`, `GlobalChatWidget.razor`):**
+  - Upgraded `ChatMessage` entity model with `IsPinned`, `PinnedAt`, and `PinnedById` fields, fully mapped to PostgreSQL via EF Core migration `20261005003750_AddChatPinsAndReactions`.
+  - Replaced client-only browser `localStorage` pin storage with server-side database persistence and live SignalR sync via `MessagePinUpdated(roomId, messageId, isPinned)` broadcast to all room members.
+  - Pinned state is now shared across all users and persists across devices and page refreshes.
+  - Enhanced `GetMessages` query to automatically include all active pinned messages in the room, guaranteeing pinned banners and drawer lists always have access to top-pinned content.
+
+- **Persistent & Real-Time Synchronized Emoji Reactions (`ChatMessageReaction.cs`, `AppDbContext.cs`, `ChatController.cs`, `GlobalChatWidget.razor`):**
+  - Created `ChatMessageReaction` entity with tenant-scoping, user foreign key, and cascade deletion when parent messages are unsent.
+  - Added `POST /api/chat/messages/{id}/react` endpoint with support for toggling reactions (adding, changing emoji, or removing reaction on repeat click).
+  - Wired real-time SignalR `MessageReactionUpdated(roomId, messageId, userId, emoji)` broadcasts so all members viewing the conversation see reaction pills and counters update instantaneously.
+  - Hydrated message reactions directly in `GetMessages` API endpoint and `OpenRoom` initialization.
+
+- **Elimination of Unnecessary & Disruptive Toasts (`GlobalChatWidget.razor`, `NotificationCenter.razor`):**
+  - Removed intrusive toast popups for micro-actions that already have immediate visual feedback in the UI:
+    - Removed "Message pinned" and "Message unpinned" popups.
+    - Removed "Message unsent." toast (message disappearing immediately communicates the action).
+    - Removed unused `ToastService` injection from `NotificationCenter.razor`.
+
 ### Fixed & Enhanced — [2026-10-05] (Chat Input Textarea Word-Wrap, Flex Containment & Smooth 1-to-3 Line Auto-Expansion)
 
 - **Chat Input Width Containment & Word-Wrap (`GlobalChatWidget.razor`, `index.html`):**

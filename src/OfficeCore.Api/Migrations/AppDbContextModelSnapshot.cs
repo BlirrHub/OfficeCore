@@ -815,8 +815,17 @@ namespace OfficeCore.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PinnedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PinnedById")
+                        .HasColumnType("text");
 
                     b.Property<string>("SenderId")
                         .IsRequired()
@@ -828,9 +837,46 @@ namespace OfficeCore.Api.Migrations
 
                     b.HasIndex("OrganizationId");
 
+                    b.HasIndex("PinnedById");
+
                     b.HasIndex("SenderId");
 
                     b.ToTable("ChatMessages");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.ChatMessageReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChatMessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatMessageId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ChatMessageReactions");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.ChatRoom", b =>
@@ -2226,6 +2272,11 @@ namespace OfficeCore.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("OfficeCore.Api.Models.Employee", "PinnedBy")
+                        .WithMany()
+                        .HasForeignKey("PinnedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("OfficeCore.Api.Models.Employee", "Sender")
                         .WithMany()
                         .HasForeignKey("SenderId")
@@ -2236,7 +2287,36 @@ namespace OfficeCore.Api.Migrations
 
                     b.Navigation("Organization");
 
+                    b.Navigation("PinnedBy");
+
                     b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.ChatMessageReaction", b =>
+                {
+                    b.HasOne("OfficeCore.Api.Models.ChatMessage", "ChatMessage")
+                        .WithMany("Reactions")
+                        .HasForeignKey("ChatMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeCore.Api.Models.Employee", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatMessage");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.ChatRoom", b =>
@@ -2712,6 +2792,11 @@ namespace OfficeCore.Api.Migrations
             modelBuilder.Entity("OfficeCore.Api.Models.BoardList", b =>
                 {
                     b.Navigation("Cards");
+                });
+
+            modelBuilder.Entity("OfficeCore.Api.Models.ChatMessage", b =>
+                {
+                    b.Navigation("Reactions");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.ChatRoom", b =>
