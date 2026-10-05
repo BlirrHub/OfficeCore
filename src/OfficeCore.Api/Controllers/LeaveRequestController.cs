@@ -180,12 +180,20 @@ public class LeaveRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         var empName = $"{leaveRequest.Employee?.User?.FirstName} {leaveRequest.Employee?.User?.LastName}".Trim();
-        var action = request.Status == LeaveRequestStatus.Approved ? AuditActions.Approve :
-                     (request.Status == LeaveRequestStatus.Rejected ? AuditActions.Reject : AuditActions.Update);
+        var isApproved = request.Status == LeaveRequestStatus.Approved;
+        var isRejected = request.Status == LeaveRequestStatus.Rejected;
+        var isCancelled = request.Status == LeaveRequestStatus.Cancelled;
+
+        var action = isApproved ? AuditActions.Approve :
+                     (isRejected ? AuditActions.Reject : AuditActions.Update);
+
+        var auditDescription = isCancelled
+            ? $"Cancelled leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})"
+            : $"{action} leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})";
 
         await _audit.LogLeaveAsync(
             action,
-            $"{action} leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})",
+            auditDescription,
             id,
             new { OldStatus = oldStatus.ToString(), NewStatus = request.Status.ToString() });
 
@@ -198,10 +206,8 @@ public class LeaveRequestController : ControllerBase
         // 2. Targeted notification for the requesting employee on the result
         if (!string.IsNullOrEmpty(leaveRequest.Employee?.UserId))
         {
-            var isApproved = request.Status == LeaveRequestStatus.Approved;
-            var isRejected = request.Status == LeaveRequestStatus.Rejected;
-            var statusWord = isApproved ? "approved" : (isRejected ? "rejected" : "updated");
-            var statusTitle = isApproved ? "Leave Request Approved" : (isRejected ? "Leave Request Rejected" : "Leave Request Updated");
+            var statusWord = isApproved ? "approved" : (isRejected ? "rejected" : (isCancelled ? "cancelled" : "updated"));
+            var statusTitle = isApproved ? "Leave Request Approved" : (isRejected ? "Leave Request Rejected" : (isCancelled ? "Leave Request Cancelled" : "Leave Request Updated"));
 
             var empNotif = new NotificationPayload
             {

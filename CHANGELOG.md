@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Fixed — [2026-10-05] (Admin Leave Approvals & Ledger Advance Cancellation Workflow; Zero Hard Deletes)
+
+- **Leave Approvals Admin Cancellation Workflow (`LeaveApprovals.razor`, `LeaveRequestController.cs`):**
+  - Removed all hard "Delete" actions and modals from Admin Leave Approvals, ensuring full historical preservation of leave records.
+  - Replaced the action with a "Cancel" action: administrators can now cancel pending (`Status == 0`) or previously approved (`Status == 1`, including manually admin-created leaves) leave requests.
+  - Replaced the "Delete Leave" modal with a "Cancel Leave" confirmation dialog ("Go Back" and "Yes, Cancel").
+  - Hidden cancel actions for already finalized (`Rejected` or `Cancelled`) records so they remain immutable in historical view.
+  - Updated `UpdateStatus` in `LeaveRequestController.cs` to accurately record cancellation in the audit trail, broadcast live SignalR updates, and send a targeted `"Leave Request Cancelled"` notification to the affected employee.
+
+- **Ledger Advance / Loan Admin Cancellation Workflow (`Ledger.razor`, `AdvanceRequestController.cs`):**
+  - Removed all "Delete" buttons and hard-deletion confirmation modals from the Ledger Advance Approvals table.
+  - Implemented `PUT /api/advancerequest/{id}/admin-cancel` in `AdvanceRequestController.cs` (protected by `RequireLedger` policy), transitioning advance/loan records to `AdvanceStatus.Cancelled`, logging audit events, and notifying the employee.
+  - Added an admin "Cancel" button on Ledger rows for `Pending` and `Approved` advances with a "Cancel Request" confirmation modal, preserving advance/loan history.
+
 ### Fixed & Enhanced — [2026-10-05] (Leave Request Status Typing & Workspace Selector Logo Display)
 
 - **Leave Status Display & Projection Alignment (`MyLeaves.razor`, `LeaveRequestController.cs`):**

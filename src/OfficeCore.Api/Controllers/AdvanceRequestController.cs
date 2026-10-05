@@ -164,6 +164,62 @@ public class AdvanceRequestController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{id}/admin-cancel")]
+    [Authorize(Policy = "RequireLedger")]
+    public async Task<IActionResult> AdminCancelRequest(Guid id)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var request = await _context.AdvanceRequests
+            .Include(r => r.Employee)
+                .ThenInclude(e => e!.User)
+            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
+
+        if (request == null) return NotFound();
+
+        if (request.Status == AdvanceStatus.Cancelled)
+            return BadRequest("Request is already cancelled.");
+
+        var oldStatus = request.Status;
+        request.Status = AdvanceStatus.Cancelled;
+        request.ResolutionDate = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        var empName = request.Employee?.User != null
+            ? $"{request.Employee.User.FirstName} {request.Employee.User.LastName}".Trim()
+            : "Employee";
+
+        var typeTitle = request.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+
+        await _audit.LogAdvanceAsync(
+            AuditActions.Update,
+            $"Cancelled {typeTitle} request of ₱{request.RequestedAmount:N2} for employee {empName} (previously {oldStatus})",
+            id);
+
+        // 1. Silent data refresh signal for pages
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestUpdated");
+
+        // 2. Targeted notification for the employee
+        if (!string.IsNullOrEmpty(request.Employee?.UserId))
+        {
+            var empNotif = new NotificationPayload
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = $"{typeTitle} Request Cancelled",
+                Message = $"Your {typeTitle} request of ₱{request.RequestedAmount:N2} has been cancelled by administration.",
+                Category = "Advance",
+                Status = "Cancelled",
+                TargetUrl = "/advances",
+                Timestamp = DateTime.UtcNow
+            };
+            await _hub.Clients.Group($"user_{request.Employee.UserId}").SendAsync("ReceiveNotification", empNotif);
+        }
+
+        return NoContent();
+    }
+
     [HttpPut("{id}/approve")]
     [Authorize(Policy = "RequireLedger")]
     public async Task<IActionResult> ApproveRequest(Guid id, [FromBody] ApproveRequestDto dto)
