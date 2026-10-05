@@ -82,7 +82,7 @@
             }
             else
             {
-                var filteredRequests = GetFilteredRequests();
+                var filteredRequests = GetFilteredRequests().ToList();
                 
                 @if (!filteredRequests.Any())
                 {
@@ -91,114 +91,116 @@
                 }
                 else
                 {
-                    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-zinc-800 text-zinc-400 text-left">
-                                    <th class="px-6 py-4 font-medium">Date Requested</th>
-                                    <th class="px-6 py-4 font-medium">Employee</th>
-                                    <th class="px-6 py-4 font-medium">Type</th>
-                                    <th class="px-6 py-4 font-medium text-right">Amount</th>
-                                    <th class="px-6 py-4 font-medium text-right">Installments</th>
-                                    <th class="px-6 py-4 font-medium text-center">Status</th>
-                                    <th class="px-6 py-4 font-medium text-right">Actions</th>
-                                </tr>
-                            </thead>
+                    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="bg-zinc-900/60 border-b border-zinc-800 text-zinc-400 uppercase tracking-wider text-xs font-semibold">
+                                    <tr>
+                                        <th class="px-6 py-4">Date Requested</th>
+                                        <th class="px-6 py-4">Employee</th>
+                                        <th class="px-6 py-4">Type</th>
+                                        <th class="px-6 py-4 text-right">Amount</th>
+                                        <th class="px-6 py-4 text-right">Installments</th>
+                                        <th class="px-6 py-4 text-center">Status</th>
+                                        <th class="px-6 py-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
                                 <tbody class="divide-y divide-zinc-800/50">
-                                    @{
-                                        var pagedRequests = filteredRequests.Skip((_approvalsPage - 1) * _approvalsPageSize).Take(_approvalsPageSize);
-                                    }
-                                    @foreach (var req in pagedRequests)
+                                    @foreach (var req in filteredRequests.Skip((_approvalsPage - 1) * _approvalsPageSize).Take(_approvalsPageSize))
                                     {
                                         <tr class="hover:bg-zinc-800/50 transition-colors">
-                                        <td class="px-6 py-4 text-zinc-300">
-                                            <div class="font-medium text-white">@req.RequestDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</div>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <div class="font-medium text-white">@req.EmployeeName</div>
-                                            <div class="text-xs text-zinc-500 truncate max-w-[200px]" title="@req.Note">@req.Note</div>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            @if (req.Type == AdvanceType.CashAdvance)
-                                            {
-                                                <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-fuchsia-900/20 text-fuchsia-400 border border-fuchsia-900/50">
-                                                    Cash Advance
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-emerald-900/20 text-emerald-400 border border-emerald-900/50">
-                                                    E-Loan
-                                                </span>
-                                            }
-                                        </td>
-                                        <td class="px-6 py-4 text-right font-medium text-white">
-                                            @req.RequestedAmount.ToString("C")
-                                        </td>
-                                        <td class="px-6 py-4 text-right text-zinc-400">
-                                            @(req.InstallmentAmount.HasValue ? req.InstallmentAmount.Value.ToString("C") : "-")
-                                        </td>
-                                        <td class="px-6 py-4 text-center">
-                                            <div class="flex flex-col items-center gap-1">
-                                                @if (req.Status == AdvanceStatus.Pending)
+                                            <td class="px-6 py-4 text-zinc-300">
+                                                <div class="font-medium text-white">@req.RequestDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="font-medium text-white">@req.EmployeeName</div>
+                                                @if (!string.IsNullOrWhiteSpace(req.Note))
                                                 {
-                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-yellow-900/20 text-yellow-400 border border-yellow-900/50">
-                                                        Pending
+                                                    <div class="text-xs text-zinc-500 truncate max-w-[200px]" title="@req.Note">@req.Note</div>
+                                                }
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                @if (req.Type == AdvanceType.CashAdvance)
+                                                {
+                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full text-xs font-medium bg-fuchsia-900/30 text-fuchsia-400 border border-fuchsia-800/50">
+                                                        Cash Advance
                                                     </span>
                                                 }
-                                                else if (req.Status == AdvanceStatus.Approved)
+                                                else
                                                 {
-                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-green-900/20 text-green-400 border border-green-900/50">
-                                                        Approved
+                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full text-xs font-medium bg-emerald-900/30 text-emerald-400 border border-emerald-800/50">
+                                                        E-Loan
                                                     </span>
-                                                    @if (req.ResolutionDate.HasValue)
+                                                }
+                                            </td>
+                                            <td class="px-6 py-4 text-right font-medium text-white">
+                                                @req.RequestedAmount.ToString("C")
+                                            </td>
+                                            <td class="px-6 py-4 text-right text-zinc-400">
+                                                @(req.InstallmentAmount.HasValue ? req.InstallmentAmount.Value.ToString("C") : "-")
+                                            </td>
+                                            <td class="px-6 py-4 text-center">
+                                                <div class="flex flex-col items-center gap-1">
+                                                    @if (req.Status == AdvanceStatus.Pending)
                                                     {
-                                                        <span class="text-[10px] text-zinc-500" title="Approved at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                        <span class="inline-flex items-center gap-1.5 py-0.5 px-2.5 rounded-full text-xs font-medium bg-amber-900/30 text-amber-400 border border-amber-800/50">
+                                                            <span class="size-1.5 rounded-full bg-amber-400"></span>Pending
+                                                        </span>
                                                     }
-                                                }
-                                                else if (req.Status == AdvanceStatus.Rejected)
-                                                {
-                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-red-900/20 text-red-400 border border-red-900/50">
-                                                        Rejected
-                                                    </span>
-                                                    @if (req.ResolutionDate.HasValue)
+                                                    else if (req.Status == AdvanceStatus.Approved)
                                                     {
-                                                        <span class="text-[10px] text-zinc-500" title="Rejected at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                        <span class="inline-flex items-center gap-1.5 py-0.5 px-2.5 rounded-full text-xs font-medium bg-emerald-900/30 text-emerald-400 border border-emerald-800/50">
+                                                            <span class="size-1.5 rounded-full bg-emerald-400"></span>Approved
+                                                        </span>
+                                                        @if (req.ResolutionDate.HasValue)
+                                                        {
+                                                            <span class="text-[10px] text-zinc-500" title="Approved at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                        }
                                                     }
-                                                }
-                                                else if (req.Status == AdvanceStatus.Cancelled)
-                                                {
-                                                    <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                                        Cancelled
-                                                    </span>
-                                                    @if (req.ResolutionDate.HasValue)
+                                                    else if (req.Status == AdvanceStatus.Rejected)
                                                     {
-                                                        <span class="text-[10px] text-zinc-500" title="Cancelled at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                        <span class="inline-flex items-center gap-1.5 py-0.5 px-2.5 rounded-full text-xs font-medium bg-rose-900/30 text-rose-400 border border-rose-800/50">
+                                                            <span class="size-1.5 rounded-full bg-rose-400"></span>Rejected
+                                                        </span>
+                                                        @if (req.ResolutionDate.HasValue)
+                                                        {
+                                                            <span class="text-[10px] text-zinc-500" title="Rejected at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                        }
                                                     }
-                                                }
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 text-right">
-                                            <div class="flex justify-end gap-2">
-                                                @if (req.Status == AdvanceStatus.Pending)
-                                                {
-                                                    <button @onclick="() => ShowApprovalModal(req)" class="text-xs font-medium px-2.5 py-1.5 bg-green-900/30 text-green-400 rounded hover:bg-green-800/50 transition-colors border border-green-900/50">Approve</button>
-                                                    <button @onclick="() => RejectRequest(req.Id)" class="text-xs font-medium px-2.5 py-1.5 bg-red-900/30 text-red-400 rounded hover:bg-red-800/50 transition-colors border border-red-900/50">Reject</button>
-                                                    <button @onclick="() => ShowCancelAdvanceModal(req)" class="text-xs font-medium px-2.5 py-1.5 bg-zinc-800 text-zinc-300 rounded hover:bg-zinc-700 hover:text-white transition-colors border border-zinc-700/60">Cancel</button>
-                                                }
-                                                else if (req.Status == AdvanceStatus.Approved)
-                                                {
-                                                    <button @onclick="() => ShowCancelAdvanceModal(req)" class="text-xs font-medium px-2.5 py-1.5 bg-amber-900/20 text-amber-400 rounded hover:bg-amber-900/40 transition-colors border border-amber-800/40">Cancel</button>
-                                                }
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                                                    else if (req.Status == AdvanceStatus.Cancelled)
+                                                    {
+                                                        <span class="inline-flex items-center gap-1.5 py-0.5 px-2.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+                                                            <span class="size-1.5 rounded-full bg-zinc-400"></span>Cancelled
+                                                        </span>
+                                                        @if (req.ResolutionDate.HasValue)
+                                                        {
+                                                            <span class="text-[10px] text-zinc-500" title="Cancelled at">@req.ResolutionDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                        }
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 text-right">
+                                                <div class="flex justify-end gap-2">
+                                                    @if (req.Status == AdvanceStatus.Pending)
+                                                    {
+                                                        <button @onclick="() => ShowApprovalModal(req)" class="text-xs font-medium px-3 py-1.5 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors border border-emerald-500/30">Approve</button>
+                                                        <button @onclick="() => RejectRequest(req.Id)" class="text-xs font-medium px-3 py-1.5 bg-rose-600/20 text-rose-400 rounded-lg hover:bg-rose-600/30 transition-colors border border-rose-500/30">Reject</button>
+                                                        <button @onclick="() => ShowCancelAdvanceModal(req)" class="text-xs font-medium px-3 py-1.5 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 hover:text-white transition-colors border border-zinc-700/60">Cancel</button>
+                                                    }
+                                                    else if (req.Status == AdvanceStatus.Approved)
+                                                    {
+                                                        <button @onclick="() => ShowCancelAdvanceModal(req)" class="text-xs font-medium px-3 py-1.5 bg-amber-600/20 text-amber-400 rounded-lg hover:bg-amber-600/30 transition-colors border border-amber-500/30">Cancel</button>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <PaginationToolbar @bind-Page="_approvalsPage" @bind-PageSize="_approvalsPageSize" TotalCount="filteredRequests.Count" />
                     </div>
-                    <PaginationToolbar @bind-Page="_approvalsPage" @bind-PageSize="_approvalsPageSize" TotalCount="filteredRequests.Count()" />
-            }
+                }
         }
     }
     else if (_activeTab == "expenses")
@@ -224,21 +226,19 @@
             }
             else
             {
-                <div class="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b border-zinc-800 text-zinc-400 text-left">
-                                <th class="px-6 py-4 font-medium">Date</th>
-                                <th class="px-6 py-4 font-medium">Description</th>
-                                <th class="px-6 py-4 font-medium">Category</th>
-                                <th class="px-6 py-4 font-medium text-right">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-zinc-800/50">
-                                @{
-                                    var pagedExpenses = _expenses.Skip((_expensesPage - 1) * _expensesPageSize).Take(_expensesPageSize);
-                                }
-                                @foreach (var exp in pagedExpenses)
+                <div class="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-zinc-900/60 border-b border-zinc-800 text-zinc-400 uppercase tracking-wider text-xs font-semibold">
+                                <tr>
+                                    <th class="px-6 py-4 font-medium">Date</th>
+                                    <th class="px-6 py-4 font-medium">Description</th>
+                                    <th class="px-6 py-4 font-medium">Category</th>
+                                    <th class="px-6 py-4 font-medium text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-800/50">
+                                @foreach (var exp in _expenses.Skip((_expensesPage - 1) * _expensesPageSize).Take(_expensesPageSize))
                                 {
                                     <tr class="hover:bg-zinc-800/50 transition-colors">
                                         <td class="px-6 py-4 text-zinc-300">@exp.DateIncurred.ToLocalTime().ToString("MMM dd, yyyy")</td>
@@ -246,26 +246,27 @@
                                         <td class="px-6 py-4">
                                             @if (exp.Category == ExpenseCategory.GeneralExpense)
                                             {
-                                                <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-blue-900/20 text-blue-400 border border-blue-900/50">
+                                                <span class="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full text-xs font-medium bg-blue-900/30 text-blue-400 border border-blue-800/50">
                                                     General
                                                 </span>
                                             }
                                             else
                                             {
-                                                <span class="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-orange-900/20 text-orange-400 border border-orange-900/50">
+                                                <span class="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full text-xs font-medium bg-orange-900/30 text-orange-400 border border-orange-800/50">
                                                     Equipment
                                                 </span>
                                             }
                                         </td>
-                                        <td class="px-6 py-4 text-right font-bold text-red-400">
+                                        <td class="px-6 py-4 text-right font-bold text-rose-400">
                                             -@exp.Amount.ToString("C")
                                         </td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
+                    </div>
+                    <PaginationToolbar @bind-Page="_expensesPage" @bind-PageSize="_expensesPageSize" TotalCount="_expenses.Count" />
                 </div>
-                <PaginationToolbar @bind-Page="_expensesPage" @bind-PageSize="_expensesPageSize" TotalCount="_expenses.Count" />
             }
         }
     </div>

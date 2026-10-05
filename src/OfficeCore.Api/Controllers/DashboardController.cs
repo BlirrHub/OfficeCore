@@ -289,7 +289,7 @@ public class DashboardController : ControllerBase
 
             dto.PersonalRecentActivities = personalActivities
                 .OrderByDescending(a => a.Timestamp)
-                .Take(6)
+                .Take(5)
                 .ToList();
 
             dto.RecentActivities = dto.PersonalRecentActivities;
@@ -422,7 +422,7 @@ public class DashboardController : ControllerBase
 
             dto.WorkspaceRecentActivities = workspaceActivities
                 .OrderByDescending(a => a.Timestamp)
-                .Take(8)
+                .Take(5)
                 .ToList();
         }
 

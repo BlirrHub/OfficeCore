@@ -385,7 +385,7 @@
                     @if (_stats.WorkspaceRecentActivities != null && _stats.WorkspaceRecentActivities.Count > 0)
                     {
                         <div class="space-y-2.5">
-                            @foreach (var act in _stats.WorkspaceRecentActivities)
+                            @foreach (var act in _stats.WorkspaceRecentActivities.Take(5))
                             {
                                 var actUrl = act.Category switch
                                 {
@@ -662,7 +662,7 @@
                     @if (_stats?.PersonalRecentActivities != null && _stats.PersonalRecentActivities.Count > 0)
                     {
                         <div class="space-y-3">
-                            @foreach (var act in _stats.PersonalRecentActivities)
+                            @foreach (var act in _stats.PersonalRecentActivities.Take(5))
                             {
                                 var personalActUrl = act.Category switch
                                 {
