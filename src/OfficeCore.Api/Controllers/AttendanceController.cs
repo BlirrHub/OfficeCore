@@ -13,7 +13,6 @@ namespace OfficeCore.Api.Controllers;
 public class AttendanceController : ControllerBase
 {
     private readonly AppDbContext _context;
-    private readonly FingerprintDeviceService _deviceService;
     private readonly IHubContext<OfficeCore.Api.Hubs.AttendanceHub> _hubContext;
     private readonly IHubContext<OfficeCore.Api.Hubs.NotificationHub> _notificationHub;
     private readonly TenantService _tenant;
@@ -22,7 +21,6 @@ public class AttendanceController : ControllerBase
 
     public AttendanceController(
         AppDbContext context, 
-        FingerprintDeviceService deviceService, 
         IHubContext<OfficeCore.Api.Hubs.AttendanceHub> hubContext,
         IHubContext<OfficeCore.Api.Hubs.NotificationHub> notificationHub,
         TenantService tenant,
@@ -30,7 +28,6 @@ public class AttendanceController : ControllerBase
         BiometricReportService biometricReportService)
     {
         _context = context;
-        _deviceService = deviceService;
         _hubContext = hubContext;
         _notificationHub = notificationHub;
         _tenant = tenant;
@@ -418,130 +415,6 @@ public class AttendanceController : ControllerBase
     }
 
     // =========================================================================
-    // BIOMETRIC SCANNER & ENROLLMENT ENDPOINTS
-    // =========================================================================
-
-    [HttpPost("enroll/{employeeId}")]
-    [Authorize(Policy = "RequireAttendance")]
-    public IActionResult StartEnrollment(string employeeId)
-    {
-        var started = _deviceService.StartEnrollment(employeeId);
-        if (started)
-        {
-            return Ok(new { message = "Device is in enrollment mode. Please scan finger on the sensor." });
-        }
-        
-        return BadRequest(new { message = "Could not start enrollment. Make sure the device is connected and not currently enrolling another user." });
-    }
-
-    [HttpPost("cancel-enroll")]
-    [Authorize(Policy = "RequireAttendance")]
-    public IActionResult CancelEnrollment()
-    {
-        _deviceService.CancelEnrollment();
-        return Ok(new { message = "Enrollment cancelled." });
-    }
-
-    [HttpGet("fingerprints/{employeeId}")]
-    [Authorize(Policy = "RequireAttendance")]
-    public async Task<IActionResult> GetEmployeeFingerprints(string employeeId)
-    {
-        var orgId = _tenant.GetActiveOrganizationId();
-        if (orgId == null) return Unauthorized("No active workspace selected.");
-
-        var prints = await _context.EmployeeFingerprints
-            .Where(f => f.EmployeeId == employeeId && f.OrganizationId == orgId.Value)
-            .Select(f => new { f.Id, f.FingerprintId, f.EnrolledAt })
-            .ToListAsync();
-
-        return Ok(prints);
-    }
-
-    [HttpDelete("fingerprints/{id}")]
-    [Authorize(Policy = "RequireAttendance")]
-    public async Task<IActionResult> DeleteFingerprint(int id)
-    {
-        var orgId = _tenant.GetActiveOrganizationId();
-        if (orgId == null) return Unauthorized("No active workspace selected.");
-
-        var fp = await _context.EmployeeFingerprints
-            .FirstOrDefaultAsync(f => f.Id == id && f.OrganizationId == orgId.Value);
-        if (fp == null) return NotFound();
-
-        _context.EmployeeFingerprints.Remove(fp);
-        await _context.SaveChangesAsync();
-        
-        return Ok(new { message = "Fingerprint mapping deleted." });
-    }
-
-    [HttpPost("enroll-success")]
-    [Authorize(Policy = "RequireAttendance")]
-    public async Task<IActionResult> EnrollSuccess([FromBody] EnrollSuccessDto dto)
-    {
-        var orgId = _tenant.GetActiveOrganizationId();
-        if (orgId == null) return Unauthorized("No active workspace selected.");
-
-        var employee = await _context.Employees
-            .FirstOrDefaultAsync(e => e.Id == dto.EmployeeId && e.OrganizationId == orgId.Value);
-        if (employee == null) return BadRequest("Employee not found");
-
-        _context.EmployeeFingerprints.Add(new EmployeeFingerprint
-        {
-            EmployeeId = dto.EmployeeId,
-            FingerprintId = dto.FingerprintId,
-            OrganizationId = orgId.Value
-        });
-
-        await _context.SaveChangesAsync();
-        return Ok(new { message = "Fingerprint enrolled successfully." });
-    }
-
-    // Hardware Scanner scan callback endpoint
-    [HttpPost("scan-event")]
-    [AllowAnonymous] // ESP32 Wi-Fi hardware posts directly to this endpoint
-    public async Task<IActionResult> LogScanEvent([FromBody] ScanEventDto dto)
-    {
-        var mapping = await _context.EmployeeFingerprints
-            .FirstOrDefaultAsync(f => f.FingerprintId == dto.FingerprintId);
-
-        if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
-
-        var todayUtc = DateTime.UtcNow.Date;
-        var tomorrowUtc = todayUtc.AddDays(1);
-
-        var latestRecord = await _context.AttendanceRecords
-            .Where(a => a.OrganizationId == mapping.OrganizationId
-                     && a.EmployeeId == mapping.EmployeeId
-                     && a.Timestamp >= todayUtc
-                     && a.Timestamp < tomorrowUtc)
-            .OrderByDescending(a => a.Timestamp)
-            .FirstOrDefaultAsync();
-
-        var type = AttendanceType.ClockIn;
-        if (latestRecord != null && latestRecord.Type == AttendanceType.ClockIn)
-        {
-            type = AttendanceType.ClockOut;
-        }
-
-        var record = new AttendanceRecord
-        {
-            Id = Guid.NewGuid(),
-            EmployeeId = mapping.EmployeeId,
-            Timestamp = DateTimeOffset.UtcNow,
-            Type = type,
-            Source = AttendanceSource.Device,
-            OrganizationId = mapping.OrganizationId
-        };
-
-        _context.AttendanceRecords.Add(record);
-        await _context.SaveChangesAsync();
-
-        await BroadcastAttendanceUpdated(mapping.OrganizationId);
-
-        return Ok(new { message = "Attendance logged.", type = type.ToString() });
-    }
-
-    // =========================================================================
     // BIOMETRIC EXCEL / FILE REPORT IMPORT ENDPOINTS
     // =========================================================================
 
@@ -604,17 +477,6 @@ public class AttendanceController : ControllerBase
             updatedMappings
         });
     }
-}
-
-public class ScanEventDto
-{
-    public int FingerprintId { get; set; }
-}
-
-public class EnrollSuccessDto
-{
-    public string EmployeeId { get; set; } = string.Empty;
-    public int FingerprintId { get; set; }
 }
 
 public class AdminCreateAttendanceDto

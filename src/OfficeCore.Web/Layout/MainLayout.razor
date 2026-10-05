@@ -2,7 +2,6 @@
 @implements IDisposable
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
-@inject IJSRuntime JS
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @using OfficeCore.Web.Services
 
@@ -163,22 +162,6 @@
         await CheckPasswordResetGuard();
         await LoadOrganizations();
         await LoadCurrentOrganization();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            try
-            {
-                // Globally load webserial.js so the auto-connect logic runs in the background
-                await JS.InvokeAsync<IJSObjectReference>("import", "./js/webserial.js");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Failed to load webserial background script: " + ex.Message);
-            }
-        }
     }
 
     private async Task LoadOrganizations()
