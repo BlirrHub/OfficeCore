@@ -447,15 +447,18 @@ public class AttendanceController : ControllerBase
 
         var employee = await _context.Employees
             .Include(e => e.User)
-            .FirstOrDefaultAsync(e => e.Id == dto.EmployeeId && e.OrganizationId == orgId.Value);
+            .FirstOrDefaultAsync(e => (e.Id == dto.EmployeeId || e.UserId == dto.EmployeeId) && e.OrganizationId == orgId.Value);
             
         if (employee == null) return BadRequest("Employee not found in active workspace.");
+
+        var localDt = dto.Timestamp.Kind == DateTimeKind.Utc ? dto.Timestamp.ToLocalTime() : dto.Timestamp;
+        var utcTimestamp = new DateTimeOffset(DateTime.SpecifyKind(localDt, DateTimeKind.Local)).ToUniversalTime();
 
         var record = new AttendanceRecord
         {
             Id = Guid.NewGuid(),
-            EmployeeId = dto.EmployeeId,
-            Timestamp = new DateTimeOffset(DateTime.SpecifyKind(dto.Timestamp, DateTimeKind.Local)).ToUniversalTime(),
+            EmployeeId = employee.Id,
+            Timestamp = utcTimestamp,
             Type = dto.Type,
             Source = AttendanceSource.ManualAdjustment,
             OrganizationId = orgId.Value
@@ -466,7 +469,7 @@ public class AttendanceController : ControllerBase
 
         if (dto.Type == AttendanceType.ClockOut)
         {
-            await CheckAndTriggerPostOvertimeAsync(dto.EmployeeId, orgId.Value, record.Timestamp);
+            await CheckAndTriggerPostOvertimeAsync(employee.Id, orgId.Value, record.Timestamp);
         }
 
         await BroadcastAttendanceUpdated(orgId.Value);

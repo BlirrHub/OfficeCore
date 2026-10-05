@@ -225,7 +225,7 @@
                         {
                             @foreach (var emp in _employees)
                             {
-                                <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                                <option value="@(!string.IsNullOrEmpty(emp.EmployeePk) ? emp.EmployeePk : emp.Id)">@emp.FirstName @emp.LastName</option>
                             }
                         }
                     </select>
@@ -469,12 +469,13 @@
             }
             else
             {
-                _createError = "Failed to create attendance record.";
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                _createError = !string.IsNullOrWhiteSpace(errorMsg) ? errorMsg : "Failed to create attendance record.";
             }
         }
-        catch
+        catch (Exception ex)
         {
-            _createError = "An unexpected error occurred.";
+            _createError = $"Error: {ex.Message}";
         }
         finally
         {
