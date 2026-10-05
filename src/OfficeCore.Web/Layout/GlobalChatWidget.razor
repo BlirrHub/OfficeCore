@@ -1118,7 +1118,7 @@
                         </div>
                     }
 
-                    <form @onsubmit="SendMessage" class="flex items-end gap-2">
+                    <form @onsubmit="SendMessage" class="flex items-end gap-2 w-full min-w-0">
                         <!-- Attachment Input & Button -->
                         <label for="chat-file-input" title="Attach image or document"
                                class="size-8.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer border border-zinc-700/60 mb-0.5 @(_isUploadingAttachment ? "pointer-events-none opacity-50" : "")">
@@ -1135,7 +1135,7 @@
                         </label>
                         <InputFile @key="_inputFileKey" id="chat-file-input" OnChange="HandleChatFileUpload" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
 
-                        <div class="flex-1 relative flex flex-col">
+                        <div class="flex-1 min-w-0 relative flex flex-col">
                             <!-- Mention Autocomplete -->
                             @if (_showMentions && _mentionCandidates.Any())
                             {
@@ -1194,8 +1194,8 @@
                                       @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp"
                                       rows="1"
                                       placeholder="@(_activeRoom?.Type == 1 ? $"Message {_activeRoom?.Name}..." : "Type a message... (Shift+Enter for newline)")" 
-                                      class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-[border-color,background-color] resize-none custom-scrollbar min-h-[38px] max-h-[84px] leading-relaxed"
-                                      style="field-sizing: content; min-height: 38px; max-height: 84px; height: 38px;"></textarea>
+                                      class="w-full min-w-0 max-w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-[border-color,background-color] resize-none custom-scrollbar leading-relaxed"
+                                      style="min-height: 38px; max-height: 82px; height: 38px; overflow-x: hidden; overflow-y: hidden; overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; box-sizing: border-box;"></textarea>
                         </div>
 
                         <button type="submit" disabled="@(string.IsNullOrWhiteSpace(_newMessageContent) && string.IsNullOrEmpty(_pendingAttachmentUrl))" 

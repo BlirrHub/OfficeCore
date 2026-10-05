@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-10-05] (Chat Input Textarea Word-Wrap, Flex Containment & Smooth 1-to-3 Line Auto-Expansion)
+
+- **Chat Input Width Containment & Word-Wrap (`GlobalChatWidget.razor`, `index.html`):**
+  - Resolved an issue where long unbroken strings (e.g., continuous characters, long URLs, code tokens) caused the chat box to stretch horizontally past the right edge of the chat container and push the purple Send button off-screen.
+  - Added flexbox child width containment (`min-w-0`) to the input wrapper `<div class="flex-1 min-w-0 ...">` and `<form class="... w-full min-w-0">`.
+  - Removed `field-sizing: content;` which caused Chromium browsers to resize the textarea's width to fit unbroken text instead of wrapping it.
+  - Enforced `overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; overflow-x: hidden;` ensuring all text wraps at the right border of the input box.
+
+- **Clean 1-to-3 Line Vertical Auto-Expansion (`index.html`):**
+  - Fixed textarea vertical layout where horizontal overflow previously inflated `scrollHeight` with scrollbar metrics, causing single lines to sit at the bottom of a taller empty box with an unwanted vertical scrollbar.
+  - Refined `resizeChatTextarea` to accurately measure content height and toggle `overflow-y: hidden` for 1 to 3 lines (38px up to 82px) and enable `overflow-y: auto` only when text exceeds 3 lines.
+  - Maintained instant 1-line snapback (`38px`) upon sending messages via `resetChatTextarea`.
+
 ### Enhanced & Refactored — [2026-10-05] (Audit Trail Database Decoupling & Targeted Real-Time Notification Center)
 
 - **Audit Trail Database Operations & Backups Decoupling (`AuditService.cs`, `AuditLog.cs`, `BackupController.cs`, `AuditController.cs`, `AuditLogs.razor`):**

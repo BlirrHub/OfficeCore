@@ -71,10 +71,24 @@
     <script>
         function resizeChatTextarea(el) {
             if (!el) return;
-            el.style.height = 'auto';
-            var newH = Math.min(Math.max(el.scrollHeight, 38), 84);
-            el.style.height = newH + 'px';
+            el.style.height = '38px';
+            var scrollH = el.scrollHeight;
+            if (scrollH <= 38) {
+                el.style.height = '38px';
+                el.style.overflowY = 'hidden';
+            } else if (scrollH <= 82) {
+                el.style.height = scrollH + 'px';
+                el.style.overflowY = 'hidden';
+            } else {
+                el.style.height = '82px';
+                el.style.overflowY = 'auto';
+            }
         }
+
+        window.resizeChatTextareaById = function(id) {
+            var el = document.getElementById(id);
+            if (el) resizeChatTextarea(el);
+        };
 
         document.addEventListener('input', function(e) {
             if (e.target && e.target.id === 'chat-input-textarea') {
@@ -92,6 +106,7 @@
             var el = document.getElementById('chat-input-textarea');
             if (el) {
                 el.style.height = '38px';
+                el.style.overflowY = 'hidden';
             }
         };
     </script>
