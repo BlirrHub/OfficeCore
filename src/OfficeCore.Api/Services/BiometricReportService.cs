@@ -391,8 +391,8 @@ public class BiometricReportService
         if (request.Punches?.Count > 0)
         {
             // Fetch existing to avoid race-condition duplicate inserts
-            var minDate = request.Punches.Min(p => p.Timestamp).AddMinutes(-5);
-            var maxDate = request.Punches.Max(p => p.Timestamp).AddMinutes(5);
+            var minDate = request.Punches.Min(p => p.Timestamp).ToUniversalTime().AddMinutes(-5);
+            var maxDate = request.Punches.Max(p => p.Timestamp).ToUniversalTime().AddMinutes(5);
 
             var existingPunches = await _context.AttendanceRecords
                 .Where(a => a.OrganizationId == organizationId && a.Timestamp >= minDate && a.Timestamp <= maxDate)
@@ -403,10 +403,11 @@ public class BiometricReportService
 
             foreach (var item in request.Punches)
             {
+                var itemUtc = item.Timestamp.ToUniversalTime();
                 var isDup = existingPunches.Any(ep =>
                     ep.EmployeeId == item.EmployeeId &&
                     ep.Type == item.Type &&
-                    Math.Abs((ep.Timestamp - item.Timestamp).TotalMinutes) < 2);
+                    Math.Abs((ep.Timestamp.ToUniversalTime() - itemUtc).TotalMinutes) < 2);
 
                 if (isDup)
                 {
@@ -418,7 +419,7 @@ public class BiometricReportService
                 {
                     Id = Guid.NewGuid(),
                     EmployeeId = item.EmployeeId,
-                    Timestamp = item.Timestamp.ToUniversalTime(),
+                    Timestamp = itemUtc,
                     Type = item.Type,
                     Source = AttendanceSource.Device,
                     OrganizationId = organizationId
