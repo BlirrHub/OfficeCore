@@ -32,7 +32,7 @@
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="size-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
             </div>
-            <input type="text" @bind="searchTerm" @bind:event="oninput" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" placeholder="Search by date or remarks..." />
+            <input type="text" @bind="searchTerm" @bind:event="oninput" @bind:after="() => page = 1" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" placeholder="Search by date or remarks..." />
         </div>
     </div>
 
@@ -63,6 +63,8 @@
     }
     else
     {
+        var filteredList = FilteredPeriods.ToList();
+        var pagedPeriods = filteredList.Skip((page - 1) * pageSize).Take(pageSize).ToList();
         <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden backdrop-blur-xl">
             <table class="w-full text-left text-sm whitespace-nowrap">
                 <thead class="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 uppercase tracking-wider text-[11px] font-semibold">
@@ -90,7 +92,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-800/50">
-                    @foreach (var p in FilteredPeriods)
+                    @foreach (var p in pagedPeriods)
                     {
                         <tr class="hover:bg-zinc-800/30 transition-colors cursor-pointer group" @onclick="() => NavigateToPeriod(p.Id)">
                             <td class="px-6 py-4">
@@ -125,6 +127,7 @@
                     }
                 </tbody>
             </table>
+            <PaginationToolbar @bind-Page="page" @bind-PageSize="pageSize" TotalCount="filteredList.Count" />
         </div>
     }
 </div>
@@ -213,6 +216,8 @@
     
     private PayrollPeriodDto newPeriod = new();
     private string searchTerm = "";
+    private int page = 1;
+    private int pageSize = 25;
 
     private IEnumerable<PayrollPeriodDto> FilteredPeriods
     {
@@ -248,6 +253,7 @@
 
     private void Sort(string column)
     {
+        page = 1;
         if (sortColumn == column)
         {
             sortAscending = !sortAscending;

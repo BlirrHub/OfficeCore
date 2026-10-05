@@ -67,9 +67,9 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
             // Grant all modules to workspace owner automatically
             var allModules = new[]
             {
-                "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards",
+                "Dashboard", "MyAttendance", "MyOvertime", "MyLeaves", "Advances", "Boards",
                 "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
-                "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff",
+                "Users", "Roles", "LeaveApprovals", "OvertimeApprovals", "WorkSchedules", "TimeOff",
                 "Locations", "Organization", "AuditLogs"
             };
             foreach (var m in allModules)
@@ -80,6 +80,7 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
             // Default modules for all authenticated accounts in the workspace
             claimsIdentity.AddClaim(new Claim("ModuleAccess", "Dashboard"));
             claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyAttendance"));
+            claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyOvertime"));
             claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyLeaves"));
             claimsIdentity.AddClaim(new Claim("ModuleAccess", "Advances"));
             claimsIdentity.AddClaim(new Claim("ModuleAccess", "Boards"));

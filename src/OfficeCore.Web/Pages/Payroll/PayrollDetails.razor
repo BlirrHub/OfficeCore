@@ -158,7 +158,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-800/50">
-                            @foreach (var p in payslips)
+                            @foreach (var p in payslips.Skip((page - 1) * pageSize).Take(pageSize))
                             {
                                 var totalDeductions = p.SssDeduction + p.PhilHealthDeduction + p.PagIbigDeduction + p.TaxDeduction + p.AdvancesDeduction;
                                 var adjustments = p.OtherAllowances - p.OtherDeductions;
@@ -207,6 +207,7 @@
                         </tbody>
                     </table>
                 </div>
+                <PaginationToolbar @bind-Page="page" @bind-PageSize="pageSize" TotalCount="payslips.Count" />
             </div>
         }
     }
@@ -258,6 +259,9 @@
     private bool isFinalizing = false;
     private bool showDeleteModal = false;
     private bool showFinalizeModal = false;
+
+    private int page = 1;
+    private int pageSize = 25;
 
     private PayslipDto? selectedPayslip;
 

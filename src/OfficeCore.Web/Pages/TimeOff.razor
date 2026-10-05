@@ -293,7 +293,7 @@
                                         int year = y;
                                         var btnClass = _selectedViewYear == year ? "bg-fuchsia-950/20 text-fuchsia-400 border border-fuchsia-900/50" : "text-zinc-500 hover:text-zinc-300 border border-transparent";
                                         <button class="px-4 py-1.5 rounded-md text-sm font-medium transition-colors @btnClass"
-                                                @onclick="() => _selectedViewYear = year">
+                                                @onclick="() => { _selectedViewYear = year; _holidayPage = 1; }">
                                             @year
                                         </button>
                                     }
@@ -335,6 +335,10 @@
                                     .Where(h => h.Date.Year == _selectedViewYear)
                                     .OrderBy(h => h.Date)
                                     .ToList();
+                                var pagedHolidays = holidaysToDisplay
+                                    .Skip((_holidayPage - 1) * _holidayPageSize)
+                                    .Take(_holidayPageSize)
+                                    .ToList();
                             }
 
                             @if (!holidaysToDisplay.Any() && !_isAddingHoliday)
@@ -364,7 +368,7 @@
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-zinc-800/50">
-                                        @foreach (var h in holidaysToDisplay)
+                                        @foreach (var h in pagedHolidays)
                                         {
                                             <tr class="hover:bg-zinc-800/50 transition-colors group">
                                                 <td class="px-6 py-4 text-white font-medium">@h.Name</td>
@@ -377,6 +381,7 @@
                                         }
                                     </tbody>
                                 </table>
+                                <PaginationToolbar @bind-Page="_holidayPage" @bind-PageSize="_holidayPageSize" TotalCount="holidaysToDisplay.Count" />
                             }
                         </div>
                     </div>
@@ -500,6 +505,8 @@
     
     // View state
     private int _selectedViewYear = DateTime.Now.Year;
+    private int _holidayPage = 1;
+    private int _holidayPageSize = 25;
     private bool _isAddingHoliday = false;
     private HolidayDto _newHoliday = new() { Date = DateTime.Now };
 
@@ -574,6 +581,7 @@
         _isCreating = false;
         _isEditing = false;
         _isAddingHoliday = false;
+        _holidayPage = 1;
     }
 
     private void CancelEdit()

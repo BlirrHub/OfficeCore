@@ -34,6 +34,8 @@ public class PayrollComputationService : IPayrollComputationService
                 .ThenInclude(ws => ws!.Days)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Breaks)
+            .Include(e => e.WorkSchedule)
+                .ThenInclude(ws => ws!.OvertimeRules)
             .ToListAsync();
 
         var generalSetting = await _context.GeneralPayrollSettings.FirstOrDefaultAsync(s => s.Key == "MinimumDailyRate" && s.OrganizationId == period.OrganizationId);
@@ -70,6 +72,12 @@ public class PayrollComputationService : IPayrollComputationService
             .Where(lr => lr.Status == LeaveRequestStatus.Approved && lr.StartDate <= periodEndDt && lr.EndDate >= periodStartDt)
             .ToListAsync();
 
+        var approvedOvertime = await _context.OvertimeRequests
+            .Where(o => o.OrganizationId == period.OrganizationId 
+                     && o.Status == OvertimeStatus.Approved 
+                     && o.Date >= periodStartDt && o.Date <= periodEndDt)
+            .ToListAsync();
+
         var allActiveAdvances = await _context.AdvanceRequests
             .Where(ar => ar.Status == AdvanceStatus.Approved && (ar.RemainingBalance == null || ar.RemainingBalance > 0))
             .ToListAsync();
@@ -79,9 +87,12 @@ public class PayrollComputationService : IPayrollComputationService
             var trackedDailyRate = emp.DailyRate ?? defaultRate;
             var hourlyRate = trackedDailyRate / 8m; // Standard assumption of 8 working hours per day for hourly computation
 
-            // 1. Calculate Tracked Hours
+            // 1. Calculate Tracked Hours & Overtime
             var empAttendance = allAttendance.Where(a => a.EmployeeId == emp.Id).ToList();
+            var empOvertime = approvedOvertime.Where(o => o.EmployeeId == emp.Id).ToList();
+            var creditedOtIds = new HashSet<Guid>();
             double totalNetHours = 0;
+            double totalOvertimeHours = 0;
             int daysWithAttendance = 0;
 
             if (emp.WorkSchedule?.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate)
@@ -113,11 +124,12 @@ public class PayrollComputationService : IPayrollComputationService
 
                     if (clockIn != null && clockOut != null && clockOut.Timestamp > clockIn.Timestamp)
                     {
-                        // Check if it's a rest day and skip unless we support OT on rest days (currently ignored per requirements)
+                        var shiftDate = dayGroup.Key;
                         bool isRestDay = false;
-                        if (emp.WorkSchedule != null)
+                        WorkScheduleDay? schedDay = null;
+                        if (emp.WorkSchedule?.Days != null)
                         {
-                            var schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == clockIn.Timestamp.ToLocalTime().DayOfWeek);
+                            schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == clockIn.Timestamp.ToLocalTime().DayOfWeek);
                             if (schedDay != null && schedDay.IsRestDay) isRestDay = true;
                         }
 
@@ -127,26 +139,66 @@ public class PayrollComputationService : IPayrollComputationService
                             var timeIn = clockIn.Timestamp.ToLocalTime().TimeOfDay;
                             var timeOut = clockOut.Timestamp.ToLocalTime().TimeOfDay;
 
-                            // If schedule does not include time tracked before scheduled start time, cap timeIn to scheduled start time
-                            if (emp.WorkSchedule != null && !emp.WorkSchedule.IncludeTimeTrackedBeforeScheduledStartTime)
+                            // Early in: rounded to scheduled start time (early time is not paid), unless schedule allows it
+                            var effectiveTimeIn = timeIn;
+                            if (schedDay?.StartTime.HasValue == true && timeIn < schedDay.StartTime.Value)
                             {
-                                var schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == clockIn.Timestamp.ToLocalTime().DayOfWeek);
-                                if (schedDay != null && schedDay.StartTime.HasValue && timeIn < schedDay.StartTime.Value)
+                                if (emp.WorkSchedule == null || !emp.WorkSchedule.IncludeTimeTrackedBeforeScheduledStartTime)
                                 {
-                                    timeIn = schedDay.StartTime.Value;
+                                    effectiveTimeIn = schedDay.StartTime.Value;
+                                }
+                            }
+                            // Late in: used as-is
+
+                            // Clock-out handling:
+                            var effectiveTimeOut = timeOut;
+                            if (schedDay?.EndTime.HasValue == true)
+                            {
+                                if (timeOut > schedDay.EndTime.Value)
+                                {
+                                    var excessMinutes = (timeOut - schedDay.EndTime.Value).TotalMinutes;
+                                    // 15-minute threshold rule
+                                    if (excessMinutes < 15)
+                                    {
+                                        // Under 15 mins: automatically clamps down to shift end
+                                        effectiveTimeOut = schedDay.EndTime.Value;
+                                    }
+                                    else
+                                    {
+                                        // 15+ mins: Check for approved Pre-OT or Post-OT
+                                        var approvedOt = empOvertime.FirstOrDefault(o => o.Date.Date == shiftDate);
+                                        if (approvedOt != null)
+                                        {
+                                            // Approved OT: Regular shift ends at scheduled end
+                                            effectiveTimeOut = schedDay.EndTime.Value;
+                                            var otHours = approvedOt.ApprovedHours ?? (timeOut - schedDay.EndTime.Value).TotalHours;
+                                            totalOvertimeHours += Math.Max(0, otHours);
+                                            creditedOtIds.Add(approvedOt.Id);
+                                        }
+                                        else
+                                        {
+                                            // Rejected or unapproved OT: automatically clamps down to scheduled shift out
+                                            effectiveTimeOut = schedDay.EndTime.Value;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    // Undertime: used as-is
+                                    effectiveTimeOut = timeOut;
                                 }
                             }
 
-                            double dailyHours = (timeOut - timeIn).TotalHours;
+                            double dailyHours = (effectiveTimeOut - effectiveTimeIn).TotalHours;
 
                             // Deduct unpaid breaks
-                            if (emp.WorkSchedule != null && emp.WorkSchedule.Breaks != null)
+                            if (emp.WorkSchedule?.Breaks != null)
                             {
                                 foreach (var b in emp.WorkSchedule.Breaks.Where(br => !br.IsPaid))
                                 {
                                     // Overlap logic: max(0, min(timeOut, breakEnd) - max(timeIn, breakStart))
-                                    var overlapStart = timeIn > b.StartTime ? timeIn : b.StartTime;
-                                    var overlapEnd = timeOut < b.EndTime ? timeOut : b.EndTime;
+                                    var overlapStart = effectiveTimeIn > b.StartTime ? effectiveTimeIn : b.StartTime;
+                                    var overlapEnd = effectiveTimeOut < b.EndTime ? effectiveTimeOut : b.EndTime;
                                     if (overlapEnd > overlapStart)
                                     {
                                         dailyHours -= (overlapEnd - overlapStart).TotalHours;
@@ -162,6 +214,16 @@ public class PayrollComputationService : IPayrollComputationService
                     }
                 }
             }
+
+            // Include any additional approved standalone OT (e.g. approved OT on non-work days or separate requests)
+            foreach (var standaloneOt in empOvertime.Where(o => !creditedOtIds.Contains(o.Id)))
+            {
+                var otHours = standaloneOt.ApprovedHours ?? standaloneOt.RequestedHours;
+                totalOvertimeHours += Math.Max(0, otHours);
+            }
+
+            decimal otMultiplier = (decimal)(emp.WorkSchedule?.OvertimeRules?.FirstOrDefault()?.Multiplier ?? 1.25);
+            decimal totalOvertimePay = Math.Round((decimal)totalOvertimeHours * hourlyRate * otMultiplier, 2);
 
             var basicPay = (decimal)totalNetHours * hourlyRate;
 
@@ -237,7 +299,7 @@ public class PayrollComputationService : IPayrollComputationService
                 advancesDeduction += deduction;
             }
 
-            var grossPay = basicPay + totalLeavePay;
+            var grossPay = basicPay + totalLeavePay + totalOvertimePay;
             var netPay = grossPay - sss - philhealth - pagibig - tax - advancesDeduction;
 
             var calculationDetails = new
@@ -245,6 +307,9 @@ public class PayrollComputationService : IPayrollComputationService
                 DailyRate = trackedDailyRate,
                 HourlyRate = hourlyRate,
                 TotalTrackedHours = totalNetHours,
+                TotalOvertimeHours = totalOvertimeHours,
+                OvertimeMultiplier = otMultiplier,
+                TotalOvertimePay = totalOvertimePay,
                 DaysWithAttendance = daysWithAttendance,
                 BasicPay = basicPay,
                 LeaveDays = totalLeaveDays,
@@ -258,7 +323,7 @@ public class PayrollComputationService : IPayrollComputationService
                 EmployeeId = emp.Id,
                 BasicPay = basicPay,
                 TotalLeavePay = totalLeavePay,
-                TotalOvertimePay = 0,
+                TotalOvertimePay = totalOvertimePay,
                 TotalHolidayPay = 0,
                 GrossPay = grossPay,
                 SssDeduction = sss,

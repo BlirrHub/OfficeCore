@@ -20,7 +20,7 @@
         <Authorized>
             @{
                 var hasFinance = context.User.HasClaim("ModuleAccess", "Ledger") || context.User.HasClaim("ModuleAccess", "Payroll") || context.User.HasClaim("ModuleAccess", "Invoices");
-                var hasAdmin = context.User.HasClaim("ModuleAccess", "Clients") || context.User.HasClaim("ModuleAccess", "Attendance") || context.User.HasClaim("ModuleAccess", "Users") || context.User.HasClaim("ModuleAccess", "Roles") || context.User.HasClaim("ModuleAccess", "LeaveApprovals") || context.User.HasClaim("ModuleAccess", "WorkSchedules") || context.User.HasClaim("ModuleAccess", "TimeOff") || context.User.HasClaim("ModuleAccess", "Locations") || context.User.HasClaim("ModuleAccess", "Organization") || context.User.HasClaim("ModuleAccess", "AuditLogs");
+                var hasAdmin = context.User.HasClaim("ModuleAccess", "Clients") || context.User.HasClaim("ModuleAccess", "Attendance") || context.User.HasClaim("ModuleAccess", "Users") || context.User.HasClaim("ModuleAccess", "Roles") || context.User.HasClaim("ModuleAccess", "LeaveApprovals") || context.User.HasClaim("ModuleAccess", "OvertimeApprovals") || context.User.HasClaim("ModuleAccess", "WorkSchedules") || context.User.HasClaim("ModuleAccess", "TimeOff") || context.User.HasClaim("ModuleAccess", "Locations") || context.User.HasClaim("ModuleAccess", "Organization") || context.User.HasClaim("ModuleAccess", "AuditLogs");
             }
 
             <!-- Main Group (Always visible for all authenticated accounts) -->
@@ -41,8 +41,13 @@
             </NavLink>
 
             <NavLink href="my-attendance" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
-                <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" /></svg>
                 <span class="@(IsCollapsed ? "hidden" : "block")">My Attendance</span>
+            </NavLink>
+
+            <NavLink href="my-overtime" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
+                <svg class="size-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M9 2h6M12 2v2M19.5 5.5l1-1M4.5 5.5l-1-1" /></svg>
+                <span class="@(IsCollapsed ? "hidden" : "block")">My Overtime</span>
             </NavLink>
 
             <NavLink href="boards" class="@GetNavLinkClass()" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
@@ -146,10 +151,17 @@
                         <span class="@(IsCollapsed ? "hidden" : "block")">Leave Approvals</span>
                     </NavLink>
                 }
+                @if (context.User.HasClaim("ModuleAccess", "OvertimeApprovals"))
+                {
+                    <NavLink href="admin/overtime-approvals" class="@GetNavLinkClass()" Match="NavLinkMatch.All" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
+                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>
+                        <span class="@(IsCollapsed ? "hidden" : "block")">Overtime Approvals</span>
+                    </NavLink>
+                }
                 @if (context.User.HasClaim("ModuleAccess", "WorkSchedules"))
                 {
                     <NavLink href="admin/workschedules" class="@GetNavLinkClass()" Match="NavLinkMatch.All" ActiveClass="bg-fuchsia-600/20 text-fuchsia-400 font-medium">
-                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5m-9-3.75h.008v.008H12V12zm0 3.75h.008v.008H12v-.008zm3.75-3.75h.008v.008h-.008V12zm0 3.75h.008v.008h-.008v-.008zm-7.5-3.75h.008v.008H8.25V12zm0 3.75h.008v.008H8.25v-.008z" /></svg>
                         <span class="@(IsCollapsed ? "hidden" : "block")">Work Schedules</span>
                     </NavLink>
                 }

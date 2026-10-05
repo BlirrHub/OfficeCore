@@ -27,7 +27,7 @@
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="size-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
             </div>
-            <input type="text" @bind="_searchTerm" @bind:event="oninput" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" placeholder="Search clients or businesses..." />
+            <input type="text" @bind="_searchTerm" @bind:event="oninput" @bind:after="ResetPage" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" placeholder="Search clients or businesses..." />
         </div>
     </div>
 
@@ -50,6 +50,8 @@
         }
         else
         {
+            var filteredList = FilteredClients.ToList();
+            var pagedClients = filteredList.Skip((_page - 1) * _pageSize).Take(_pageSize);
             <table class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-zinc-800 text-zinc-400 text-left bg-zinc-900/50">
@@ -60,7 +62,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-800/50">
-                    @foreach (var client in FilteredClients)
+                    @foreach (var client in pagedClients)
                     {
                         <tr class="hover:bg-zinc-900/30 transition-colors align-top">
                             <td class="px-6 py-4">
@@ -169,6 +171,7 @@
                     }
                 </tbody>
             </table>
+            <PaginationToolbar @bind-Page="_page" @bind-PageSize="_pageSize" TotalCount="filteredList.Count" />
         }
     </div>
 </div>
@@ -348,6 +351,8 @@
     private bool _editingBusiness = false;
     
     private string _searchTerm = "";
+    private int _page = 1;
+    private int _pageSize = 25;
 
     // Models
     private ClientDto _clientModel = new();
@@ -416,6 +421,11 @@
             }
             return query;
         }
+    }
+
+    private void ResetPage()
+    {
+        _page = 1;
     }
 
     private void ShowAddClientModal()

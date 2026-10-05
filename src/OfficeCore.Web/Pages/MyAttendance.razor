@@ -184,9 +184,9 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h2 class="text-lg font-bold text-white">My Attendance History</h2>
             <div class="flex flex-wrap items-center gap-2">
-                <input type="date" @bind="_myFilterStartDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-fuchsia-500 focus:outline-none" />
+                <input type="date" @bind="_myFilterStartDate" @bind:after="ResetPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-fuchsia-500 focus:outline-none" />
                 <span class="text-zinc-600 text-xs">to</span>
-                <input type="date" @bind="_myFilterEndDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-fuchsia-500 focus:outline-none" />
+                <input type="date" @bind="_myFilterEndDate" @bind:after="ResetPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-fuchsia-500 focus:outline-none" />
                 <button @onclick="ClearMyFilters" class="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-white bg-zinc-800 rounded-lg transition-colors cursor-pointer">
                     Clear
                 </button>
@@ -229,6 +229,7 @@
                 }
                 else
                 {
+                    var pagedMy = filteredMy.Skip((_page - 1) * _pageSize).Take(_pageSize);
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
@@ -239,7 +240,7 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-zinc-800/50">
-                                @foreach (var record in filteredMy)
+                                @foreach (var record in pagedMy)
                                 {
                                     <tr class="hover:bg-zinc-900/50 transition-colors">
                                         <td class="px-6 py-3.5 text-zinc-300 font-mono text-xs">
@@ -286,6 +287,8 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <PaginationToolbar @bind-Page="_page" @bind-PageSize="_pageSize" TotalCount="filteredMy.Count" />
                 }
             }
         </div>
@@ -304,6 +307,8 @@
 
     private DateTime? _myFilterStartDate;
     private DateTime? _myFilterEndDate;
+    private int _page = 1;
+    private int _pageSize = 25;
 
     protected override async Task OnInitializedAsync()
     {
@@ -411,6 +416,12 @@
     {
         _myFilterStartDate = null;
         _myFilterEndDate = null;
+        _page = 1;
+    }
+
+    private void ResetPage()
+    {
+        _page = 1;
     }
 
     private List<MyAttendanceRecordDto> GetFilteredMyRecords()
