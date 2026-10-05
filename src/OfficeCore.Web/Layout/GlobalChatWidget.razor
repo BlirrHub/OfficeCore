@@ -816,8 +816,9 @@
                             bool isAttachmentImg = hasAttachment && IsImageAttachment(msg.AttachmentUrl);
                             bool isAttachmentPdf = hasAttachment && IsPdfAttachment(msg.AttachmentUrl);
                             bool isPinned = _pinnedMessageIds.Contains(msg.Id);
+                            bool isMenuActive = _activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id;
 
-                            <div class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start") chat-msg-row relative items-end">
+                            <div class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start") chat-msg-row relative items-end @(isMenuActive ? "z-30" : "z-0")">
                                 @if (!isMine)
                                 {
                                     <div class="size-6 rounded-full bg-zinc-800 shrink-0 overflow-hidden self-end mb-1 border border-zinc-700">
@@ -835,11 +836,11 @@
                                 }
                                 
                                 <!-- Message bubble & action buttons cluster: hover activates only when pointing at the bubble wrapper -->
-                                <div class="chat-msg-bubble-group flex items-end gap-1.5 max-w-[85%] @(isMine ? "flex-row" : "flex-row")">
+                                <div class="chat-msg-bubble-group flex items-end gap-1.5 max-w-[92%] sm:max-w-[88%] relative @(isMenuActive ? "z-30" : "")">
                                     <!-- For sent message (isMine): Action icons are on the LEFT of the message bubble (Image 1) -->
                                     @if (isMine)
                                     {
-                                        <div class="self-center flex items-center gap-0.5 chat-msg-actions relative shrink-0 px-1 py-0.5 rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "is-active" : "")">
+                                        <div class="self-center flex items-center gap-0.5 chat-msg-actions relative z-20 shrink-0 px-1 py-0.5 rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md @(isMenuActive ? "is-active" : "")">
                                             <!-- 3 dots more actions button (Image 1 & 2) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
@@ -849,7 +850,7 @@
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1" : "bottom-full mb-1") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
                                                             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
@@ -878,14 +879,14 @@
                                         </div>
                                     }
                                     
-                                    <div class="chat-msg-bubble-wrap relative flex flex-col @(isMine ? "items-end" : "items-start") min-w-0">
+                                    <div class="chat-msg-bubble-wrap relative flex flex-col @(isMine ? "items-end" : "items-start") min-w-0 max-w-full">
                                         <!-- Floating Emoji Reaction Picker directly on top of chat bubble -->
                                         @if (_activeReactionMenuId == msg.Id)
                                         {
                                             var myUserId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
                                             var userCurrentRx = _messageUserReactions.TryGetValue(msg.Id, out var uMap) && uMap.TryGetValue(myUserId, out var curRx) ? curRx : null;
 
-                                            <div class="absolute bottom-full mb-1.5 @(isMine ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap" @onclick:stopPropagation>
+                                            <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") @(isMine ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap" @onclick:stopPropagation>
                                                 @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
                                                 {
                                                     var isSelected = emoji == userCurrentRx;
@@ -911,10 +912,10 @@
                                             </span>
                                         }
 
-                                        <div class="flex flex-col gap-1.5 @(isMine ? "items-end" : "items-start")">
+                                        <div class="flex flex-col gap-1.5 max-w-full @(isMine ? "items-end" : "items-start")">
                                             @if (hasAttachment)
                                             {
-                                                <div class="rounded-2xl overflow-hidden border transition-all cursor-pointer @(isMine ? "bg-fuchsia-700/80 border-fuchsia-500/50 hover:border-fuchsia-400 shadow-md shadow-fuchsia-950/40" : "bg-zinc-800/90 border-zinc-700/70 hover:border-zinc-500 shadow-sm")"
+                                                <div class="rounded-2xl overflow-hidden border transition-all cursor-pointer max-w-full @(isMine ? "bg-fuchsia-700/80 border-fuchsia-500/50 hover:border-fuchsia-400 shadow-md shadow-fuchsia-950/40" : "bg-zinc-800/90 border-zinc-700/70 hover:border-zinc-500 shadow-sm")"
                                                      @onclick="() => OpenAttachmentViewer(msg)">
                                                     @if (isAttachmentImg)
                                                     {
@@ -940,7 +941,7 @@
                                                     }
                                                     else
                                                     {
-                                                        <div class="p-2.5 flex items-center gap-2.5 max-w-56">
+                                                        <div class="p-2.5 flex items-center gap-2.5 max-w-52 w-full">
                                                             <div class="size-9 rounded-xl flex items-center justify-center shrink-0 @(isAttachmentPdf ? "bg-rose-500/20 text-rose-300 border border-rose-500/30" : "bg-zinc-700 text-zinc-300")">
                                                                 @if (isAttachmentPdf)
                                                                 {
@@ -957,13 +958,13 @@
                                                             </div>
                                                             <div class="flex-1 min-w-0">
                                                                 <p class="text-xs font-semibold text-white truncate">@(msg.AttachmentName ?? "Document")</p>
-                                                                <p class="text-[10px] text-zinc-400 flex items-center gap-1.5">
+                                                                <p class="text-[10px] text-zinc-400 flex items-center gap-1.5 truncate">
                                                                     @if (msg.AttachmentSize.HasValue)
                                                                     {
-                                                                        <span>@FormatFileSize(msg.AttachmentSize.Value)</span>
+                                                                        <span class="shrink-0">@FormatFileSize(msg.AttachmentSize.Value)</span>
                                                                         <span>•</span>
                                                                     }
-                                                                    <span class="text-fuchsia-300 font-medium">Click to view</span>
+                                                                    <span class="text-fuchsia-300 font-medium truncate">Click to view</span>
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -1011,7 +1012,7 @@
                                     <!-- For received message (!isMine): Action icons are on the RIGHT of the message bubble (Image 1) -->
                                     @if (!isMine)
                                     {
-                                        <div class="self-center flex items-center gap-0.5 chat-msg-actions relative shrink-0 px-1 py-0.5 rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md @(_activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id ? "is-active" : "")">
+                                        <div class="self-center flex items-center gap-0.5 chat-msg-actions relative z-20 shrink-0 px-1 py-0.5 rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md @(isMenuActive ? "is-active" : "")">
                                             <!-- React emoji button (Image 1) -->
                                             <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
                                                     class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeReactionMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
@@ -1035,7 +1036,7 @@
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1" : "bottom-full mb-1") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
                                                             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>

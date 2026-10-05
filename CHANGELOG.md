@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-10-05] (Chat Message Action Buttons Overlap & Dropdown Menu Stacking Fix)
+
+- **Chat Message Action Pill Overlap Resolution (`GlobalChatWidget.razor`):**
+  - Resolved an issue where attachment cards on sent messages overlapped and partially covered the hover action toolbar pill (3 dots, reply, reaction smiley).
+  - Increased `chat-msg-bubble-group` max width to `max-w-[92%] sm:max-w-[88%]` and added `max-w-full` containment to prevent card flex overflow.
+  - Adjusted attachment card maximum width to a compact `max-w-52` (208px) with `truncate` on the subtitle, ensuring attachment cards fit cleanly alongside the action pill without clipping or crowding.
+  - Elevated `chat-msg-actions` to `z-20` relative layer so action buttons are never obscured behind message bubbles.
+
+- **Message More Actions Dropdown Stacking Context & Alignment Fix (`GlobalChatWidget.razor`):**
+  - Resolved an issue where opening the "More Actions" dropdown (Forward, Pin) caused subsequent message bubbles in the chat to render on top of the dropdown menu.
+  - Applied dynamic stacking context elevation (`z-30`) to the active message row (`chat-msg-row`) whenever its action menu or reaction picker is toggled open, guaranteeing the menu always renders above all following messages.
+  - Corrected horizontal menu alignment direction: aligned dropdown to `right-0` for sent messages (expanding leftward into open chat space rather than over the message bubble) and `left-0` for received messages (expanding rightward into open chat space).
+
 ### Enhanced & Fixed — [2026-10-05] (Workspace Recent Activity Replacement & Personal Status Activity Isolation)
 
 - **Isolation of Personal Activity for Admins/Owners (`DashboardController.cs`, `Dashboard.razor`):**
