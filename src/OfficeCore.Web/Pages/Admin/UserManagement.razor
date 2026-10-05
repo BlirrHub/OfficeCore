@@ -13,13 +13,18 @@
             <h1 class="text-3xl font-bold tracking-tight text-white">User Management</h1>
             <p class="mt-1 text-zinc-400 text-sm">Manage employee accounts and role assignments.</p>
         </div>
-        <button @onclick="() => _showCreate = true"
-                class="flex items-center gap-2 rounded-xl bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30">
-            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Invite Member
-        </button>
+        <div class="flex items-center gap-3">
+            <button @onclick="LoadData" disabled="@_isLoading" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer" title="Refresh">
+                <svg class="size-4 @(_isLoading ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+            </button>
+            <button @onclick="() => _showCreate = true"
+                    class="flex items-center gap-2 rounded-xl bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 cursor-pointer">
+                <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Invite Member
+            </button>
+        </div>
     </div>
 
     <!-- Employee table -->
@@ -38,7 +43,17 @@
         }
         else if (!_users.Any())
         {
-            <div class="p-12 text-center text-zinc-500 italic text-sm">No employees found.</div>
+            <EmptyState Card="false"
+                        Title="No employees found"
+                        Description="Invite your team members to collaborate and assign roles."
+                        ActionText="Invite Member"
+                        OnAction="() => _showCreate = true">
+                <Icon>
+                    <svg class="size-10 text-zinc-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                </Icon>
+            </EmptyState>
         }
         else
         {
@@ -534,6 +549,8 @@
     private UserDto? _userToDelete;
     private bool _isDeletingUser = false;
 
+    private bool _isLoading = false;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -541,9 +558,17 @@
 
     private async Task LoadData()
     {
-        _users = await Http.GetFromJsonAsync<List<UserDto>>("/api/user");
-        _orgRoles = await Http.GetFromJsonAsync<List<RoleDto>>("/api/role");
-        _workSchedules = await Http.GetFromJsonAsync<List<WorkScheduleDto>>("/api/workschedule");
+        _isLoading = true;
+        try
+        {
+            _users = await Http.GetFromJsonAsync<List<UserDto>>("/api/user");
+            _orgRoles = await Http.GetFromJsonAsync<List<RoleDto>>("/api/role");
+            _workSchedules = await Http.GetFromJsonAsync<List<WorkScheduleDto>>("/api/workschedule");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private async Task EditUser(UserDto user)

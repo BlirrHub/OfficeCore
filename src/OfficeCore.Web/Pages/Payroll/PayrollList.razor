@@ -13,6 +13,9 @@
             <p class="mt-1 text-zinc-400 text-sm">Manage payroll periods and process employee payslips</p>
         </div>
         <div class="flex items-center gap-3">
+            <button @onclick="LoadPeriods" disabled="@isLoading" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer" title="Refresh">
+                <svg class="size-4 @(isLoading ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+            </button>
             <button @onclick='() => Navigation.NavigateTo("/payroll/settings")' class="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white px-4 py-2 rounded-xl text-sm font-medium transition-all border border-zinc-700/50">
                 <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 Settings
@@ -42,30 +45,22 @@
     }
     else if (periods == null || !periods.Any())
     {
-        <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-8 text-center backdrop-blur-xl">
-            <div class="size-12 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
-                <svg class="size-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <EmptyState Title="No Payroll Periods"
+                    Description="You haven't created any payroll periods yet. Start by generating your first period."
+                    ActionText="Create First Period"
+                    OnAction="OpenCreateModal">
+            <Icon>
+                <svg class="size-10 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-            </div>
-            <h3 class="text-lg font-medium text-white mb-1">No Payroll Periods</h3>
-            <p class="text-zinc-400 mb-6">You haven't created any payroll periods yet.</p>
-            <button @onclick="OpenCreateModal" class="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all">
-                Create First Period
-            </button>
-        </div>
+            </Icon>
+        </EmptyState>
     }
     else if (!FilteredPeriods.Any())
     {
-        <div class="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-8 text-center backdrop-blur-xl">
-            <div class="size-12 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
-                <svg class="size-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                </svg>
-            </div>
-            <h3 class="text-lg font-medium text-white mb-1">No matches found</h3>
-            <p class="text-zinc-400">Try adjusting your search criteria.</p>
-        </div>
+        <EmptyState Title="No matches found"
+                    Description="No payroll periods match your search criteria. Try adjusting your search." />
+    }
     }
     else
     {

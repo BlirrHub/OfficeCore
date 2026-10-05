@@ -6,6 +6,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Unified — [2026-10-05] (UI Component Library Standardization: Empty State Design & Icon-Only Header Refresh Buttons)
+
+- **Standardized Empty State Component (`EmptyState.razor`):**
+  - Upgraded `EmptyState.razor` to serve as the unified empty state design system component representing the sleek `Boards` aesthetic across the entire app.
+  - Replaced the previous `size-14` rounded square container with a prominent `size-20` circular container (`bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800/80 shadow-inner`) and `size-10` icons.
+  - Aligned typography to `text-xl font-bold text-white mb-2` for the title and `text-sm text-zinc-400 max-w-sm mb-6 text-center` for description.
+  - Added built-in parameters `ActionText`, `OnAction`, and `ActionIcon` rendering the subtle secondary dark button style (`inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-medium text-white transition-all cursor-pointer shadow-sm`) instead of loud solid primary fuchsia buttons.
+  - Added `Card` parameter (`bool Card = true`) wrapping in `bg-zinc-950 border border-zinc-800 rounded-2xl py-20 px-4 text-center` by default, or allowing `Card="false"` for seamless embedding inside existing table or card containers without double borders.
+
+- **Icon-Only Header Refresh Button Alignment (`Boards.razor`, and Workspace-Wide Pages):**
+  - Updated `Boards.razor` header refresh button from text (`Refresh`) to the compact icon-only refresh button (`p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer` with spinning SVG during loading), matching `MyLeaves` and `Advances`.
+  - Added consistent icon-only refresh buttons to `RoleManagement.razor`, `Clients.razor`, `Payroll/PayrollList.razor`, `UserManagement.razor`, `Attendance.razor`, `MyAttendance.razor`, `WorkSchedules.razor`, and `TimeOff.razor`.
+
+- **Comprehensive Workspace Empty State Audit & Adoption:**
+  - `MyLeaves.razor`: Removed outer `<AppCard>` wrapper and adopted standardized `<EmptyState>` with `ActionText="Request Leave"` and subtle secondary button styling.
+  - `Advances.razor`: Removed outer `<AppCard>` wrapper and adopted standardized `<EmptyState>` with `ActionText="Request Now"` and subtle secondary button styling.
+  - `RoleManagement.razor`: Resolved empty void screen when no roles exist by displaying `<EmptyState Title="No roles yet" Description="..." ActionText="Create a Role" OnAction="..." />`.
+  - `Clients.razor`: Replaced ad-hoc empty state with `<EmptyState Card="false">` for both empty and filtered states.
+  - `Payroll/PayrollList.razor`: Replaced custom empty cards with `<EmptyState>` for empty and no-match states.
+  - `UserManagement.razor`: Replaced plain italic text with `<EmptyState Card="false" Title="No employees found" ... />`.
+  - `Attendance.razor` & `MyAttendance.razor`: Replaced plain italic text with `<EmptyState Card="false">` for workspace records and personal attendance history.
+  - `LeaveApprovals.razor`: Standardized filtered empty state with `<EmptyState Card="false">`.
+  - `Ledger.razor`: Standardized approvals and expenses empty states with `<EmptyState>`.
+  - `WorkSchedules.razor`: Standardized unselected schedule state with `<EmptyState Card="false">`.
+  - `TimeOff.razor`: Standardized empty leave policies and unselected calendar states with `<EmptyState Card="false">`.
+  - `Invoices.razor`: Replaced "under construction" plain box with a polished `<EmptyState>` for module in development.
+
 ### Fixed — [2026-10-05] (Workspace Deletion Foreign Key Constraint Violation on BoardCards and Chat)
 
 - **Workspace Deletion Cascade Resolution (`OrganizationsController.cs`, `AppDbContext.cs`, Migration):**

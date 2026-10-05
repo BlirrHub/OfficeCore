@@ -24,6 +24,9 @@
         </div>
 
         <div class="flex items-center gap-3">
+            <button @onclick="LoadCompanyRecords" disabled="@_isLoadingCompany" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer" title="Refresh">
+                <svg class="size-4 @(_isLoadingCompany ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+            </button>
             <a href="/my-attendance" class="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer flex items-center gap-2">
                 <svg class="size-4 text-fuchsia-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
                 My Attendance
@@ -93,14 +96,26 @@
             }
             else if (_records == null || !_records.Any())
             {
-                <div class="p-12 text-center text-zinc-500 italic text-sm">No attendance records found across the workspace.</div>
+                <EmptyState Card="false"
+                            Title="No attendance records"
+                            Description="No attendance records recorded yet across the workspace."
+                            ActionText="+ Manual Entry"
+                            OnAction="ShowCreateModal">
+                    <Icon>
+                        <svg class="size-10 text-zinc-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </Icon>
+                </EmptyState>
             }
             else
             {
                 var filteredRecords = GetFilteredCompanyRecords();
                 if (!filteredRecords.Any())
                 {
-                    <div class="p-12 text-center text-zinc-500 italic text-sm">No records match the current filters.</div>
+                    <EmptyState Card="false"
+                                Title="No matching records"
+                                Description="No records match the current filters. Try adjusting dates or employee search." />
                 }
                 else
                 {

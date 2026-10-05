@@ -11,6 +11,11 @@
             <h1 class="text-3xl font-bold tracking-tight text-white">Time Off & Holidays</h1>
             <p class="mt-1 text-zinc-400 text-sm">Configure company holidays and time-off policies</p>
         </div>
+        <div>
+            <button @onclick="RefreshAll" disabled="@_isLoadingAll" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer" title="Refresh">
+                <svg class="size-4 @(_isLoadingAll ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+            </button>
+        </div>
     </div>
 
     <!-- Top Tabs Header -->
@@ -53,17 +58,18 @@
             }
             else if (_policies.Count == 0)
             {
-                <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
-                    <div class="size-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-3">
-                        <svg class="size-7 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-base font-semibold text-white mb-1">No Leave Policies Defined</h3>
-                    <p class="text-xs text-zinc-500 max-w-sm mb-4">Create your company's standard leave rules (e.g. 15-day Vacation Leave, 10-day Sick Leave).</p>
-                    <button @onclick="OpenCreatePolicyModal" class="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-medium rounded-xl transition-colors">
-                        Add First Policy
-                    </button>
+                <div class="flex-1 flex flex-col items-center justify-center p-8">
+                    <EmptyState Card="false"
+                                Title="No Leave Policies Defined"
+                                Description="Create your company's standard leave rules (e.g. 15-day Vacation Leave, 10-day Sick Leave)."
+                                ActionText="Add First Policy"
+                                OnAction="OpenCreatePolicyModal">
+                        <Icon>
+                            <svg class="size-10 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </Icon>
+                    </EmptyState>
                 </div>
             }
             else
@@ -377,16 +383,18 @@
                 }
                 else
                 {
-                    <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <div class="text-center space-y-4">
-                            <div class="mx-auto size-24 bg-zinc-900 rounded-full flex items-center justify-center">
-                                <svg class="size-10 text-zinc-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center p-8">
+                        <EmptyState Card="false"
+                                    Title="No calendar selected"
+                                    Description="Select a calendar from the sidebar or create a new one to manage company holidays."
+                                    ActionText="Add New Calendar"
+                                    OnAction="CreateNewCalendar">
+                            <Icon>
+                                <svg class="size-10 text-zinc-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                                 </svg>
-                            </div>
-                            <h3 class="text-lg font-medium text-white">No calendar selected</h3>
-                            <p class="text-sm text-zinc-500 max-w-sm">Select a calendar from the sidebar or create a new one to manage company holidays.</p>
-                        </div>
+                            </Icon>
+                        </EmptyState>
                     </div>
                 }
             </div>
@@ -521,6 +529,22 @@
     {
         if (_genericDeleteAction != null) await _genericDeleteAction();
         _showGenericDeleteModal = false;
+    }
+
+    private bool _isLoadingAll = false;
+
+    private async Task RefreshAll()
+    {
+        _isLoadingAll = true;
+        try
+        {
+            await LoadPolicies();
+            await LoadData();
+        }
+        finally
+        {
+            _isLoadingAll = false;
+        }
     }
 
     protected override async Task OnInitializedAsync()
