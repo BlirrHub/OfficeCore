@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-10-05] (Messenger-Style Floating Action Menus & Long Received Message Layout Fix)
+
+- **Messenger-Style Floating Message Dropdown Menus (`GlobalChatWidget.razor`):**
+  - Redesigned the "More Actions" dropdown menu (`Forward`, `Pin`/`Unpin`, `Remove`/`Report`) to float above message action buttons with an authentic Messenger-inspired downward pointer beak (`-bottom-1.5 size-3 rotate-45 border-b border-r`) aimed directly at the 3-dots button.
+  - Added smart vertical fallback (`top-full mt-2.5` with upward pointer beak) for top-most messages (`i <= 1`) to prevent collision with the chat header.
+  - Fixed horizontal clipping by directing menus inward toward chat canvas space: sent messages (`isMine`) use `left-0` with beak on the left extending rightward, while received messages (`!isMine`) use `right-0` with beak on the right extending leftward, guaranteeing zero container overflow.
+  - Added `Remove` (Unsend) action for sent messages and `Report` action for received messages to match Messenger action specifications.
+
+- **Long Received Message Bubble Containment & Text Wrapping (`GlobalChatWidget.razor`):**
+  - Resolved an issue where long received messages (e.g. task mentions like "Review employee attendance logs") expanded horizontally to the full container width, cramming the action pill against the right border.
+  - Implemented responsive max-width containment on `chat-msg-bubble-wrap` (`max-w-[calc(100%-80px)] sm:max-w-[230px]`), ensuring chat bubbles wrap text cleanly and reserve at least 80px of horizontal breathing room for the action buttons pill on any screen size.
+  - Updated task and board mention links in `FormatMessageContent` to use `inline-flex items-start gap-1.5 flex-wrap break-words`, ensuring long mention titles wrap naturally across lines without forcing unbreakable single-line expansion.
+
 ### Fixed — [2026-10-05] (Chat Message Action Buttons Overlap & Dropdown Menu Stacking Fix)
 
 - **Chat Message Action Pill Overlap Resolution (`GlobalChatWidget.razor`):**

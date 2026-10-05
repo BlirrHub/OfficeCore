@@ -836,7 +836,7 @@
                                 }
                                 
                                 <!-- Message bubble & action buttons cluster: hover activates only when pointing at the bubble wrapper -->
-                                <div class="chat-msg-bubble-group flex items-end gap-1.5 max-w-[92%] sm:max-w-[88%] relative @(isMenuActive ? "z-30" : "")">
+                                <div class="chat-msg-bubble-group flex items-end gap-1.5 min-w-0 max-w-full relative @(isMenuActive ? "z-30" : "")">
                                     <!-- For sent message (isMine): Action icons are on the LEFT of the message bubble (Image 1) -->
                                     @if (isMine)
                                     {
@@ -844,20 +844,33 @@
                                             <!-- 3 dots more actions button (Image 1 & 2) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
-                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
+                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeMessageMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
                                                         title="More actions">
                                                     <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
-                                                        <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
-                                                            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                                    bool openBelow = i <= 1;
+                                                    <div class="absolute @(openBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                        @if (openBelow)
+                                                        {
+                                                            <div class="absolute -top-1.5 left-2.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="absolute -bottom-1.5 left-2.5 size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                        }
+                                                        <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
+                                                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
                                                         </button>
-                                                        <button type="button" @onclick="() => TogglePinMessage(msg.Id)" class="w-full text-left px-2.5 py-1.5 text-xs text-amber-300 hover:bg-zinc-800 hover:text-amber-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
-                                                            <svg class="size-3.5" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
+                                                        <button type="button" @onclick="() => TogglePinMessage(msg.Id)" class="w-full text-left px-2.5 py-1.5 text-xs text-amber-300 hover:bg-zinc-800 hover:text-amber-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
+                                                            <svg class="size-3.5 shrink-0" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
                                                             <span>@(isPinned ? "Unpin" : "Pin")</span>
+                                                        </button>
+                                                        <button type="button" @onclick="() => UnsendMessage(msg.Id)" class="w-full text-left px-2.5 py-1.5 text-xs text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
+                                                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            <span>Remove</span>
                                                         </button>
                                                     </div>
                                                 }
@@ -879,7 +892,7 @@
                                         </div>
                                     }
                                     
-                                    <div class="chat-msg-bubble-wrap relative flex flex-col @(isMine ? "items-end" : "items-start") min-w-0 max-w-full">
+                                    <div class="chat-msg-bubble-wrap relative flex flex-col @(isMine ? "items-end" : "items-start") min-w-0 max-w-[calc(100%-80px)] sm:max-w-[230px]">
                                         <!-- Floating Emoji Reaction Picker directly on top of chat bubble -->
                                         @if (_activeReactionMenuId == msg.Id)
                                         {
@@ -1030,20 +1043,33 @@
                                             <!-- 3 dots more actions button (Image 1 & 2) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
-                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
+                                                        class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeMessageMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
                                                         title="More actions">
                                                     <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
-                                                        <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
-                                                            <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                                    bool openBelow = i <= 1;
+                                                    <div class="absolute @(openBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                        @if (openBelow)
+                                                        {
+                                                            <div class="absolute -top-1.5 right-2.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="absolute -bottom-1.5 right-2.5 size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                        }
+                                                        <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
+                                                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
                                                         </button>
-                                                        <button type="button" @onclick="() => TogglePinMessage(msg.Id)" class="w-full text-left px-2.5 py-1.5 text-xs text-amber-300 hover:bg-zinc-800 hover:text-amber-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors">
-                                                            <svg class="size-3.5" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
+                                                        <button type="button" @onclick="() => TogglePinMessage(msg.Id)" class="w-full text-left px-2.5 py-1.5 text-xs text-amber-300 hover:bg-zinc-800 hover:text-amber-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
+                                                            <svg class="size-3.5 shrink-0" fill="currentColor" viewBox="0 0 32 32"><path d="M19 16V6h2V4H11v2h2v10l-3 4v2h5v8h2v-8h5v-2l-3-4z"/></svg>
                                                             <span>@(isPinned ? "Unpin" : "Pin")</span>
+                                                        </button>
+                                                        <button type="button" @onclick="() => ReportMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
+                                                            <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>
+                                                            <span>Report</span>
                                                         </button>
                                                     </div>
                                                 }
@@ -1650,7 +1676,7 @@
                     ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" 
                     : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
 
-                return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-1 transition-colors\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>{name}</a>";
+                return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-start gap-1.5 flex-wrap break-words transition-colors\"><svg class=\"size-3 mt-0.5 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg><span>{name}</span></a>";
             }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
@@ -1683,7 +1709,7 @@
                     ? "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" 
                     : "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4";
 
-                return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-center gap-1 transition-colors\"><svg class=\"size-3 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg>#{shortDisplay}</a>";
+                return $"<a href=\"{href}\" class=\"font-bold {colorClass} hover:underline inline-flex items-start gap-1.5 flex-wrap break-words transition-colors\"><svg class=\"size-3 mt-0.5 shrink-0\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"{iconPath}\" /></svg><span>#{shortDisplay}</span></a>";
             }, 
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
