@@ -237,8 +237,38 @@ public class OrganizationsController : ControllerBase
         var org = await _context.Organizations.FindAsync(id);
         if (org == null) return NotFound();
 
-        _context.Organizations.Remove(org);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            // 1. Break FK_BoardCards_Employees_AssignedToUserId by nulling out assigned user references in this workspace
+            await _context.BoardCards
+                .Where(c => c.OrganizationId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.AssignedToUserId, (string?)null));
+
+            // 2. Clean up chat messages and chat room memberships to satisfy Restrict constraints to employees
+            await _context.ChatMessageReactions
+                .Where(r => r.OrganizationId == id)
+                .ExecuteDeleteAsync();
+
+            await _context.ChatMessages
+                .Where(m => m.OrganizationId == id)
+                .ExecuteDeleteAsync();
+
+            await _context.ChatRoomMembers
+                .Where(m => m.OrganizationId == id)
+                .ExecuteDeleteAsync();
+
+            // 3. Remove the workspace (cascades to all other organization-owned tables)
+            _context.Organizations.Remove(org);
+            await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         Response.Cookies.Delete("ActiveOrganizationId");
 

@@ -136,7 +136,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .HasOne(m => m.User)
             .WithMany()
             .HasForeignKey(m => m.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<ChatMessage>()
             .HasOne(m => m.ChatRoom)
@@ -205,6 +205,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .WithMany()
             .HasForeignKey(bca => bca.EmployeeId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<BoardCard>()
+            .HasOne(c => c.AssignedToUser)
+            .WithMany()
+            .HasForeignKey(c => c.AssignedToUserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // PostgreSQL stores decimal as native numeric type with arbitrary precision.
         // Configure standard precision for currency and multiplier columns.

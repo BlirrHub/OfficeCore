@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-10-05] (Workspace Deletion Foreign Key Constraint Violation on BoardCards and Chat)
+
+- **Workspace Deletion Cascade Resolution (`OrganizationsController.cs`, `AppDbContext.cs`, Migration):**
+  - Resolved `PostgresException 23503` where deleting a workspace failed with foreign key violation `FK_BoardCards_Employees_AssignedToUserId` when referencing employees being deleted in the workspace.
+  - Updated `DeleteOrganization` in `OrganizationsController.cs` to execute inside a database transaction: explicitly nulls out `BoardCards.AssignedToUserId` for the target workspace and deletes workspace-scoped chat messages, reactions, and room memberships prior to removing the organization, preventing constraint conflicts with `Employees`.
+  - Configured `BoardCard.AssignedToUser` with `DeleteBehavior.SetNull` and `ChatRoomMember.User` with `DeleteBehavior.Cascade` in `AppDbContext.cs`.
+  - Created EF Core migration `FixBoardCardAndChatRoomMemberCascade` updating `FK_BoardCards_Employees_AssignedToUserId` to `ON DELETE SET NULL` and `FK_ChatRoomMembers_Employees_UserId` to `ON DELETE CASCADE`.
+
 ### Enhanced & Fixed — [2026-10-05] (Admin Leave Approvals & Ledger Advance Cancellation Workflow; Zero Hard Deletes)
 
 - **Leave Approvals Admin Cancellation Workflow (`LeaveApprovals.razor`, `LeaveRequestController.cs`):**
