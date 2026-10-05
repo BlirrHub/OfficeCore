@@ -23,6 +23,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        html.dark { color-scheme: dark; }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator,
+        .dark input[type="time"]::-webkit-calendar-picker-indicator,
+        .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) sepia(100%) saturate(0%) hue-rotate(288deg) brightness(1000%) contrast(1000%);
+        }
+    </style>
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="OfficeCore.Web.Client.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
@@ -61,11 +69,46 @@
     <script src="js/mapInterop.js?v=6"></script>
     <script src="js/fileInterop.js"></script>
     <script>
+        function resizeChatTextarea(el) {
+            if (!el) return;
+            el.style.height = '38px';
+            var scrollH = el.scrollHeight;
+            if (scrollH <= 38) {
+                el.style.height = '38px';
+                el.style.overflowY = 'hidden';
+            } else if (scrollH <= 82) {
+                el.style.height = scrollH + 'px';
+                el.style.overflowY = 'hidden';
+            } else {
+                el.style.height = '82px';
+                el.style.overflowY = 'auto';
+            }
+        }
+
+        window.resizeChatTextareaById = function(id) {
+            var el = document.getElementById(id);
+            if (el) resizeChatTextarea(el);
+        };
+
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.id === 'chat-input-textarea') {
+                resizeChatTextarea(e.target);
+            }
+        });
+
         document.addEventListener('keydown', function(e) {
             if (e.target && e.target.id === 'chat-input-textarea' && e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
             }
         });
+
+        window.resetChatTextarea = function() {
+            var el = document.getElementById('chat-input-textarea');
+            if (el) {
+                el.style.height = '38px';
+                el.style.overflowY = 'hidden';
+            }
+        };
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>

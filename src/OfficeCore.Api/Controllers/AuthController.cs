@@ -178,11 +178,26 @@ public class AuthController : ControllerBase
         var moduleClaims = new List<string> { "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards" };
         var titleRoles = new List<string>();
         var roles = new List<string>();
+        bool isOwner = false;
 
         var orgId = _tenant.GetActiveOrganizationId();
 
         if (orgId.HasValue)
         {
+            // Check if workspace owner — grant all modules
+            var org = await _context.Organizations.FindAsync(orgId.Value);
+            isOwner = org != null && org.CreatedByUserId == user.Id;
+            if (isOwner)
+            {
+                moduleClaims = new List<string>
+                {
+                    "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards",
+                    "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
+                    "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff",
+                    "Locations", "Organization", "AuditLogs"
+                };
+            }
+
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.UserId == user.Id && e.OrganizationId == orgId.Value);
 
@@ -212,7 +227,8 @@ public class AuthController : ControllerBase
             }
         }
 
-        var titleRole = titleRoles.Any() ? string.Join(" / ", titleRoles) : "Employee";
+        var defaultTitle = isOwner ? "Owner" : "Employee";
+        var titleRole = titleRoles.Any() ? string.Join(" / ", titleRoles) : defaultTitle;
 
         return Ok(new
         {

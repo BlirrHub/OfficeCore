@@ -53,6 +53,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
     public DbSet<ChatRoom> ChatRooms { get; set; }
     public DbSet<ChatRoomMember> ChatRoomMembers { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
 
     // Multi-Tenant RBAC
     public DbSet<OrganizationRole> OrganizationRoles { get; set; }
@@ -135,7 +136,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .HasOne(m => m.User)
             .WithMany()
             .HasForeignKey(m => m.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<ChatMessage>()
             .HasOne(m => m.ChatRoom)
@@ -148,6 +149,24 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .WithMany()
             .HasForeignKey(m => m.SenderId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<ChatMessage>()
+            .HasOne(m => m.PinnedBy)
+            .WithMany()
+            .HasForeignKey(m => m.PinnedById)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<ChatMessageReaction>()
+            .HasOne(r => r.ChatMessage)
+            .WithMany(m => m.Reactions)
+            .HasForeignKey(r => r.ChatMessageId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ChatMessageReaction>()
+            .HasOne(r => r.User)
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<BoardList>()
             .HasMany(l => l.Cards)
@@ -186,6 +205,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             .WithMany()
             .HasForeignKey(bca => bca.EmployeeId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<BoardCard>()
+            .HasOne(c => c.AssignedToUser)
+            .WithMany()
+            .HasForeignKey(c => c.AssignedToUserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // PostgreSQL stores decimal as native numeric type with arbitrary precision.
         // Configure standard precision for currency and multiplier columns.

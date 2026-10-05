@@ -60,17 +60,30 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
         claimsIdentity.AddClaim(new Claim("TenantTransformed", "true"));
 
         var org = await _context.Organizations.FindAsync(orgId.Value);
-        if (org != null && org.CreatedByUserId == userId)
+        bool isOwner = org != null && org.CreatedByUserId == userId;
+        if (isOwner)
         {
             claimsIdentity.AddClaim(new Claim("IsWorkspaceOwner", "true"));
+            // Grant all modules to workspace owner automatically
+            var allModules = new[]
+            {
+                "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards",
+                "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
+                "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff",
+                "Locations", "Organization", "AuditLogs"
+            };
+            foreach (var m in allModules)
+                claimsIdentity.AddClaim(new Claim("ModuleAccess", m));
         }
-
-        // Default modules for all authenticated accounts in the workspace
-        claimsIdentity.AddClaim(new Claim("ModuleAccess", "Dashboard"));
-        claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyAttendance"));
-        claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyLeaves"));
-        claimsIdentity.AddClaim(new Claim("ModuleAccess", "Advances"));
-        claimsIdentity.AddClaim(new Claim("ModuleAccess", "Boards"));
+        else
+        {
+            // Default modules for all authenticated accounts in the workspace
+            claimsIdentity.AddClaim(new Claim("ModuleAccess", "Dashboard"));
+            claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyAttendance"));
+            claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyLeaves"));
+            claimsIdentity.AddClaim(new Claim("ModuleAccess", "Advances"));
+            claimsIdentity.AddClaim(new Claim("ModuleAccess", "Boards"));
+        }
 
         foreach (var er in employeeRoles)
         {

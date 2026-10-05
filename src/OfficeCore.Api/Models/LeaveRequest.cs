@@ -32,5 +32,6 @@ public enum LeaveRequestStatus
 {
     Pending,
     Approved,
-    Rejected
+    Rejected,
+    Cancelled
 }

@@ -27,6 +27,8 @@ public class Business : ITenantEntity{
     
     public bool IsVatRegistered { get; set; }
     
+    public bool IsActive { get; set; } = true;
+    
     // Navigation property
     [JsonIgnore]
     public Client? Client { get; set; }

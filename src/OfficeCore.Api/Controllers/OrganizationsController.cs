@@ -99,65 +99,8 @@ public class OrganizationsController : ControllerBase
         };
         _context.Employees.Add(employee);
 
-        // Create default roles for the organization
-        var adminRole = new OrganizationRole
-        {
-            Id = Guid.NewGuid(),
-            OrganizationId = org.Id,
-            Name = "Admin",
-            Description = "Administrator with full access",
-            ShowAsTitle = true
-        };
-        var memberRole = new OrganizationRole
-        {
-            Id = Guid.NewGuid(),
-            OrganizationId = org.Id,
-            Name = "Employee",
-            Description = "Standard organization member",
-            ShowAsTitle = false
-        };
-
-        var modules = new[]
-        {
-            "Dashboard", "Clients", "Attendance", "Boards",
-            "Payroll", "Invoices", "Ledger",
-            "WorkSchedules", "TimeOff", "Locations",
-            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals",
-            "Backups", "AuditLogs"
-        };
-
-        foreach (var module in modules)
-        {
-            adminRole.Claims.Add(new OrganizationRoleClaim
-            {
-                Id = Guid.NewGuid(),
-                OrganizationRoleId = adminRole.Id,
-                ClaimType = "ModuleAccess",
-                ClaimValue = module
-            });
-            
-            // Give members basic access (self-service only, Attendance is admin-only)
-            if (module == "Dashboard" || module == "Boards" || module == "MyLeaves" || module == "Advances")
-            {
-                memberRole.Claims.Add(new OrganizationRoleClaim
-                {
-                    Id = Guid.NewGuid(),
-                    OrganizationRoleId = memberRole.Id,
-                    ClaimType = "ModuleAccess",
-                    ClaimValue = module
-                });
-            }
-        }
-
-        _context.OrganizationRoles.AddRange(adminRole, memberRole);
-
-        // Assign Admin role to the creator
-        var employeeRole = new EmployeeRole
-        {
-            EmployeeId = employee.Id,
-            OrganizationRoleId = adminRole.Id
-        };
-        _context.EmployeeRoles.Add(employeeRole);
+        // Workspace owner gets full access automatically via OrganizationClaimsTransformation.
+        // They can create and assign custom roles for employees via Role Management.
 
         await _context.SaveChangesAsync();
 
@@ -294,8 +237,38 @@ public class OrganizationsController : ControllerBase
         var org = await _context.Organizations.FindAsync(id);
         if (org == null) return NotFound();
 
-        _context.Organizations.Remove(org);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            // 1. Break FK_BoardCards_Employees_AssignedToUserId by nulling out assigned user references in this workspace
+            await _context.BoardCards
+                .Where(c => c.OrganizationId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.AssignedToUserId, (string?)null));
+
+            // 2. Clean up chat messages and chat room memberships to satisfy Restrict constraints to employees
+            await _context.ChatMessageReactions
+                .Where(r => r.OrganizationId == id)
+                .ExecuteDeleteAsync();
+
+            await _context.ChatMessages
+                .Where(m => m.OrganizationId == id)
+                .ExecuteDeleteAsync();
+
+            await _context.ChatRoomMembers
+                .Where(m => m.OrganizationId == id)
+                .ExecuteDeleteAsync();
+
+            // 3. Remove the workspace (cascades to all other organization-owned tables)
+            _context.Organizations.Remove(org);
+            await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         Response.Cookies.Delete("ActiveOrganizationId");
 

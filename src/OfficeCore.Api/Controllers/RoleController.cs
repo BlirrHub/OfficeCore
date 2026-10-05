@@ -86,7 +86,7 @@ public class RoleController : ControllerBase
 
         if (role == null) return NotFound();
 
-        if (role.Name != "Admin" && !string.IsNullOrWhiteSpace(request.Name))
+        if (!string.IsNullOrWhiteSpace(request.Name))
         {
             role.Name = request.Name;
         }
@@ -160,9 +160,6 @@ public class RoleController : ControllerBase
             .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
 
         if (role == null) return NotFound();
-
-        if (role.Name == "Admin")
-            return BadRequest(new { message = "Cannot delete the Admin role." });
 
         _context.OrganizationRoles.Remove(role);
         await _context.SaveChangesAsync();

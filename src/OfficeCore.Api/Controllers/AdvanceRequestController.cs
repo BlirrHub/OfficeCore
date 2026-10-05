@@ -113,8 +113,26 @@ public class AdvanceRequestController : ControllerBase
         _context.AdvanceRequests.Add(request);
         await _context.SaveChangesAsync();
 
-        // Notify all org members (admins on Ledger, employee on Advances)
+        // 1. Silent data refresh signal for pages
         await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestCreated");
+
+        // 2. Targeted notification for workspace admins / ledger approvers
+        var user = await _userManager.FindByIdAsync(employee.UserId);
+        var requesterName = $"{user?.FirstName} {user?.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(requesterName)) requesterName = user?.UserName ?? "An employee";
+
+        var typeTitle = request.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+        var adminNotif = new NotificationPayload
+        {
+            Id = Guid.NewGuid().ToString(),
+            Title = $"New {typeTitle} Request Filed",
+            Message = $"{requesterName} filed a {typeTitle} request of ₱{request.RequestedAmount:N2}.",
+            Category = "Advance",
+            Status = "Pending",
+            TargetUrl = "/ledger",
+            Timestamp = DateTime.UtcNow
+        };
+        await _hub.Clients.Group($"org_{orgId.Value}_admins").SendAsync("ReceiveNotification", adminNotif);
 
         return CreatedAtAction(nameof(GetMyRequests), new { id = request.Id }, request);
     }
@@ -142,6 +160,62 @@ public class AdvanceRequestController : ControllerBase
 
         // Notify org so the employee's Advances page reflects the cancellation live
         await _hub.Clients.Group($"org_{orgId}").SendAsync("AdvanceRequestUpdated");
+
+        return NoContent();
+    }
+
+    [HttpPut("{id}/admin-cancel")]
+    [Authorize(Policy = "RequireLedger")]
+    public async Task<IActionResult> AdminCancelRequest(Guid id)
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var request = await _context.AdvanceRequests
+            .Include(r => r.Employee)
+                .ThenInclude(e => e!.User)
+            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
+
+        if (request == null) return NotFound();
+
+        if (request.Status == AdvanceStatus.Cancelled)
+            return BadRequest("Request is already cancelled.");
+
+        var oldStatus = request.Status;
+        request.Status = AdvanceStatus.Cancelled;
+        request.ResolutionDate = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        var empName = request.Employee?.User != null
+            ? $"{request.Employee.User.FirstName} {request.Employee.User.LastName}".Trim()
+            : "Employee";
+
+        var typeTitle = request.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+
+        await _audit.LogAdvanceAsync(
+            AuditActions.Update,
+            $"Cancelled {typeTitle} request of ₱{request.RequestedAmount:N2} for employee {empName} (previously {oldStatus})",
+            id);
+
+        // 1. Silent data refresh signal for pages
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestUpdated");
+
+        // 2. Targeted notification for the employee
+        if (!string.IsNullOrEmpty(request.Employee?.UserId))
+        {
+            var empNotif = new NotificationPayload
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = $"{typeTitle} Request Cancelled",
+                Message = $"Your {typeTitle} request of ₱{request.RequestedAmount:N2} has been cancelled by administration.",
+                Category = "Advance",
+                Status = "Cancelled",
+                TargetUrl = "/advances",
+                Timestamp = DateTime.UtcNow
+            };
+            await _hub.Clients.Group($"user_{request.Employee.UserId}").SendAsync("ReceiveNotification", empNotif);
+        }
 
         return NoContent();
     }
@@ -179,9 +253,26 @@ public class AdvanceRequestController : ControllerBase
             $"Approved {request.Type} advance request of ₱{request.RequestedAmount:N2} for employee {empName}",
             id);
 
-        // Notify org so the employee's Advances page reflects approval live
+        // 1. Silent data refresh signal for pages
         var approvedOrgId = request.OrganizationId;
         await _hub.Clients.Group($"org_{approvedOrgId}").SendAsync("AdvanceRequestUpdated");
+
+        // 2. Targeted notification for the requesting employee
+        if (!string.IsNullOrEmpty(emp?.UserId))
+        {
+            var typeTitle = request.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+            var empNotif = new NotificationPayload
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = $"{typeTitle} Request Approved",
+                Message = $"Your {typeTitle} request of ₱{request.RequestedAmount:N2} has been approved.",
+                Category = "Advance",
+                Status = "Approved",
+                TargetUrl = "/advances",
+                Timestamp = DateTime.UtcNow
+            };
+            await _hub.Clients.Group($"user_{emp.UserId}").SendAsync("ReceiveNotification", empNotif);
+        }
 
         return NoContent();
     }
@@ -211,9 +302,26 @@ public class AdvanceRequestController : ControllerBase
             $"Rejected {request.Type} advance request of ₱{request.RequestedAmount:N2} for employee {rejEmpName}",
             id);
 
-        // Notify org so the employee's Advances page reflects rejection live
+        // 1. Silent data refresh signal for pages
         var rejectedOrgId = request.OrganizationId;
         await _hub.Clients.Group($"org_{rejectedOrgId}").SendAsync("AdvanceRequestUpdated");
+
+        // 2. Targeted notification for the requesting employee
+        if (!string.IsNullOrEmpty(rejEmp?.UserId))
+        {
+            var typeTitle = request.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+            var empNotif = new NotificationPayload
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = $"{typeTitle} Request Rejected",
+                Message = $"Your {typeTitle} request of ₱{request.RequestedAmount:N2} was rejected.",
+                Category = "Advance",
+                Status = "Rejected",
+                TargetUrl = "/advances",
+                Timestamp = DateTime.UtcNow
+            };
+            await _hub.Clients.Group($"user_{rejEmp.UserId}").SendAsync("ReceiveNotification", empNotif);
+        }
 
         return NoContent();
     }
@@ -230,6 +338,12 @@ public class AdvanceRequestController : ControllerBase
 
         if (employee == null) return BadRequest("Employee not found");
 
+        var requestDate = dto.RequestDate.HasValue
+            ? (dto.RequestDate.Value.Kind == DateTimeKind.Utc 
+                ? dto.RequestDate.Value 
+                : DateTime.SpecifyKind(dto.RequestDate.Value, DateTimeKind.Utc))
+            : DateTime.UtcNow;
+
         var request = new AdvanceRequest
         {
             Id = Guid.NewGuid(),
@@ -238,8 +352,8 @@ public class AdvanceRequestController : ControllerBase
             RequestedAmount = dto.RequestedAmount,
             Note = dto.Note ?? string.Empty,
             Status = AdvanceStatus.Approved,
-            RequestDate = DateTime.UtcNow,
-            ResolutionDate = DateTime.UtcNow,
+            RequestDate = requestDate,
+            ResolutionDate = requestDate,
             OrganizationId = orgId.Value
         };
         
@@ -259,8 +373,25 @@ public class AdvanceRequestController : ControllerBase
         _context.AdvanceRequests.Add(request);
         await _context.SaveChangesAsync();
 
-        // Notify org so both admin Ledger and employee Advances pages update live
+        // 1. Silent data refresh for admin Ledger and employee Advances pages
         await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("AdvanceRequestCreated");
+
+        // 2. Targeted notification for employee
+        if (!string.IsNullOrEmpty(employee.UserId))
+        {
+            var typeTitle = request.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+            var empNotif = new NotificationPayload
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = $"{typeTitle} Granted",
+                Message = $"An approved {typeTitle} of ₱{request.RequestedAmount:N2} has been issued to your account.",
+                Category = "Advance",
+                Status = "Approved",
+                TargetUrl = "/advances",
+                Timestamp = DateTime.UtcNow
+            };
+            await _hub.Clients.Group($"user_{employee.UserId}").SendAsync("ReceiveNotification", empNotif);
+        }
 
         return CreatedAtAction(nameof(GetAllRequests), new { id = request.Id }, request);
     }
@@ -304,5 +435,6 @@ public class AdvanceRequestController : ControllerBase
         public decimal RequestedAmount { get; set; }
         public decimal? InstallmentAmount { get; set; }
         public string? Note { get; set; }
+        public DateTime? RequestDate { get; set; }
     }
 }

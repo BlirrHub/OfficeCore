@@ -247,7 +247,13 @@ public class BoardsController : ControllerBase
                             }
                         } : new List<BoardCardAssigneeResponseDto>()),
                     c.DueDate,
-                    Labels = c.Labels.Select(cl => new { cl.LabelId, Label = new { cl.Label.Id, cl.Label.Name, cl.Label.ColorHex } }),
+                    Labels = c.Labels.Select(cl => {
+                        var lbl = cl.Label ?? board.Labels.FirstOrDefault(l => l.Id == cl.LabelId);
+                        return new {
+                            cl.LabelId,
+                            Label = lbl == null ? null : new { lbl.Id, lbl.Name, lbl.ColorHex }
+                        };
+                    }).Where(cl => cl.Label != null),
                     Comments = c.Comments.Select(cm => new {
                         cm.Id,
                         cm.Text,
@@ -556,6 +562,33 @@ public class BoardsController : ControllerBase
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(list.BoardId);
 
+        // Notify assigned employees
+        if (assigneeIds.Count > 0)
+        {
+            var assignedEmps = await _context.Employees
+                .AsNoTracking()
+                .Where(e => assigneeIds.Contains(e.Id) || (e.UserId != null && assigneeIds.Contains(e.UserId)))
+                .ToListAsync();
+
+            foreach (var emp in assignedEmps)
+            {
+                if (!string.IsNullOrEmpty(emp.UserId) && emp.UserId != employee.UserId)
+                {
+                    var notif = new NotificationPayload
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Title = "Task Assigned",
+                        Message = $"You were assigned to task \"{card.Title}\" on board \"{list.Board.Name}\".",
+                        Category = "Task",
+                        Status = "Assigned",
+                        TargetUrl = $"/boards/{list.BoardId}",
+                        Timestamp = DateTime.UtcNow
+                    };
+                    await _notificationHub.Clients.Group($"user_{emp.UserId}").SendAsync("ReceiveNotification", notif);
+                }
+            }
+        }
+
         return Ok(card);
     }
 
@@ -598,10 +631,12 @@ public class BoardsController : ControllerBase
             _context.BoardCardAssignees.Remove(rem);
         }
 
+        var newlyAddedEmpIds = new List<string>();
         foreach (var empId in assigneeIds)
         {
             if (!currentAssigneeIds.Contains(empId))
             {
+                newlyAddedEmpIds.Add(empId);
                 _context.BoardCardAssignees.Add(new BoardCardAssignee
                 {
                     CardId = card.Id,
@@ -614,6 +649,34 @@ public class BoardsController : ControllerBase
 
         await _context.SaveChangesAsync();
         await NotifyBoardUpdated(card.List.BoardId);
+
+        // Notify newly added assignees
+        if (newlyAddedEmpIds.Count > 0)
+        {
+            var newEmps = await _context.Employees
+                .AsNoTracking()
+                .Where(e => newlyAddedEmpIds.Contains(e.Id) || (e.UserId != null && newlyAddedEmpIds.Contains(e.UserId)))
+                .ToListAsync();
+
+            foreach (var emp in newEmps)
+            {
+                if (!string.IsNullOrEmpty(emp.UserId) && emp.UserId != employee.UserId)
+                {
+                    var notif = new NotificationPayload
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Title = "Task Assigned",
+                        Message = $"You were assigned to task \"{card.Title}\" on board \"{card.List.Board.Name}\".",
+                        Category = "Task",
+                        Status = "Assigned",
+                        TargetUrl = $"/boards/{card.List.BoardId}",
+                        Timestamp = DateTime.UtcNow
+                    };
+                    await _notificationHub.Clients.Group($"user_{emp.UserId}").SendAsync("ReceiveNotification", notif);
+                }
+            }
+        }
+
         return Ok(card);
     }
 
@@ -802,11 +865,17 @@ public class BoardsController : ControllerBase
     private async Task NotifyBoardUpdated(Guid boardId)
     {
         await _hubContext.Clients.Group(boardId.ToString()).SendAsync("BoardUpdated");
+        await _hubContext.Clients.All.SendAsync("BoardUpdated");
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId.HasValue)
         {
             await _notificationHub.Clients.Group($"org_{orgId.Value}").SendAsync("BoardUpdated");
             await _notificationHub.Clients.Group($"org_{orgId.Value}").SendAsync("TaskUpdated");
+        }
+        else
+        {
+            await _notificationHub.Clients.All.SendAsync("BoardUpdated");
+            await _notificationHub.Clients.All.SendAsync("TaskUpdated");
         }
     }
 
@@ -905,8 +974,12 @@ public class BoardsController : ControllerBase
         var labelExists = await _context.BoardLabels.AnyAsync(l => l.Id == labelId && l.OrganizationId == orgId.Value);
         if (!labelExists) return NotFound("Label not found.");
 
-        _context.BoardCardLabels.Add(new BoardCardLabel { CardId = cardId, LabelId = labelId });
-        await _context.SaveChangesAsync();
+        var alreadyExists = await _context.BoardCardLabels.AnyAsync(cl => cl.CardId == cardId && cl.LabelId == labelId);
+        if (!alreadyExists)
+        {
+            _context.BoardCardLabels.Add(new BoardCardLabel { CardId = cardId, LabelId = labelId, OrganizationId = orgId.Value });
+            await _context.SaveChangesAsync();
+        }
         await NotifyBoardUpdated(card.List.BoardId);
         return Ok();
     }

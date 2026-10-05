@@ -175,8 +175,8 @@ These modules are never toggled or revoked in roles; they are automatically gran
   - `TimeOff` (`RequireTimeOff`): Workspace holiday calendars and official closures.
   - `Locations` (`RequireLocations`): Physical office locations and geolocation fences.
   - `Organization` (`RequireOrganization`): Workspace profile and settings.
-  - `Backups` (`RequireBackups`): Automated and manual PostgreSQL database backups.
   - `AuditLogs` (`RequireAuditLogs`): Security and compliance audit trail.
+*(Note: Full PostgreSQL Database Disaster Recovery Backups are strictly host-level and managed directly in `OfficeCore.Desktop.Server`, not as a workspace role module).*
 
 ### 3. ESS vs MSS Architectural Pattern
 - **Employee Self-Service (ESS):** Standard employees must always have access to view and manage their own records without needing management module permissions:

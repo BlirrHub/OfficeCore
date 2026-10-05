@@ -1,35 +1,85 @@
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Hubs;
 
 /// <summary>
-/// Hub for real-time org-scoped notifications (leave approvals, advance/loan events).
-/// Each authenticated connection automatically joins a group keyed to their active organization.
+/// Hub for real-time org-scoped and user-targeted notifications:
+/// - "org_{orgId}": Workspace-wide broadcasts (data sync, room updates)
+/// - "org_{orgId}_admins": Workspace admins and approvers (new leave/loan submissions)
+/// - "user_{userId}": Targeted user notifications (approval/rejection outcomes, task assignments, due dates)
 /// </summary>
 [Authorize]
 public class NotificationHub : Hub
 {
+    private readonly AppDbContext _context;
     private readonly TenantService _tenant;
 
-    public NotificationHub(TenantService tenant)
+    public NotificationHub(AppDbContext context, TenantService tenant)
     {
+        _context = context;
         _tenant = tenant;
     }
 
     public override async Task OnConnectedAsync()
     {
         var orgId = _tenant.GetActiveOrganizationId();
-        var userId = _tenant.GetUserId();
-        
+        var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? _tenant.GetUserId();
+
+        if (!orgId.HasValue && !string.IsNullOrEmpty(userId))
+        {
+            var employee = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.UserId == userId);
+            if (employee != null)
+            {
+                orgId = employee.OrganizationId;
+            }
+        }
+
         Console.WriteLine($"[SignalR] NotificationHub connected. ConnectionId: {Context.ConnectionId}, UserId: {userId}, OrgId: {orgId}");
-        
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            // Join user-specific group for targeted alerts (request resolutions, task assignments, task due dates)
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+            Console.WriteLine($"[SignalR] Added to group user_{userId}");
+        }
+
         if (orgId.HasValue)
         {
             // Join the org-wide group so all members of this org receive relevant events
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId}");
-            Console.WriteLine($"[SignalR] Added to group org_{orgId}");
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId.Value}");
+            Console.WriteLine($"[SignalR] Added to group org_{orgId.Value}");
+
+            // Check if this user is an admin or approver in this organization
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var isWorkspaceAdmin = false;
+                var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orgId.Value);
+                if (org != null && org.CreatedByUserId == userId)
+                {
+                    isWorkspaceAdmin = true;
+                }
+                else
+                {
+                    isWorkspaceAdmin = await _context.EmployeeRoles
+                        .AsNoTracking()
+                        .AnyAsync(er => er.Employee != null && er.Employee.UserId == userId && er.Employee.OrganizationId == orgId.Value &&
+                                        er.Role != null && (er.Role.Name == "Admin" || er.Role.Name == "Owner" ||
+                                         er.Role.Claims.Any(c => c.ClaimType == "Permission" && (c.ClaimValue == "LeaveApprovals" || c.ClaimValue == "Ledger"))));
+                }
+
+                if (isWorkspaceAdmin)
+                {
+                    await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId.Value}_admins");
+                    Console.WriteLine($"[SignalR] Added to group org_{orgId.Value}_admins");
+                }
+            }
         }
         else
         {

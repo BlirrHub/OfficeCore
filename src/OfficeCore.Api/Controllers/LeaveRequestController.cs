@@ -48,6 +48,18 @@ public class LeaveRequestController : ControllerBase
         var requests = await _context.LeaveRequests
             .Where(r => r.EmployeeId == employee.Id && r.OrganizationId == orgId)
             .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new
+            {
+                r.Id,
+                r.Type,
+                r.StartDate,
+                r.EndDate,
+                r.Reason,
+                r.AttachmentPath,
+                r.Status,
+                r.CreatedAt,
+                r.ActionTakenAt
+            })
             .ToListAsync();
 
         return Ok(requests);
@@ -126,8 +138,25 @@ public class LeaveRequestController : ControllerBase
         _context.LeaveRequests.Add(leaveRequest);
         await _context.SaveChangesAsync();
 
-        // Notify admins in this org so the Leave Approvals page updates live
+        // 1. Silent data refresh signal for admin tables & dashboard
         await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated");
+
+        // 2. Targeted notification for workspace admins / leave approvers
+        var user = await _userManager.FindByIdAsync(employee.UserId);
+        var requesterName = $"{user?.FirstName} {user?.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(requesterName)) requesterName = user?.UserName ?? "An employee";
+
+        var adminNotif = new NotificationPayload
+        {
+            Id = Guid.NewGuid().ToString(),
+            Title = "New Leave Request Filed",
+            Message = $"{requesterName} requested {leaveRequest.Type} leave ({leaveRequest.StartDate:MMM dd} - {leaveRequest.EndDate:MMM dd}).",
+            Category = "Leave",
+            Status = "Pending",
+            TargetUrl = "/admin/leave-approvals",
+            Timestamp = DateTime.UtcNow
+        };
+        await _hub.Clients.Group($"org_{orgId.Value}_admins").SendAsync("ReceiveNotification", adminNotif);
 
         return Ok(leaveRequest);
     }
@@ -151,19 +180,46 @@ public class LeaveRequestController : ControllerBase
         await _context.SaveChangesAsync();
 
         var empName = $"{leaveRequest.Employee?.User?.FirstName} {leaveRequest.Employee?.User?.LastName}".Trim();
-        var action = request.Status == LeaveRequestStatus.Approved ? AuditActions.Approve :
-                     (request.Status == LeaveRequestStatus.Rejected ? AuditActions.Reject : AuditActions.Update);
+        var isApproved = request.Status == LeaveRequestStatus.Approved;
+        var isRejected = request.Status == LeaveRequestStatus.Rejected;
+        var isCancelled = request.Status == LeaveRequestStatus.Cancelled;
+
+        var action = isApproved ? AuditActions.Approve :
+                     (isRejected ? AuditActions.Reject : AuditActions.Update);
+
+        var auditDescription = isCancelled
+            ? $"Cancelled leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})"
+            : $"{action} leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})";
 
         await _audit.LogLeaveAsync(
             action,
-            $"{action} leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})",
+            auditDescription,
             id,
             new { OldStatus = oldStatus.ToString(), NewStatus = request.Status.ToString() });
 
-        // Notify all org members so the employee sees the status change live
+        // 1. Silent data refresh signal for pages
         if (orgId.HasValue)
         {
             await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestUpdated");
+        }
+
+        // 2. Targeted notification for the requesting employee on the result
+        if (!string.IsNullOrEmpty(leaveRequest.Employee?.UserId))
+        {
+            var statusWord = isApproved ? "approved" : (isRejected ? "rejected" : (isCancelled ? "cancelled" : "updated"));
+            var statusTitle = isApproved ? "Leave Request Approved" : (isRejected ? "Leave Request Rejected" : (isCancelled ? "Leave Request Cancelled" : "Leave Request Updated"));
+
+            var empNotif = new NotificationPayload
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = statusTitle,
+                Message = $"Your {leaveRequest.Type} leave request ({leaveRequest.StartDate:MMM dd} - {leaveRequest.EndDate:MMM dd}) has been {statusWord}.",
+                Category = "Leave",
+                Status = request.Status.ToString(),
+                TargetUrl = "/myleaves",
+                Timestamp = DateTime.UtcNow
+            };
+            await _hub.Clients.Group($"user_{leaveRequest.Employee.UserId}").SendAsync("ReceiveNotification", empNotif);
         }
 
         return Ok(new { message = "Status updated successfully" });
@@ -206,6 +262,21 @@ public class LeaveRequestController : ControllerBase
         // Notify org members of the newly approved leave
         await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestCreated");
 
+        if (!string.IsNullOrEmpty(employee.UserId))
+        {
+            var empNotif = new NotificationPayload
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = "Leave Granted",
+                Message = $"An approved {request.Type} leave ({request.StartDate:MMM dd} - {request.EndDate:MMM dd}) was added to your schedule.",
+                Category = "Leave",
+                Status = "Approved",
+                TargetUrl = "/myleaves",
+                Timestamp = DateTime.UtcNow
+            };
+            await _hub.Clients.Group($"user_{employee.UserId}").SendAsync("ReceiveNotification", empNotif);
+        }
+
         return Ok(leaveRequest);
     }
 
@@ -229,6 +300,7 @@ public class LeaveRequestController : ControllerBase
         return Ok(new { message = "Leave request deleted successfully" });
     }
 
+    [HttpPut("{id}/cancel")]
     [HttpDelete("{id}/cancel")]
     public async Task<IActionResult> CancelRequest(Guid id)
     {
@@ -243,12 +315,20 @@ public class LeaveRequestController : ControllerBase
         if (leaveRequest.Status != LeaveRequestStatus.Pending)
             return BadRequest("Only pending requests can be cancelled.");
 
-        var leaveOrgId = leaveRequest.OrganizationId;
-        _context.LeaveRequests.Remove(leaveRequest);
+        leaveRequest.Status = LeaveRequestStatus.Cancelled;
+        leaveRequest.ActionTakenAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
+        var user = await _userManager.FindByIdAsync(employee.UserId);
+        var empName = $"{user?.FirstName} {user?.LastName}".Trim();
+        await _audit.LogLeaveAsync(
+            AuditActions.Update,
+            $"Cancelled leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})",
+            id,
+            new { OldStatus = LeaveRequestStatus.Pending.ToString(), NewStatus = LeaveRequestStatus.Cancelled.ToString() });
+
         // Notify org members so the list updates live
-        await _hub.Clients.Group($"org_{leaveOrgId}").SendAsync("LeaveRequestDeleted");
+        await _hub.Clients.Group($"org_{leaveRequest.OrganizationId}").SendAsync("LeaveRequestUpdated");
 
         return Ok(new { message = "Leave request cancelled successfully" });
     }

@@ -20,33 +20,32 @@ public class BackupController : ControllerBase
     private readonly TenantService _tenant;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppDbContext _context;
-    private readonly IAuditService _audit;
 
     public BackupController(
         BackupService backupService,
         TenantService tenant,
         UserManager<ApplicationUser> userManager,
-        AppDbContext context,
-        IAuditService audit)
+        AppDbContext context)
     {
         _backupService = backupService;
         _tenant = tenant;
         _userManager = userManager;
         _context = context;
-        _audit = audit;
     }
 
     private async Task<bool> IsAuthorizedForBackupsAsync()
     {
+        var remoteIp = HttpContext.Connection.RemoteIpAddress;
+        var isLoopback = remoteIp != null && System.Net.IPAddress.IsLoopback(remoteIp);
+
         // Allow local Server Station host orchestration requests from loopback
         if (Request.Headers.TryGetValue("X-OfficeCore-Station", out var stationHeader) && stationHeader == "ServerStationOrchestrator")
         {
-            var remoteIp = HttpContext.Connection.RemoteIpAddress;
-            if (remoteIp != null && System.Net.IPAddress.IsLoopback(remoteIp))
-            {
-                return true;
-            }
+            if (isLoopback) return true;
         }
+
+        // Only permit host-local requests from loopback for full database backups
+        if (!isLoopback) return false;
 
         if (User.Identity?.IsAuthenticated != true)
             return false;
@@ -54,22 +53,7 @@ public class BackupController : ControllerBase
         var userId = _userManager.GetUserId(User);
         if (userId == null) return false;
 
-        var orgId = _tenant.GetActiveOrganizationId();
-        if (orgId == null)
-        {
-            // If no active workspace is selected, check if user is the creator of any organization
-            return await _context.Organizations.AnyAsync(o => o.CreatedByUserId == userId);
-        }
-
-        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == orgId.Value);
-        if (org != null && org.CreatedByUserId == userId)
-            return true;
-
-        var isAdmin = await _context.EmployeeRoles
-            .AnyAsync(er => er.Employee != null && er.Employee.UserId == userId && er.Employee.OrganizationId == orgId.Value &&
-                            (er.Role != null && (er.Role.Name == "Admin" || er.Role.Name == "Owner")));
-
-        return isAdmin;
+        return await _context.Organizations.AnyAsync(o => o.CreatedByUserId == userId);
     }
 
     [HttpGet]
@@ -110,12 +94,6 @@ public class BackupController : ControllerBase
         {
             return BadRequest(new { message = result.Message });
         }
-
-        var backupFileName = result.BackupInfo?.FileName ?? "Manual Backup";
-        await _audit.LogBackupAsync(
-            AuditActions.Create,
-            $"Created manual database snapshot '{(string.IsNullOrWhiteSpace(req?.Label) ? backupFileName : req.Label)}' ({backupFileName})",
-            backupFileName);
 
         return Ok(result);
     }
@@ -186,11 +164,6 @@ public class BackupController : ControllerBase
             return BadRequest(new { message = result.Message, preRestoreSnapshot = result.PreRestoreSnapshotName });
         }
 
-        await _audit.LogBackupAsync(
-            AuditActions.Restore,
-            $"Restored database from snapshot '{fileName}' (Safety pre-restore backup: {result.PreRestoreSnapshotName})",
-            fileName);
-
         return Ok(new
         {
             message = "Database restored successfully.",
@@ -207,11 +180,6 @@ public class BackupController : ControllerBase
         var deleted = await _backupService.DeleteBackupAsync(fileName);
         if (!deleted)
             return NotFound("Backup file not found or could not be deleted.");
-
-        await _audit.LogBackupAsync(
-            AuditActions.Delete,
-            $"Deleted database backup archive '{fileName}'",
-            fileName);
 
         return Ok(new { message = "Backup deleted successfully." });
     }

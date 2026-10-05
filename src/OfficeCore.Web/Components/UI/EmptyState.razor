@@ -1,24 +1,34 @@
 @namespace OfficeCore.Web.Client.Components.UI
 
-<div class="flex flex-col items-center justify-center py-16 px-4 text-center @Class">
-    <div class="size-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4 text-zinc-500 shadow-inner">
+<div class="flex flex-col items-center justify-center @(Card ? "bg-zinc-950 border border-zinc-800 rounded-2xl py-20 px-4" : "py-16 sm:py-20 px-4") text-center @Class">
+    <div class="size-20 bg-zinc-900 rounded-full flex items-center justify-center mb-4 text-zinc-600 border border-zinc-800/80 shadow-inner shrink-0">
         @if (Icon != null)
         {
             @Icon
         }
         else
         {
-            <svg class="size-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="size-10 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
             </svg>
         }
     </div>
-    <h3 class="text-base font-semibold text-white mb-1">@Title</h3>
+    <h3 class="text-xl font-bold text-white mb-2">@Title</h3>
     @if (!string.IsNullOrWhiteSpace(Description))
     {
-        <p class="text-sm text-zinc-400 max-w-sm mb-6">@Description</p>
+        <p class="text-sm text-zinc-400 max-w-sm mb-6 text-center">@Description</p>
     }
-    @if (Action != null)
+    @if (!string.IsNullOrWhiteSpace(ActionText) && OnAction.HasDelegate)
+    {
+        <button @onclick="OnAction" class="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-medium text-white transition-all cursor-pointer shadow-sm">
+            @if (ActionIcon != null)
+            {
+                @ActionIcon
+            }
+            <span>@ActionText</span>
+        </button>
+    }
+    else if (Action != null)
     {
         <div class="flex items-center gap-3">
             @Action
@@ -31,5 +41,9 @@
     [Parameter] public string? Description { get; set; }
     [Parameter] public RenderFragment? Icon { get; set; }
     [Parameter] public RenderFragment? Action { get; set; }
+    [Parameter] public string? ActionText { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnAction { get; set; }
+    [Parameter] public RenderFragment? ActionIcon { get; set; }
+    [Parameter] public bool Card { get; set; } = true;
     [Parameter] public string Class { get; set; } = string.Empty;
 }

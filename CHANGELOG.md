@@ -6,6 +6,330 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Unified — [2026-10-05] (UI Component Library Standardization: Empty State Design & Icon-Only Header Refresh Buttons)
+
+- **Standardized Empty State Component (`EmptyState.razor`):**
+  - Upgraded `EmptyState.razor` to serve as the unified empty state design system component representing the sleek `Boards` aesthetic across the entire app.
+  - Replaced the previous `size-14` rounded square container with a prominent `size-20` circular container (`bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800/80 shadow-inner`) and `size-10` icons.
+  - Aligned typography to `text-xl font-bold text-white mb-2` for the title and `text-sm text-zinc-400 max-w-sm mb-6 text-center` for description.
+  - Added built-in parameters `ActionText`, `OnAction`, and `ActionIcon` rendering the subtle secondary dark button style (`inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-medium text-white transition-all cursor-pointer shadow-sm`) instead of loud solid primary fuchsia buttons.
+  - Added `Card` parameter (`bool Card = true`) wrapping in `bg-zinc-950 border border-zinc-800 rounded-2xl py-20 px-4 text-center` by default, or allowing `Card="false"` for seamless embedding inside existing table or card containers without double borders.
+
+- **Icon-Only Header Refresh Button Alignment (`Boards.razor`, and Workspace-Wide Pages):**
+  - Updated `Boards.razor` header refresh button from text (`Refresh`) to the compact icon-only refresh button (`p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer` with spinning SVG during loading), matching `MyLeaves` and `Advances`.
+  - Added consistent icon-only refresh buttons to `RoleManagement.razor`, `Clients.razor`, `Payroll/PayrollList.razor`, `UserManagement.razor`, `Attendance.razor`, `MyAttendance.razor`, `WorkSchedules.razor`, and `TimeOff.razor`.
+
+- **Comprehensive Workspace Empty State Audit & Adoption:**
+  - `MyLeaves.razor`: Removed outer `<AppCard>` wrapper and adopted standardized `<EmptyState>` with `ActionText="Request Leave"` and subtle secondary button styling.
+  - `Advances.razor`: Removed outer `<AppCard>` wrapper and adopted standardized `<EmptyState>` with `ActionText="Request Now"` and subtle secondary button styling.
+  - `RoleManagement.razor`: Resolved empty void screen when no roles exist by displaying `<EmptyState Title="No roles yet" Description="..." ActionText="Create a Role" OnAction="..." />`.
+  - `Clients.razor`: Replaced ad-hoc empty state with `<EmptyState Card="false">` for both empty and filtered states.
+  - `Payroll/PayrollList.razor`: Replaced custom empty cards with `<EmptyState>` for empty and no-match states.
+  - `UserManagement.razor`: Replaced plain italic text with `<EmptyState Card="false" Title="No employees found" ... />`.
+  - `Attendance.razor` & `MyAttendance.razor`: Replaced plain italic text with `<EmptyState Card="false">` for workspace records and personal attendance history.
+  - `LeaveApprovals.razor`: Standardized filtered empty state with `<EmptyState Card="false">`.
+  - `Ledger.razor`: Standardized approvals and expenses empty states with `<EmptyState>`.
+  - `WorkSchedules.razor`: Standardized unselected schedule state with `<EmptyState Card="false">`.
+  - `TimeOff.razor`: Standardized empty leave policies and unselected calendar states with `<EmptyState Card="false">`.
+  - `Invoices.razor`: Replaced "under construction" plain box with a polished `<EmptyState>` for module in development.
+
+### Fixed — [2026-10-05] (Workspace Deletion Foreign Key Constraint Violation on BoardCards and Chat)
+
+- **Workspace Deletion Cascade Resolution (`OrganizationsController.cs`, `AppDbContext.cs`, Migration):**
+  - Resolved `PostgresException 23503` where deleting a workspace failed with foreign key violation `FK_BoardCards_Employees_AssignedToUserId` when referencing employees being deleted in the workspace.
+  - Updated `DeleteOrganization` in `OrganizationsController.cs` to execute inside a database transaction: explicitly nulls out `BoardCards.AssignedToUserId` for the target workspace and deletes workspace-scoped chat messages, reactions, and room memberships prior to removing the organization, preventing constraint conflicts with `Employees`.
+  - Configured `BoardCard.AssignedToUser` with `DeleteBehavior.SetNull` and `ChatRoomMember.User` with `DeleteBehavior.Cascade` in `AppDbContext.cs`.
+  - Created EF Core migration `FixBoardCardAndChatRoomMemberCascade` updating `FK_BoardCards_Employees_AssignedToUserId` to `ON DELETE SET NULL` and `FK_ChatRoomMembers_Employees_UserId` to `ON DELETE CASCADE`.
+
+### Enhanced & Fixed — [2026-10-05] (Admin Leave Approvals & Ledger Advance Cancellation Workflow; Zero Hard Deletes)
+
+- **Leave Approvals Admin Cancellation Workflow (`LeaveApprovals.razor`, `LeaveRequestController.cs`):**
+  - Removed all hard "Delete" actions and modals from Admin Leave Approvals, ensuring full historical preservation of leave records.
+  - Replaced the action with a "Cancel" action: administrators can now cancel pending (`Status == 0`) or previously approved (`Status == 1`, including manually admin-created leaves) leave requests.
+  - Replaced the "Delete Leave" modal with a "Cancel Leave" confirmation dialog ("Go Back" and "Yes, Cancel").
+  - Hidden cancel actions for already finalized (`Rejected` or `Cancelled`) records so they remain immutable in historical view.
+  - Updated `UpdateStatus` in `LeaveRequestController.cs` to accurately record cancellation in the audit trail, broadcast live SignalR updates, and send a targeted `"Leave Request Cancelled"` notification to the affected employee.
+
+- **Ledger Advance / Loan Admin Cancellation Workflow (`Ledger.razor`, `AdvanceRequestController.cs`):**
+  - Removed all "Delete" buttons and hard-deletion confirmation modals from the Ledger Advance Approvals table.
+  - Implemented `PUT /api/advancerequest/{id}/admin-cancel` in `AdvanceRequestController.cs` (protected by `RequireLedger` policy), transitioning advance/loan records to `AdvanceStatus.Cancelled`, logging audit events, and notifying the employee.
+  - Added an admin "Cancel" button on Ledger rows for `Pending` and `Approved` advances with a "Cancel Request" confirmation modal, preserving advance/loan history.
+
+### Fixed & Enhanced — [2026-10-05] (Leave Request Status Typing & Workspace Selector Logo Display)
+
+- **Leave Status Display & Projection Alignment (`MyLeaves.razor`, `LeaveRequestController.cs`):**
+  - Updated `GetMyRequests` in `LeaveRequestController.cs` to explicitly project DTO properties (`Id`, `Type`, `StartDate`, `EndDate`, `Reason`, `AttachmentPath`, `Status`, `CreatedAt`, `ActionTakenAt`) matching `GetAllRequests` projection structure.
+  - Defined explicit `LeaveRequestStatus` enum in `MyLeaves.razor` (`Pending = 0`, `Approved = 1`, `Rejected = 2`, `Cancelled = 3`) and updated `LeaveRequestDto` to strongly type `Status`, ensuring cancelled leave requests reliably evaluate to `Cancelled` rather than falling into incorrect branch evaluations.
+  - Added `Cancelled` pill badge styling in `NotificationCenter.razor`.
+
+- **Workspace Selector Logo Display (`MainLayout.razor`):**
+  - Updated `OrganizationDto` in `MainLayout.razor` to include `LogoUrl`.
+  - Updated the workspace switcher header trigger button and dropdown list items to check for `LogoUrl` and render `<img src="@(MediaUrlHelper.Resolve(..., Configuration))" ... />` when configured, falling back gracefully to uppercase initials avatars when no logo is set.
+
+### Enhanced & Fixed — [2026-10-05] (Leave Request Cancellation Confirmation & History Preservation; Chat Action Menu Cleanup)
+
+- **Leave Request Cancellation Confirmation & History Retention (`MyLeaves.razor`, `LeaveRequestController.cs`, `LeaveRequest.cs`):**
+  - Added a confirmation modal popup ("Cancel Request" with "Go Back" and "Yes, Cancel" buttons) in `MyLeaves.razor` before cancelling a pending leave request, matching the UX pattern in Advances & Loans.
+  - Added `Cancelled` status (`3`) to the `LeaveRequestStatus` enum in `LeaveRequest.cs`.
+  - Updated `CancelRequest` in `LeaveRequestController.cs` to set `Status = LeaveRequestStatus.Cancelled` and set `ActionTakenAt = DateTime.UtcNow` instead of hard-deleting the record, preserving leave history for employees and administrators.
+  - Updated `MyLeaves.razor` to render a `Cancelled` status badge with resolution timestamp and retain cancelled leaves in the history table.
+  - Updated `LeaveApprovals.razor` to support viewing and filtering by `Cancelled` status with matching badge styling and audit details.
+  - Updated `DashboardController.cs` to render `Cancelled` leaves with appropriate `zinc` badge styling in personal and workspace recent activity feeds.
+  - Updated `NotificationsController.cs` to exclude self-cancelled leave and advance requests from resolution notifications.
+
+- **Chat Action Menu Cleanup (`GlobalChatWidget.razor`):**
+  - Removed the `Remove` (Unsend) action button from the sent message "More Actions" dropdown menu in `GlobalChatWidget.razor` per user request, keeping only `Forward` and `Pin` / `Unpin`.
+
+### Fixed — [2026-10-05] (Messenger-Style Floating Action Menus & Long Received Message Layout Fix)
+
+- **Messenger-Style Floating Message Dropdown Menus (`GlobalChatWidget.razor`):**
+  - Redesigned the "More Actions" dropdown menu (`Forward`, `Pin`/`Unpin`, `Remove`/`Report`) to float above message action buttons with an authentic Messenger-inspired downward pointer beak (`-bottom-1.5 size-3 rotate-45 border-b border-r`) aimed directly at the 3-dots button.
+  - Added smart vertical fallback (`top-full mt-2.5` with upward pointer beak) for top-most messages (`i <= 1`) to prevent collision with the chat header.
+  - Fixed horizontal clipping by directing menus inward toward chat canvas space: sent messages (`isMine`) use `left-0` with beak on the left extending rightward, while received messages (`!isMine`) use `right-0` with beak on the right extending leftward, guaranteeing zero container overflow.
+  - Added `Remove` (Unsend) action for sent messages and `Report` action for received messages to match Messenger action specifications.
+
+- **Long Received Message Bubble Containment & Text Wrapping (`GlobalChatWidget.razor`):**
+  - Resolved an issue where long received messages (e.g. task mentions like "Review employee attendance logs") expanded horizontally to the full container width, cramming the action pill against the right border.
+  - Implemented responsive max-width containment on `chat-msg-bubble-wrap` (`max-w-[calc(100%-80px)] sm:max-w-[230px]`), ensuring chat bubbles wrap text cleanly and reserve at least 80px of horizontal breathing room for the action buttons pill on any screen size.
+  - Updated task and board mention links in `FormatMessageContent` to use `inline-flex items-start gap-1.5 flex-wrap break-words`, ensuring long mention titles wrap naturally across lines without forcing unbreakable single-line expansion.
+
+### Fixed — [2026-10-05] (Chat Message Action Buttons Overlap & Dropdown Menu Stacking Fix)
+
+- **Chat Message Action Pill Overlap Resolution (`GlobalChatWidget.razor`):**
+  - Resolved an issue where attachment cards on sent messages overlapped and partially covered the hover action toolbar pill (3 dots, reply, reaction smiley).
+  - Increased `chat-msg-bubble-group` max width to `max-w-[92%] sm:max-w-[88%]` and added `max-w-full` containment to prevent card flex overflow.
+  - Adjusted attachment card maximum width to a compact `max-w-52` (208px) with `truncate` on the subtitle, ensuring attachment cards fit cleanly alongside the action pill without clipping or crowding.
+  - Elevated `chat-msg-actions` to `z-20` relative layer so action buttons are never obscured behind message bubbles.
+
+- **Message More Actions Dropdown Stacking Context & Alignment Fix (`GlobalChatWidget.razor`):**
+  - Resolved an issue where opening the "More Actions" dropdown (Forward, Pin) caused subsequent message bubbles in the chat to render on top of the dropdown menu.
+  - Applied dynamic stacking context elevation (`z-30`) to the active message row (`chat-msg-row`) whenever its action menu or reaction picker is toggled open, guaranteeing the menu always renders above all following messages.
+  - Corrected horizontal menu alignment direction: aligned dropdown to `right-0` for sent messages (expanding leftward into open chat space rather than over the message bubble) and `left-0` for received messages (expanding rightward into open chat space).
+
+### Enhanced & Fixed — [2026-10-05] (Workspace Recent Activity Replacement & Personal Status Activity Isolation)
+
+- **Isolation of Personal Activity for Admins/Owners (`DashboardController.cs`, `Dashboard.razor`):**
+  - Updated `DashboardController.GetStats` to strictly isolate `PersonalRecentActivities` to the authenticated caller's employee profile (`employee.Id`), querying their own attendance punches, leave requests, and advance/loan requests.
+  - Resolved an issue where Workspace Owners and Admins viewing "My Personal Status" (ESS tab) saw organization-wide activities from other employees under "My Recent Activity".
+  - "My Recent Activity" in the Personal tab now consistently displays only the user's direct actions (e.g., "You clocked IN", "You requested Leave", "You requested Cash Advance").
+
+- **Dedicated "Workspace Recent Activity" Card in Team Operations (`DashboardController.cs`, `Dashboard.razor`):**
+  - Removed the static "Workspace Engine" card from the right column of the "Team Operations" management tab.
+  - Replaced it with a real-time "Workspace Recent Activity" card that aggregates company-wide events (staff clock-ins/outs, leave requests, cash advance/loan requests) with role-colored badges, category icons, timestamps, and direct navigation links.
+  - Cleaned up the "Task & Sprint Velocity" card on the left by removing the awkwardly nested activity feed and adding dedicated summary stat boxes for To Do, In Progress, and Completed task counts.
+
+### Enhanced — [2026-10-05] (Custom Date Support in Ledger Create Advance / E-Loan)
+
+- **Date Field for Admin Advance / E-Loan Creation (`Ledger.razor`, `AdvanceRequestController.cs`):**
+  - Added a dedicated Date input field (`<InputDate @bind-Value="_newAdvance.RequestDate" />`) inside the "Create Advance or Loan" modal on the Ledger page, defaulting to the current date (`DateTime.Today`).
+  - Extended `AdminCreateAdvanceRequestDto` with `public DateTime? RequestDate { get; set; }` in both `Ledger.razor` and `AdvanceRequestController.cs`.
+  - Updated `AdminCreateRequest` endpoint in `AdvanceRequestController.cs` to respect the specified `RequestDate` (handling UTC conversion safely for PostgreSQL/Npgsql) instead of hardcoding `DateTime.UtcNow`.
+  - Updated the Ledger table to display the customized request date for historical and record-keeping accuracy.
+
+### Enhanced & Fixed — [2026-10-05] (Chat Pin & Reaction Emotes Real-Time Sync & Toast Cleanup)
+
+- **Persistent & Real-Time Synchronized Chat Message Pins (`ChatMessage.cs`, `AppDbContext.cs`, `ChatController.cs`, `GlobalChatWidget.razor`):**
+  - Upgraded `ChatMessage` entity model with `IsPinned`, `PinnedAt`, and `PinnedById` fields, fully mapped to PostgreSQL via EF Core migration `20261005003750_AddChatPinsAndReactions`.
+  - Replaced client-only browser `localStorage` pin storage with server-side database persistence and live SignalR sync via `MessagePinUpdated(roomId, messageId, isPinned)` broadcast to all room members.
+  - Pinned state is now shared across all users and persists across devices and page refreshes.
+  - Enhanced `GetMessages` query to automatically include all active pinned messages in the room, guaranteeing pinned banners and drawer lists always have access to top-pinned content.
+
+- **Persistent & Real-Time Synchronized Emoji Reactions (`ChatMessageReaction.cs`, `AppDbContext.cs`, `ChatController.cs`, `GlobalChatWidget.razor`):**
+  - Created `ChatMessageReaction` entity with tenant-scoping, user foreign key, and cascade deletion when parent messages are unsent.
+  - Added `POST /api/chat/messages/{id}/react` endpoint with support for toggling reactions (adding, changing emoji, or removing reaction on repeat click).
+  - Wired real-time SignalR `MessageReactionUpdated(roomId, messageId, userId, emoji)` broadcasts so all members viewing the conversation see reaction pills and counters update instantaneously.
+  - Hydrated message reactions directly in `GetMessages` API endpoint and `OpenRoom` initialization.
+
+- **Elimination of Unnecessary & Disruptive Toasts (`GlobalChatWidget.razor`, `NotificationCenter.razor`):**
+  - Removed intrusive toast popups for micro-actions that already have immediate visual feedback in the UI:
+    - Removed "Message pinned" and "Message unpinned" popups.
+    - Removed "Message unsent." toast (message disappearing immediately communicates the action).
+    - Removed unused `ToastService` injection from `NotificationCenter.razor`.
+
+### Fixed & Enhanced — [2026-10-05] (Chat Input Textarea Word-Wrap, Flex Containment & Smooth 1-to-3 Line Auto-Expansion)
+
+- **Chat Input Width Containment & Word-Wrap (`GlobalChatWidget.razor`, `index.html`):**
+  - Resolved an issue where long unbroken strings (e.g., continuous characters, long URLs, code tokens) caused the chat box to stretch horizontally past the right edge of the chat container and push the purple Send button off-screen.
+  - Added flexbox child width containment (`min-w-0`) to the input wrapper `<div class="flex-1 min-w-0 ...">` and `<form class="... w-full min-w-0">`.
+  - Removed `field-sizing: content;` which caused Chromium browsers to resize the textarea's width to fit unbroken text instead of wrapping it.
+  - Enforced `overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; overflow-x: hidden;` ensuring all text wraps at the right border of the input box.
+
+- **Clean 1-to-3 Line Vertical Auto-Expansion (`index.html`):**
+  - Fixed textarea vertical layout where horizontal overflow previously inflated `scrollHeight` with scrollbar metrics, causing single lines to sit at the bottom of a taller empty box with an unwanted vertical scrollbar.
+  - Refined `resizeChatTextarea` to accurately measure content height and toggle `overflow-y: hidden` for 1 to 3 lines (38px up to 82px) and enable `overflow-y: auto` only when text exceeds 3 lines.
+  - Maintained instant 1-line snapback (`38px`) upon sending messages via `resetChatTextarea`.
+
+### Enhanced & Refactored — [2026-10-05] (Audit Trail Database Decoupling & Targeted Real-Time Notification Center)
+
+- **Audit Trail Database Operations & Backups Decoupling (`AuditService.cs`, `AuditLog.cs`, `BackupController.cs`, `AuditController.cs`, `AuditLogs.razor`):**
+  - Removed database operation logs, snapshot creation, and restore entries from workspace-level audit logs to ensure host-level server maintenance never pollutes tenant activity ledgers.
+  - Removed `LogBackupAsync` and `AuditModules.Backup` from `IAuditService`, `AuditService`, and `AuditLog.cs`.
+  - Updated `AuditController.cs` to eliminate `Backup` and `Restore` from security metrics and high-impact critical queries.
+  - Refactored `AuditLogs.razor` UI: removed the "Backups & DB" filter tab and repurposed Metric Card 4 as "Security & Roles" (`Roles, access & permissions`).
+
+- **Targeted Notification Architecture & Removal of Intrusive Toasts (`NotificationHub.cs`, `NotificationsController.cs`, `NotificationPayload.cs`, `LeaveApprovals.razor`, `Ledger.razor`, `Advances.razor`, `MyLeaves.razor`):**
+  - Removed disruptive global pop-up toasts for new leave requests, advance/e-loan requests, and status modifications in `LeaveApprovals.razor`, `Ledger.razor`, `Advances.razor`, and `MyLeaves.razor`.
+  - Upgraded `NotificationHub.cs` with smart connection grouping: `user_{userId}` for targeted user alerts, and `org_{orgId}_admins` for workspace administrator/approver notices.
+  - Created `NotificationsController.cs` providing `GET /api/notifications/recent` to seamlessly hydrate user notification center trays on initial load and across browser refreshes.
+
+- **Admin & Requester Event Targeting (`LeaveRequestController.cs`, `AdvanceRequestController.cs`):**
+  - **For Workspace Admins:** Submissions of new Leave Requests or Cash Advance / E-Loan requests are dispatched to `org_{orgId}_admins` with actor name, type, dates, and amounts.
+  - **For Requesting Employees:** Request approval or rejection decisions are dispatched directly to `user_{employee.UserId}` with the explicit outcome (Approved or Rejected), leave dates, or approved/rejected loan amounts.
+
+- **Task Assignment & Due Date Alerts (`BoardsController.cs`, `NotificationsController.cs`):**
+  - Dispatches targeted `Task Assigned` alerts directly to assigned employees when board cards are created or when new assignees are added to existing tasks.
+  - Added automated due date checks flagging tasks due within 48 hours ("Task Closing Due Date") and overdue tasks ("Task Overdue") with board navigation links.
+
+- **Modernized Notification Center UI (`NotificationCenter.razor`):**
+  - Redesigned dropdown with category-specific iconography (Leave, Advance, Task, Location, System) and color-coded status badges: Emerald for Approved, Rose for Rejected, Indigo for Assigned, Amber for Due Soon, and Red for Overdue.
+  - Added "Mark all as read", "Clear all", click-to-navigate action handling, and responsive empty and loading states.
+
+### Enhanced & Refactored — [2026-10-05] (Server Station Disaster Recovery Console & Workspace Module Decoupling)
+
+- **Decoupled Database Backups from Workspace Admin (`NavMenu.razor`, `RoleManagement.razor`, `Program.cs`, `DbSeeder.cs`, `AuthController.cs`):**
+  - Completely removed the `/admin/backups` module from the Web application's navigation drawer (`NavMenu.razor`), Role Management configurable permission matrices (`RoleManagement.razor`), and default authorization policies.
+  - Eliminated the multi-tenant risk where restoring a whole-database dump from within a single workspace admin menu would inadvertently reset other workspaces and user accounts.
+  - Hardened `BackupController.cs` to strictly authorize loopback requests originating from the local Server Station host machine (`X-OfficeCore-Station: ServerStationOrchestrator`), blocking remote LAN workstation terminals from initiating whole-system database dumps or drops.
+
+- **Native Server Disaster Recovery Console (`OfficeCore.Desktop.Server`):**
+  - Built a dedicated, first-class Disaster Recovery & Database Snapshots console inside `MainWindow.xaml` and `MainWindow.xaml.cs` of the Desktop Server Station WPF host.
+  - Integrated real-time health indicator cards: PostgreSQL engine status (`pg_dump.exe` detection & path display), Total Snapshots count & breakdown (manual, automatic, safety pre-restore), Compressed storage footprint (MB/GB), and Active daily schedule routine.
+  - Implemented 1-Click Snapshot Creation with custom labels, 1-Click Safety-Restoration with pre-restore snapshot generation, External `.dump` import & upload wizard, Direct folder access in Windows Explorer (`Open Folder`), and Copy/Export actions.
+  - Added an inline collapsible Schedule Settings panel allowing server operators to toggle daily automated backups, adjust run time (HH:mm), customize retention count (auto-pruning old snapshots), and set custom PostgreSQL bin paths.
+  - Created `DesktopBackupService.cs` providing unified API client orchestration with graceful local disk fallback when the API process is stopped.
+
+### Enhanced — [2026-10-05] (Emoji Reactions Positioning, Per-User Reaction Overwriting & Dynamic Textarea Auto-Sizing)
+
+- **Top-Anchored Emoji Reaction Bar (`GlobalChatWidget.razor`):**
+  - Repositioned the emoji reaction bar (`👍`, `❤️`, `😂`, `😮`, `😢`, `🙏`) directly on top of the chat bubble (`bottom-full mb-1.5`) rather than protruding outward from the action pill.
+  - Set dynamic horizontal alignment (`right-0` for sent messages, `left-0` for received messages) with `whitespace-nowrap` to ensure reactions always extend inward over the message and never face to the right or clip past the chat window edge.
+  - Added upper headroom padding (`pt-8`) to the scrollable messages container so even messages at the top of the history have ample clearance for the reaction bar.
+
+- **Single Reaction Enforcement & Overwriting (`GlobalChatWidget.razor`):**
+  - Updated reaction state tracking to map `[MessageId -> [UserId -> Emoji]]` (`_messageUserReactions`).
+  - Enforced a 1-reaction-per-user rule: selecting a new reaction overwrites any previous emoji reaction the user previously chose on that message; clicking the same reaction un-reacts/removes it.
+  - Updated reaction badge grouping below chat bubbles to accurately reflect aggregated counts per emoji with current user reaction highlighting.
+
+- **Auto-Expanding Chat Input Box (1 to 3 Lines Max) (`GlobalChatWidget.razor`, `index.html`):**
+  - Configured chat `<textarea>` to start with a compact single line (`rows="1"`, `min-h-[38px]`, `height: 38px;`).
+  - Added native CSS `field-sizing: content;` and max height restriction (`max-h-[84px]`), allowing smooth expansion up to 3 lines max as text is typed or new lines are entered, after which an internal custom scrollbar engages.
+  - Implemented delegated input auto-resize listener and `resetChatTextarea` JavaScript interop in `index.html` to guarantee cross-browser auto-resizing and instant reset back to 1 line upon sending a message.
+
+### Enhanced — [2026-10-04] (Message Bubble Hover Scoping & Menu Simplification)
+
+- **Bubble-Scoped Hover Actions & Timestamps (`GlobalChatWidget.razor`):**
+  - Implemented CSS `:has()` parent-aware selector (`.chat-msg-bubble-group:has(.chat-msg-bubble-wrap:hover)`) ensuring actions and timestamps reliably appear on sent and received messages when hovering directly on the message bubble or card.
+  - Added visibility grace period and pointer-events handling so hovering empty space never prematurely reveals actions, while moving between bubble and action buttons remains smooth and flicker-free.
+  - Positioned the 3-dot context menu and emoji reaction bar dynamically: opens above (`bottom-full mb-1.5`) with inward alignment (`left-0` for sent, `right-0` for received) to eliminate side clipping, and automatically shifts downward (`top-full mt-1.5`) when messages are at the very top of the chat to avoid clipping under the header bar.
+
+- **Simplified Message Dropdown Actions (`GlobalChatWidget.razor`):**
+  - Removed "Unsend" and "Report" actions from both outgoing and incoming message 3-dot dropdown menus, keeping only "Forward" and "Pin" / "Unpin" for a clean, distraction-free experience.
+
+- **Action Bar Hitbox Pill Box & Bridge (`GlobalChatWidget.razor`):**
+  - Enclosed message action icons (More, Reply, React) in a solid, glassmorphic pill box (`rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md px-1 py-0.5`).
+  - Added an invisible `::before` hitbox bridge (`inset: -8px -12px`) bridging the action buttons to the message bubble so hovering anywhere within the box or moving between buttons never causes actions to prematurely close or disappear.
+  - Locked action visibility and interaction when any dropdown or reaction picker is actively open (`is-active`).
+
+- **Chat Selection Forward Message Modal (`GlobalChatWidget.razor`):**
+  - Replaced basic clipboard copying with a full Meta Messenger-style Forward Modal dialog overlay.
+  - Displays original message excerpt/attachment preview, searchable list of all direct and group conversations, and instant "Send" action buttons.
+  - Automatically posts the forwarded content/attachment to the selected room and transitions button to "Sent" state with real-time toast feedback.
+
+### Enhanced — [2026-10-04] (Meta Messenger-Style Chat: Hover Actions, Hover Timestamps, Time Dividers, Message Pinning)
+
+- **Removed Hover Pin from Room List (`GlobalChatWidget.razor`):**
+  - Cleaned up the conversation list on the left side by removing the hover pin icon button on chat rooms, preserving a neat, unencumbered room list.
+
+- **Messenger-Style Message Hover Actions & 3-Dot Menu (`GlobalChatWidget.razor`):**
+  - Added Meta Messenger-style hover action controls alongside chat bubbles:
+    - **More Options (`⋮`)**: Opens a Messenger popup menu with "Unsend", "Forward", "Pin" / "Unpin", and "Report".
+    - **Reply (`↶`)**: Prepares an inline reply bar above the composer with the author name and message excerpt.
+    - **React (`☺`)**: Opens a quick reaction bar with standard emojis (👍, ❤️, 😂, 😮, 😢, 🙏) and displays reaction badges on the message.
+  - Aligned action controls dynamically: to the left of outgoing messages (`isMine`) and to the right of incoming messages (`!isMine`).
+
+- **Hover-Only Message Timestamps (`GlobalChatWidget.razor`):**
+  - Individual message timestamps beneath message bubbles are now hidden by default and smoothly revealed only when hovering over the message bubble container.
+
+- **Dynamic Messenger Time & Date Dividers (`GlobalChatWidget.razor`):**
+  - Centered subtle timestamp and day dividers are rendered between messages when 20+ minutes have elapsed or when crossing a new date boundary.
+  - Matches Messenger formats: `3:12 PM` for today, `Wed 2:46 PM` for earlier this week, and full date strings for older messages.
+
+- **Message Pinning & Unsend Functionality (`GlobalChatWidget.razor`, `ChatController.cs`):**
+  - Implemented message-level pinning persisted per room with visual pin indicators and a pinned message banner in the chat header.
+  - Added pinned messages list to the Chat Info drawer with single-click unpin capability.
+  - Implemented `DELETE /api/chat/messages/{messageId}` endpoint in `ChatController.cs` and client-side unsend support with SignalR `MessageDeleted` real-time broadcasting.
+
+### Fixed & Enhanced — [2026-10-04] (Role Management Redesign, Workspace Owner Full Access, Ledger & Advances Modal Conversion)
+
+- **Workspace Owner Default Full Access:**
+  - `OrganizationClaimsTransformation.cs` now detects the workspace owner and automatically grants all module claims (`Dashboard`, `MyAttendance`, `MyLeaves`, `Advances`, `Boards`, `Clients`, `Attendance`, `Ledger`, `Payroll`, `Invoices`, `Users`, `Roles`, `LeaveApprovals`, `WorkSchedules`, `TimeOff`, `Locations`, `Organization`, `Backups`, `AuditLogs`), eliminating the dependency on seeded roles.
+  - `AuthController.cs` `/me` endpoint mirrors this logic so the frontend receives all module claims on login for workspace owners.
+  - Owner title display: `AuthController.cs` now defaults to `Owner` instead of `Employee` for workspace creators, while still allowing custom roles (like those with `ShowAsTitle = true`) to override it.
+  - `OrganizationsController.cs` no longer seeds hardcoded `Admin` / `Employee` roles on new organization creation — owners use Role Management to create custom roles as needed.
+
+- **Global Dark Mode Adjustments:**
+  - Added `color-scheme: dark;` to `html.dark` in `index.html`.
+  - Applied `filter: invert(1) brightness(0.7);` to `-webkit-calendar-picker-indicator` for `date`, `time`, and `datetime-local` inputs in dark mode. This completely fixes the invisible/black calendar icon issue across all date pickers in the application.
+
+- **Global Chat Widget Upgrades (`GlobalChatWidget.razor`):**
+  - **Universal Chat Info:** The Chat Info drawer is now available for both Group Chats and Direct Messages, rather than being restricted just to groups.
+  - **Message Search:** Added a "Search Chat" input within the Info drawer that instantly filters the active conversation's messages and attachments.
+  - **Media & Files History:** Added a "Shared Media & Files" gallery in the Info drawer that lists all previously sent images and documents in the current chat, with quick-click access to the attachment viewer.
+  - Added dynamic avatar/header rendering in the Info drawer to distinguish between Direct Messages and Group Chats.
+
+- **MyLeaves Modal Standardization (`MyLeaves.razor`):**
+  - Completely replaced the `<AppModal>` component usage with the standard inline modal layout (`max-h-[90vh] flex flex-col overflow-hidden`, `shrink-0` header/footer, `overflow-y-auto flex-1` body) to perfectly match the visual consistency of the Ledger, Advances, and Role Management modals.
+
+- **Role Management Redesign (`RoleManagement.razor`, `RoleController.cs`):**
+  - Removed `Organization` from the `Administration` module category in the Role Management UI — Organization access is reserved for the workspace owner only via claims transformation.
+  - Removed all hardcoded `Admin`-role protections: role name is now fully editable, the Delete button shows for all roles, and `RoleController.cs` no longer blocks renaming or deleting any role.
+  - Role modal redesigned with `max-h-[90vh] flex flex-col overflow-hidden` layout — fixed header, scrollable body, fixed footer action row.
+
+- **Ledger Expense Form → Modal (`Ledger.razor`):**
+  - Converted the inline "Log Company Expense" card (rendered inside the Expenses tab) into a proper centered modal dialog (`fixed inset-0`, `max-h-[90vh] flex flex-col overflow-hidden`, scrollable body, pinned footer).
+  - Updated the "Create Advance or Loan" modal to use `flex flex-col max-h-[90vh] overflow-hidden` with a scrollable body.
+
+- **Advances Request Form → Modal (`Advances.razor`):**
+  - Converted the inline "Request Advance or E-Loan" card into a proper centered modal dialog with `max-h-[90vh]`, scrollable content body, and pinned action footer.
+
+- **LeaveApprovals Create Leave Modal (`LeaveApprovals.razor`):**
+  - Applied `flex flex-col max-h-[90vh] overflow-hidden` with `shrink-0` header and `overflow-y-auto flex-1` body to the Create Leave admin modal.
+
+
+
+- **OPC (One Person Corporation) Business Type:**
+  - Added `OPC (One Person Corporation)` to the business type options in the Client module ([Clients.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/Clients.razor)), expanding registration types alongside Sole Proprietorship, Partnership, Corporation, and Cooperative.
+
+- **Business Active / Inactive Status Management:**
+  - Added `public bool IsActive { get; set; } = true;` to the `Business` entity ([Business.cs](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Api/Models/Business.cs)) and generated/applied EF Core migration `20261004110438_AddBusinessIsActive` with default value `true`.
+  - Added an intuitive Active vs Inactive status selector in the Business modal, enabling operators to mark client businesses as active or inactive when creating or editing them.
+  - Added status badge indicators (`Active` in emerald, `Inactive` in neutral zinc) to each business card in the client table, with inactive businesses styled with subtle muted opacity.
+  - Updated `BusinessDto` and client edit mappings in `Clients.razor` to preserve and persist `IsActive` state on business updates.
+
+- **Modal UI Viewport Fitting & Internal Scrollability:**
+  - Fixed modal height clipping across both the Business Form Modal and Client Form Modal in [Clients.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/Clients.razor).
+  - Configured `max-h-[90vh]` flex column layout with `shrink-0` header and footer, and `overflow-y-auto custom-scrollbar flex-1` on the modal body.
+  - Guaranteed that modal headers, action buttons (Save / Cancel), and inputs remain visible and cleanly accessible on all screen resolutions without overflowing off-screen.
+
+### Fixed & Enhanced — [2026-10-04] (Board Card Labels Real-Time Sync & Due Date Urgency Indicators)
+
+- **Board Card Labels Real-Time Synchronization:**
+  - Configured `OfficeCore.Web.Client.Auth.CookieHandler` on `HttpMessageHandlerFactory` in `BoardView.razor`, `Dashboard.razor`, and `NotificationCenter.razor`, ensuring browser cookies and authentication headers are sent with SignalR WebSocket negotiation requests in Blazor WebAssembly.
+  - Updated `BoardHub.cs` so connections join board groups based on board GUID existence even if the active organization cookie is not present during WebSocket negotiation.
+  - Added an automatic fallback in `NotificationHub.cs` to resolve organization ID directly from the employee database record if cookie is absent.
+  - Updated `BoardsController.AddLabelToCard` to assign `OrganizationId` and enforce idempotency check to avoid primary key collisions.
+  - Updated `BoardsController.NotifyBoardUpdated` to broadcast `BoardUpdated` and `TaskUpdated` to both board-specific and organization-wide hub groups and clients.
+  - Updated `BoardsController.GetBoard` to safely project card labels with fallback to board labels dictionary, preventing null reference errors.
+  - Updated `BoardView.razor` label rendering with safe null fallback and added `StateHasChanged()` to `ToggleLabel` for instant local feedback.
+
+- **Due Date Urgency Indicator Colors (Board & Dashboard):**
+  - Updated deadline color indicators across Kanban Board cards ([BoardView.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/BoardView.razor)) and Dashboard Assigned Tasks ([Dashboard.razor](file:///d:/Apps/Antigravity/Projects/OfficeCore/src/OfficeCore.Web/Pages/Dashboard.razor)):
+    - **3 days or less before deadline (including overdue):** Styled in urgent Red (`text-red-400 bg-red-400/10 border border-red-500/20` / `bg-red-500/10 text-red-400 border border-red-500/20`).
+    - **7 days or less before deadline (4–7 days remaining):** Styled in warning Orange (`text-orange-400 bg-orange-400/10 border border-orange-500/20` / `bg-orange-500/10 text-orange-400 border border-orange-500/20`).
+    - **More than 7 days remaining:** Neutral standard styling (`bg-zinc-800 text-zinc-400`).
+    - **Completed Tasks ("Done"):** Excluded from urgency colors, styled in emerald or neutral complete indicator.
+    - Updated Dashboard personal task status dot to match the due date urgency color palette.
+
 ### Fixed & Enhanced — [2026-10-04] (Installer .gitignore, E-Loan/Advance & Leave Request/Action Timestamps, Board Member Permissions & Card Attachments Fix)
 
 - **Installers Ignored in Git:**

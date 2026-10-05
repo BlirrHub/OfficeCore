@@ -116,13 +116,27 @@ public class ChatController : ControllerBase
         var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
         if (!isMember) return Forbid();
 
-        var messages = await _context.ChatMessages
+        var recentMessages = await _context.ChatMessages
             .Include(m => m.Sender)
                 .ThenInclude(s => s.User)
+            .Include(m => m.Reactions)
             .Where(m => m.ChatRoomId == roomId)
             .OrderByDescending(m => m.CreatedAt)
             .Skip(skip)
             .Take(take)
+            .ToListAsync();
+
+        // Also fetch any pinned messages for this room that might be outside the recent window
+        var pinnedMessages = await _context.ChatMessages
+            .Include(m => m.Sender)
+                .ThenInclude(s => s.User)
+            .Include(m => m.Reactions)
+            .Where(m => m.ChatRoomId == roomId && m.IsPinned)
+            .ToListAsync();
+
+        var combinedMessages = recentMessages.Concat(pinnedMessages)
+            .DistinctBy(m => m.Id)
+            .OrderByDescending(m => m.CreatedAt)
             .Select(m => new
             {
                 m.Id,
@@ -134,11 +148,17 @@ public class ChatController : ControllerBase
                 m.AttachmentUrl,
                 m.AttachmentName,
                 m.AttachmentSize,
-                m.CreatedAt
+                m.CreatedAt,
+                m.IsPinned,
+                Reactions = m.Reactions.Select(r => new
+                {
+                    r.UserId,
+                    r.Emoji
+                }).ToList()
             })
-            .ToListAsync();
+            .ToList();
 
-        return Ok(messages);
+        return Ok(combinedMessages);
     }
 
     public class SendMessageRequest
@@ -194,7 +214,9 @@ public class ChatController : ControllerBase
             message.AttachmentUrl,
             message.AttachmentName,
             message.AttachmentSize,
-            message.CreatedAt
+            message.CreatedAt,
+            IsPinned = false,
+            Reactions = new List<object>()
         };
 
         // Notify all members of the room via org-scoped SignalR group
@@ -205,6 +227,134 @@ public class ChatController : ControllerBase
         }
 
         return Ok(msgDto);
+    }
+
+    [HttpPut("messages/{messageId}/pin")]
+    public async Task<IActionResult> TogglePin(Guid messageId)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var message = await _context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.OrganizationId == orgId.Value);
+        if (message == null) return NotFound("Message not found.");
+
+        var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == message.ChatRoomId && m.UserId == employee.Id);
+        if (!isMember) return Forbid();
+
+        message.IsPinned = !message.IsPinned;
+        if (message.IsPinned)
+        {
+            message.PinnedAt = DateTime.UtcNow;
+            message.PinnedById = employee.Id;
+        }
+        else
+        {
+            message.PinnedAt = null;
+            message.PinnedById = null;
+        }
+
+        await _context.SaveChangesAsync();
+
+        var roomId = message.ChatRoomId;
+        var roomMembers = await _context.ChatRoomMembers.Where(m => m.ChatRoomId == roomId).Select(m => m.UserId).ToListAsync();
+        foreach (var memberId in roomMembers)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{memberId}").SendAsync("MessagePinUpdated", roomId, messageId, message.IsPinned);
+        }
+
+        return Ok(new { message.Id, message.IsPinned, message.PinnedAt, message.PinnedById });
+    }
+
+    public class ReactMessageRequest
+    {
+        public string Emoji { get; set; } = string.Empty;
+    }
+
+    [HttpPost("messages/{messageId}/react")]
+    public async Task<IActionResult> ToggleReaction(Guid messageId, [FromBody] ReactMessageRequest req)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(req.Emoji))
+            return BadRequest("Emoji is required.");
+
+        var message = await _context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.OrganizationId == orgId.Value);
+        if (message == null) return NotFound("Message not found.");
+
+        var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == message.ChatRoomId && m.UserId == employee.Id);
+        if (!isMember) return Forbid();
+
+        var existingReaction = await _context.ChatMessageReactions
+            .FirstOrDefaultAsync(r => r.ChatMessageId == messageId && r.UserId == employee.Id);
+
+        string? resultingEmoji = null;
+        if (existingReaction != null && existingReaction.Emoji == req.Emoji)
+        {
+            _context.ChatMessageReactions.Remove(existingReaction);
+            resultingEmoji = null;
+        }
+        else if (existingReaction != null)
+        {
+            existingReaction.Emoji = req.Emoji;
+            existingReaction.CreatedAt = DateTime.UtcNow;
+            resultingEmoji = req.Emoji;
+        }
+        else
+        {
+            var newReaction = new ChatMessageReaction
+            {
+                Id = Guid.NewGuid(),
+                ChatMessageId = messageId,
+                UserId = employee.Id,
+                Emoji = req.Emoji,
+                CreatedAt = DateTime.UtcNow,
+                OrganizationId = orgId.Value
+            };
+            _context.ChatMessageReactions.Add(newReaction);
+            resultingEmoji = req.Emoji;
+        }
+
+        await _context.SaveChangesAsync();
+
+        var roomId = message.ChatRoomId;
+        var roomMembers = await _context.ChatRoomMembers.Where(m => m.ChatRoomId == roomId).Select(m => m.UserId).ToListAsync();
+        foreach (var memberId in roomMembers)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{memberId}").SendAsync("MessageReactionUpdated", roomId, messageId, employee.Id, resultingEmoji);
+        }
+
+        return Ok(new { messageId, userId = employee.Id, emoji = resultingEmoji });
+    }
+
+    [HttpDelete("messages/{messageId}")]
+    public async Task<IActionResult> UnsendMessage(Guid messageId)
+    {
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return Forbid();
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var message = await _context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.OrganizationId == orgId.Value);
+        if (message == null) return NotFound("Message not found.");
+
+        if (message.SenderId != employee.Id) return Forbid("You can only unsend your own messages.");
+
+        var roomId = message.ChatRoomId;
+        _context.ChatMessages.Remove(message);
+        await _context.SaveChangesAsync();
+
+        var roomMembers = await _context.ChatRoomMembers.Where(m => m.ChatRoomId == roomId).Select(m => m.UserId).ToListAsync();
+        foreach (var memberId in roomMembers)
+        {
+            await _chatHub.Clients.Group($"org_{orgId}_employee_{memberId}").SendAsync("MessageDeleted", roomId, messageId);
+        }
+
+        return Ok(new { message = "Message unsent successfully." });
     }
 
     [HttpPost("rooms/{roomId}/attachment")]

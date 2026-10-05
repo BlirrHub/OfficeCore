@@ -40,7 +40,7 @@ builder.Services.AddAuthorizationCore(options =>
         "Dashboard", "MyAttendance", "Clients", "Attendance", "Boards", "Payroll", 
         "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", 
         "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals",
-        "Backups", "AuditLogs"
+        "AuditLogs"
     };
     foreach (var module in modules)
     {
