@@ -1216,7 +1216,7 @@
                                       @bind="_newMessageContent" @bind:event="oninput" 
                                       @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp"
                                       rows="1"
-                                      placeholder="@(_activeRoom?.Type == 1 ? $"Message {_activeRoom?.Name}..." : "Type a message... (Shift+Enter for newline)")" 
+                                      placeholder="Type a message... (Shift+Enter for newline)" 
                                       class="w-full min-w-0 max-w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-fuchsia-500 transition-[border-color,background-color] resize-none custom-scrollbar leading-relaxed"
                                       style="min-height: 38px; max-height: 82px; height: 38px; overflow-x: hidden; overflow-y: hidden; overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; box-sizing: border-box;"></textarea>
                         </div>
