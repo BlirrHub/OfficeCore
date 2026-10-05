@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Fixed — [2026-10-05] (Leave Request Cancellation Confirmation & History Preservation; Chat Action Menu Cleanup)
+
+- **Leave Request Cancellation Confirmation & History Retention (`MyLeaves.razor`, `LeaveRequestController.cs`, `LeaveRequest.cs`):**
+  - Added a confirmation modal popup ("Cancel Request" with "Go Back" and "Yes, Cancel" buttons) in `MyLeaves.razor` before cancelling a pending leave request, matching the UX pattern in Advances & Loans.
+  - Added `Cancelled` status (`3`) to the `LeaveRequestStatus` enum in `LeaveRequest.cs`.
+  - Updated `CancelRequest` in `LeaveRequestController.cs` to set `Status = LeaveRequestStatus.Cancelled` and set `ActionTakenAt = DateTime.UtcNow` instead of hard-deleting the record, preserving leave history for employees and administrators.
+  - Updated `MyLeaves.razor` to render a `Cancelled` status badge with resolution timestamp and retain cancelled leaves in the history table.
+  - Updated `LeaveApprovals.razor` to support viewing and filtering by `Cancelled` status with matching badge styling and audit details.
+  - Updated `DashboardController.cs` to render `Cancelled` leaves with appropriate `zinc` badge styling in personal and workspace recent activity feeds.
+  - Updated `NotificationsController.cs` to exclude self-cancelled leave and advance requests from resolution notifications.
+
+- **Chat Action Menu Cleanup (`GlobalChatWidget.razor`):**
+  - Removed the `Remove` (Unsend) action button from the sent message "More Actions" dropdown menu in `GlobalChatWidget.razor` per user request, keeping only `Forward` and `Pin` / `Unpin`.
+
 ### Fixed — [2026-10-05] (Messenger-Style Floating Action Menus & Long Received Message Layout Fix)
 
 - **Messenger-Style Floating Message Dropdown Menus (`GlobalChatWidget.razor`):**

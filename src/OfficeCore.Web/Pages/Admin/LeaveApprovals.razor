@@ -49,6 +49,7 @@
                     <option value="0">Pending</option>
                     <option value="1">Approved</option>
                     <option value="2">Rejected</option>
+                    <option value="3">Cancelled</option>
                 </select>
                 <select @bind="_typeFilter" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
                     <option value="-1">All Types</option>
@@ -153,10 +154,20 @@
                                                 }
                                             </div>
                                         }
-                                        else
+                                        else if (request.Status == 2)
                                         {
                                             <div class="flex flex-col gap-0.5">
                                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 w-fit">Rejected</span>
+                                                @if (request.ActionTakenAt.HasValue)
+                                                {
+                                                    <span class="text-[10px] text-zinc-500">@request.ActionTakenAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
+                                                }
+                                            </div>
+                                        }
+                                        else if (request.Status == 3)
+                                        {
+                                            <div class="flex flex-col gap-0.5">
+                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-800 text-zinc-400 border border-zinc-700/60 w-fit">Cancelled</span>
                                                 @if (request.ActionTakenAt.HasValue)
                                                 {
                                                     <span class="text-[10px] text-zinc-500">@request.ActionTakenAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</span>
@@ -199,9 +210,13 @@
                     {
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Approved</span>
                     }
-                    else
+                    else if (_selectedRequest.Status == 2)
                     {
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>
+                    }
+                    else if (_selectedRequest.Status == 3)
+                    {
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400 border border-zinc-700/60">Cancelled</span>
                     }
                 </h3>
                 <button @onclick="() => _selectedRequest = null" class="text-zinc-500 hover:text-white transition-colors">
@@ -221,7 +236,7 @@
                         @if (_selectedRequest.ActionTakenAt.HasValue)
                         {
                             <div class="text-xs text-zinc-400 mt-1">
-                                <span class="font-medium text-white">@(_selectedRequest.Status == 1 ? "Approved" : "Rejected") on:</span> @_selectedRequest.ActionTakenAt.Value.ToLocalTime().ToString("MMMM dd, yyyy h:mm tt")
+                                <span class="font-medium text-white">@(_selectedRequest.Status == 1 ? "Approved" : _selectedRequest.Status == 2 ? "Rejected" : "Cancelled") on:</span> @_selectedRequest.ActionTakenAt.Value.ToLocalTime().ToString("MMMM dd, yyyy h:mm tt")
                             </div>
                         }
                     </div>

@@ -282,6 +282,7 @@ public class LeaveRequestController : ControllerBase
         return Ok(new { message = "Leave request deleted successfully" });
     }
 
+    [HttpPut("{id}/cancel")]
     [HttpDelete("{id}/cancel")]
     public async Task<IActionResult> CancelRequest(Guid id)
     {
@@ -296,12 +297,20 @@ public class LeaveRequestController : ControllerBase
         if (leaveRequest.Status != LeaveRequestStatus.Pending)
             return BadRequest("Only pending requests can be cancelled.");
 
-        var leaveOrgId = leaveRequest.OrganizationId;
-        _context.LeaveRequests.Remove(leaveRequest);
+        leaveRequest.Status = LeaveRequestStatus.Cancelled;
+        leaveRequest.ActionTakenAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
+        var user = await _userManager.FindByIdAsync(employee.UserId);
+        var empName = $"{user?.FirstName} {user?.LastName}".Trim();
+        await _audit.LogLeaveAsync(
+            AuditActions.Update,
+            $"Cancelled leave request for {empName} ({leaveRequest.Type}, {leaveRequest.StartDate:yyyy-MM-dd} to {leaveRequest.EndDate:yyyy-MM-dd})",
+            id,
+            new { OldStatus = LeaveRequestStatus.Pending.ToString(), NewStatus = LeaveRequestStatus.Cancelled.ToString() });
+
         // Notify org members so the list updates live
-        await _hub.Clients.Group($"org_{leaveOrgId}").SendAsync("LeaveRequestDeleted");
+        await _hub.Clients.Group($"org_{leaveRequest.OrganizationId}").SendAsync("LeaveRequestUpdated");
 
         return Ok(new { message = "Leave request cancelled successfully" });
     }

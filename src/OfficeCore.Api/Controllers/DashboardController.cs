@@ -261,7 +261,7 @@ public class DashboardController : ControllerBase
                     Description = $"{l.StartDate:MMM dd} - {l.EndDate:MMM dd} • Status: {l.Status}",
                     Category = "Leave",
                     Icon = "leave",
-                    BadgeColor = l.Status == LeaveRequestStatus.Approved ? "emerald" : l.Status == LeaveRequestStatus.Rejected ? "red" : "amber",
+                    BadgeColor = l.Status == LeaveRequestStatus.Approved ? "emerald" : l.Status == LeaveRequestStatus.Rejected ? "red" : l.Status == LeaveRequestStatus.Cancelled ? "zinc" : "amber",
                     Timestamp = l.CreatedAt
                 });
             }
@@ -389,7 +389,7 @@ public class DashboardController : ControllerBase
                     Description = $"{l.StartDate:MMM dd} - {l.EndDate:MMM dd} • Status: {l.Status}",
                     Category = "Leave",
                     Icon = "leave",
-                    BadgeColor = l.Status == LeaveRequestStatus.Approved ? "emerald" : l.Status == LeaveRequestStatus.Rejected ? "red" : "amber",
+                    BadgeColor = l.Status == LeaveRequestStatus.Approved ? "emerald" : l.Status == LeaveRequestStatus.Rejected ? "red" : l.Status == LeaveRequestStatus.Cancelled ? "zinc" : "amber",
                     Timestamp = l.CreatedAt
                 });
             }

@@ -133,6 +133,7 @@ public class NotificationsController : ControllerBase
                 .Where(r => r.EmployeeId == employee.Id &&
                             r.OrganizationId == orgId.Value &&
                             r.Status != LeaveRequestStatus.Pending &&
+                            r.Status != LeaveRequestStatus.Cancelled &&
                             r.ActionTakenAt != null &&
                             r.ActionTakenAt >= resolvedSince)
                 .OrderByDescending(r => r.ActionTakenAt)
@@ -162,6 +163,7 @@ public class NotificationsController : ControllerBase
                 .Where(r => r.EmployeeId == employee.Id &&
                             r.OrganizationId == orgId.Value &&
                             r.Status != AdvanceStatus.Pending &&
+                            r.Status != AdvanceStatus.Cancelled &&
                             r.ResolutionDate != null &&
                             r.ResolutionDate >= resolvedSince)
                 .OrderByDescending(r => r.ResolutionDate)
