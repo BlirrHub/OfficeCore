@@ -194,14 +194,14 @@
                                     <div class="text-[11px] text-zinc-500">@request.CreatedAt.ToLocalTime().ToString("h:mm tt")</div>
                                 </td>
                                 <td class="px-6 py-4 text-right">
-                                    @if (request.Status == 0) // Pending
+                                    @if (request.Status == LeaveRequestStatus.Pending)
                                     {
                                         <div class="flex items-center justify-end gap-2">
                                             <AppBadge Variant="warning" Dot="true">Pending</AppBadge>
                                             <button @onclick="() => ShowCancelConfirmation(request.Id)" class="text-xs font-medium text-zinc-500 hover:text-red-400 transition-colors" title="Cancel Request">Cancel</button>
                                         </div>
                                     }
-                                    else if (request.Status == 1) // Approved
+                                    else if (request.Status == LeaveRequestStatus.Approved)
                                     {
                                         <div class="flex flex-col items-end gap-1">
                                             <AppBadge Variant="success" Dot="true">Approved</AppBadge>
@@ -211,7 +211,7 @@
                                             }
                                         </div>
                                     }
-                                    else if (request.Status == 2) // Rejected
+                                    else if (request.Status == LeaveRequestStatus.Rejected)
                                     {
                                         <div class="flex flex-col items-end gap-1">
                                             <AppBadge Variant="danger" Dot="true">Rejected</AppBadge>
@@ -221,7 +221,7 @@
                                             }
                                         </div>
                                     }
-                                    else if (request.Status == 3) // Cancelled
+                                    else if (request.Status == LeaveRequestStatus.Cancelled)
                                     {
                                         <div class="flex flex-col items-end gap-1">
                                             <AppBadge Variant="default" Dot="true">Cancelled</AppBadge>
@@ -458,6 +458,14 @@
         public string Reason { get; set; } = string.Empty;
     }
 
+    public enum LeaveRequestStatus
+    {
+        Pending = 0,
+        Approved = 1,
+        Rejected = 2,
+        Cancelled = 3
+    }
+
     private class LeaveRequestDto
     {
         public Guid Id { get; set; }
@@ -466,7 +474,7 @@
         public DateTime EndDate { get; set; }
         public string Reason { get; set; } = string.Empty;
         public string? AttachmentPath { get; set; }
-        public int Status { get; set; }
+        public LeaveRequestStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? ActionTakenAt { get; set; }
     }

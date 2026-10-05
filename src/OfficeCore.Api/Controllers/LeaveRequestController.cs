@@ -48,6 +48,18 @@ public class LeaveRequestController : ControllerBase
         var requests = await _context.LeaveRequests
             .Where(r => r.EmployeeId == employee.Id && r.OrganizationId == orgId)
             .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new
+            {
+                r.Id,
+                r.Type,
+                r.StartDate,
+                r.EndDate,
+                r.Reason,
+                r.AttachmentPath,
+                r.Status,
+                r.CreatedAt,
+                r.ActionTakenAt
+            })
             .ToListAsync();
 
         return Ok(requests);

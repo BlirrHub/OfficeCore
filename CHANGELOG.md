@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Enhanced — [2026-10-05] (Leave Request Status Typing & Workspace Selector Logo Display)
+
+- **Leave Status Display & Projection Alignment (`MyLeaves.razor`, `LeaveRequestController.cs`):**
+  - Updated `GetMyRequests` in `LeaveRequestController.cs` to explicitly project DTO properties (`Id`, `Type`, `StartDate`, `EndDate`, `Reason`, `AttachmentPath`, `Status`, `CreatedAt`, `ActionTakenAt`) matching `GetAllRequests` projection structure.
+  - Defined explicit `LeaveRequestStatus` enum in `MyLeaves.razor` (`Pending = 0`, `Approved = 1`, `Rejected = 2`, `Cancelled = 3`) and updated `LeaveRequestDto` to strongly type `Status`, ensuring cancelled leave requests reliably evaluate to `Cancelled` rather than falling into incorrect branch evaluations.
+  - Added `Cancelled` pill badge styling in `NotificationCenter.razor`.
+
+- **Workspace Selector Logo Display (`MainLayout.razor`):**
+  - Updated `OrganizationDto` in `MainLayout.razor` to include `LogoUrl`.
+  - Updated the workspace switcher header trigger button and dropdown list items to check for `LogoUrl` and render `<img src="@(MediaUrlHelper.Resolve(..., Configuration))" ... />` when configured, falling back gracefully to uppercase initials avatars when no logo is set.
+
 ### Enhanced & Fixed — [2026-10-05] (Leave Request Cancellation Confirmation & History Preservation; Chat Action Menu Cleanup)
 
 - **Leave Request Cancellation Confirmation & History Retention (`MyLeaves.razor`, `LeaveRequestController.cs`, `LeaveRequest.cs`):**
