@@ -41,15 +41,15 @@
         <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-wrap gap-4 items-end">
             <div class="flex-1 min-w-[200px]">
                 <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Search Employee</label>
-                <input type="text" @bind="_filterEmployee" @bind:event="oninput" placeholder="Search by name..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                <input type="text" @bind="_filterEmployee" @bind:event="oninput" @bind:after="ResetPage" placeholder="Search by name..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
             </div>
             <div>
                 <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Start Date</label>
-                <input type="date" @bind="_filterStartDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                <input type="date" @bind="_filterStartDate" @bind:after="ResetPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
             </div>
             <div>
                 <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">End Date</label>
-                <input type="date" @bind="_filterEndDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                <input type="date" @bind="_filterEndDate" @bind:after="ResetPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
             </div>
             <button @onclick="ClearCompanyFilters" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 rounded-lg transition-colors cursor-pointer">
                 Clear
@@ -89,8 +89,8 @@
             }
             else
             {
-                var filteredRecords = GetFilteredCompanyRecords();
-                if (!filteredRecords.Any())
+                var filteredList = GetFilteredCompanyRecords().ToList();
+                if (!filteredList.Any())
                 {
                     <EmptyState Card="false"
                                 Title="No matching records"
@@ -98,6 +98,7 @@
                 }
                 else
                 {
+                    var pagedRecords = filteredList.Skip((_page - 1) * _pageSize).Take(_pageSize);
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
@@ -110,7 +111,7 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-zinc-800/50">
-                                @foreach (var record in filteredRecords)
+                                @foreach (var record in pagedRecords)
                                 {
                                     <tr class="hover:bg-zinc-900/50 transition-colors">
                                         <td class="px-6 py-4 text-white font-medium">@record.EmployeeName</td>
@@ -154,6 +155,8 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <PaginationToolbar @bind-Page="_page" @bind-PageSize="_pageSize" TotalCount="filteredList.Count" />
                 }
             }
         </div>
@@ -240,6 +243,8 @@
     private DateTime? _filterStartDate;
     private DateTime? _filterEndDate;
     private string _filterEmployee = "";
+    private int _page = 1;
+    private int _pageSize = 25;
 
     // Create Manual Entry State
     private bool _showCreateModal = false;
@@ -328,6 +333,12 @@
         _filterStartDate = null;
         _filterEndDate = null;
         _filterEmployee = "";
+        _page = 1;
+    }
+
+    private void ResetPage()
+    {
+        _page = 1;
     }
 
     private async Task ExportCsv()

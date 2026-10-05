@@ -154,7 +154,10 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-800/50">
-                        @foreach (var request in _requests)
+                        @{
+                            var pagedRequests = _requests.Skip((_page - 1) * _pageSize).Take(_pageSize);
+                        }
+                        @foreach (var request in pagedRequests)
                         {
                             <tr class="hover:bg-zinc-800/30 transition-colors">
                                 <td class="px-6 py-4">
@@ -240,6 +243,7 @@
                     </tbody>
                 </table>
             </div>
+            <PaginationToolbar @bind-Page="_page" @bind-PageSize="_pageSize" TotalCount="_requests.Count" />
         </div>
     }
 </div>
@@ -289,6 +293,8 @@
     }
 
     private List<LeaveRequestDto>? _requests;
+    private int _page = 1;
+    private int _pageSize = 25;
     private bool _isCreating = false;
     private bool _isSubmitting = false;
     private bool _isLoading = false;

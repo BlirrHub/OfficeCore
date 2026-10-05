@@ -1,0 +1,99 @@
+@namespace OfficeCore.Web.Client.Components.UI
+
+@if (TotalCount > 0)
+{
+    <div class="p-4 border-t border-zinc-800/80 bg-zinc-900/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs @Class">
+        <div class="text-zinc-400">
+            Showing <span class="font-semibold text-zinc-200">@StartItem</span> to 
+            <span class="font-semibold text-zinc-200">@EndItem</span> of 
+            <span class="font-semibold text-zinc-200">@TotalCount.ToString("N0")</span> records
+        </div>
+
+        <div class="flex items-center gap-2">
+            <select value="@PageSize" @onchange="HandlePageSizeChange"
+                    class="px-2 py-1 rounded-lg text-xs bg-zinc-950 border border-zinc-800 text-zinc-200 focus:outline-none cursor-pointer">
+                @foreach (var opt in PageSizeOptions)
+                {
+                    <option value="@opt">@opt / page</option>
+                }
+            </select>
+
+            <button type="button" @onclick="PreviousPage" disabled="@(Page <= 1)"
+                    class="px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
+                Previous
+            </button>
+
+            <span class="text-zinc-400 px-1 font-mono">
+                @Page / @TotalPages
+            </span>
+
+            <button type="button" @onclick="NextPage" disabled="@(Page >= TotalPages)"
+                    class="px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
+                Next
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Page { get; set; } = 1;
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
+
+    [Parameter] public int PageSize { get; set; } = 25;
+    [Parameter] public EventCallback<int> PageSizeChanged { get; set; }
+
+    [Parameter] public int TotalCount { get; set; }
+
+    [Parameter] public int[] PageSizeOptions { get; set; } = new[] { 15, 25, 50, 100 };
+    [Parameter] public string Class { get; set; } = string.Empty;
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+
+    public int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalCount / Math.Max(1, PageSize)));
+    public int StartItem => TotalCount == 0 ? 0 : (Page - 1) * PageSize + 1;
+    public int EndItem => Math.Min(Page * PageSize, TotalCount);
+
+    protected override void OnParametersSet()
+    {
+        var max = TotalPages;
+        if (Page > max && max > 0)
+        {
+            Page = max;
+        }
+        else if (Page < 1)
+        {
+            Page = 1;
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (Page > 1)
+        {
+            Page--;
+            await PageChanged.InvokeAsync(Page);
+            await OnPageChanged.InvokeAsync(Page);
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (Page < TotalPages)
+        {
+            Page++;
+            await PageChanged.InvokeAsync(Page);
+            await OnPageChanged.InvokeAsync(Page);
+        }
+    }
+
+    private async Task HandlePageSizeChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var newSize) && newSize > 0)
+        {
+            PageSize = newSize;
+            Page = 1;
+            await PageSizeChanged.InvokeAsync(PageSize);
+            await PageChanged.InvokeAsync(Page);
+            await OnPageChanged.InvokeAsync(Page);
+        }
+    }
+}

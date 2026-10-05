@@ -41,17 +41,17 @@
         <div class="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50">
             <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                <input type="text" @bind="_searchQuery" @bind:event="oninput" placeholder="Search employees..." class="bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none w-64" />
+                <input type="text" @bind="_searchQuery" @bind:event="oninput" @bind:after="ResetPage" placeholder="Search employees..." class="bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none w-64" />
             </div>
             <div class="flex items-center gap-2">
-                <select @bind="_statusFilter" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
+                <select @bind="_statusFilter" @bind:after="ResetPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
                     <option value="-1">All Statuses</option>
                     <option value="0">Pending</option>
                     <option value="1">Approved</option>
                     <option value="2">Rejected</option>
                     <option value="3">Cancelled</option>
                 </select>
-                <select @bind="_typeFilter" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
+                <select @bind="_typeFilter" @bind:after="ResetPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
                     <option value="-1">All Types</option>
                     <option value="0">Sick Leave</option>
                     <option value="1">Vacation Leave</option>
@@ -101,7 +101,10 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-800/50">
-                            @foreach (var request in filtered)
+                            @{
+                                var paged = filtered.Skip((_page - 1) * _pageSize).Take(_pageSize);
+                            }
+                            @foreach (var request in paged)
                             {
                                 <tr class="hover:bg-zinc-800/30 transition-colors cursor-pointer" @onclick="() => SelectRequest(request)">
                                     <td class="px-6 py-4">
@@ -186,9 +189,11 @@
                                     </td>
                                 </tr>
                             }
-                        </tbody>
+                    </tbody>
                     </table>
                 </div>
+
+                <PaginationToolbar @bind-Page="_page" @bind-PageSize="_pageSize" TotalCount="filtered.Count" />
             }
         }
     </div>
@@ -451,6 +456,13 @@
     private string _searchQuery = "";
     private int _statusFilter = -1;
     private int _typeFilter = -1;
+    private int _page = 1;
+    private int _pageSize = 25;
+
+    private void ResetPage()
+    {
+        _page = 1;
+    }
 
     
     private LeaveRequestAdminDto? _selectedRequest;

@@ -51,11 +51,11 @@
             <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap gap-4 items-end mb-6">
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Employee</label>
-                    <input type="text" @bind="_filterEmployee" @bind:event="oninput" placeholder="Search by name..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                    <input type="text" @bind="_filterEmployee" @bind:event="oninput" @bind:after="ResetApprovalsPage" placeholder="Search by name..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Status</label>
-                    <select @bind="_filterStatus" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none w-32">
+                    <select @bind="_filterStatus" @bind:after="ResetApprovalsPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none w-32">
                         <option value="All">All Status</option>
                         <option value="Pending">Pending</option>
                         <option value="Approved">Approved</option>
@@ -65,11 +65,11 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Start Date</label>
-                    <input type="date" @bind="_filterStartDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                    <input type="date" @bind="_filterStartDate" @bind:after="ResetApprovalsPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">End Date</label>
-                    <input type="date" @bind="_filterEndDate" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
+                    <input type="date" @bind="_filterEndDate" @bind:after="ResetApprovalsPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
                 </div>
                 <button @onclick="ClearFilters" class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 rounded-lg transition-colors">
                     Clear
@@ -105,7 +105,10 @@
                                 </tr>
                             </thead>
                                 <tbody class="divide-y divide-zinc-800/50">
-                                    @foreach (var req in filteredRequests)
+                                    @{
+                                        var pagedRequests = filteredRequests.Skip((_approvalsPage - 1) * _approvalsPageSize).Take(_approvalsPageSize);
+                                    }
+                                    @foreach (var req in pagedRequests)
                                     {
                                         <tr class="hover:bg-zinc-800/50 transition-colors">
                                         <td class="px-6 py-4 text-zinc-300">
@@ -194,6 +197,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <PaginationToolbar @bind-Page="_approvalsPage" @bind-PageSize="_approvalsPageSize" TotalCount="filteredRequests.Count()" />
             }
         }
     }
@@ -231,7 +235,10 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-800/50">
-                                @foreach (var exp in _expenses)
+                                @{
+                                    var pagedExpenses = _expenses.Skip((_expensesPage - 1) * _expensesPageSize).Take(_expensesPageSize);
+                                }
+                                @foreach (var exp in pagedExpenses)
                                 {
                                     <tr class="hover:bg-zinc-800/50 transition-colors">
                                         <td class="px-6 py-4 text-zinc-300">@exp.DateIncurred.ToLocalTime().ToString("MMM dd, yyyy")</td>
@@ -258,6 +265,7 @@
                             </tbody>
                         </table>
                 </div>
+                <PaginationToolbar @bind-Page="_expensesPage" @bind-PageSize="_expensesPageSize" TotalCount="_expenses.Count" />
             }
         }
     </div>
@@ -479,6 +487,8 @@
     private List<AdminAdvanceRequestDto>? _requests;
     private AdminAdvanceRequestDto? _approvingRequest;
     private decimal _approvalInstallment = 0;
+    private int _approvalsPage = 1;
+    private int _approvalsPageSize = 25;
     
     // Admin Create State
     private bool _isCreatingAdvance = false;
@@ -642,12 +652,20 @@
         _filterStartDate = null;
         _filterEndDate = null;
         _filterEmployee = "";
+        _approvalsPage = 1;
+    }
+
+    private void ResetApprovalsPage()
+    {
+        _approvalsPage = 1;
     }
 
     // Expenses State
     private List<CompanyExpenseDto>? _expenses;
     private bool _isAddingExpense = false;
     private CreateCompanyExpenseDto _newExpense = new() { DateIncurred = DateTime.Today };
+    private int _expensesPage = 1;
+    private int _expensesPageSize = 25;
 
     private async Task LoadEmployees()
     {
