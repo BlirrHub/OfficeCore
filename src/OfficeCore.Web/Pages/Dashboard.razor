@@ -335,109 +335,116 @@
                         </div>
                     </div>
 
-                    <!-- Team Activity Feed -->
-                    <div>
-                        <h4 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Live Team Activity</h4>
-                        @if (_stats.RecentActivities.Count > 0)
-                        {
-                            <div class="space-y-2.5">
-                                @foreach (var act in _stats.RecentActivities)
-                                {
-                                    var actUrl = act.Category switch
-                                    {
-                                        "Attendance" => "/admin/attendance",
-                                        "Leave" => "/admin/leave-approvals",
-                                        "Advance" => "/ledger",
-                                        "Location" => "/locations",
-                                        "Task" => (_stats.PrimaryBoardId != null ? $"/boards/{_stats.PrimaryBoardId}" : "/boards"),
-                                        _ => "/dashboard"
-                                    };
-                                    <a href="@actUrl" class="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/50 transition-all text-xs group block">
-                                        <div class="flex items-center gap-3 min-w-0">
-                                            <div class="size-8 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                                @if (act.Category == "Attendance")
-                                                {
-                                                    <svg class="size-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                }
-                                                else if (act.Category == "Leave")
-                                                {
-                                                    <svg class="size-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
-                                                }
-                                                else if (act.Category == "Advance")
-                                                {
-                                                    <svg class="size-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                }
-                                                else if (act.Category == "Location")
-                                                {
-                                                    <svg class="size-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
-                                                }
-                                                else if (act.Category == "Task")
-                                                {
-                                                    <svg class="size-4 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                                                }
-                                                else
-                                                {
-                                                    <svg class="size-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
-                                                }
-                                            </div>
-                                            <div class="min-w-0">
-                                                <p class="font-medium text-zinc-200 group-hover:text-white truncate">@act.Title</p>
-                                                <p class="text-[11px] text-zinc-400 truncate">@act.Description</p>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-2 shrink-0 ml-3">
-                                            <span class="text-[10px] text-zinc-500 whitespace-nowrap">
-                                                @FormatTimeAgo(act.Timestamp)
-                                            </span>
-                                            <svg class="size-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-                                        </div>
-                                    </a>
-                                }
+                    <!-- Task Status Breakdown Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-zinc-400">To Do</p>
+                                <p class="text-xl font-bold text-white mt-1">@todo</p>
                             </div>
-                        }
-                        else
-                        {
-                            <div class="p-6 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
-                                No team activity recorded today yet.
+                            <div class="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-400">
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                             </div>
-                        }
+                        </div>
+                        <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-zinc-400">In Progress</p>
+                                <p class="text-xl font-bold text-fuchsia-400 mt-1">@inProg</p>
+                            </div>
+                            <div class="size-9 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400">
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+                            </div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-zinc-400">Completed</p>
+                                <p class="text-xl font-bold text-emerald-400 mt-1">@done</p>
+                            </div>
+                            <div class="size-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right 1 Col: Workspace Engine -->
+            <!-- Right 1 Col: Workspace Recent Activity -->
             <div class="space-y-6">
                 <div class="glass-card rounded-2xl p-6 space-y-4">
-                    <h3 class="text-sm font-semibold text-white flex items-center justify-between">
-                        <span>Workspace Engine</span>
-                        <span class="size-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    </h3>
-
-                    <div class="space-y-3 text-xs">
-                        <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
-                            <span class="text-zinc-400">Database Engine</span>
-                            <span class="font-medium text-zinc-200">@_stats.DatabaseEngine</span>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Workspace Recent Activity</h3>
+                            <p class="text-xs text-zinc-400 mt-0.5">Real-time team updates & events</p>
                         </div>
-                        <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
-                            <span class="text-zinc-400">Real-Time Hubs</span>
-                            <span class="font-medium text-emerald-400">SignalR Active</span>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-zinc-800/60">
-                            <span class="text-zinc-400">Biometric Port</span>
-                            <span class="font-medium text-zinc-200">TCP 9000 & USB Web Serial</span>
-                        </div>
-                        <div class="flex items-center justify-between py-2">
-                            <span class="text-zinc-400">Field GPS Radar</span>
-                            <span class="font-medium text-fuchsia-400">@(_stats.ActiveOutsideStaffCount ?? 0) Active</span>
-                        </div>
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
                     </div>
 
-                    <div class="pt-2">
-                        <a href="/workspaces" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition-colors">
-                            <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
-                            <span>Manage Workspaces</span>
-                        </a>
-                    </div>
+                    @if (_stats.WorkspaceRecentActivities != null && _stats.WorkspaceRecentActivities.Count > 0)
+                    {
+                        <div class="space-y-2.5">
+                            @foreach (var act in _stats.WorkspaceRecentActivities)
+                            {
+                                var actUrl = act.Category switch
+                                {
+                                    "Attendance" => "/admin/attendance",
+                                    "Leave" => "/admin/leave-approvals",
+                                    "Advance" => "/ledger",
+                                    "Location" => "/locations",
+                                    "Task" => (_stats.PrimaryBoardId != null ? $"/boards/{_stats.PrimaryBoardId}" : "/boards"),
+                                    _ => "/dashboard"
+                                };
+                                <a href="@actUrl" class="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/50 transition-all text-xs group block">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="size-8 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                            @if (act.Category == "Attendance")
+                                            {
+                                                <svg class="size-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            }
+                                            else if (act.Category == "Leave")
+                                            {
+                                                <svg class="size-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                                            }
+                                            else if (act.Category == "Advance")
+                                            {
+                                                <svg class="size-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            }
+                                            else if (act.Category == "Location")
+                                            {
+                                                <svg class="size-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                                            }
+                                            else if (act.Category == "Task")
+                                            {
+                                                <svg class="size-4 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                                            }
+                                            else
+                                            {
+                                                <svg class="size-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
+                                            }
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="font-medium text-zinc-200 group-hover:text-white truncate">@act.Title</p>
+                                            <p class="text-[11px] text-zinc-400 truncate">@act.Description</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0 ml-3">
+                                        <span class="text-[10px] text-zinc-500 whitespace-nowrap">
+                                            @FormatTimeAgo(act.Timestamp)
+                                        </span>
+                                        <svg class="size-3 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="p-6 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
+                            No team activity recorded today yet.
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -652,10 +659,10 @@
             <div class="space-y-6">
                 <div class="glass-card rounded-2xl p-6 space-y-4">
                     <h3 class="text-sm font-semibold text-white">My Recent Activity</h3>
-                    @if (_stats?.RecentActivities != null && _stats.RecentActivities.Count > 0)
+                    @if (_stats?.PersonalRecentActivities != null && _stats.PersonalRecentActivities.Count > 0)
                     {
                         <div class="space-y-3">
-                            @foreach (var act in _stats.RecentActivities)
+                            @foreach (var act in _stats.PersonalRecentActivities)
                             {
                                 var personalActUrl = act.Category switch
                                 {
@@ -743,6 +750,8 @@
         public int? ActiveOutsideStaffCount { get; set; }
         public Guid? PrimaryBoardId { get; set; }
         public string DatabaseEngine { get; set; } = "PostgreSQL 18";
+        public List<DashboardActivityItemDto> PersonalRecentActivities { get; set; } = new();
+        public List<DashboardActivityItemDto> WorkspaceRecentActivities { get; set; } = new();
         public List<DashboardActivityItemDto> RecentActivities { get; set; } = new();
     }
 

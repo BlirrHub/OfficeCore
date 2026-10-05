@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced & Fixed — [2026-10-05] (Workspace Recent Activity Replacement & Personal Status Activity Isolation)
+
+- **Isolation of Personal Activity for Admins/Owners (`DashboardController.cs`, `Dashboard.razor`):**
+  - Updated `DashboardController.GetStats` to strictly isolate `PersonalRecentActivities` to the authenticated caller's employee profile (`employee.Id`), querying their own attendance punches, leave requests, and advance/loan requests.
+  - Resolved an issue where Workspace Owners and Admins viewing "My Personal Status" (ESS tab) saw organization-wide activities from other employees under "My Recent Activity".
+  - "My Recent Activity" in the Personal tab now consistently displays only the user's direct actions (e.g., "You clocked IN", "You requested Leave", "You requested Cash Advance").
+
+- **Dedicated "Workspace Recent Activity" Card in Team Operations (`DashboardController.cs`, `Dashboard.razor`):**
+  - Removed the static "Workspace Engine" card from the right column of the "Team Operations" management tab.
+  - Replaced it with a real-time "Workspace Recent Activity" card that aggregates company-wide events (staff clock-ins/outs, leave requests, cash advance/loan requests) with role-colored badges, category icons, timestamps, and direct navigation links.
+  - Cleaned up the "Task & Sprint Velocity" card on the left by removing the awkwardly nested activity feed and adding dedicated summary stat boxes for To Do, In Progress, and Completed task counts.
+
 ### Enhanced — [2026-10-05] (Custom Date Support in Ledger Create Advance / E-Loan)
 
 - **Date Field for Admin Advance / E-Loan Creation (`Ledger.razor`, `AdvanceRequestController.cs`):**

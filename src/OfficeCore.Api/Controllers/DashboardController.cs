@@ -45,6 +45,8 @@ public class DashboardStatsDto
     public decimal? PersonalActiveAdvanceAmount { get; set; }
     public string? PersonalActiveAdvanceStatus { get; set; }
 
+    public List<DashboardActivityItemDto> PersonalRecentActivities { get; set; } = new();
+
     // Management MSS metrics (only populated for managers/admins)
     public int? TotalEmployees { get; set; }
     public int? PresentTodayCount { get; set; }
@@ -57,6 +59,7 @@ public class DashboardStatsDto
     public int? ActiveOutsideStaffCount { get; set; }
     public Guid? PrimaryBoardId { get; set; }
     public string DatabaseEngine { get; set; } = "PostgreSQL 18";
+    public List<DashboardActivityItemDto> WorkspaceRecentActivities { get; set; } = new();
     public List<DashboardActivityItemDto> RecentActivities { get; set; } = new();
 }
 
@@ -219,6 +222,77 @@ public class DashboardController : ControllerBase
                 dto.PersonalActiveAdvanceAmount = latestAdvance.RequestedAmount;
                 dto.PersonalActiveAdvanceStatus = latestAdvance.Status.ToString();
             }
+
+            // Personal recent activity (strictly for this user/employee)
+            var personalActivities = new List<DashboardActivityItemDto>();
+
+            var myAtt = await _context.AttendanceRecords
+                .Where(a => a.OrganizationId == orgId && a.EmployeeId == employee.Id)
+                .OrderByDescending(a => a.Timestamp)
+                .Take(5)
+                .ToListAsync();
+
+            foreach (var a in myAtt)
+            {
+                personalActivities.Add(new DashboardActivityItemDto
+                {
+                    Id = a.Id.ToString(),
+                    Title = $"You clocked {(a.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
+                    Description = $"At {a.Timestamp.ToLocalTime():h:mm tt} via {a.Source}",
+                    Category = "Attendance",
+                    Icon = "attendance",
+                    BadgeColor = a.Type == AttendanceType.ClockIn ? "emerald" : "zinc",
+                    Timestamp = a.Timestamp.UtcDateTime
+                });
+            }
+
+            var myLeaves = await _context.LeaveRequests
+                .Where(l => l.OrganizationId == orgId && l.EmployeeId == employee.Id)
+                .OrderByDescending(l => l.CreatedAt)
+                .Take(5)
+                .ToListAsync();
+
+            foreach (var l in myLeaves)
+            {
+                personalActivities.Add(new DashboardActivityItemDto
+                {
+                    Id = l.Id.ToString(),
+                    Title = $"You requested {l.Type} Leave",
+                    Description = $"{l.StartDate:MMM dd} - {l.EndDate:MMM dd} • Status: {l.Status}",
+                    Category = "Leave",
+                    Icon = "leave",
+                    BadgeColor = l.Status == LeaveRequestStatus.Approved ? "emerald" : l.Status == LeaveRequestStatus.Rejected ? "red" : "amber",
+                    Timestamp = l.CreatedAt
+                });
+            }
+
+            var myAdvances = await _context.AdvanceRequests
+                .Where(a => a.OrganizationId == orgId && a.EmployeeId == employee.Id)
+                .OrderByDescending(a => a.RequestDate)
+                .Take(5)
+                .ToListAsync();
+
+            foreach (var adv in myAdvances)
+            {
+                var typeLabel = adv.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+                personalActivities.Add(new DashboardActivityItemDto
+                {
+                    Id = adv.Id.ToString(),
+                    Title = $"You requested {typeLabel} (₱{adv.RequestedAmount:N2})",
+                    Description = $"Status: {adv.Status}" + (!string.IsNullOrWhiteSpace(adv.Note) ? $" • {adv.Note}" : ""),
+                    Category = "Advance",
+                    Icon = "advance",
+                    BadgeColor = adv.Status == AdvanceStatus.Approved ? "emerald" : adv.Status == AdvanceStatus.Rejected ? "red" : "amber",
+                    Timestamp = adv.RequestDate.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(adv.RequestDate, DateTimeKind.Utc) : adv.RequestDate.ToUniversalTime()
+                });
+            }
+
+            dto.PersonalRecentActivities = personalActivities
+                .OrderByDescending(a => a.Timestamp)
+                .Take(6)
+                .ToList();
+
+            dto.RecentActivities = dto.PersonalRecentActivities;
         }
 
         // ── 2. Calculate Workspace Management Data (if user is manager/admin) ──
@@ -267,15 +341,15 @@ public class DashboardController : ControllerBase
                 .Distinct()
                 .CountAsync();
 
-            // Recent activity feed
-            var activities = new List<DashboardActivityItemDto>();
+            // Workspace activity feed (org-wide)
+            var workspaceActivities = new List<DashboardActivityItemDto>();
 
             var recentAttendance = await _context.AttendanceRecords
                 .Include(a => a.Employee)
                     .ThenInclude(e => e!.User)
                 .Where(a => a.OrganizationId == orgId)
                 .OrderByDescending(a => a.Timestamp)
-                .Take(4)
+                .Take(6)
                 .ToListAsync();
 
             foreach (var att in recentAttendance)
@@ -283,7 +357,7 @@ public class DashboardController : ControllerBase
                 var name = att.Employee?.User != null 
                     ? $"{att.Employee.User.FirstName} {att.Employee.User.LastName}".Trim() 
                     : "Employee";
-                activities.Add(new DashboardActivityItemDto
+                workspaceActivities.Add(new DashboardActivityItemDto
                 {
                     Id = att.Id.ToString(),
                     Title = $"{name} clocked {(att.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
@@ -300,7 +374,7 @@ public class DashboardController : ControllerBase
                     .ThenInclude(e => e!.User)
                 .Where(l => l.OrganizationId == orgId)
                 .OrderByDescending(l => l.CreatedAt)
-                .Take(3)
+                .Take(5)
                 .ToListAsync();
 
             foreach (var l in recentLeaves)
@@ -308,7 +382,7 @@ public class DashboardController : ControllerBase
                 var name = l.Employee?.User != null 
                     ? $"{l.Employee.User.FirstName} {l.Employee.User.LastName}".Trim() 
                     : "Employee";
-                activities.Add(new DashboardActivityItemDto
+                workspaceActivities.Add(new DashboardActivityItemDto
                 {
                     Id = l.Id.ToString(),
                     Title = $"{name} requested {l.Type} Leave",
@@ -320,40 +394,36 @@ public class DashboardController : ControllerBase
                 });
             }
 
-            dto.RecentActivities = activities
-                .OrderByDescending(a => a.Timestamp)
-                .Take(6)
-                .ToList();
-        }
-        else
-        {
-            // For standard employees, show their personal activity
-            var myActivities = new List<DashboardActivityItemDto>();
+            var recentAdvances = await _context.AdvanceRequests
+                .Include(a => a.Employee)
+                    .ThenInclude(e => e!.User)
+                .Where(a => a.OrganizationId == orgId)
+                .OrderByDescending(a => a.RequestDate)
+                .Take(5)
+                .ToListAsync();
 
-            if (employee != null)
+            foreach (var adv in recentAdvances)
             {
-                var myAtt = await _context.AttendanceRecords
-                    .Where(a => a.OrganizationId == orgId && a.EmployeeId == employee.Id)
-                    .OrderByDescending(a => a.Timestamp)
-                    .Take(3)
-                    .ToListAsync();
-
-                foreach (var a in myAtt)
+                var name = adv.Employee?.User != null
+                    ? $"{adv.Employee.User.FirstName} {adv.Employee.User.LastName}".Trim()
+                    : "Employee";
+                var typeLabel = adv.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+                workspaceActivities.Add(new DashboardActivityItemDto
                 {
-                    myActivities.Add(new DashboardActivityItemDto
-                    {
-                        Id = a.Id.ToString(),
-                        Title = $"You clocked {(a.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
-                        Description = $"At {a.Timestamp.ToLocalTime():h:mm tt} via {a.Source}",
-                        Category = "Attendance",
-                        Icon = "attendance",
-                        BadgeColor = a.Type == AttendanceType.ClockIn ? "emerald" : "zinc",
-                        Timestamp = a.Timestamp.UtcDateTime
-                    });
-                }
+                    Id = adv.Id.ToString(),
+                    Title = $"{name} requested {typeLabel} (₱{adv.RequestedAmount:N2})",
+                    Description = $"Status: {adv.Status}" + (!string.IsNullOrWhiteSpace(adv.Note) ? $" • {adv.Note}" : ""),
+                    Category = "Advance",
+                    Icon = "advance",
+                    BadgeColor = adv.Status == AdvanceStatus.Approved ? "emerald" : adv.Status == AdvanceStatus.Rejected ? "red" : "amber",
+                    Timestamp = adv.RequestDate.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(adv.RequestDate, DateTimeKind.Utc) : adv.RequestDate.ToUniversalTime()
+                });
             }
 
-            dto.RecentActivities = myActivities;
+            dto.WorkspaceRecentActivities = workspaceActivities
+                .OrderByDescending(a => a.Timestamp)
+                .Take(8)
+                .ToList();
         }
 
         return Ok(dto);
