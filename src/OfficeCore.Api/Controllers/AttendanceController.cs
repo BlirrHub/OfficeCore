@@ -217,6 +217,11 @@ public class AttendanceController : ControllerBase
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
 
+        if (type == AttendanceType.ClockOut)
+        {
+            await CheckAndTriggerPostOvertimeAsync(employee.Id, orgId.Value, record.Timestamp);
+        }
+
         await BroadcastAttendanceUpdated(orgId.Value);
 
         var actionText = type == AttendanceType.ClockIn ? "Clocked In" : "Clocked Out";
@@ -226,6 +231,86 @@ public class AttendanceController : ControllerBase
             type = type.ToString(),
             timestamp = record.Timestamp
         });
+    }
+
+    private async Task CheckAndTriggerPostOvertimeAsync(string employeeId, Guid orgId, DateTimeOffset punchTimestamp)
+    {
+        try
+        {
+            var empWithSched = await _context.Employees
+                .Include(e => e.WorkSchedule)
+                    .ThenInclude(ws => ws!.Days)
+                .FirstOrDefaultAsync(e => e.Id == employeeId && e.OrganizationId == orgId);
+
+            if (empWithSched?.WorkSchedule?.Days == null) return;
+
+            var localTime = punchTimestamp.ToLocalTime();
+            var schedDay = empWithSched.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == localTime.DayOfWeek);
+
+            if (schedDay == null || schedDay.IsRestDay || !schedDay.EndTime.HasValue) return;
+
+            var punchTimeOfDay = localTime.TimeOfDay;
+            var scheduledEnd = schedDay.EndTime.Value;
+
+            if (punchTimeOfDay > scheduledEnd)
+            {
+                var excessMinutes = (punchTimeOfDay - scheduledEnd).TotalMinutes;
+                if (excessMinutes >= 15)
+                {
+                    var shiftDateUtc = DateTime.SpecifyKind(localTime.Date, DateTimeKind.Utc);
+
+                    // Check if an approved Pre-OT already exists for this date
+                    var existingApprovedPreOt = await _context.OvertimeRequests
+                        .FirstOrDefaultAsync(o => o.OrganizationId == orgId
+                            && o.EmployeeId == employeeId
+                            && o.Date == shiftDateUtc
+                            && o.Type == OvertimeType.PreOvertime
+                            && o.Status == OvertimeStatus.Approved);
+
+                    if (existingApprovedPreOt == null)
+                    {
+                        // Check if a pending Post-OT already exists for this shift date
+                        var existingPostOt = await _context.OvertimeRequests
+                            .FirstOrDefaultAsync(o => o.OrganizationId == orgId
+                                && o.EmployeeId == employeeId
+                                && o.Date == shiftDateUtc
+                                && o.Type == OvertimeType.PostOvertime
+                                && o.Status == OvertimeStatus.Pending);
+
+                        var requestedHours = Math.Round((punchTimeOfDay - scheduledEnd).TotalHours, 2);
+
+                        if (existingPostOt != null)
+                        {
+                            existingPostOt.EndTime = punchTimeOfDay;
+                            existingPostOt.RequestedHours = requestedHours;
+                        }
+                        else
+                        {
+                            var postOt = new OvertimeRequest
+                            {
+                                Id = Guid.NewGuid(),
+                                EmployeeId = employeeId,
+                                OrganizationId = orgId,
+                                Date = shiftDateUtc,
+                                Type = OvertimeType.PostOvertime,
+                                StartTime = scheduledEnd,
+                                EndTime = punchTimeOfDay,
+                                RequestedHours = requestedHours,
+                                Reason = $"Auto-detected post-shift attendance punch ({localTime:hh:mm tt} vs scheduled {DateTime.Today.Add(scheduledEnd):hh:mm tt})",
+                                Status = OvertimeStatus.Pending,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            _context.OvertimeRequests.Add(postOt);
+                        }
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Do not fail punch operation if overtime auto-detection encounters an error
+        }
     }
 
     // =========================================================================
@@ -375,6 +460,11 @@ public class AttendanceController : ControllerBase
 
         _context.AttendanceRecords.Add(record);
         await _context.SaveChangesAsync();
+
+        if (dto.Type == AttendanceType.ClockOut)
+        {
+            await CheckAndTriggerPostOvertimeAsync(dto.EmployeeId, orgId.Value, record.Timestamp);
+        }
 
         await BroadcastAttendanceUpdated(orgId.Value);
 

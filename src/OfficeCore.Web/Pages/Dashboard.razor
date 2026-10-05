@@ -152,11 +152,13 @@
             }
 
             <!-- Metric 3: Pending Approvals -->
-            @if (_stats.Permissions.CanManageLeaves || _stats.Permissions.CanManageAdvances)
+            @if (_stats.Permissions.CanManageLeaves || _stats.Permissions.CanManageAdvances || _stats.Permissions.CanManageOvertime)
             {
-                var targetApprovalUrl = (_stats.PendingAdvancesCount ?? 0) > 0 && (_stats.PendingLeavesCount ?? 0) == 0 && _stats.Permissions.CanManageAdvances
-                    ? "/ledger"
-                    : (_stats.Permissions.CanManageLeaves ? "/admin/leave-approvals" : "/ledger");
+                var targetApprovalUrl = (_stats.PendingOvertimeCount ?? 0) > 0 && (_stats.PendingLeavesCount ?? 0) == 0 && _stats.Permissions.CanManageOvertime
+                    ? "/admin/overtime-approvals"
+                    : ((_stats.PendingAdvancesCount ?? 0) > 0 && (_stats.PendingLeavesCount ?? 0) == 0 && _stats.Permissions.CanManageAdvances
+                        ? "/ledger"
+                        : (_stats.Permissions.CanManageLeaves ? "/admin/leave-approvals" : (_stats.Permissions.CanManageOvertime ? "/admin/overtime-approvals" : "/ledger")));
                 <div class="glass-card-interactive rounded-2xl p-5 block group relative">
                     <a href="@targetApprovalUrl" class="absolute inset-0 z-0" title="Open Approvals"></a>
                     <div class="relative z-10 pointer-events-none">
@@ -169,10 +171,10 @@
                             </div>
                         </div>
                         <div class="mt-4 flex items-baseline gap-2">
-                            <span class="text-3xl font-bold tracking-tight text-white">@((_stats.PendingLeavesCount ?? 0) + (_stats.PendingAdvancesCount ?? 0))</span>
+                            <span class="text-3xl font-bold tracking-tight text-white">@((_stats.PendingLeavesCount ?? 0) + (_stats.PendingAdvancesCount ?? 0) + (_stats.PendingOvertimeCount ?? 0))</span>
                             <span class="text-xs font-medium text-amber-400">Action Required</span>
                         </div>
-                        <div class="mt-2 flex items-center gap-2 text-xs pointer-events-auto">
+                        <div class="mt-2 flex items-center gap-2 text-xs pointer-events-auto flex-wrap">
                             @if (_stats.Permissions.CanManageLeaves)
                             {
                                 <a href="/admin/leave-approvals" class="hover:underline text-fuchsia-400 font-medium">@(_stats.PendingLeavesCount ?? 0) Leaves</a>
@@ -180,6 +182,15 @@
                             else
                             {
                                 <span class="text-zinc-500">@(_stats.PendingLeavesCount ?? 0) Leaves</span>
+                            }
+                            <span class="text-zinc-600">•</span>
+                            @if (_stats.Permissions.CanManageOvertime)
+                            {
+                                <a href="/admin/overtime-approvals" class="hover:underline text-cyan-400 font-medium">@(_stats.PendingOvertimeCount ?? 0) Overtime</a>
+                            }
+                            else
+                            {
+                                <span class="text-zinc-500">@(_stats.PendingOvertimeCount ?? 0) Overtime</span>
                             }
                             <span class="text-zinc-600">•</span>
                             @if (_stats.Permissions.CanManageAdvances)
@@ -708,6 +719,7 @@
         public bool CanManageUsers { get; set; }
         public bool CanManageAdvances { get; set; }
         public bool CanManagePayroll { get; set; }
+        public bool CanManageOvertime { get; set; }
         public bool CanViewBoards { get; set; }
         public bool CanViewLocations { get; set; }
         public bool CanViewClients { get; set; }
@@ -734,6 +746,7 @@
         public double PersonalHoursWorkedToday { get; set; }
         public int PersonalPendingLeavesCount { get; set; }
         public int PersonalApprovedLeavesCount { get; set; }
+        public int PersonalPendingOvertimeCount { get; set; }
         public int PersonalAssignedTasksCount { get; set; }
         public List<PersonalTaskItemDto> PersonalTasks { get; set; } = new();
         public decimal? PersonalActiveAdvanceAmount { get; set; }
@@ -744,6 +757,7 @@
         public double? AttendanceRatePercent { get; set; }
         public int? PendingLeavesCount { get; set; }
         public int? PendingAdvancesCount { get; set; }
+        public int? PendingOvertimeCount { get; set; }
         public int? TotalTasksCount { get; set; }
         public int? CompletedTasksCount { get; set; }
         public int? InProgressTasksCount { get; set; }

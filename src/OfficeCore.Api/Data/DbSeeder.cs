@@ -172,7 +172,7 @@ public static class DbSeeder
             "Dashboard", "Clients", "Attendance", "Boards",
             "Payroll", "Invoices", "Ledger",
             "WorkSchedules", "TimeOff", "Locations",
-            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals",
+            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals", "OvertimeApprovals",
             "AuditLogs"
         };
 
@@ -213,8 +213,8 @@ public static class DbSeeder
                 }
             }
 
-            // HR Manager claims: People, Attendance, TimeOff, Leaves, Advances
-            if (module is "Dashboard" or "Boards" or "Attendance" or "WorkSchedules" or "TimeOff" or "Users" or "MyLeaves" or "LeaveApprovals" or "Advances")
+            // HR Manager claims: People, Attendance, TimeOff, Leaves, Overtime, Advances
+            if (module is "Dashboard" or "Boards" or "Attendance" or "WorkSchedules" or "TimeOff" or "Users" or "MyLeaves" or "LeaveApprovals" or "OvertimeApprovals" or "Advances")
             {
                 if (!hrOrgRole.Claims.Any(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == module))
                 {
@@ -244,7 +244,7 @@ public static class DbSeeder
             }
         }
 
-        // Ensure all Admin/Owner roles across all organizations have AuditLogs
+        // Ensure all Admin/Owner roles across all organizations have AuditLogs and OvertimeApprovals
         var allAdminRoles = await context.OrganizationRoles
             .Include(r => r.Claims)
             .Where(r => r.Name == "Admin" || r.Name == "Owner")
@@ -252,7 +252,7 @@ public static class DbSeeder
 
         foreach (var adminRole in allAdminRoles)
         {
-            foreach (var mod in new[] { "AuditLogs" })
+            foreach (var mod in new[] { "AuditLogs", "OvertimeApprovals" })
             {
                 if (!adminRole.Claims.Any(c => c.ClaimType == "ModuleAccess" && c.ClaimValue == mod))
                 {

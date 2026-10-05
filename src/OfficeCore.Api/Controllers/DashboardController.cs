@@ -13,6 +13,7 @@ public class DashboardPermissionsDto
     public bool CanManageUsers { get; set; }
     public bool CanManageAdvances { get; set; }
     public bool CanManagePayroll { get; set; }
+    public bool CanManageOvertime { get; set; }
     public bool CanViewBoards { get; set; }
     public bool CanViewLocations { get; set; }
     public bool CanViewClients { get; set; }
@@ -40,6 +41,7 @@ public class DashboardStatsDto
     public double PersonalHoursWorkedToday { get; set; }
     public int PersonalPendingLeavesCount { get; set; }
     public int PersonalApprovedLeavesCount { get; set; }
+    public int PersonalPendingOvertimeCount { get; set; }
     public int PersonalAssignedTasksCount { get; set; }
     public List<PersonalTaskItemDto> PersonalTasks { get; set; } = new();
     public decimal? PersonalActiveAdvanceAmount { get; set; }
@@ -53,6 +55,7 @@ public class DashboardStatsDto
     public double? AttendanceRatePercent { get; set; }
     public int? PendingLeavesCount { get; set; }
     public int? PendingAdvancesCount { get; set; }
+    public int? PendingOvertimeCount { get; set; }
     public int? TotalTasksCount { get; set; }
     public int? CompletedTasksCount { get; set; }
     public int? InProgressTasksCount { get; set; }
@@ -110,6 +113,7 @@ public class DashboardController : ControllerBase
         var perms = new DashboardPermissionsDto
         {
             CanManageLeaves = User.HasClaim("ModuleAccess", "LeaveApprovals"),
+            CanManageOvertime = User.HasClaim("ModuleAccess", "OvertimeApprovals"),
             CanManageAttendance = User.HasClaim("ModuleAccess", "Attendance"),
             CanManageUsers = User.HasClaim("ModuleAccess", "Users"),
             CanManageAdvances = User.HasClaim("ModuleAccess", "Ledger"),
@@ -121,7 +125,7 @@ public class DashboardController : ControllerBase
         };
 
         // Determine if user has any managerial/admin capabilities
-        bool isManager = perms.CanManageLeaves || perms.CanManageAttendance || perms.CanManageUsers || 
+        bool isManager = perms.CanManageLeaves || perms.CanManageOvertime || perms.CanManageAttendance || perms.CanManageUsers || 
                          perms.CanManageAdvances || perms.CanManagePayroll;
 
         var dto = new DashboardStatsDto
@@ -188,6 +192,9 @@ public class DashboardController : ControllerBase
 
             dto.PersonalApprovedLeavesCount = await _context.LeaveRequests
                 .CountAsync(l => l.OrganizationId == orgId && l.EmployeeId == employee.Id && l.Status == LeaveRequestStatus.Approved && l.StartDate.Year == DateTime.UtcNow.Year);
+
+            dto.PersonalPendingOvertimeCount = await _context.OvertimeRequests
+                .CountAsync(o => o.OrganizationId == orgId && o.EmployeeId == employee.Id && o.Status == OvertimeStatus.Pending);
 
             // Personal tasks assigned to this employee
             var myCards = await _context.BoardCards
@@ -319,6 +326,9 @@ public class DashboardController : ControllerBase
 
             dto.PendingAdvancesCount = await _context.AdvanceRequests
                 .CountAsync(a => a.OrganizationId == orgId && a.Status == AdvanceStatus.Pending);
+
+            dto.PendingOvertimeCount = await _context.OvertimeRequests
+                .CountAsync(o => o.OrganizationId == orgId && o.Status == OvertimeStatus.Pending);
 
             // Board tasks
             var allCards = await _context.BoardCards
