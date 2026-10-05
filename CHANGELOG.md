@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Enhanced — [2026-10-05] (Custom Date Support in Ledger Create Advance / E-Loan)
+
+- **Date Field for Admin Advance / E-Loan Creation (`Ledger.razor`, `AdvanceRequestController.cs`):**
+  - Added a dedicated Date input field (`<InputDate @bind-Value="_newAdvance.RequestDate" />`) inside the "Create Advance or Loan" modal on the Ledger page, defaulting to the current date (`DateTime.Today`).
+  - Extended `AdminCreateAdvanceRequestDto` with `public DateTime? RequestDate { get; set; }` in both `Ledger.razor` and `AdvanceRequestController.cs`.
+  - Updated `AdminCreateRequest` endpoint in `AdvanceRequestController.cs` to respect the specified `RequestDate` (handling UTC conversion safely for PostgreSQL/Npgsql) instead of hardcoding `DateTime.UtcNow`.
+  - Updated the Ledger table to display the customized request date for historical and record-keeping accuracy.
+
 ### Enhanced & Fixed — [2026-10-05] (Chat Pin & Reaction Emotes Real-Time Sync & Toast Cleanup)
 
 - **Persistent & Real-Time Synchronized Chat Message Pins (`ChatMessage.cs`, `AppDbContext.cs`, `ChatController.cs`, `GlobalChatWidget.razor`):**

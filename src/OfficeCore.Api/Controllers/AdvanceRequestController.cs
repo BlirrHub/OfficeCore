@@ -282,6 +282,12 @@ public class AdvanceRequestController : ControllerBase
 
         if (employee == null) return BadRequest("Employee not found");
 
+        var requestDate = dto.RequestDate.HasValue
+            ? (dto.RequestDate.Value.Kind == DateTimeKind.Utc 
+                ? dto.RequestDate.Value 
+                : DateTime.SpecifyKind(dto.RequestDate.Value, DateTimeKind.Utc))
+            : DateTime.UtcNow;
+
         var request = new AdvanceRequest
         {
             Id = Guid.NewGuid(),
@@ -290,8 +296,8 @@ public class AdvanceRequestController : ControllerBase
             RequestedAmount = dto.RequestedAmount,
             Note = dto.Note ?? string.Empty,
             Status = AdvanceStatus.Approved,
-            RequestDate = DateTime.UtcNow,
-            ResolutionDate = DateTime.UtcNow,
+            RequestDate = requestDate,
+            ResolutionDate = requestDate,
             OrganizationId = orgId.Value
         };
         
@@ -373,5 +379,6 @@ public class AdvanceRequestController : ControllerBase
         public decimal RequestedAmount { get; set; }
         public decimal? InstallmentAmount { get; set; }
         public string? Note { get; set; }
+        public DateTime? RequestDate { get; set; }
     }
 }
