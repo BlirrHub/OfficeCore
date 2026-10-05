@@ -175,7 +175,7 @@ public class AuthController : ControllerBase
             return Unauthorized();
 
         // Gather role claims (module access) and find TitleRoles from Organization roles
-        var moduleClaims = new List<string> { "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards" };
+        var moduleClaims = new List<string> { "Dashboard", "MyAttendance", "MyOvertime", "MyLeaves", "Advances", "Boards" };
         var titleRoles = new List<string>();
         var roles = new List<string>();
         bool isOwner = false;
@@ -191,9 +191,9 @@ public class AuthController : ControllerBase
             {
                 moduleClaims = new List<string>
                 {
-                    "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards",
+                    "Dashboard", "MyAttendance", "MyOvertime", "MyLeaves", "Advances", "Boards",
                     "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
-                    "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff",
+                    "Users", "Roles", "LeaveApprovals", "OvertimeApprovals", "WorkSchedules", "TimeOff",
                     "Locations", "Organization", "AuditLogs"
                 };
             }

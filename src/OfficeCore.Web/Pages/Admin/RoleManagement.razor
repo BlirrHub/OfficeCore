@@ -70,7 +70,7 @@
                             <div class="flex flex-wrap gap-1.5">
                                 @foreach (var m in modules)
                                 {
-                                    <AppBadge Variant="primary">@m</AppBadge>
+                                    <AppBadge Variant="primary">@FormatModuleName(m)</AppBadge>
                                 }
                             </div>
                         }
@@ -129,7 +129,7 @@
                                             @onclick="() => ToggleModule(module)"
                                             class="@($"flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-left transition-all {(sel ? "bg-fuchsia-600/20 text-fuchsia-300 ring-1 ring-fuchsia-500/40" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800")}")">
                                         <span class="@($"size-2 rounded-full shrink-0 {(sel ? "bg-fuchsia-400" : "bg-zinc-600")}")"></span>
-                                        @module
+                                        @FormatModuleName(module)
                                     </button>
                                 }
                             </div>
@@ -178,7 +178,20 @@
     private static readonly Dictionary<string, string[]> ModuleCategories = new()
     {
         { "Finance", ["Ledger", "Payroll", "Invoices"] },
-        { "Administration", ["Clients", "Attendance", "Users", "Roles", "LeaveApprovals", "WorkSchedules", "TimeOff", "Locations", "AuditLogs"] }
+        { "Administration", ["Clients", "Attendance", "Users", "Roles", "LeaveApprovals", "OvertimeApprovals", "WorkSchedules", "TimeOff", "Locations", "AuditLogs"] }
+    };
+
+    private static string FormatModuleName(string name) => name switch
+    {
+        "LeaveApprovals" => "Leave Approvals",
+        "OvertimeApprovals" => "Overtime Approvals",
+        "WorkSchedules" => "Work Schedules",
+        "TimeOff" => "Time Off",
+        "AuditLogs" => "Audit Trail",
+        "MyAttendance" => "My Attendance",
+        "MyLeaves" => "My Leaves",
+        "MyOvertime" => "My Overtime",
+        _ => name
     };
 
     private List<RoleDto>? _roles;

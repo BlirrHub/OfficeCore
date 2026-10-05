@@ -109,7 +109,7 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
 builder.Services.AddAuthorization(options =>
 {
     var modules = new[] { 
-        "Dashboard", "MyAttendance", "Clients", "Attendance", "Boards", "MyLeaves",
+        "Dashboard", "MyAttendance", "MyOvertime", "Clients", "Attendance", "Boards", "MyLeaves",
         "Advances", "Ledger", "Payroll", "Invoices",
         "Users", "Roles", "LeaveApprovals", "OvertimeApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization",
         "AuditLogs"
