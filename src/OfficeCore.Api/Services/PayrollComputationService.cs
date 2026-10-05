@@ -94,8 +94,16 @@ public class PayrollComputationService : IPayrollComputationService
             double totalNetHours = 0;
             double totalOvertimeHours = 0;
             int daysWithAttendance = 0;
+            decimal basicPay = 0;
 
-            if (emp.WorkSchedule?.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate)
+            if (emp.WorkSchedule == null)
+            {
+                // No schedule: Fixed rate employee for the cutoff period (e.g. Adrian 3775, Blaire 1000, Lina 2500)
+                basicPay = trackedDailyRate;
+                daysWithAttendance = empAttendance.Select(a => a.Timestamp.ToLocalTime().Date).Distinct().Count();
+                totalNetHours = daysWithAttendance > 0 ? daysWithAttendance * 8 : 40;
+            }
+            else if (emp.WorkSchedule.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate)
             {
                 for (var date = periodStartDt; date <= periodEndDt; date = date.AddDays(1))
                 {
@@ -110,6 +118,7 @@ public class PayrollComputationService : IPayrollComputationService
                         totalNetHours += 8; // Calculate standard 8 hours to yield full daily rate
                     }
                 }
+                basicPay = (decimal)totalNetHours * hourlyRate;
             }
             else
             {
@@ -225,7 +234,10 @@ public class PayrollComputationService : IPayrollComputationService
             decimal otMultiplier = (decimal)(emp.WorkSchedule?.OvertimeRules?.FirstOrDefault()?.Multiplier ?? 1.25);
             decimal totalOvertimePay = Math.Round((decimal)totalOvertimeHours * hourlyRate * otMultiplier, 2);
 
-            var basicPay = (decimal)totalNetHours * hourlyRate;
+            if (emp.WorkSchedule != null && !(emp.WorkSchedule.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate))
+            {
+                basicPay = (decimal)totalNetHours * hourlyRate;
+            }
 
             // 2. Calculate Leave Pay using default/minimum rate
             var leaveDailyRate = defaultRate;
@@ -270,9 +282,12 @@ public class PayrollComputationService : IPayrollComputationService
 
             if (emp.GovernmentRecord != null && emp.GovernmentRecord.IsEligibleForDeductions)
             {
-                sss = Math.Round(monthlySss * proportionMultiplier, 2);
-                philhealth = Math.Round(monthlyPhilHealth * proportionMultiplier, 2);
-                pagibig = Math.Round(monthlyPagIbig * proportionMultiplier, 2);
+                if (!string.IsNullOrWhiteSpace(emp.GovernmentRecord.SssNumber))
+                    sss = Math.Round(monthlySss * proportionMultiplier, 2);
+                if (!string.IsNullOrWhiteSpace(emp.GovernmentRecord.PhilHealthNumber))
+                    philhealth = Math.Round(monthlyPhilHealth * proportionMultiplier, 2);
+                if (!string.IsNullOrWhiteSpace(emp.GovernmentRecord.PagIbigNumber))
+                    pagibig = Math.Round(monthlyPagIbig * proportionMultiplier, 2);
             }
             
             var activeAdvances = allActiveAdvances.Where(ar => ar.EmployeeId == emp.Id).ToList();
