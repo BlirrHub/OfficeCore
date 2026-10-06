@@ -8,6 +8,11 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed & Security Hardening — [2026-10-06] (Core Stabilization, Multi-Tenancy Scoping, LAN-Safe CORS & Branch Separation)
 
+- **Dedicated Database for `acba-dev` & Desktop Server Auto-Detection (`officecoreacbadevdb`):**
+  - Provisioned a dedicated PostgreSQL database `officecoreacbadevdb` specifically for the `acba-dev` branch with complete EF Core migrations and simulated seed employees.
+  - Updated `ServerConfigService.cs` in `OfficeCore.Desktop.Server` with branch auto-detection so that launching the Desktop Server Station on `acba-dev` automatically targets `officecoreacbadevdb`, matching the behavior of `development` (`officecoredevdb`) and production (`OfficeCoreDb`).
+  - Updated `appsettings.json` and `appsettings.Development.json` on `acba-dev` to point to `officecoreacbadevdb`.
+
 - **Branch Separation & Test Seed Data Removal (`acba` vs `acba-dev`):**
   - Created new branch `acba-dev` dedicated to development and feature testing, keeping the demo organization and the 13 simulated employees safely seeded without truncating on reboot.
   - Purged all demo/test seed data from the primary `acba` branch (`DbSeeder.cs`), ensuring new deployments start with a clean migration baseline and default Identity roles rather than hardcoded mock accounts.

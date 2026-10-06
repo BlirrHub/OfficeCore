@@ -13,7 +13,7 @@ public class ServerConfig
     public string DbPassword { get; set; } = "password";
     public bool AutoStartServer { get; set; } = false;
 
-    private static string GetDefaultDbName()
+    public static string GetDefaultDbName()
     {
 #if DEBUG
         try
@@ -24,8 +24,11 @@ public class ServerConfig
                 var headFile = Path.Combine(dir, ".git", "HEAD");
                 if (File.Exists(headFile))
                 {
-                    if (File.ReadAllText(headFile).Contains("refs/heads/development"))
+                    var head = File.ReadAllText(headFile);
+                    if (head.Contains("refs/heads/development"))
                         return "officecoredevdb";
+                    if (head.Contains("refs/heads/acba-dev"))
+                        return "officecoreacbadevdb";
                     break;
                 }
                 dir = Directory.GetParent(dir)?.FullName;
@@ -77,6 +80,13 @@ public static class ServerConfigService
                 var config = JsonSerializer.Deserialize<ServerConfig>(json);
                 if (config != null)
                 {
+#if DEBUG
+                    var defaultDb = ServerConfig.GetDefaultDbName();
+                    if (config.DbName is "OfficeCoreDb" or "officecoredevdb" or "officecoreacbadevdb" || string.IsNullOrWhiteSpace(config.DbName))
+                    {
+                        config.DbName = defaultDb;
+                    }
+#endif
                     _current = config;
                     return config;
                 }
