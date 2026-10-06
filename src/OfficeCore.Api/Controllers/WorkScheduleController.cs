@@ -74,7 +74,11 @@ public class WorkScheduleController : ControllerBase
             AutoClockOut = dto.AutoClockOut,
             SplitTimesheetsAt = dto.SplitTimesheetsAt,
             TotalWeeklyHours = dto.TotalWeeklyHours,
-            IsFixedWeeklyRate = dto.IsFixedWeeklyRate
+            IsFixedWeeklyRate = dto.IsFixedWeeklyRate,
+            LateGracePeriodMinutes = dto.LateGracePeriodMinutes,
+            OvertimeThresholdMinutes = dto.OvertimeThresholdMinutes > 0 ? dto.OvertimeThresholdMinutes : 15,
+            AutoNormalizeHalfDay = dto.AutoNormalizeHalfDay,
+            AutoSubmitOvertimeApproval = dto.AutoSubmitOvertimeApproval
         };
         
         if (dto.Days != null)
@@ -182,6 +186,10 @@ public class WorkScheduleController : ControllerBase
         existingSchedule.SplitTimesheetsAt = dto.SplitTimesheetsAt;
         existingSchedule.TotalWeeklyHours = dto.TotalWeeklyHours;
         existingSchedule.IsFixedWeeklyRate = dto.IsFixedWeeklyRate;
+        existingSchedule.LateGracePeriodMinutes = dto.LateGracePeriodMinutes;
+        existingSchedule.OvertimeThresholdMinutes = dto.OvertimeThresholdMinutes > 0 ? dto.OvertimeThresholdMinutes : 15;
+        existingSchedule.AutoNormalizeHalfDay = dto.AutoNormalizeHalfDay;
+        existingSchedule.AutoSubmitOvertimeApproval = dto.AutoSubmitOvertimeApproval;
 
         // Update days
         _context.WorkScheduleDays.RemoveRange(existingSchedule.Days);
@@ -286,6 +294,10 @@ public class WorkScheduleDto
     public TimeSpan SplitTimesheetsAt { get; set; }
     public double? TotalWeeklyHours { get; set; }
     public bool IsFixedWeeklyRate { get; set; }
+    public int LateGracePeriodMinutes { get; set; } = 0;
+    public int OvertimeThresholdMinutes { get; set; } = 15;
+    public bool AutoNormalizeHalfDay { get; set; } = true;
+    public bool AutoSubmitOvertimeApproval { get; set; } = true;
     public List<WorkScheduleDayDto> Days { get; set; } = new();
     public List<WorkScheduleBreakDto> Breaks { get; set; } = new();
     public bool HasOvertimeRules { get; set; }

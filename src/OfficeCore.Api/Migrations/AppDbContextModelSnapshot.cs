@@ -1771,11 +1771,20 @@ namespace OfficeCore.Api.Migrations
                     b.Property<bool>("AutoClockOut")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("AutoNormalizeHalfDay")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AutoSubmitOvertimeApproval")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IncludeTimeTrackedBeforeScheduledStartTime")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsFixedWeeklyRate")
                         .HasColumnType("boolean");
+
+                    b.Property<int>("LateGracePeriodMinutes")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1784,6 +1793,9 @@ namespace OfficeCore.Api.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("OvertimeThresholdMinutes")
+                        .HasColumnType("integer");
 
                     b.Property<TimeSpan>("SplitTimesheetsAt")
                         .HasColumnType("interval");

@@ -29,6 +29,14 @@ public class WorkSchedule : ITenantEntity{
     
     public double? TotalWeeklyHours { get; set; }
     
+    public int LateGracePeriodMinutes { get; set; } = 0;
+    
+    public int OvertimeThresholdMinutes { get; set; } = 15;
+    
+    public bool AutoNormalizeHalfDay { get; set; } = true;
+    
+    public bool AutoSubmitOvertimeApproval { get; set; } = true;
+    
     public ICollection<WorkScheduleDay> Days { get; set; } = new List<WorkScheduleDay>();
     
     public ICollection<WorkScheduleBreak> Breaks { get; set; } = new List<WorkScheduleBreak>();

@@ -157,11 +157,21 @@ public class PayrollComputationService : IPayrollComputationService
                                     effectiveTimeIn = schedDay.StartTime.Value;
                                 }
                             }
-                            // Late in: used as-is
+                            // Afternoon half-day arriving during lunch break (12:00 PM - 1:00 PM): afternoon shift starts at 1:00 PM
+                            else if (timeIn >= new TimeSpan(12, 0, 0) && timeIn <= new TimeSpan(13, 0, 0))
+                            {
+                                effectiveTimeIn = new TimeSpan(13, 0, 0);
+                            }
 
                             // Clock-out handling:
                             var effectiveTimeOut = timeOut;
-                            if (schedDay?.EndTime.HasValue == true)
+
+                            // Morning half-day leaving during lunch break (12:00 PM - 1:00 PM): morning shift ends at 12:00 PM
+                            if (timeOut >= new TimeSpan(12, 0, 0) && timeOut <= new TimeSpan(13, 0, 0))
+                            {
+                                effectiveTimeOut = new TimeSpan(12, 0, 0);
+                            }
+                            else if (schedDay?.EndTime.HasValue == true)
                             {
                                 if (timeOut > schedDay.EndTime.Value)
                                 {
