@@ -15,10 +15,14 @@ namespace OfficeCore.Api.Services;
 public class BiometricPunchDto
 {
     public string Time { get; set; } = string.Empty;
+    public string OriginalTime { get; set; } = string.Empty;
     public DateTimeOffset Timestamp { get; set; }
     public AttendanceType Type { get; set; }
     public bool IsDuplicate { get; set; }
     public bool IsSelected { get; set; } = true;
+    public bool IsNormalized { get; set; }
+    public bool IsOvertime { get; set; }
+    public double OvertimeHours { get; set; }
 }
 
 public class BiometricDayRecordDto
@@ -188,6 +192,8 @@ public class BiometricReportService
             // 3. Fetch Organization Employees for matching
             var orgEmployees = await _context.Employees
                 .Include(e => e.User)
+                .Include(e => e.WorkSchedule)
+                    .ThenInclude(ws => ws!.Days)
                 .Where(e => e.OrganizationId == organizationId && e.IsActive)
                 .ToListAsync();
 
@@ -283,35 +289,125 @@ public class BiometricReportService
                                     .OrderBy(t => TimeSpan.Parse(t))
                                     .ToList();
 
+                                // Retrieve scheduled start and end (defaults: 08:00 to 17:00)
+                                var schedDay = matchedEmp?.WorkSchedule?.Days?.FirstOrDefault(d => d.DayOfWeek == targetDate.DayOfWeek);
+                                var schedStart = schedDay?.StartTime ?? new TimeSpan(8, 0, 0);
+                                var schedEnd = schedDay?.EndTime ?? new TimeSpan(17, 0, 0);
+                                var lunchStart = new TimeSpan(12, 0, 0);
+                                var lunchEnd = new TimeSpan(13, 0, 0);
+
+                                // 1. Identify morning duplicates (e.g. 07:29 and 07:37)
+                                // If multiple punches occur in the morning arrival window (< 11:30) within 45 mins of each other,
+                                // the first is In and subsequent ones are duplicate In scans, NOT an In/Out pair.
+                                var rawPunches = new List<(TimeSpan Time, bool IsDuplicateScan)>();
                                 for (int i = 0; i < sortedTimes.Count; i++)
                                 {
-                                    var timeStr = sortedTimes[i];
-                                    var timeSpan = TimeSpan.Parse(timeStr);
-                                    var punchDateTime = targetDate.Add(timeSpan);
-                                    var punchTimestamp = new DateTimeOffset(punchDateTime, TimeSpan.FromHours(8)); // Philippine UTC+8 standard
+                                    var curr = TimeSpan.Parse(sortedTimes[i]);
+                                    bool isMorningDup = false;
 
-                                    // Pair determination: 1st is ClockIn, 2nd is ClockOut, 3rd is ClockIn, 4th is ClockOut
-                                    var punchType = (i % 2 == 0) ? AttendanceType.ClockIn : AttendanceType.ClockOut;
+                                    if (i > 0 && curr < new TimeSpan(11, 30, 0))
+                                    {
+                                        var prev = TimeSpan.Parse(sortedTimes[i - 1]);
+                                        if ((curr - prev).TotalMinutes <= 45)
+                                        {
+                                            isMorningDup = true;
+                                        }
+                                    }
 
-                                    // Duplicate detection
-                                    var isDup = matchedEmp != null && existingPunches.Any(ep =>
+                                    rawPunches.Add((curr, isMorningDup));
+                                }
+
+                                // 2. Separate active non-duplicate punches
+                                var activeTimes = rawPunches.Where(p => !p.IsDuplicateScan).Select(p => p.Time).ToList();
+
+                                // 3. Build punches with smart In/Out typing and normalization
+                                for (int i = 0; i < rawPunches.Count; i++)
+                                {
+                                    var (originalTimeSpan, isDupScan) = rawPunches[i];
+                                    var origTimeStr = originalTimeSpan.ToString(@"hh\:mm");
+                                    var effectiveTimeSpan = originalTimeSpan;
+                                    bool isNormalized = false;
+                                    bool isOvertime = false;
+                                    double otHours = 0;
+                                    AttendanceType punchType;
+
+                                    if (isDupScan)
+                                    {
+                                        // Duplicate morning scan (e.g. 07:37 after 07:29)
+                                        punchType = AttendanceType.ClockIn;
+                                    }
+                                    else
+                                    {
+                                        int activeIndex = activeTimes.IndexOf(originalTimeSpan);
+
+                                        // Special single punch handling
+                                        if (activeTimes.Count == 1)
+                                        {
+                                            // Single punch after 15:00 is an un-paired ClockOut; otherwise ClockIn
+                                            punchType = originalTimeSpan >= new TimeSpan(15, 0, 0) 
+                                                ? AttendanceType.ClockOut 
+                                                : AttendanceType.ClockIn;
+                                        }
+                                        else
+                                        {
+                                            // Alternate: 1st In, 2nd Out, 3rd In, 4th Out
+                                            punchType = (activeIndex % 2 == 0) ? AttendanceType.ClockIn : AttendanceType.ClockOut;
+                                        }
+
+                                        // HALF-DAY NORMALIZATION (12:00 PM - 1:00 PM Lunch Window):
+                                        // "a employee in our out between 12:00PM and 1:00PM you should automatically read it as 12:00PM"
+                                        if (originalTimeSpan >= lunchStart && originalTimeSpan <= lunchEnd)
+                                        {
+                                            effectiveTimeSpan = lunchStart; // 12:00 PM
+                                            isNormalized = true;
+                                        }
+                                        // SHIFT END / OVERTIME NORMALIZATION (Punches past scheduled end):
+                                        else if (punchType == AttendanceType.ClockOut && originalTimeSpan > schedEnd)
+                                        {
+                                            var excessMinutes = (originalTimeSpan - schedEnd).TotalMinutes;
+                                            if (excessMinutes < 15)
+                                            {
+                                                // "if it's less than 15 min just set it to 5" -> clamp down to scheduled end
+                                                effectiveTimeSpan = schedEnd;
+                                                isNormalized = true;
+                                            }
+                                            else
+                                            {
+                                                // "greater or equal to 15 min create overtime for overtime approvals"
+                                                isOvertime = true;
+                                                otHours = Math.Round(excessMinutes / 60.0, 2);
+                                            }
+                                        }
+                                    }
+
+                                    var effectiveTimeStr = effectiveTimeSpan.ToString(@"hh\:mm");
+                                    var punchDateTime = targetDate.Add(effectiveTimeSpan);
+                                    var punchTimestamp = new DateTimeOffset(punchDateTime, TimeSpan.FromHours(8));
+
+                                    // Existing database record duplicate check
+                                    var isDbDup = isDupScan || (matchedEmp != null && existingPunches.Any(ep =>
                                         ep.EmployeeId == matchedEmp.Id &&
                                         ep.Type == punchType &&
-                                        Math.Abs((ep.Timestamp - punchTimestamp).TotalMinutes) < 2);
+                                        Math.Abs((ep.Timestamp - punchTimestamp).TotalMinutes) < 2));
 
                                     dayRecord.Punches.Add(new BiometricPunchDto
                                     {
-                                        Time = timeStr,
+                                        Time = effectiveTimeStr,
+                                        OriginalTime = origTimeStr,
                                         Timestamp = punchTimestamp,
                                         Type = punchType,
-                                        IsDuplicate = isDup,
-                                        IsSelected = !isDup
+                                        IsDuplicate = isDbDup,
+                                        IsSelected = !isDbDup,
+                                        IsNormalized = isNormalized,
+                                        IsOvertime = isOvertime,
+                                        OvertimeHours = otHours
                                     });
                                 }
 
-                                if (dayRecord.Punches.Count > 0)
+                                var validSelectedPunches = dayRecord.Punches.Where(p => !p.IsDuplicate).ToList();
+                                if (validSelectedPunches.Count > 0)
                                 {
-                                    if (dayRecord.Punches.Count % 2 != 0)
+                                    if (validSelectedPunches.Count % 2 != 0 || validSelectedPunches.All(p => p.Type == AttendanceType.ClockIn))
                                     {
                                         dayRecord.HasMissingPair = true;
                                         dayRecord.Status = "Missing Time Out";
@@ -431,6 +527,75 @@ public class BiometricReportService
             {
                 await _context.AttendanceRecords.AddRangeAsync(recordsToAdd);
                 await _context.SaveChangesAsync();
+
+                // 3. Auto-detect overtime for punches with >= 15 minutes of excess time
+                try
+                {
+                    var distinctEmpIds = recordsToAdd.Select(r => r.EmployeeId).Distinct().ToList();
+                    var employeesWithSched = await _context.Employees
+                        .Include(e => e.WorkSchedule)
+                            .ThenInclude(ws => ws!.Days)
+                        .Where(e => distinctEmpIds.Contains(e.Id) && e.OrganizationId == organizationId)
+                        .ToDictionaryAsync(e => e.Id);
+
+                    var newOvertimes = new List<OvertimeRequest>();
+
+                    foreach (var record in recordsToAdd.Where(r => r.Type == AttendanceType.ClockOut))
+                    {
+                        if (!employeesWithSched.TryGetValue(record.EmployeeId, out var emp) || emp.WorkSchedule?.Days == null)
+                            continue;
+
+                        var localTime = record.Timestamp.ToOffset(TimeSpan.FromHours(8));
+                        var shiftDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == localTime.DayOfWeek);
+                        if (shiftDay?.EndTime.HasValue != true || shiftDay.IsRestDay)
+                            continue;
+
+                        var scheduledEnd = shiftDay.EndTime.Value;
+                        var punchTimeOfDay = localTime.TimeOfDay;
+
+                        if (punchTimeOfDay > scheduledEnd)
+                        {
+                            var excessMinutes = (punchTimeOfDay - scheduledEnd).TotalMinutes;
+                            if (excessMinutes >= 15)
+                            {
+                                var shiftDateUtc = DateTime.SpecifyKind(localTime.Date, DateTimeKind.Utc);
+                                bool alreadyHasOt = await _context.OvertimeRequests.AnyAsync(o =>
+                                    o.OrganizationId == organizationId &&
+                                    o.EmployeeId == record.EmployeeId &&
+                                    o.Date == shiftDateUtc);
+
+                                if (!alreadyHasOt && !newOvertimes.Any(o => o.EmployeeId == record.EmployeeId && o.Date == shiftDateUtc))
+                                {
+                                    var requestedHours = Math.Round(excessMinutes / 60.0, 2);
+                                    newOvertimes.Add(new OvertimeRequest
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        EmployeeId = record.EmployeeId,
+                                        OrganizationId = organizationId,
+                                        Date = shiftDateUtc,
+                                        Type = OvertimeType.PostOvertime,
+                                        StartTime = scheduledEnd,
+                                        EndTime = punchTimeOfDay,
+                                        RequestedHours = requestedHours,
+                                        Reason = $"Auto-detected overtime from biometric import ({localTime:hh:mm tt} vs scheduled {DateTime.Today.Add(scheduledEnd):hh:mm tt})",
+                                        Status = OvertimeStatus.Pending,
+                                        CreatedAt = DateTime.UtcNow
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    if (newOvertimes.Count > 0)
+                    {
+                        await _context.OvertimeRequests.AddRangeAsync(newOvertimes);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch
+                {
+                    // Do not fail punch import if overtime auto-generation meets unexpected error
+                }
             }
         }
 

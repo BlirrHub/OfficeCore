@@ -292,10 +292,14 @@
                                             @foreach (var punch in day.Punches)
                                             {
                                                 <button type="button" @onclick="() => OpenEditPunchModal(emp, day, punch)"
-                                                        class="px-2 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-transform hover:scale-105 @(punch.Type == AttendanceType.ClockIn ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 hover:border-emerald-400" : "bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 hover:border-cyan-400") @(punch.IsDuplicate ? "opacity-50 line-through" : "")"
-                                                        title="Click to edit or remove punch">
+                                                        class="px-2 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-transform hover:scale-105 @(punch.IsDuplicate ? "opacity-40 line-through bg-zinc-900 text-zinc-500 border border-zinc-800" : (punch.IsOvertime ? "bg-amber-950/80 text-amber-300 border border-amber-800/70" : (punch.Type == AttendanceType.ClockIn ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 hover:border-emerald-400" : "bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 hover:border-cyan-400")))"
+                                                        title="@(punch.IsDuplicate ? "Duplicate morning punch (ignored)" : (punch.IsOvertime ? $"Overtime +{punch.OvertimeHours}h pending approval (Orig: {punch.OriginalTime})" : (punch.IsNormalized ? $"Normalized to {punch.Time} from {punch.OriginalTime}" : "Click to edit or remove punch")))">
                                                     <span>@punch.Time</span>
                                                     <span class="text-[9px] opacity-75">@(punch.Type == AttendanceType.ClockIn ? "IN" : "OUT")</span>
+                                                    @if (punch.IsOvertime)
+                                                    {
+                                                        <span class="px-1 rounded bg-amber-900/60 text-amber-300 text-[8px] font-semibold border border-amber-700/50">OT</span>
+                                                    }
                                                 </button>
                                             }
                                         </div>
@@ -874,9 +878,13 @@
     public class BiometricPunchDto
     {
         public string Time { get; set; } = string.Empty;
+        public string OriginalTime { get; set; } = string.Empty;
         public DateTimeOffset Timestamp { get; set; }
         public AttendanceType Type { get; set; }
         public bool IsDuplicate { get; set; }
+        public bool IsNormalized { get; set; }
+        public bool IsOvertime { get; set; }
+        public double OvertimeHours { get; set; }
     }
 
     public class BiometricDayRecordDto

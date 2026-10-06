@@ -232,19 +232,101 @@
                         </div>
                     </div>
 
-                    <!-- Overtime Rules Section (Master Toggle) -->
-                    <div class="border-t border-zinc-800 pt-6">
-                        <label class="flex items-center gap-3 cursor-pointer mb-4">
-                            <input type="checkbox" @bind="_editModel.HasOvertimeRules" class="sr-only peer" />
-                            <div class="w-5 h-5 rounded border border-zinc-700 bg-zinc-900 peer-checked:bg-fuchsia-600 peer-checked:border-fuchsia-600 flex items-center justify-center text-white transition-colors">
-                                <svg class="size-3.5 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    <!-- Time & Attendance Rules Section -->
+                    <div class="border-t border-zinc-800 pt-6 space-y-6">
+                        <div>
+                            <h3 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                                <svg class="size-5 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Time-In & Half-Day Rules</span>
+                            </h3>
+                            <p class="text-xs text-zinc-400 mt-1">Configure arrival grace periods, early punches, and lunch half-day snapping.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Late Grace Period -->
+                            <div class="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-xs font-semibold text-zinc-200">Late Grace Period</label>
+                                    <div class="flex items-center gap-1.5">
+                                        <input type="number" min="0" max="60" @bind="_editModel.LateGracePeriodMinutes" class="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-white text-right focus:border-fuchsia-500 focus:outline-none" />
+                                        <span class="text-xs text-zinc-500">mins</span>
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-zinc-500">Employees arriving within this window are not penalized as tardy.</p>
                             </div>
-                            <span class="text-sm font-medium text-white">Enable Overtime Rules</span>
-                        </label>
+
+                            <!-- Half-Day Lunch Auto-Normalization -->
+                            <div class="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <span class="text-xs font-semibold text-zinc-200">Half-Day Lunch Snapping</span>
+                                    <input type="checkbox" @bind="_editModel.AutoNormalizeHalfDay" class="sr-only peer" />
+                                    <div class="w-8 h-4.5 rounded-full bg-zinc-800 peer-checked:bg-fuchsia-600 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:size-3.5 after:transition-transform peer-checked:after:translate-x-3.5"></div>
+                                </label>
+                                <p class="text-[11px] text-zinc-500">Punches between 12:00 PM – 1:00 PM auto-snap to 12:00 PM (Out) or 1:00 PM (In) for clean 4.0h half-days.</p>
+                            </div>
+                        </div>
+
+                        <!-- Early Tracking Toggle -->
+                        <div class="p-4 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-semibold text-zinc-200">Include Early Time Tracked</span>
+                                <p class="text-[11px] text-zinc-500 mt-0.5">Pay for time worked before the scheduled start time (e.g. before 8:00 AM).</p>
+                            </div>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" @bind="_editModel.IncludeTimeTrackedBeforeScheduledStartTime" class="sr-only peer" />
+                                <div class="w-8 h-4.5 rounded-full bg-zinc-800 peer-checked:bg-fuchsia-600 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:size-3.5 after:transition-transform peer-checked:after:translate-x-3.5"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Overtime Rules Section (Master Toggle) -->
+                    <div class="border-t border-zinc-800 pt-6 space-y-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                                    <svg class="size-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    <span>Clock-Out & Overtime Policy</span>
+                                </h3>
+                                <p class="text-xs text-zinc-400 mt-1">Configure threshold clamping, auto-submission for manager approvals, and OT rates.</p>
+                            </div>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" @bind="_editModel.HasOvertimeRules" class="sr-only peer" />
+                                <div class="w-10 h-5.5 rounded-full bg-zinc-800 peer-checked:bg-fuchsia-600 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:size-4.5 after:transition-transform peer-checked:after:translate-x-4.5"></div>
+                                <span class="text-xs font-semibold text-white">Enable Overtime</span>
+                            </label>
+                        </div>
 
                         @if (_editModel.HasOvertimeRules)
                         {
-                            <div class="pl-8 space-y-8 border-l-2 border-zinc-800">
+                            <div class="space-y-6">
+                                <!-- Clamping Threshold & Approval Submission Controls -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <label class="text-xs font-semibold text-zinc-200">Overtime Minimum Threshold</label>
+                                            <div class="flex items-center gap-1.5">
+                                                <input type="number" min="5" max="120" step="5" @bind="_editModel.OvertimeThresholdMinutes" class="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-white text-right focus:border-fuchsia-500 focus:outline-none" />
+                                                <span class="text-xs text-zinc-500">mins</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-[11px] text-zinc-500">Punches past shift end by less than this (e.g. &lt; 15 min) clamp down to scheduled end time.</p>
+                                    </div>
+
+                                    <div class="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+                                        <label class="flex items-center justify-between cursor-pointer">
+                                            <span class="text-xs font-semibold text-zinc-200">Auto-Submit for Approvals</span>
+                                            <input type="checkbox" @bind="_editModel.AutoSubmitOvertimeApproval" class="sr-only peer" />
+                                            <div class="w-8 h-4.5 rounded-full bg-zinc-800 peer-checked:bg-fuchsia-600 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:size-3.5 after:transition-transform peer-checked:after:translate-x-3.5"></div>
+                                        </label>
+                                        <p class="text-[11px] text-zinc-500">Punches exceeding threshold automatically create pending requests in Overtime Approvals.</p>
+                                    </div>
+                                </div>
+
+                                <div class="pl-6 space-y-8 border-l-2 border-fuchsia-800/40">
                                 
                                 <!-- Auto Deductions Sub-Section -->
                                 <div>
@@ -356,6 +438,7 @@
                                                 </div>
                                             }
                                         }
+                                    </div>
                                     </div>
                                 </div>
                             </div>
@@ -472,33 +555,87 @@
                         </div>
                     }
 
-                    <!-- View Overtime Rules -->
-                    @if (_selectedSchedule.OvertimeRules != null && _selectedSchedule.OvertimeRules.Any())
-                    {
-                        <div class="border-t border-zinc-800 pt-6">
-                            <label class="block text-sm font-medium text-zinc-500 mb-4">Daily Overtime Rules</label>
-                            <div class="space-y-2">
-                                @foreach (var or in _selectedSchedule.OvertimeRules)
+                    <!-- View Time & Attendance Rules -->
+                    <div class="border-t border-zinc-800 pt-6">
+                        <label class="block text-sm font-medium text-zinc-500 mb-4">Time-In & Attendance Rules</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                <span class="text-xs text-zinc-500 block">Late Grace Period</span>
+                                <span class="text-sm font-semibold text-white">@(_selectedSchedule.LateGracePeriodMinutes > 0 ? $"{_selectedSchedule.LateGracePeriodMinutes} mins" : "None (0 min)")</span>
+                            </div>
+                            <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                <span class="text-xs text-zinc-500 block">Half-Day Lunch Snapping</span>
+                                <span class="text-sm font-semibold @(_selectedSchedule.AutoNormalizeHalfDay ? "text-emerald-400" : "text-zinc-400")">
+                                    @(_selectedSchedule.AutoNormalizeHalfDay ? "Enabled (12:00-1:00 PM)" : "Disabled")
+                                </span>
+                            </div>
+                            <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                <span class="text-xs text-zinc-500 block">Early Time Tracked</span>
+                                <span class="text-sm font-semibold @(_selectedSchedule.IncludeTimeTrackedBeforeScheduledStartTime ? "text-emerald-400" : "text-zinc-400")">
+                                    @(_selectedSchedule.IncludeTimeTrackedBeforeScheduledStartTime ? "Included" : "Ignored (Shift start)")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- View Overtime & Clock-Out Policy -->
+                    <div class="border-t border-zinc-800 pt-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <label class="block text-sm font-medium text-zinc-500">Clock-Out & Overtime Policy</label>
+                            <span class="text-xs px-2.5 py-0.5 rounded-full font-medium @(_selectedSchedule.HasOvertimeRules ? "bg-amber-900/30 text-amber-400 border border-amber-800/40" : "bg-zinc-800 text-zinc-500")">
+                                @(_selectedSchedule.HasOvertimeRules ? "OT Policy Active" : "Disabled")
+                            </span>
+                        </div>
+
+                        @if (_selectedSchedule.HasOvertimeRules)
+                        {
+                            <div class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                        <span class="text-xs text-zinc-500 block">Overtime Minimum Threshold</span>
+                                        <span class="text-sm font-semibold text-amber-400">@_selectedSchedule.OvertimeThresholdMinutes mins</span>
+                                        <p class="text-[11px] text-zinc-500 mt-1">Punches &lt; @_selectedSchedule.OvertimeThresholdMinutes mins clamp to shift end; &ge; @_selectedSchedule.OvertimeThresholdMinutes mins submit for OT approval.</p>
+                                    </div>
+                                    <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                        <span class="text-xs text-zinc-500 block">Overtime Approvals</span>
+                                        <span class="text-sm font-semibold @(_selectedSchedule.AutoSubmitOvertimeApproval ? "text-emerald-400" : "text-zinc-400")">
+                                            @(_selectedSchedule.AutoSubmitOvertimeApproval ? "Auto-Submit Requests" : "Manual Log Only")
+                                        </span>
+                                        <p class="text-[11px] text-zinc-500 mt-1">Sends overtime scans directly to manager approval inbox.</p>
+                                    </div>
+                                </div>
+
+                                @if (_selectedSchedule.OvertimeRules != null && _selectedSchedule.OvertimeRules.Any())
                                 {
-                                    <div class="flex items-center gap-4 bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
-                                        <div class="w-40 text-sm text-white font-medium">
-                                            @(or.Multiplier)x Multiplier
-                                        </div>
-                                        <div class="flex-1 text-sm text-zinc-400">
-                                            @if (or.TriggerMode == 0)
-                                            {
-                                                <span>Starts after @or.AfterHours hrs of work</span>
-                                            }
-                                            else
-                                            {
-                                                <span>Starts at @(or.AfterTime?.ToString(@"hh\:mm"))</span>
-                                            }
-                                        </div>
+                                    <div class="space-y-2">
+                                        <span class="text-xs text-zinc-400 block font-medium">Daily Overtime Multipliers</span>
+                                        @foreach (var or in _selectedSchedule.OvertimeRules)
+                                        {
+                                            <div class="flex items-center gap-4 bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                                <div class="w-36 text-sm text-amber-400 font-semibold">
+                                                    @(or.Multiplier)x Multiplier
+                                                </div>
+                                                <div class="flex-1 text-sm text-zinc-300">
+                                                    @if (or.TriggerMode == 0)
+                                                    {
+                                                        <span>Starts after @or.AfterHours hrs of work</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>Starts at @(or.AfterTime?.ToString(@"hh\:mm"))</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
                                     </div>
                                 }
                             </div>
-                        </div>
-                    }
+                        }
+                        else
+                        {
+                            <p class="text-xs text-zinc-500 italic">No overtime policy configured for this schedule.</p>
+                        }
+                    </div>
                 </div>
             </div>
         }
@@ -794,6 +931,10 @@
         public TimeSpan SplitTimesheetsAt { get; set; }
         public double? TotalWeeklyHours { get; set; }
         public bool IsFixedWeeklyRate { get; set; }
+        public int LateGracePeriodMinutes { get; set; } = 0;
+        public int OvertimeThresholdMinutes { get; set; } = 15;
+        public bool AutoNormalizeHalfDay { get; set; } = true;
+        public bool AutoSubmitOvertimeApproval { get; set; } = true;
         public List<WorkScheduleDayDto> Days { get; set; } = new();
         public List<WorkScheduleBreakDto> Breaks { get; set; } = new();
         
