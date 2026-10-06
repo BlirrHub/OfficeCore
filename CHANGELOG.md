@@ -6,6 +6,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Security Hardening — [2026-10-06] (Core Stabilization, Multi-Tenancy Scoping, LAN-Safe CORS & Branch Separation)
+
+- **Branch Separation & Test Seed Data Removal (`acba` vs `acba-dev`):**
+  - Created new branch `acba-dev` dedicated to development and feature testing, keeping the demo organization and the 13 simulated employees safely seeded without truncating on reboot.
+  - Purged all demo/test seed data from the primary `acba` branch (`DbSeeder.cs`), ensuring new deployments start with a clean migration baseline and default Identity roles rather than hardcoded mock accounts.
+  - Removed destructive `TRUNCATE TABLE ... RESTART IDENTITY CASCADE` SQL block entirely from both branches, protecting PostgreSQL production data from being wiped on server or process restart.
+
+- **Cross-Tenant Data Scoping in Payroll Engine (`PayrollComputationService.cs`):**
+  - Added strict `OrganizationId == period.OrganizationId` filters to `AttendanceRecords`, `LeaveRequests`, and `AdvanceRequests` queries during payroll calculation runs, stopping cross-organization database bleeds.
+
+- **Tenant Membership Validation & Spoofing Prevention (`TenantService.cs`, `WorkScheduleController.cs`, `OrganizationsController.cs`):**
+  - Added `GetValidatedOrganizationIdAsync()` in `TenantService` to ensure requests only resolve organizations where the authenticated user is an active employee or workspace creator.
+  - Protected `GetWorkSchedules`, `GetWorkSchedule`, and `GetCurrentOrganization` against cookie spoofing.
+
+- **LAN-Safe CORS Policy for Multi-Device Network Access (`Program.cs`):**
+  - Replaced wildcard `.SetIsOriginAllowed(_ => true)` with a dynamic private network validator that permits `localhost`, private RFC 1918 subnets (`192.168.*`, `10.*`, `172.16-31.*`), and `.local` mDNS domains.
+  - Guarantees seamless connectivity for office workstation terminals and mobile devices across the local subnet while blocking untrusted external origins from issuing credentialed requests.
+
+- **Identity & Authentication Hardening (`UserController.cs`, `AuthController.cs`):**
+  - Enforced `MustChangePassword = true` for new employees created with the default password.
+  - Removed `debugCode` from `SendOtp` API responses, preventing verification code leakage in network payloads.
+
+- **Timezone Punch Alignment (`AttendanceController.cs`):**
+  - Updated attendance queries in `GetMyAttendance`, `Punch`, and `LogScanEvent` to calculate daily boundaries relative to the local host/organization UTC offset rather than UTC midnight, preventing morning punches before 8:00 AM (in UTC+8) from being omitted or misattributed.
+
+- **High-Performance Composite Query Indexes (`AppDbContext.cs`):**
+  - Added composite indexes on `AttendanceRecords(OrganizationId, EmployeeId, Timestamp)`, `AttendanceRecords(OrganizationId, Timestamp)`, `Payslips(OrganizationId, PayrollPeriodId)`, and `LeaveRequests(OrganizationId, EmployeeId, Status)`.
+
 ### Enhanced & Unified — [2026-10-05] (UI Component Library Standardization: Empty State Design & Icon-Only Header Refresh Buttons)
 
 - **Standardized Empty State Component (`EmptyState.razor`):**
