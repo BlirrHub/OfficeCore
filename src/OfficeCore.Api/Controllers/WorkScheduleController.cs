@@ -23,7 +23,7 @@ public class WorkScheduleController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetWorkSchedules()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var schedules = await _context.WorkSchedules
@@ -40,7 +40,9 @@ public class WorkScheduleController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetWorkSchedule(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
+
         var schedule = await _context.WorkSchedules
             .Where(ws => ws.OrganizationId == orgId)
             .Include(ws => ws.Days)

@@ -34,7 +34,30 @@ var allOrigins = allowedOrigins.Union(devOrigins).ToArray();
 
 builder.Services.AddCors(opt =>
     opt.AddPolicy("BlazorPolicy", p => p
-        .SetIsOriginAllowed(_ => true)   // Allow any LAN/WAN origin (desktop clients on other machines)
+        .SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+
+            var host = uri.Host;
+
+            // 1. Localhost and loopback
+            if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || host == "127.0.0.1" || host == "::1")
+                return true;
+
+            // 2. Local LAN office subnets & mDNS (.local)
+            if (host.EndsWith(".local", StringComparison.OrdinalIgnoreCase)) return true;
+            if (host.StartsWith("192.168.") || host.StartsWith("10.")) return true;
+            if (System.Net.IPAddress.TryParse(host, out var ip))
+            {
+                var bytes = ip.GetAddressBytes();
+                if (bytes.Length == 4 && bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+                    return true;
+            }
+
+            // 3. Explicitly allowed origins from configuration
+            return allOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase);
+        })
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()));

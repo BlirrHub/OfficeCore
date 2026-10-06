@@ -64,12 +64,12 @@ public class PayrollComputationService : IPayrollComputationService
         decimal proportionMultiplier = period.DeductionMultiplier;
 
         var allAttendance = await _context.AttendanceRecords
-            .Where(a => a.Timestamp >= periodStartDt && a.Timestamp <= periodEndDt)
+            .Where(a => a.OrganizationId == period.OrganizationId && a.Timestamp >= periodStartDt && a.Timestamp <= periodEndDt)
             .OrderBy(a => a.Timestamp)
             .ToListAsync();
 
         var approvedLeaves = await _context.LeaveRequests
-            .Where(lr => lr.Status == LeaveRequestStatus.Approved && lr.StartDate <= periodEndDt && lr.EndDate >= periodStartDt)
+            .Where(lr => lr.OrganizationId == period.OrganizationId && lr.Status == LeaveRequestStatus.Approved && lr.StartDate <= periodEndDt && lr.EndDate >= periodStartDt)
             .ToListAsync();
 
         var approvedOvertime = await _context.OvertimeRequests
@@ -79,7 +79,7 @@ public class PayrollComputationService : IPayrollComputationService
             .ToListAsync();
 
         var allActiveAdvances = await _context.AdvanceRequests
-            .Where(ar => ar.Status == AdvanceStatus.Approved && (ar.RemainingBalance == null || ar.RemainingBalance > 0))
+            .Where(ar => ar.OrganizationId == period.OrganizationId && ar.Status == AdvanceStatus.Approved && (ar.RemainingBalance == null || ar.RemainingBalance > 0))
             .ToListAsync();
 
         foreach (var emp in employees)

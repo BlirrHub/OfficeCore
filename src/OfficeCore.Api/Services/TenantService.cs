@@ -74,4 +74,14 @@ public class TenantService
         return await _context.Employees
             .FirstOrDefaultAsync(e => e.UserId == applicationUserId && e.OrganizationId == orgId);
     }
+
+    /// <summary>
+    /// Validates that the active organization from cookie belongs to the current authenticated user.
+    /// Returns null if the user is not a member of the active organization.
+    /// </summary>
+    public async Task<Guid?> GetValidatedOrganizationIdAsync()
+    {
+        var employee = await GetCurrentEmployeeAsync();
+        return employee?.OrganizationId;
+    }
 }

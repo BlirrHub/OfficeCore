@@ -15,22 +15,10 @@ public static class DbSeeder
         // Ensure database is created and migrations applied
         await context.Database.MigrateAsync();
 
-        // 0. Reset / Clear Database tables for clean payroll testing
-        try
+        // Only seed development demo data if database is empty
+        if (await context.Organizations.AnyAsync())
         {
-            await context.Database.ExecuteSqlRawAsync(@"
-                DO $$ DECLARE
-                    r RECORD;
-                BEGIN
-                    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != '__EFMigrationsHistory') LOOP
-                        EXECUTE 'TRUNCATE TABLE ""' || r.tablename || '"" RESTART IDENTITY CASCADE;';
-                    END LOOP;
-                END $$;
-            ");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[DbSeeder] Truncate notice: {ex.Message}");
+            return;
         }
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
