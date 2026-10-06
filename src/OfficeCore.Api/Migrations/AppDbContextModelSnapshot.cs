@@ -324,7 +324,9 @@ namespace OfficeCore.Api.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.HasIndex("OrganizationId");
+                    b.HasIndex("OrganizationId", "Timestamp");
+
+                    b.HasIndex("OrganizationId", "EmployeeId", "Timestamp");
 
                     b.ToTable("AttendanceRecords");
                 });
@@ -1373,7 +1375,7 @@ namespace OfficeCore.Api.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.HasIndex("OrganizationId");
+                    b.HasIndex("OrganizationId", "EmployeeId", "Status");
 
                     b.ToTable("LeaveRequests");
                 });
@@ -1713,9 +1715,9 @@ namespace OfficeCore.Api.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.HasIndex("OrganizationId");
-
                     b.HasIndex("PayrollPeriodId");
+
+                    b.HasIndex("OrganizationId", "PayrollPeriodId");
 
                     b.ToTable("Payslips");
                 });
