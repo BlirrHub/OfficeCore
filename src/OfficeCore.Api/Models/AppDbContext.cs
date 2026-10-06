@@ -274,5 +274,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
             b.HasIndex(a => new { a.OrganizationId, a.EntityName });
             b.HasIndex(a => new { a.OrganizationId, a.Action });
         });
+
+        // High Performance Query Indexes for Attendance, Payroll, and Leaves
+        builder.Entity<AttendanceRecord>(b =>
+        {
+            b.HasIndex(a => new { a.OrganizationId, a.EmployeeId, a.Timestamp });
+            b.HasIndex(a => new { a.OrganizationId, a.Timestamp });
+        });
+
+        builder.Entity<Payslip>(b =>
+        {
+            b.HasIndex(p => new { p.OrganizationId, p.PayrollPeriodId });
+        });
+
+        builder.Entity<LeaveRequest>(b =>
+        {
+            b.HasIndex(l => new { l.OrganizationId, l.EmployeeId, l.Status });
+        });
     }
 }

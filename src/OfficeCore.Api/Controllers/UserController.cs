@@ -94,7 +94,8 @@ public class UserController : ControllerBase
             FirstName = request.FirstName,
             LastName = request.LastName,
             EmailConfirmed = true,
-            IsActive = true
+            IsActive = true,
+            MustChangePassword = true
         };
 
         var result = await _userManager.CreateAsync(user, "password");

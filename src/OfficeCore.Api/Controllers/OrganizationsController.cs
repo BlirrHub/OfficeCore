@@ -53,8 +53,16 @@ public class OrganizationsController : ControllerBase
     [HttpGet("current")]
     public async Task<IActionResult> GetCurrentOrganization()
     {
+        var userId = _userManager.GetUserId(User);
+        if (userId == null) return Unauthorized();
+
         if (Request.Cookies.TryGetValue("ActiveOrganizationId", out var activeOrgIdString) && Guid.TryParse(activeOrgIdString, out var activeOrgId))
         {
+            var isMember = await _context.Employees.AnyAsync(e => e.UserId == userId && e.OrganizationId == activeOrgId && e.IsActive)
+                        || await _context.Organizations.AnyAsync(o => o.Id == activeOrgId && o.CreatedByUserId == userId);
+
+            if (!isMember) return Forbid();
+
             var org = await _context.Organizations
                 .Include(o => o.Phones)
                 .FirstOrDefaultAsync(o => o.Id == activeOrgId);

@@ -68,27 +68,25 @@ public class AuthController : ControllerBase
             if (existingUser != null)
                 return BadRequest(new { message = "An account with this email address already exists." });
 
-            var (success, message, debugCode) = await _emailOtpService.SendOtpAsync(request.Email);
+            var (success, message, _) = await _emailOtpService.SendOtpAsync(request.Email);
             if (!success)
                 return BadRequest(new { message });
 
             return Ok(new 
             { 
                 message,
-                debugCode,
                 email = Services.EmailOtpService.NormalizeEmail(request.Email)
             });
         }
         else
         {
-            var (success, message, debugCode) = await _smsOtpService.SendOtpAsync(request.PhoneNumber!);
+            var (success, message, _) = await _smsOtpService.SendOtpAsync(request.PhoneNumber!);
             if (!success)
                 return BadRequest(new { message });
 
             return Ok(new 
             { 
                 message,
-                debugCode,
                 phoneNumber = Services.SmsOtpService.NormalizePhoneNumber(request.PhoneNumber!)
             });
         }

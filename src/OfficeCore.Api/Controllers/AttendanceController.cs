@@ -57,8 +57,10 @@ public class AttendanceController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized("Employee profile not found in active workspace.");
 
-        var todayUtc = DateTime.UtcNow.Date;
-        var tomorrowUtc = todayUtc.AddDays(1);
+        var localToday = DateTime.Today;
+        var offset = TimeZoneInfo.Local.GetUtcOffset(localToday);
+        var todayStart = new DateTimeOffset(localToday, offset);
+        var todayEnd = todayStart.AddDays(1);
 
         // Fetch employee with work schedule
         var empWithSchedule = await _context.Employees
@@ -75,7 +77,7 @@ public class AttendanceController : ControllerBase
 
         // Calculate today's status
         var todayRecords = records
-            .Where(a => a.Timestamp.UtcDateTime >= todayUtc && a.Timestamp.UtcDateTime < tomorrowUtc)
+            .Where(a => a.Timestamp >= todayStart && a.Timestamp < todayEnd)
             .OrderBy(a => a.Timestamp)
             .ToList();
 
@@ -190,14 +192,16 @@ public class AttendanceController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized("Employee profile not found in active workspace.");
 
-        var todayUtc = DateTime.UtcNow.Date;
-        var tomorrowUtc = todayUtc.AddDays(1);
+        var localToday = DateTime.Today;
+        var offset = TimeZoneInfo.Local.GetUtcOffset(localToday);
+        var todayStart = new DateTimeOffset(localToday, offset);
+        var todayEnd = todayStart.AddDays(1);
 
         var latestRecord = await _context.AttendanceRecords
             .Where(a => a.OrganizationId == orgId.Value
                      && a.EmployeeId == employee.Id
-                     && a.Timestamp >= todayUtc
-                     && a.Timestamp < tomorrowUtc)
+                     && a.Timestamp >= todayStart
+                     && a.Timestamp < todayEnd)
             .OrderByDescending(a => a.Timestamp)
             .FirstOrDefaultAsync();
 
@@ -599,14 +603,16 @@ public class AttendanceController : ControllerBase
 
         if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
 
-        var todayUtc = DateTime.UtcNow.Date;
-        var tomorrowUtc = todayUtc.AddDays(1);
+        var localToday = DateTime.Today;
+        var offset = TimeZoneInfo.Local.GetUtcOffset(localToday);
+        var todayStart = new DateTimeOffset(localToday, offset);
+        var todayEnd = todayStart.AddDays(1);
 
         var latestRecord = await _context.AttendanceRecords
             .Where(a => a.OrganizationId == mapping.OrganizationId
                      && a.EmployeeId == mapping.EmployeeId
-                     && a.Timestamp >= todayUtc
-                     && a.Timestamp < tomorrowUtc)
+                     && a.Timestamp >= todayStart
+                     && a.Timestamp < todayEnd)
             .OrderByDescending(a => a.Timestamp)
             .FirstOrDefaultAsync();
 
