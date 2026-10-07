@@ -29,13 +29,15 @@ public class PayrollComputationService : IPayrollComputationService
         var employees = await _context.Employees
             .Include(e => e.User)
             .Include(e => e.GovernmentRecord)
+            .Include(e => e.EmployeeRoles)
+                .ThenInclude(er => er.Role)
             .Where(e => e.IsActive && e.IsEmployee && e.OrganizationId == period.OrganizationId)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Days)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Breaks)
             .Include(e => e.WorkSchedule)
-                .ThenInclude(ws => ws!.OvertimeRules)
+
             .ToListAsync();
 
         var generalSetting = await _context.GeneralPayrollSettings.FirstOrDefaultAsync(s => s.Key == "MinimumDailyRate" && s.OrganizationId == period.OrganizationId);
@@ -241,7 +243,7 @@ public class PayrollComputationService : IPayrollComputationService
                 totalOvertimeHours += Math.Max(0, otHours);
             }
 
-            decimal otMultiplier = (decimal)(emp.WorkSchedule?.OvertimeRules?.FirstOrDefault()?.Multiplier ?? 1.25);
+            decimal otMultiplier = (decimal)(emp.WorkSchedule?.OvertimeMultiplier ?? 1.25);
             decimal totalOvertimePay = Math.Round((decimal)totalOvertimeHours * hourlyRate * otMultiplier, 2);
 
             if (emp.WorkSchedule != null && !(emp.WorkSchedule.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate))
@@ -360,6 +362,8 @@ public class PayrollComputationService : IPayrollComputationService
                 OtherAllowances = 0,
                 OtherDeductions = 0,
                 NetPay = netPay,
+                TotalWorkedHours = totalNetHours,
+                AssignedRole = string.Join(", ", emp.EmployeeRoles.Select(er => er.Role?.Name).Where(n => !string.IsNullOrEmpty(n))),
                 CalculationDetailsJson = JsonSerializer.Serialize(calculationDetails),
                 OrganizationId = period.OrganizationId
             };

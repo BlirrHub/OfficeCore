@@ -1,0 +1,282 @@
+@page "/print-payslips/{PayrollPeriodId:guid}"
+@layout OfficeCore.Web.Client.Layout.EmptyLayout
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Print Payslips</PageTitle>
+
+@if (isLoading)
+{
+    <div style="padding: 2rem; text-align: center; font-family: sans-serif;">Loading...</div>
+}
+else if (payslips != null && payslips.Any())
+{
+    <div class="print-container">
+        @foreach (var payslip in payslips)
+        {
+            <div class="payslip-card">
+                <div class="header">
+                    <h1 class="org-name">@payslip.OrganizationName</h1>
+                    @if (!string.IsNullOrWhiteSpace(payslip.OrganizationAddress))
+                    {
+                        <p class="org-address">@payslip.OrganizationAddress</p>
+                    }
+                    <p class="title">Official Employee Payslip</p>
+                </div>
+
+                <div class="info-row">
+                    <div>
+                        <strong class="label">Employee Name</strong>
+                        <span class="value employee-name">@payslip.EmployeeName</span>
+                        @if (!string.IsNullOrWhiteSpace(payslip.AssignedRole))
+                        {
+                            <div class="role">@payslip.AssignedRole</div>
+                        }
+                    </div>
+                    <div style="text-align: right;">
+                        <strong class="label">Payroll Period</strong>
+                        <span class="value period">
+                            @(payslip.PayrollPeriod?.StartDate.ToString("MMM dd, yyyy")) - @(payslip.PayrollPeriod?.EndDate.ToString("MMM dd, yyyy"))
+                        </span>
+                        <div class="hours">Total Work: @payslip.TotalWorkedHours.ToString("0.##") hrs</div>
+                    </div>
+                </div>
+
+                <div class="columns">
+                    <!-- Earnings -->
+                    <div class="column">
+                        <h3 class="section-title">Earnings</h3>
+                        
+                        <div class="line-item"><span>Basic Pay</span><span>@payslip.BasicPay.ToString("C")</span></div>
+                        @if (payslip.TotalLeavePay > 0)
+                        {
+                            <div class="line-item"><span>Leave Pay</span><span>@payslip.TotalLeavePay.ToString("C")</span></div>
+                        }
+                        @if (payslip.TotalOvertimePay > 0)
+                        {
+                            <div class="line-item"><span>Overtime Pay</span><span>@payslip.TotalOvertimePay.ToString("C")</span></div>
+                        }
+                        @if (payslip.OtherAllowances > 0)
+                        {
+                            <div class="line-item"><span>Other Allowances</span><span>@payslip.OtherAllowances.ToString("C")</span></div>
+                        }
+                        
+                        <div class="line-item total-row">
+                            <span>Total Gross Pay</span><span>@payslip.GrossPay.ToString("C")</span>
+                        </div>
+                    </div>
+
+                    <!-- Deductions -->
+                    <div class="column">
+                        <h3 class="section-title">Deductions</h3>
+
+                        @if (payslip.SssDeduction > 0)
+                        {
+                            <div class="line-item"><span>SSS</span><span>@payslip.SssDeduction.ToString("C")</span></div>
+                        }
+                        @if (payslip.PhilHealthDeduction > 0)
+                        {
+                            <div class="line-item"><span>PhilHealth</span><span>@payslip.PhilHealthDeduction.ToString("C")</span></div>
+                        }
+                        @if (payslip.PagIbigDeduction > 0)
+                        {
+                            <div class="line-item"><span>Pag-IBIG</span><span>@payslip.PagIbigDeduction.ToString("C")</span></div>
+                        }
+                        @if (payslip.TaxDeduction > 0)
+                        {
+                            <div class="line-item"><span>Withholding Tax</span><span>@payslip.TaxDeduction.ToString("C")</span></div>
+                        }
+                        @if (payslip.AdvancesDeduction > 0)
+                        {
+                            <div class="line-item"><span>Advances/Loans</span><span>@payslip.AdvancesDeduction.ToString("C")</span></div>
+                        }
+                        @if (payslip.OtherDeductions > 0)
+                        {
+                            <div class="line-item"><span>Other Deductions</span><span>@payslip.OtherDeductions.ToString("C")</span></div>
+                        }
+
+                        <div class="line-item total-row">
+                            <span>Total Deductions</span>
+                            <span>@((payslip.SssDeduction + payslip.PhilHealthDeduction + payslip.PagIbigDeduction + payslip.TaxDeduction + payslip.AdvancesDeduction + payslip.OtherDeductions).ToString("C"))</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="net-pay-box">
+                    <span class="net-label">Net Take Home Pay</span>
+                    <span class="net-value">@payslip.NetPay.ToString("C")</span>
+                </div>
+
+                <div class="signatures">
+                    <div class="sig-box">
+                        <div class="sig-line"></div>
+                        <span class="sig-label">Prepared By / HR Signature</span>
+                    </div>
+                    <div class="sig-box">
+                        <div class="sig-line"></div>
+                        <span class="sig-label">Received By (Employee Signature)</span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <style>
+        .print-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: 1fr;
+            gap: 15px;
+            padding: 15px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: black;
+            background: white;
+        }
+
+        .payslip-card {
+            border: 1px dashed #999;
+            padding: 15px;
+            page-break-inside: avoid;
+            background-color: #fff;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 450px;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid black;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .org-name { margin: 0; font-size: 16px; font-weight: bold; text-transform: uppercase; }
+        .org-address { margin: 2px 0; font-size: 10px; color: #555; }
+        .title { margin: 2px 0 0 0; font-size: 11px; color: #555; }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .label { display: block; font-size: 9px; color: #777; text-transform: uppercase; }
+        .value { display: block; font-size: 13px; font-weight: bold; }
+        .period { font-size: 12px; font-weight: normal; }
+        .role, .hours { font-size: 10px; color: #555; margin-top: 1px; }
+
+        .columns {
+            display: flex;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .column { flex: 1; }
+        .section-title {
+            font-size: 10px; font-weight: bold; border-bottom: 1px solid #ccc;
+            padding-bottom: 3px; margin-bottom: 6px; text-transform: uppercase;
+        }
+
+        .line-item { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px; }
+        .total-row { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ccc; font-weight: bold; }
+
+        .net-pay-box {
+            margin-top: 12px;
+            border: 2px solid black;
+            padding: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f9f9f9;
+        }
+
+        .net-label { font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        .net-value { font-size: 16px; font-weight: 900; }
+
+        .signatures {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .sig-box { text-align: center; width: 45%; }
+        .sig-line { border-bottom: 1px solid black; height: 20px; margin-bottom: 3px; }
+        .sig-label { font-size: 9px; color: #555; }
+
+        @@media print {
+            body { margin: 0; padding: 0; background: white; }
+            .print-container { gap: 10px; padding: 0; }
+            .payslip-card { border: 1px solid #ddd; padding: 10px; }
+        }
+    </style>
+}
+else
+{
+    <div style="padding: 2rem; text-align: center; font-family: sans-serif; color: red;">No payslips found.</div>
+}
+
+@code {
+    [Parameter]
+    public Guid PayrollPeriodId { get; set; }
+
+    private List<PrintPayslipDto>? payslips;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            payslips = await Http.GetFromJsonAsync<List<PrintPayslipDto>>($"/api/payroll/periods/{PayrollPeriodId}/payslips");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching payslips: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender && !isLoading && payslips != null && payslips.Any())
+        {
+            // Small delay to ensure CSS applies
+            await Task.Delay(500);
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+    }
+
+    public class PrintPayslipDto
+    {
+        public Guid Id { get; set; }
+        public string EmployeeName { get; set; } = string.Empty;
+        public string OrganizationName { get; set; } = string.Empty;
+        public string? OrganizationAddress { get; set; }
+        public double TotalWorkedHours { get; set; }
+        public string? AssignedRole { get; set; }
+        public decimal BasicPay { get; set; }
+        public decimal TotalLeavePay { get; set; }
+        public decimal TotalOvertimePay { get; set; }
+        public decimal GrossPay { get; set; }
+        public decimal SssDeduction { get; set; }
+        public decimal PhilHealthDeduction { get; set; }
+        public decimal PagIbigDeduction { get; set; }
+        public decimal TaxDeduction { get; set; }
+        public decimal AdvancesDeduction { get; set; }
+        public decimal OtherAllowances { get; set; }
+        public decimal OtherDeductions { get; set; }
+        public decimal NetPay { get; set; }
+        public PrintPeriodDto? PayrollPeriod { get; set; }
+    }
+
+    public class PrintPeriodDto
+    {
+        public DateOnly StartDate { get; set; }
+        public DateOnly EndDate { get; set; }
+    }
+}
