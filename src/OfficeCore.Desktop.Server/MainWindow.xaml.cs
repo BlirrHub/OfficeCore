@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using Microsoft.Web.WebView2.Core;
+using Forms = System.Windows.Forms;
 
 namespace OfficeCore.Desktop.Server;
 
@@ -14,6 +15,8 @@ public partial class MainWindow : Window
     private ServerConfig _config;
     private bool _isManualServerStart = false;
     private bool _pendingLaunchWhenLive = false;
+    private Forms.NotifyIcon? _notifyIcon;
+    private bool _isExplicitExit = false;
 
     public MainWindow()
     {
@@ -23,6 +26,7 @@ public partial class MainWindow : Window
         _serverManager.StatusChanged += OnServerStatusChanged;
         _serverManager.LogReceived += OnServerLogReceived;
 
+        InitializeNotifyIcon();
         InitializeView();
     }
 
@@ -62,13 +66,28 @@ public partial class MainWindow : Window
         DbUserInput.Text = _config.DbUser;
         DbPasswordInput.Password = _config.DbPassword;
         AutoStartServerCheckBox.IsChecked = _config.AutoStartServer;
+        RunInBackgroundCheckBox.IsChecked = _config.RunInBackground;
+        StartMinimizedCheckBox.IsChecked = _config.StartMinimized;
+        StartWithWindowsCheckBox.IsChecked = ServerConfigService.IsStartupWithWindowsEnabled();
 
         LanUrlTextBlock.Text = NetworkHelper.GetServerShareUrl(5026);
 
-        if (_config.AutoStartServer && _serverManager.CurrentStatus == ServerStatus.Stopped)
+        if ((App.StartInBackground || _config.AutoStartServer) && _serverManager.CurrentStatus == ServerStatus.Stopped)
         {
             _isManualServerStart = false;
             _ = _serverManager.StartServerAsync(_config);
+        }
+
+        if (App.StartInBackground || _config.StartMinimized)
+        {
+            this.WindowState = WindowState.Minimized;
+            this.Hide();
+            if (_notifyIcon != null)
+            {
+                _notifyIcon.ShowBalloonTip(2000, "OfficeCore Server Station", 
+                    "Station started in the background. Double-click tray icon to open.", 
+                    Forms.ToolTipIcon.Info);
+            }
         }
     }
 
@@ -156,6 +175,31 @@ public partial class MainWindow : Window
     {
         _config.AutoStartServer = AutoStartServerCheckBox.IsChecked == true;
         ServerConfigService.Save(_config);
+    }
+
+    private void RunInBackgroundCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        _config.RunInBackground = RunInBackgroundCheckBox.IsChecked == true;
+        ServerConfigService.Save(_config);
+    }
+
+    private void StartMinimizedCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        _config.StartMinimized = StartMinimizedCheckBox.IsChecked == true;
+        ServerConfigService.Save(_config);
+    }
+
+    private void StartWithWindowsCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        var enable = StartWithWindowsCheckBox.IsChecked == true;
+        _config.StartWithWindows = enable;
+        ServerConfigService.SetStartupWithWindows(enable);
+        ServerConfigService.Save(_config);
+    }
+
+    private void MinimizeToTray_Click(object sender, RoutedEventArgs e)
+    {
+        MinimizeToTray();
     }
 
     private async void TestDbConnection_Click(object sender, RoutedEventArgs e)
@@ -524,6 +568,7 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
+            UpdateTrayStatus(status);
             switch (status)
             {
                 case ServerStatus.Stopped:
@@ -651,9 +696,170 @@ public partial class MainWindow : Window
 
     #endregion
 
+    #region System Tray & Background Execution
+
+    private void InitializeNotifyIcon()
+    {
+        _notifyIcon = new Forms.NotifyIcon
+        {
+            Text = "OfficeCore Server Station",
+            Visible = true
+        };
+
+        try
+        {
+            var exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (!string.IsNullOrEmpty(exePath))
+            {
+                _notifyIcon.Icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath) ?? System.Drawing.SystemIcons.Application;
+            }
+            else
+            {
+                _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+            }
+        }
+        catch
+        {
+            _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+        }
+
+        var contextMenu = new Forms.ContextMenuStrip();
+
+        var showItem = new Forms.ToolStripMenuItem("🖥️ Show Server Station", null, (s, e) => RestoreFromTray());
+        showItem.Font = new System.Drawing.Font(showItem.Font, System.Drawing.FontStyle.Bold);
+        contextMenu.Items.Add(showItem);
+
+        var openWebItem = new Forms.ToolStripMenuItem("🌐 Open Local Web App", null, (s, e) =>
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "http://localhost:5026",
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        });
+        contextMenu.Items.Add(openWebItem);
+
+        contextMenu.Items.Add(new Forms.ToolStripSeparator());
+
+        var toggleServerItem = new Forms.ToolStripMenuItem(
+            _serverManager.CurrentStatus == ServerStatus.Running ? "⏹️ Stop Server" : "⚡ Start Server", 
+            null, 
+            (s, e) =>
+            {
+                if (_serverManager.CurrentStatus == ServerStatus.Running)
+                {
+                    _serverManager.StopServer();
+                }
+                else
+                {
+                    _ = _serverManager.StartServerAsync(_config);
+                }
+            });
+        contextMenu.Items.Add(toggleServerItem);
+
+        contextMenu.Items.Add(new Forms.ToolStripSeparator());
+
+        var exitItem = new Forms.ToolStripMenuItem("❌ Exit Server Station", null, (s, e) => ExitApplication());
+        contextMenu.Items.Add(exitItem);
+
+        _notifyIcon.ContextMenuStrip = contextMenu;
+
+        _notifyIcon.DoubleClick += (s, e) => RestoreFromTray();
+        _notifyIcon.Click += (s, e) =>
+        {
+            if (e is Forms.MouseEventArgs mouseEvent && mouseEvent.Button == Forms.MouseButtons.Left)
+            {
+                RestoreFromTray();
+            }
+        };
+    }
+
+    private void UpdateTrayStatus(ServerStatus status)
+    {
+        if (_notifyIcon == null) return;
+
+        var statusText = status switch
+        {
+            ServerStatus.Running => "Running (Port 5026)",
+            ServerStatus.Starting => "Starting...",
+            ServerStatus.Error => "Error",
+            _ => "Stopped"
+        };
+
+        var text = $"OfficeCore Server: {statusText}";
+        _notifyIcon.Text = text.Length > 63 ? text.Substring(0, 63) : text;
+
+        if (_notifyIcon.ContextMenuStrip != null && _notifyIcon.ContextMenuStrip.Items.Count >= 4)
+        {
+            if (_notifyIcon.ContextMenuStrip.Items[3] is Forms.ToolStripMenuItem toggleItem)
+            {
+                toggleItem.Text = status == ServerStatus.Running ? "⏹️ Stop Server" : "⚡ Start Server";
+            }
+        }
+    }
+
+    public void MinimizeToTray()
+    {
+        this.WindowState = WindowState.Minimized;
+        this.Hide();
+        if (_notifyIcon != null)
+        {
+            _notifyIcon.ShowBalloonTip(2000, "OfficeCore Server Station", 
+                "Running in background. Click tray icon to open.", 
+                Forms.ToolTipIcon.Info);
+        }
+    }
+
+    public void RestoreFromTray()
+    {
+        this.Show();
+        this.WindowState = WindowState.Normal;
+        this.Activate();
+        this.Focus();
+    }
+
+    public void ExitApplication()
+    {
+        _isExplicitExit = true;
+        _serverManager.StopServer();
+        if (_notifyIcon != null)
+        {
+            _notifyIcon.Visible = false;
+            _notifyIcon.Dispose();
+        }
+        System.Windows.Application.Current.Shutdown();
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        if (this.WindowState == WindowState.Minimized && _config.RunInBackground)
+        {
+            MinimizeToTray();
+        }
+    }
+
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        if (!_isExplicitExit && _config.RunInBackground)
+        {
+            e.Cancel = true;
+            MinimizeToTray();
+            return;
+        }
+
         _serverManager.Dispose();
+        if (_notifyIcon != null)
+        {
+            _notifyIcon.Visible = false;
+            _notifyIcon.Dispose();
+        }
         base.OnClosing(e);
     }
+
+    #endregion
 }

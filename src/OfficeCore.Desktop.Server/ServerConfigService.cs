@@ -12,6 +12,9 @@ public class ServerConfig
     public string DbUser { get; set; } = "postgres";
     public string DbPassword { get; set; } = "password";
     public bool AutoStartServer { get; set; } = false;
+    public bool RunInBackground { get; set; } = true;
+    public bool StartMinimized { get; set; } = false;
+    public bool StartWithWindows { get; set; } = false;
 
     public static string GetDefaultDbName()
     {
@@ -114,5 +117,42 @@ public static class ServerConfigService
         {
             // Ignore failure writing config
         }
+    }
+
+    public static void SetStartupWithWindows(bool enable)
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Run", true);
+            if (key == null) return;
+
+            const string appName = "OfficeCoreServerStation";
+            if (enable)
+            {
+                var exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrEmpty(exePath))
+                {
+                    key.SetValue(appName, $"\"{exePath}\" --background");
+                }
+            }
+            else
+            {
+                key.DeleteValue(appName, false);
+            }
+        }
+        catch { }
+    }
+
+    public static bool IsStartupWithWindowsEnabled()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Run", false);
+            if (key == null) return false;
+            return key.GetValue("OfficeCoreServerStation") != null;
+        }
+        catch { return false; }
     }
 }

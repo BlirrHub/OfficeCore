@@ -91,8 +91,8 @@ public class UserController : ControllerBase
         {
             UserName = request.Email,
             Email = request.Email,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
+            FirstName = TextHelper.ToProperCase(request.FirstName),
+            LastName = TextHelper.ToProperCase(request.LastName),
             EmailConfirmed = true,
             IsActive = true,
             MustChangePassword = true
@@ -238,6 +238,8 @@ public class UserController : ControllerBase
             employee.GovernmentRecord.TinNumber = request.GovernmentRecord.TinNumber;
         }
 
+        employee.User.FirstName = TextHelper.ToProperCase(request.FirstName);
+        employee.User.LastName = TextHelper.ToProperCase(request.LastName);
         await _userManager.UpdateAsync(employee.User);
         _context.Employees.Update(employee);
         await _context.SaveChangesAsync();

@@ -117,6 +117,16 @@
                         </Button.Resources>
                     </Button>
 
+                    <Button Content="🗕 Hide to Background" Click="MinimizeToTray_Click" 
+                            Background="#18181B" Foreground="#D4D4D8" BorderBrush="#27272A" BorderThickness="1"
+                            Padding="12,6" FontSize="12" FontWeight="SemiBold" Cursor="Hand" Margin="0,0,10,0">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="6"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+
                     <Button Content="🚀 Open Local Web App" Click="LaunchLocalApp_Click" 
                             Background="#701A75" Foreground="White" BorderThickness="0"
                             Padding="14,6" FontSize="12" FontWeight="SemiBold" Cursor="Hand">
@@ -196,13 +206,39 @@
 
                                 <!-- Auto-Start Server Setting -->
                                 <Border Margin="0,16,0,0" Padding="0,14,0,0" BorderBrush="#27272A" BorderThickness="0,1,0,0">
-                                    <CheckBox x:Name="AutoStartServerCheckBox" Style="{StaticResource ModernCheckBox}"
-                                              Click="AutoStartServerCheckBox_Click">
-                                        <StackPanel Margin="0,0,0,0">
-                                            <TextBlock Text="Auto-start server on app launch" FontSize="12" FontWeight="SemiBold" Foreground="#E4E4E7"/>
-                                            <TextBlock Text="Automatically boots the unified backend when Station opens" FontSize="11" Foreground="#71717A" Margin="0,2,0,0"/>
-                                        </StackPanel>
-                                    </CheckBox>
+                                    <StackPanel>
+                                        <CheckBox x:Name="AutoStartServerCheckBox" Style="{StaticResource ModernCheckBox}"
+                                                  Click="AutoStartServerCheckBox_Click" Margin="0,0,0,12">
+                                            <StackPanel Margin="0,0,0,0">
+                                                <TextBlock Text="Auto-start server on app launch" FontSize="12" FontWeight="SemiBold" Foreground="#E4E4E7"/>
+                                                <TextBlock Text="Automatically boots the unified backend when Station opens" FontSize="11" Foreground="#71717A" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </CheckBox>
+
+                                        <CheckBox x:Name="RunInBackgroundCheckBox" Style="{StaticResource ModernCheckBox}"
+                                                  Click="RunInBackgroundCheckBox_Click" Margin="0,0,0,12">
+                                            <StackPanel Margin="0,0,0,0">
+                                                <TextBlock Text="Run in background (System Tray)" FontSize="12" FontWeight="SemiBold" Foreground="#E4E4E7"/>
+                                                <TextBlock Text="Keep the server alive in the Windows notification area when minimized or closed" FontSize="11" Foreground="#71717A" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </CheckBox>
+
+                                        <CheckBox x:Name="StartMinimizedCheckBox" Style="{StaticResource ModernCheckBox}"
+                                                  Click="StartMinimizedCheckBox_Click" Margin="0,0,0,12">
+                                            <StackPanel Margin="0,0,0,0">
+                                                <TextBlock Text="Start minimized to tray" FontSize="12" FontWeight="SemiBold" Foreground="#E4E4E7"/>
+                                                <TextBlock Text="Launch directly into the background without popping up the main window" FontSize="11" Foreground="#71717A" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </CheckBox>
+
+                                        <CheckBox x:Name="StartWithWindowsCheckBox" Style="{StaticResource ModernCheckBox}"
+                                                  Click="StartWithWindowsCheckBox_Click">
+                                            <StackPanel Margin="0,0,0,0">
+                                                <TextBlock Text="Start with Windows on system boot" FontSize="12" FontWeight="SemiBold" Foreground="#E4E4E7"/>
+                                                <TextBlock Text="Automatically launch Server Station in background when signing in to Windows" FontSize="11" Foreground="#71717A" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </CheckBox>
+                                    </StackPanel>
                                 </Border>
                             </StackPanel>
                         </Border>
