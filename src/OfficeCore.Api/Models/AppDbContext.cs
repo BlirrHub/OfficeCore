@@ -16,8 +16,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, AppRole, string>
     public DbSet<WorkSchedule> WorkSchedules { get; set; }
     public DbSet<WorkScheduleDay> WorkScheduleDays { get; set; }
     public DbSet<WorkScheduleBreak> WorkScheduleBreaks { get; set; }
-    public DbSet<WorkScheduleAutoDeduction> WorkScheduleAutoDeductions { get; set; }
-    public DbSet<WorkScheduleOvertimeRule> WorkScheduleOvertimeRules { get; set; }
+
     public DbSet<EmployeeGovernmentRecord> EmployeeGovernmentRecords { get; set; }
     public DbSet<GovernmentDeductionSetting> GovernmentDeductionSettings { get; set; }
     public DbSet<LeaveRequest> LeaveRequests { get; set; }

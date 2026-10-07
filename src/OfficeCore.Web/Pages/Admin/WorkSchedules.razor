@@ -294,13 +294,13 @@
                                 <p class="text-xs text-zinc-400 mt-1">Configure threshold clamping, auto-submission for manager approvals, and OT rates.</p>
                             </div>
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" @bind="_editModel.HasOvertimeRules" class="sr-only peer" />
+                                <input type="checkbox" @bind="_editModel.HasOvertimePolicy" class="sr-only peer" />
                                 <div class="w-10 h-5.5 rounded-full bg-zinc-800 peer-checked:bg-fuchsia-600 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:size-4.5 after:transition-transform peer-checked:after:translate-x-4.5"></div>
                                 <span class="text-xs font-semibold text-white">Enable Overtime</span>
                             </label>
                         </div>
 
-                        @if (_editModel.HasOvertimeRules)
+                        @if (_editModel.HasOvertimePolicy)
                         {
                             <div class="space-y-6">
                                 <!-- Clamping Threshold & Approval Submission Controls -->
@@ -326,121 +326,16 @@
                                     </div>
                                 </div>
 
-                                <div class="pl-6 space-y-8 border-l-2 border-fuchsia-800/40">
-                                
-                                <!-- Auto Deductions Sub-Section -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-4">
-                                        <div>
-                                            <h3 class="text-sm font-medium text-white">Auto Deductions</h3>
-                                            <p class="text-xs text-zinc-500">Automatically deduct time (e.g. for breaks) after a certain number of hours worked.</p>
+                                    <div class="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <label class="text-xs font-semibold text-zinc-200">Overtime Multiplier</label>
+                                            <div class="flex items-center gap-1.5">
+                                                <input type="number" min="1.0" max="5.0" step="0.05" @bind="_editModel.OvertimeMultiplier" class="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-white text-right focus:border-fuchsia-500 focus:outline-none" />
+                                                <span class="text-xs text-zinc-500">x</span>
+                                            </div>
                                         </div>
-                                        <button type="button" @onclick="AddAutoDeduction" class="flex items-center gap-2 text-fuchsia-400 text-xs font-medium hover:text-fuchsia-300 transition-colors">
-                                            <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                            Add Deduction
-                                        </button>
+                                        <p class="text-[11px] text-zinc-500">The rate multiplier for overtime pay (e.g. 1.25 for time-and-a-quarter).</p>
                                     </div>
-                                    
-                                    <div class="space-y-3">
-                                        @if (_editModel.AutoDeductions == null || !_editModel.AutoDeductions.Any())
-                                        {
-                                            <p class="text-xs text-zinc-500 italic">No auto deductions configured.</p>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var ad in _editModel.AutoDeductions)
-                                            {
-                                                <div class="flex items-center gap-3 bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
-                                                    <input type="text" @bind="ad.Name" placeholder="Name (e.g. Lunch)" class="w-1/3 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                                    
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="text-zinc-500 text-xs">Deduct</span>
-                                                        <input type="number" step="0.5" min="0" @bind="ad.DeductHours" class="w-16 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                                        <span class="text-zinc-500 text-xs">hrs after</span>
-                                                        <input type="number" step="0.5" min="0" @bind="ad.AfterWorkHours" class="w-16 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                                        <span class="text-zinc-500 text-xs">hrs of work</span>
-                                                    </div>
-
-                                                    <button type="button" @onclick="() => RemoveAutoDeduction(ad)" class="ml-auto text-zinc-500 hover:text-red-400 transition-colors p-1 rounded hover:bg-zinc-900">
-                                                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
-                                                </div>
-                                            }
-                                        }
-                                    </div>
-                                </div>
-
-                                <!-- Daily Overtime Sub-Section -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-4">
-                                        <div>
-                                            <h3 class="text-sm font-medium text-white">Daily Overtime</h3>
-                                            <p class="text-xs text-zinc-500">Configure when overtime pay kicks in.</p>
-                                        </div>
-                                        @if (_editModel.OvertimeRules == null || !_editModel.OvertimeRules.Any())
-                                        {
-                                            <button type="button" @onclick="AddOvertimeRule" class="flex items-center gap-2 text-fuchsia-400 text-xs font-medium hover:text-fuchsia-300 transition-colors">
-                                                <svg class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                                Add Overtime Rule
-                                            </button>
-                                        }
-                                    </div>
-                                    
-                                    <div class="space-y-3">
-                                        @if (_editModel.OvertimeRules == null || !_editModel.OvertimeRules.Any())
-                                        {
-                                            <p class="text-xs text-zinc-500 italic">No daily overtime rules configured.</p>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var or in _editModel.OvertimeRules)
-                                            {
-                                                <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-lg space-y-4 relative group">
-                                                    <button type="button" @onclick="() => RemoveOvertimeRule(or)" class="absolute top-2 right-2 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all p-1 rounded hover:bg-zinc-900">
-                                                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
-                                                    
-                                                    <div class="flex gap-4 items-center">
-                                                        <label class="w-32 text-xs font-medium text-zinc-400">Trigger Mode</label>
-                                                        <select @bind="or.TriggerMode" class="bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
-                                                            <option value="0">Hours Worked</option>
-                                                            <option value="1">Time of Day</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div class="flex gap-4 items-center">
-                                                        <label class="w-32 text-xs font-medium text-zinc-400">
-                                                            @(or.TriggerMode == 0 ? "Starts After" : "Starts At")
-                                                        </label>
-                                                        
-                                                        @if (or.TriggerMode == 0)
-                                                        {
-                                                            <div class="flex items-center gap-2">
-                                                                <input type="number" step="0.5" min="0" @bind="or.AfterHours" class="w-20 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                                                <span class="text-zinc-500 text-xs">hours of work</span>
-                                                            </div>
-                                                        }
-                                                        else
-                                                        {
-                                                            <div class="flex items-center gap-2">
-                                                                <input type="time" @bind:get="or.AfterTime.HasValue ? TimeOnly.FromTimeSpan(or.AfterTime.Value) : (TimeOnly?)null" @bind:set="(value) => or.AfterTime = value?.ToTimeSpan()" class="w-32 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                                            </div>
-                                                        }
-                                                    </div>
-
-                                                    <div class="flex gap-4 items-center">
-                                                        <label class="w-32 text-xs font-medium text-zinc-400">Multiplier</label>
-                                                        <div class="flex items-center gap-2">
-                                                            <input type="number" step="0.1" min="1.0" @bind="or.Multiplier" class="w-20 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none" />
-                                                            <span class="text-zinc-500 text-xs">x (e.g. 1.5 for time-and-a-half)</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
-                                        }
-                                    </div>
-                                    </div>
-                                </div>
                             </div>
                         }
                     </div>
@@ -536,24 +431,6 @@
                         </div>
                     }
 
-                    <!-- View Auto Deductions -->
-                    @if (_selectedSchedule.AutoDeductions != null && _selectedSchedule.AutoDeductions.Any())
-                    {
-                        <div class="border-t border-zinc-800 pt-6">
-                            <label class="block text-sm font-medium text-zinc-500 mb-4">Auto Deductions</label>
-                            <div class="space-y-2">
-                                @foreach (var ad in _selectedSchedule.AutoDeductions)
-                                {
-                                    <div class="flex items-center gap-4 bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
-                                        <div class="w-40 text-sm text-white font-medium">@ad.Name</div>
-                                        <div class="flex-1 text-sm text-zinc-400">
-                                            Deducts @ad.DeductHours hrs after @ad.AfterWorkHours hrs of work
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
 
                     <!-- View Time & Attendance Rules -->
                     <div class="border-t border-zinc-800 pt-6">
@@ -582,15 +459,15 @@
                     <div class="border-t border-zinc-800 pt-6">
                         <div class="flex items-center justify-between mb-4">
                             <label class="block text-sm font-medium text-zinc-500">Clock-Out & Overtime Policy</label>
-                            <span class="text-xs px-2.5 py-0.5 rounded-full font-medium @(_selectedSchedule.HasOvertimeRules ? "bg-amber-900/30 text-amber-400 border border-amber-800/40" : "bg-zinc-800 text-zinc-500")">
-                                @(_selectedSchedule.HasOvertimeRules ? "OT Policy Active" : "Disabled")
+                            <span class="text-xs px-2.5 py-0.5 rounded-full font-medium @(_selectedSchedule.HasOvertimePolicy ? "bg-amber-900/30 text-amber-400 border border-amber-800/40" : "bg-zinc-800 text-zinc-500")">
+                                @(_selectedSchedule.HasOvertimePolicy ? "OT Policy Active" : "Disabled")
                             </span>
                         </div>
 
-                        @if (_selectedSchedule.HasOvertimeRules)
+                        @if (_selectedSchedule.HasOvertimePolicy)
                         {
                             <div class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                     <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
                                         <span class="text-xs text-zinc-500 block">Overtime Minimum Threshold</span>
                                         <span class="text-sm font-semibold text-amber-400">@_selectedSchedule.OvertimeThresholdMinutes mins</span>
@@ -603,32 +480,12 @@
                                         </span>
                                         <p class="text-[11px] text-zinc-500 mt-1">Sends overtime scans directly to manager approval inbox.</p>
                                     </div>
-                                </div>
-
-                                @if (_selectedSchedule.OvertimeRules != null && _selectedSchedule.OvertimeRules.Any())
-                                {
-                                    <div class="space-y-2">
-                                        <span class="text-xs text-zinc-400 block font-medium">Daily Overtime Multipliers</span>
-                                        @foreach (var or in _selectedSchedule.OvertimeRules)
-                                        {
-                                            <div class="flex items-center gap-4 bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
-                                                <div class="w-36 text-sm text-amber-400 font-semibold">
-                                                    @(or.Multiplier)x Multiplier
-                                                </div>
-                                                <div class="flex-1 text-sm text-zinc-300">
-                                                    @if (or.TriggerMode == 0)
-                                                    {
-                                                        <span>Starts after @or.AfterHours hrs of work</span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span>Starts at @(or.AfterTime?.ToString(@"hh\:mm"))</span>
-                                                    }
-                                                </div>
-                                            </div>
-                                        }
+                                    <div class="bg-zinc-950 border border-zinc-800 p-3 rounded-lg">
+                                        <span class="text-xs text-zinc-500 block">Overtime Multiplier</span>
+                                        <span class="text-sm font-semibold text-amber-400">@_selectedSchedule.OvertimeMultiplier.ToString("0.00")x</span>
+                                        <p class="text-[11px] text-zinc-500 mt-1">The rate multiplier for overtime pay (e.g. 1.25 for time-and-a-quarter).</p>
                                     </div>
-                                }
+                                </div>
                             </div>
                         }
                         else
@@ -719,8 +576,8 @@
                 EndTime = d == DayOfWeek.Saturday || d == DayOfWeek.Sunday ? null : new TimeSpan(17, 0, 0)
             }).ToList(),
             Breaks = new List<WorkScheduleBreakDto>(),
-            AutoDeductions = new List<WorkScheduleAutoDeductionDto>(),
-            OvertimeRules = new List<WorkScheduleOvertimeRuleDto>()
+            HasOvertimePolicy = true,
+            OvertimeMultiplier = 1.25
         };
     }
 
@@ -760,21 +617,8 @@
                 StartTime = b.StartTime,
                 EndTime = b.EndTime
             }).ToList() ?? new List<WorkScheduleBreakDto>(),
-            HasOvertimeRules = (_selectedSchedule.AutoDeductions != null && _selectedSchedule.AutoDeductions.Any()) || 
-                               (_selectedSchedule.OvertimeRules != null && _selectedSchedule.OvertimeRules.Any()),
-            AutoDeductions = _selectedSchedule.AutoDeductions?.Select(ad => new WorkScheduleAutoDeductionDto
-            {
-                Name = ad.Name,
-                DeductHours = ad.DeductHours,
-                AfterWorkHours = ad.AfterWorkHours
-            }).ToList() ?? new List<WorkScheduleAutoDeductionDto>(),
-            OvertimeRules = _selectedSchedule.OvertimeRules?.Select(or => new WorkScheduleOvertimeRuleDto
-            {
-                TriggerMode = or.TriggerMode,
-                AfterHours = or.AfterHours,
-                AfterTime = or.AfterTime,
-                Multiplier = or.Multiplier
-            }).ToList() ?? new List<WorkScheduleOvertimeRuleDto>()
+            HasOvertimePolicy = _selectedSchedule.HasOvertimePolicy,
+            OvertimeMultiplier = _selectedSchedule.OvertimeMultiplier
         };
     }
 
@@ -810,35 +654,6 @@
         _editModel.Breaks.Remove(b);
     }
 
-    private void AddAutoDeduction()
-    {
-        _editModel.AutoDeductions.Add(new WorkScheduleAutoDeductionDto
-        {
-            Name = "Lunch",
-            DeductHours = 1.0,
-            AfterWorkHours = 4.0
-        });
-    }
-
-    private void RemoveAutoDeduction(WorkScheduleAutoDeductionDto ad)
-    {
-        _editModel.AutoDeductions.Remove(ad);
-    }
-
-    private void AddOvertimeRule()
-    {
-        _editModel.OvertimeRules.Add(new WorkScheduleOvertimeRuleDto
-        {
-            TriggerMode = 0,
-            AfterHours = 8.0,
-            Multiplier = 1.5
-        });
-    }
-
-    private void RemoveOvertimeRule(WorkScheduleOvertimeRuleDto or)
-    {
-        _editModel.OvertimeRules.Remove(or);
-    }
 
     private async Task SaveSchedule()
     {
@@ -850,11 +665,6 @@
 
         if (_isCreating)
         {
-            if (!_editModel.HasOvertimeRules)
-            {
-                _editModel.OvertimeRules.Clear();
-            }
-
             var response = await Http.PostAsJsonAsync("/api/workschedule", _editModel);
             if (response.IsSuccessStatusCode)
             {
@@ -870,11 +680,6 @@
         }
         else if (_isEditing)
         {
-            if (!_editModel.HasOvertimeRules)
-            {
-                _editModel.OvertimeRules.Clear();
-            }
-
             var response = await Http.PutAsJsonAsync($"/api/workschedule/{_editModel.Id}", _editModel);
             if (response.IsSuccessStatusCode)
             {
@@ -937,12 +742,8 @@
         public bool AutoSubmitOvertimeApproval { get; set; } = true;
         public List<WorkScheduleDayDto> Days { get; set; } = new();
         public List<WorkScheduleBreakDto> Breaks { get; set; } = new();
-        
-        // Form specific logic
-        public bool HasOvertimeRules { get; set; }
-        
-        public List<WorkScheduleAutoDeductionDto> AutoDeductions { get; set; } = new();
-        public List<WorkScheduleOvertimeRuleDto> OvertimeRules { get; set; } = new();
+        public bool HasOvertimePolicy { get; set; }
+        public double OvertimeMultiplier { get; set; } = 1.25;
     }
 
     public class WorkScheduleDayDto
@@ -960,20 +761,5 @@
         public bool IsPaid { get; set; }
         public TimeSpan StartTime { get; set; }
         public TimeSpan EndTime { get; set; }
-    }
-
-    public class WorkScheduleAutoDeductionDto
-    {
-        public string Name { get; set; } = string.Empty;
-        public double DeductHours { get; set; }
-        public double AfterWorkHours { get; set; }
-    }
-
-    public class WorkScheduleOvertimeRuleDto
-    {
-        public int TriggerMode { get; set; }
-        public double? AfterHours { get; set; }
-        public TimeSpan? AfterTime { get; set; }
-        public double Multiplier { get; set; } = 1.5;
     }
 }

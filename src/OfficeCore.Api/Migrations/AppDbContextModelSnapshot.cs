@@ -1646,6 +1646,9 @@ namespace OfficeCore.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("AssignedRole")
+                        .HasColumnType("text");
+
                     b.Property<decimal>("BasicPay")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -1710,6 +1713,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<decimal>("TotalOvertimePay")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<double>("TotalWorkedHours")
+                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 
@@ -1777,6 +1783,9 @@ namespace OfficeCore.Api.Migrations
                     b.Property<bool>("AutoSubmitOvertimeApproval")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("HasOvertimePolicy")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IncludeTimeTrackedBeforeScheduledStartTime")
                         .HasColumnType("boolean");
 
@@ -1793,6 +1802,9 @@ namespace OfficeCore.Api.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<double>("OvertimeMultiplier")
+                        .HasColumnType("double precision");
 
                     b.Property<int>("OvertimeThresholdMinutes")
                         .HasColumnType("integer");
@@ -1811,40 +1823,6 @@ namespace OfficeCore.Api.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("WorkSchedules");
-                });
-
-            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleAutoDeduction", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<double>("AfterWorkHours")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("DeductHours")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("WorkScheduleId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("WorkScheduleId");
-
-                    b.ToTable("WorkScheduleAutoDeductions");
                 });
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleBreak", b =>
@@ -1920,41 +1898,6 @@ namespace OfficeCore.Api.Migrations
                     b.HasIndex("WorkScheduleId");
 
                     b.ToTable("WorkScheduleDays");
-                });
-
-            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleOvertimeRule", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<double?>("AfterHours")
-                        .HasColumnType("double precision");
-
-                    b.Property<TimeSpan?>("AfterTime")
-                        .HasColumnType("interval");
-
-                    b.Property<double>("Multiplier")
-                        .HasColumnType("double precision");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("TriggerMode")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("WorkScheduleId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("WorkScheduleId");
-
-                    b.ToTable("WorkScheduleOvertimeRules");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -2784,25 +2727,6 @@ namespace OfficeCore.Api.Migrations
                     b.Navigation("Organization");
                 });
 
-            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleAutoDeduction", b =>
-                {
-                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
-                        .WithMany("AutoDeductions")
-                        .HasForeignKey("WorkScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("WorkSchedule");
-                });
-
             modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleBreak", b =>
                 {
                     b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
@@ -2832,25 +2756,6 @@ namespace OfficeCore.Api.Migrations
 
                     b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
                         .WithMany("Days")
-                        .HasForeignKey("WorkScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("WorkSchedule");
-                });
-
-            modelBuilder.Entity("OfficeCore.Api.Models.WorkScheduleOvertimeRule", b =>
-                {
-                    b.HasOne("OfficeCore.Api.Models.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("OfficeCore.Api.Models.WorkSchedule", "WorkSchedule")
-                        .WithMany("OvertimeRules")
                         .HasForeignKey("WorkScheduleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2942,13 +2847,9 @@ namespace OfficeCore.Api.Migrations
 
             modelBuilder.Entity("OfficeCore.Api.Models.WorkSchedule", b =>
                 {
-                    b.Navigation("AutoDeductions");
-
                     b.Navigation("Breaks");
 
                     b.Navigation("Days");
-
-                    b.Navigation("OvertimeRules");
                 });
 #pragma warning restore 612, 618
         }

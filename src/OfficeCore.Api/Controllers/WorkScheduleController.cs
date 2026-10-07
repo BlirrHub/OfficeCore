@@ -30,8 +30,6 @@ public class WorkScheduleController : ControllerBase
             .Where(ws => ws.OrganizationId == orgId)
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
-            .Include(ws => ws.AutoDeductions)
-            .Include(ws => ws.OvertimeRules)
             .ToListAsync();
             
         return Ok(schedules);
@@ -47,8 +45,6 @@ public class WorkScheduleController : ControllerBase
             .Where(ws => ws.OrganizationId == orgId)
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
-            .Include(ws => ws.AutoDeductions)
-            .Include(ws => ws.OvertimeRules)
             .FirstOrDefaultAsync(ws => ws.Id == id);
 
         if (schedule == null)
@@ -78,7 +74,9 @@ public class WorkScheduleController : ControllerBase
             LateGracePeriodMinutes = dto.LateGracePeriodMinutes,
             OvertimeThresholdMinutes = dto.OvertimeThresholdMinutes > 0 ? dto.OvertimeThresholdMinutes : 15,
             AutoNormalizeHalfDay = dto.AutoNormalizeHalfDay,
-            AutoSubmitOvertimeApproval = dto.AutoSubmitOvertimeApproval
+            AutoSubmitOvertimeApproval = dto.AutoSubmitOvertimeApproval,
+            HasOvertimePolicy = dto.HasOvertimePolicy,
+            OvertimeMultiplier = dto.OvertimeMultiplier
         };
         
         if (dto.Days != null)
@@ -114,36 +112,7 @@ public class WorkScheduleController : ControllerBase
             }
         }
         
-        if (dto.AutoDeductions != null)
-        {
-            foreach (var ad in dto.AutoDeductions)
-            {
-                schedule.AutoDeductions.Add(new WorkScheduleAutoDeduction
-                {
-                    WorkScheduleId = schedule.Id,
-                    OrganizationId = orgId.Value,
-                    Name = ad.Name,
-                    DeductHours = ad.DeductHours,
-                    AfterWorkHours = ad.AfterWorkHours
-                });
-            }
-        }
-        
-        if (dto.HasOvertimeRules && dto.OvertimeRules != null)
-        {
-            foreach (var or in dto.OvertimeRules)
-            {
-                schedule.OvertimeRules.Add(new WorkScheduleOvertimeRule
-                {
-                    WorkScheduleId = schedule.Id,
-                    OrganizationId = orgId.Value,
-                    TriggerMode = (OvertimeTriggerMode)or.TriggerMode,
-                    AfterHours = or.AfterHours,
-                    AfterTime = or.AfterTime,
-                    Multiplier = or.Multiplier
-                });
-            }
-        }
+
 
         try
         {
@@ -172,8 +141,6 @@ public class WorkScheduleController : ControllerBase
             .Where(ws => ws.OrganizationId == orgId)
             .Include(ws => ws.Days)
             .Include(ws => ws.Breaks)
-            .Include(ws => ws.AutoDeductions)
-            .Include(ws => ws.OvertimeRules)
             .FirstOrDefaultAsync(ws => ws.Id == id);
 
         if (existingSchedule == null)
@@ -190,6 +157,8 @@ public class WorkScheduleController : ControllerBase
         existingSchedule.OvertimeThresholdMinutes = dto.OvertimeThresholdMinutes > 0 ? dto.OvertimeThresholdMinutes : 15;
         existingSchedule.AutoNormalizeHalfDay = dto.AutoNormalizeHalfDay;
         existingSchedule.AutoSubmitOvertimeApproval = dto.AutoSubmitOvertimeApproval;
+        existingSchedule.HasOvertimePolicy = dto.HasOvertimePolicy;
+        existingSchedule.OvertimeMultiplier = dto.OvertimeMultiplier;
 
         // Update days
         _context.WorkScheduleDays.RemoveRange(existingSchedule.Days);
@@ -228,40 +197,7 @@ public class WorkScheduleController : ControllerBase
             }
         }
         
-        // Update auto deductions
-        _context.WorkScheduleAutoDeductions.RemoveRange(existingSchedule.AutoDeductions);
-        if (dto.AutoDeductions != null)
-        {
-            foreach (var ad in dto.AutoDeductions)
-            {
-                existingSchedule.AutoDeductions.Add(new WorkScheduleAutoDeduction
-                {
-                    WorkScheduleId = id,
-                    OrganizationId = orgId.Value,
-                    Name = ad.Name,
-                    DeductHours = ad.DeductHours,
-                    AfterWorkHours = ad.AfterWorkHours
-                });
-            }
-        }
-        
-        // Update overtime rules
-        _context.WorkScheduleOvertimeRules.RemoveRange(existingSchedule.OvertimeRules);
-        if (dto.HasOvertimeRules && dto.OvertimeRules != null)
-        {
-            foreach (var or in dto.OvertimeRules)
-            {
-                existingSchedule.OvertimeRules.Add(new WorkScheduleOvertimeRule
-                {
-                    WorkScheduleId = id,
-                    OrganizationId = orgId.Value,
-                    TriggerMode = (OvertimeTriggerMode)or.TriggerMode,
-                    AfterHours = or.AfterHours,
-                    AfterTime = or.AfterTime,
-                    Multiplier = or.Multiplier
-                });
-            }
-        }
+
 
         await _context.SaveChangesAsync();
 
@@ -300,9 +236,8 @@ public class WorkScheduleDto
     public bool AutoSubmitOvertimeApproval { get; set; } = true;
     public List<WorkScheduleDayDto> Days { get; set; } = new();
     public List<WorkScheduleBreakDto> Breaks { get; set; } = new();
-    public bool HasOvertimeRules { get; set; }
-    public List<WorkScheduleAutoDeductionDto> AutoDeductions { get; set; } = new();
-    public List<WorkScheduleOvertimeRuleDto> OvertimeRules { get; set; } = new();
+    public bool HasOvertimePolicy { get; set; }
+    public double OvertimeMultiplier { get; set; } = 1.25;
 }
 
 public class WorkScheduleDayDto
@@ -322,17 +257,4 @@ public class WorkScheduleBreakDto
     public TimeSpan EndTime { get; set; }
 }
 
-public class WorkScheduleAutoDeductionDto
-{
-    public string Name { get; set; } = string.Empty;
-    public double DeductHours { get; set; }
-    public double AfterWorkHours { get; set; }
-}
 
-public class WorkScheduleOvertimeRuleDto
-{
-    public int TriggerMode { get; set; }
-    public double? AfterHours { get; set; }
-    public TimeSpan? AfterTime { get; set; }
-    public double Multiplier { get; set; } = 1.5;
-}

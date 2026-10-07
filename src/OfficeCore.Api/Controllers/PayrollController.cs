@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using System.Security.Claims;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -125,26 +126,59 @@ public class PayrollController : ControllerBase
         var payslips = await _context.Payslips
             .Include(p => p.Employee)
                 .ThenInclude(e => e!.User)
+            .Include(p => p.Employee)
+                .ThenInclude(e => e!.EmployeeRoles)
+                    .ThenInclude(er => er.Role)
+            .Include(p => p.Organization)
+            .Include(p => p.PayrollPeriod)
             .Where(p => p.PayrollPeriodId == id && p.OrganizationId == orgId.Value)
             .ToListAsync();
         
-        return Ok(payslips.Select(p => new {
-            p.Id,
-            p.EmployeeId,
-            EmployeeName = p.Employee?.User != null ? $"{p.Employee.User.FirstName} {p.Employee.User.LastName}".Trim() : "Unknown",
-            p.BasicPay,
-            p.TotalLeavePay,
-            p.TotalOvertimePay,
-            p.GrossPay,
-            p.SssDeduction,
-            p.PhilHealthDeduction,
-            p.PagIbigDeduction,
-            p.TaxDeduction,
-            p.AdvancesDeduction,
-            p.OtherAllowances,
-            p.OtherDeductions,
-            p.NetPay,
-            p.CalculationDetailsJson
+        return Ok(payslips.Select(p => {
+            double totalHours = p.TotalWorkedHours;
+            if (totalHours == 0 && !string.IsNullOrWhiteSpace(p.CalculationDetailsJson))
+            {
+                try {
+                    var jsonDoc = System.Text.Json.JsonDocument.Parse(p.CalculationDetailsJson);
+                    if (jsonDoc.RootElement.TryGetProperty("TotalTrackedHours", out var hrsProp) && hrsProp.TryGetDouble(out var hrs))
+                    {
+                        totalHours = hrs;
+                    }
+                } catch { }
+            }
+
+            var assignedRole = p.AssignedRole;
+            if (string.IsNullOrWhiteSpace(assignedRole) && p.Employee?.EmployeeRoles != null)
+            {
+                assignedRole = string.Join(", ", p.Employee.EmployeeRoles.Select(er => er.Role?.Name).Where(n => !string.IsNullOrWhiteSpace(n)));
+            }
+
+            return new {
+                p.Id,
+                p.EmployeeId,
+                EmployeeName = p.Employee?.User != null ? $"{p.Employee.User.FirstName} {p.Employee.User.LastName}".Trim() : "Unknown",
+                p.BasicPay,
+                p.TotalLeavePay,
+                p.TotalOvertimePay,
+                p.GrossPay,
+                p.SssDeduction,
+                p.PhilHealthDeduction,
+                p.PagIbigDeduction,
+                p.TaxDeduction,
+                p.AdvancesDeduction,
+                p.OtherAllowances,
+                p.OtherDeductions,
+                p.NetPay,
+                OrganizationName = p.Organization?.Name ?? "OfficeCore",
+                OrganizationAddress = p.Organization?.Address,
+                TotalWorkedHours = totalHours,
+                AssignedRole = assignedRole,
+                p.CalculationDetailsJson,
+                PayrollPeriod = new {
+                    p.PayrollPeriod?.StartDate,
+                    p.PayrollPeriod?.EndDate
+                }
+            };
         }));
     }
 
@@ -185,17 +219,43 @@ public class PayrollController : ControllerBase
 
         var payslip = await _context.Payslips
             .Include(p => p.PayrollPeriod)
+            .Include(p => p.Organization)
             .Include(p => p.Employee)
                 .ThenInclude(e => e!.User)
+            .Include(p => p.Employee)
+                .ThenInclude(e => e!.EmployeeRoles)
+                    .ThenInclude(er => er.Role)
             .FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
 
         if (payslip == null) return NotFound();
+
+        double totalHours = payslip.TotalWorkedHours;
+        if (totalHours == 0 && !string.IsNullOrWhiteSpace(payslip.CalculationDetailsJson))
+        {
+            try {
+                var jsonDoc = System.Text.Json.JsonDocument.Parse(payslip.CalculationDetailsJson);
+                if (jsonDoc.RootElement.TryGetProperty("TotalTrackedHours", out var hrsProp) && hrsProp.TryGetDouble(out var hrs))
+                {
+                    totalHours = hrs;
+                }
+            } catch { }
+        }
+
+        var assignedRole = payslip.AssignedRole;
+        if (string.IsNullOrWhiteSpace(assignedRole) && payslip.Employee?.EmployeeRoles != null)
+        {
+            assignedRole = string.Join(", ", payslip.Employee.EmployeeRoles.Select(er => er.Role?.Name).Where(n => !string.IsNullOrWhiteSpace(n)));
+        }
 
         return Ok(new
         {
             payslip.Id,
             payslip.EmployeeId,
             EmployeeName = payslip.Employee?.User != null ? $"{payslip.Employee.User.FirstName} {payslip.Employee.User.LastName}".Trim() : "Unknown",
+            OrganizationName = payslip.Organization?.Name ?? "OfficeCore",
+            OrganizationAddress = payslip.Organization?.Address,
+            TotalWorkedHours = totalHours,
+            AssignedRole = assignedRole,
             payslip.BasicPay,
             payslip.TotalLeavePay,
             payslip.TotalOvertimePay,
@@ -214,6 +274,35 @@ public class PayrollController : ControllerBase
                 payslip.PayrollPeriod?.EndDate
             }
         });
+    }
+
+    [HttpGet("my-payslips")]
+    public async Task<IActionResult> GetMyPayslips()
+    {
+        var orgId = _tenant.GetActiveOrganizationId();
+        if (orgId == null) return Forbid();
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId.Value);
+        if (employee == null) return NotFound("Employee profile not found");
+
+        var payslips = await _context.Payslips
+            .Include(p => p.PayrollPeriod)
+            .Where(p => p.EmployeeId == employee.Id && p.OrganizationId == orgId.Value)
+            .OrderByDescending(p => p.PayrollPeriod!.EndDate)
+            .Select(p => new
+            {
+                p.Id,
+                PayrollPeriodStart = p.PayrollPeriod!.StartDate,
+                PayrollPeriodEnd = p.PayrollPeriod!.EndDate,
+                p.GrossPay,
+                p.NetPay
+            })
+            .ToListAsync();
+
+        return Ok(payslips);
     }
 
     [HttpPut("payslips/{id}")]

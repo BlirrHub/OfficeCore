@@ -40,6 +40,9 @@ public class Payslip : ITenantEntity{
 
     public decimal NetPay { get; set; }
 
+    public double TotalWorkedHours { get; set; }
+    public string? AssignedRole { get; set; }
+
     // JSON blob to store the exact mathematical breakdown for historical auditing
     public string? CalculationDetailsJson { get; set; }
 

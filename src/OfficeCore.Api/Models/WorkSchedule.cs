@@ -41,10 +41,9 @@ public class WorkSchedule : ITenantEntity{
     
     public ICollection<WorkScheduleBreak> Breaks { get; set; } = new List<WorkScheduleBreak>();
     
-    public ICollection<WorkScheduleAutoDeduction> AutoDeductions { get; set; } = new List<WorkScheduleAutoDeduction>();
+    public bool HasOvertimePolicy { get; set; } = false;
     
-    public ICollection<WorkScheduleOvertimeRule> OvertimeRules { get; set; } = new List<WorkScheduleOvertimeRule>();
-
+    public double OvertimeMultiplier { get; set; } = 1.25;
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
 }
