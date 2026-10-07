@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -140,8 +141,8 @@ public class AuthController : ControllerBase
             PhoneNumber = !string.IsNullOrWhiteSpace(request.PhoneNumber) ? Services.SmsOtpService.NormalizePhoneNumber(request.PhoneNumber) : null,
             PhoneNumberConfirmed = false,
 
-            FirstName = request.FirstName,
-            LastName = request.LastName,
+            FirstName = TextHelper.ToProperCase(request.FirstName),
+            LastName = TextHelper.ToProperCase(request.LastName),
             MustChangePassword = false // It's their own password, so they don't need to change it on first login
         };
 
@@ -293,8 +294,8 @@ public class AuthController : ControllerBase
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
 
-        user.FirstName = request.FirstName;
-        user.LastName = request.LastName;
+        user.FirstName = TextHelper.ToProperCase(request.FirstName);
+        user.LastName = TextHelper.ToProperCase(request.LastName);
 
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded) return BadRequest(result.Errors);
