@@ -165,7 +165,7 @@
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
         <div class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl p-6 relative">
             <h3 class="text-lg font-bold text-white mb-2">Delete Role</h3>
-            <p class="text-sm text-zinc-400 mb-6">Are you sure you want to permanently delete this role? This action cannot be undone.</p>
+            <p class="text-sm text-zinc-400 mb-6">Are you sure you want to permanently delete this role? Employees assigned to it will be unassigned and lose access granted by this role. This action cannot be undone.</p>
             <div class="flex gap-3">
                 <button @onclick="() => _showDeleteModal = false" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all">Cancel</button>
                 <button @onclick="ConfirmDeleteRole" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all">Delete</button>
@@ -319,7 +319,8 @@
         }
         else
         {
-            ToastService.ShowError("Failed to delete role.");
+            var error = await response.Content.ReadFromJsonAsync<ApiError>();
+            ToastService.ShowError(error?.Message ?? $"Failed to delete role ({(int)response.StatusCode}).");
         }
     }
 
@@ -330,5 +331,10 @@
         public string? Description { get; set; } 
         public bool ShowAsTitle { get; set; } 
         public List<string> Modules { get; set; } = [];
+    }
+
+    private sealed class ApiError
+    {
+        public string? Message { get; set; }
     }
 }
