@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-10-10] (`acba-dev` Role Editing and Audit Trail Access)
+
+- Fixed role updates failing with `DbUpdateConcurrencyException` by replacing module claims with a transactional database-side delete and insert.
+- Aligned Audit Trail API authorization with the shared `AuditLogs` module policy, allowing custom roles granted Audit Trail access instead of requiring hard-coded `Admin` or `Owner` role names.
+- Validated the active organization membership for Audit Trail list, summary, and export operations.
+
 ### Added — [2026-10-10] (`acba-dev` Quick Demo Login)
 
 - Added Admin Demo and Employee Demo buttons to the login page for one-click ACBA development access.

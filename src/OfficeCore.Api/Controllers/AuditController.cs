@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
@@ -15,45 +14,18 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = "RequireAuditLogs")]
 public class AuditController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly TenantService _tenant;
-    private readonly UserManager<ApplicationUser> _userManager;
 
     public AuditController(
         AppDbContext context,
-        TenantService tenant,
-        UserManager<ApplicationUser> userManager)
+        TenantService tenant)
     {
         _context = context;
         _tenant = tenant;
-        _userManager = userManager;
-    }
-
-    private async Task<bool> IsAuthorizedForAuditAsync()
-    {
-        if (User.Identity?.IsAuthenticated != true)
-            return false;
-
-        var userId = _userManager.GetUserId(User);
-        if (userId == null) return false;
-
-        var orgId = _tenant.GetActiveOrganizationId();
-        if (orgId == null)
-        {
-            return await _context.Organizations.AnyAsync(o => o.CreatedByUserId == userId);
-        }
-
-        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == orgId.Value);
-        if (org != null && org.CreatedByUserId == userId)
-            return true;
-
-        var isAdmin = await _context.EmployeeRoles
-            .AnyAsync(er => er.Employee != null && er.Employee.UserId == userId && er.Employee.OrganizationId == orgId.Value &&
-                            (er.Role != null && (er.Role.Name == "Admin" || er.Role.Name == "Owner")));
-
-        return isAdmin;
     }
 
     [HttpGet]
@@ -66,10 +38,7 @@ public class AuditController : ControllerBase
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        if (!await IsAuthorizedForAuditAsync())
-            return Forbid("Administrative privileges required to access audit trail records.");
-
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return BadRequest("Active workspace is required.");
 
         if (pageSize < 1) pageSize = 10;
@@ -153,10 +122,7 @@ public class AuditController : ControllerBase
     [HttpGet("summary")]
     public async Task<IActionResult> GetAuditSummary()
     {
-        if (!await IsAuthorizedForAuditAsync())
-            return Forbid("Administrative privileges required to access audit summary.");
-
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return BadRequest("Active workspace is required.");
 
         var nowUtc = DateTime.UtcNow;
@@ -227,10 +193,7 @@ public class AuditController : ControllerBase
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        if (!await IsAuthorizedForAuditAsync())
-            return Forbid("Administrative privileges required to export audit logs.");
-
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return BadRequest("Active workspace is required.");
 
         var query = _context.AuditLogs

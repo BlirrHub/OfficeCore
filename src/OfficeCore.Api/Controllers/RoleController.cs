@@ -123,7 +123,6 @@ public class RoleController : ControllerBase
             return BadRequest(new { message = "Unknown modules were supplied.", invalidModules = invalid });
 
         var role = await _context.OrganizationRoles
-            .Include(r => r.Claims)
             .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
         if (role == null) return NotFound();
 
@@ -134,19 +133,25 @@ public class RoleController : ControllerBase
         role.Description = request.Description;
         role.ShowAsTitle = request.ShowAsTitle;
 
-        _context.OrganizationRoleClaims.RemoveRange(role.Claims.Where(c => c.ClaimType == "ModuleAccess"));
-        foreach (var module in modules)
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        // Delete directly in the database. Replacing a tracked navigation collection can
+        // emit duplicate/stale DELETE commands and trigger DbUpdateConcurrencyException.
+        await _context.OrganizationRoleClaims
+            .Where(c => c.OrganizationRoleId == role.Id && c.ClaimType == "ModuleAccess")
+            .ExecuteDeleteAsync();
+
+        var newClaims = modules.Select(module => new OrganizationRoleClaim
         {
-            role.Claims.Add(new OrganizationRoleClaim
-            {
-                Id = Guid.NewGuid(),
-                OrganizationRoleId = role.Id,
-                ClaimType = "ModuleAccess",
-                ClaimValue = module
-            });
-        }
+            Id = Guid.NewGuid(),
+            OrganizationRoleId = role.Id,
+            ClaimType = "ModuleAccess",
+            ClaimValue = module
+        });
+        _context.OrganizationRoleClaims.AddRange(newClaims);
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
         return Ok(new { message = "Role updated successfully" });
     }
 
@@ -157,7 +162,6 @@ public class RoleController : ControllerBase
         if (orgId == null) return Forbid();
 
         var role = await _context.OrganizationRoles
-            .Include(r => r.Claims)
             .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
 
         if (role == null) return NotFound();
@@ -185,9 +189,11 @@ public class RoleController : ControllerBase
 
         if (role == null) return NotFound();
 
-        // Remove existing module claims
-        var existingModuleClaims = role.Claims.Where(c => c.ClaimType == "ModuleAccess").ToList();
-        _context.OrganizationRoleClaims.RemoveRange(existingModuleClaims);
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        await _context.OrganizationRoleClaims
+            .Where(c => c.OrganizationRoleId == role.Id && c.ClaimType == "ModuleAccess")
+            .ExecuteDeleteAsync();
 
         // Add new module claims
         var newClaims = normalizedModules.Select(module => new OrganizationRoleClaim
@@ -201,6 +207,7 @@ public class RoleController : ControllerBase
         _context.OrganizationRoleClaims.AddRange(newClaims);
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return Ok(new { message = "Role modules updated successfully" });
     }
