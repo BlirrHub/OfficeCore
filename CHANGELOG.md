@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-10-10] (`acba-dev` Assigned Role Deletion)
+
+- Made custom role deletion atomically remove employee-role assignments before deleting the role, allowing assigned roles to be removed without foreign-key failures or manual database cleanup.
+- Updated the confirmation dialog to warn that affected employees lose access from the deleted role and surfaced API error messages instead of a generic failure toast.
+
 ### Fixed — [2026-10-10] (`acba-dev` Role Editing and Audit Trail Access)
 
 - Fixed role updates failing with `DbUpdateConcurrencyException` by replacing module claims with a transactional database-side delete and insert.

@@ -223,13 +223,23 @@ public class RoleController : ControllerBase
 
         if (role == null) return NotFound();
 
-        if (await _context.EmployeeRoles.AnyAsync(er => er.OrganizationRoleId == id))
-            return Conflict(new { message = "Reassign employees before deleting this role." });
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        // A role assignment is a permission link, not employee data. Remove those
+        // links atomically so an assigned custom role can still be deleted safely.
+        var removedAssignments = await _context.EmployeeRoles
+            .Where(er => er.OrganizationRoleId == id)
+            .ExecuteDeleteAsync();
 
         _context.OrganizationRoles.Remove(role);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
-        return Ok(new { message = "Role deleted successfully" });
+        return Ok(new
+        {
+            message = "Role deleted successfully",
+            removedAssignments
+        });
     }
 }
 
