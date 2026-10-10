@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Shared.Authorization;
 
 namespace OfficeCore.Api.Data;
 
@@ -81,16 +82,7 @@ public static class DbSeeder
         context.OrganizationRoles.Add(memberOrgRole);
         await context.SaveChangesAsync();
 
-        var allModules = new[]
-        {
-            "Dashboard", "Clients", "Attendance", "Boards",
-            "Payroll", "Invoices", "Ledger",
-            "WorkSchedules", "TimeOff", "Locations",
-            "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals", "OvertimeApprovals",
-            "AuditLogs"
-        };
-
-        foreach (var module in allModules)
+        foreach (var module in ModuleCatalog.AllKeys)
         {
             context.OrganizationRoleClaims.Add(new OrganizationRoleClaim
             {
@@ -100,7 +92,7 @@ public static class DbSeeder
                 ClaimValue = module
             });
 
-            if (module is "Dashboard" or "Boards" or "MyLeaves" or "Advances" or "MyOvertime")
+            if (ModuleCatalog.DefaultKeys.Contains(module))
             {
                 context.OrganizationRoleClaims.Add(new OrganizationRoleClaim
                 {

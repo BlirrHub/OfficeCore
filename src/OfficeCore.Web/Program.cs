@@ -5,6 +5,7 @@ using System.Net.Http;
 using Microsoft.AspNetCore.Components.Web;
 using OfficeCore.Web.Client.Auth;
 using OfficeCore.Web.Services;
+using OfficeCore.Shared.Authorization;
 
 using System.Globalization;
 
@@ -36,13 +37,7 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 // Auth services
 builder.Services.AddAuthorizationCore(options =>
 {
-    var modules = new[] { 
-        "Dashboard", "MyAttendance", "MyOvertime", "Clients", "Attendance", "Boards", "Payroll", 
-        "Invoices", "Ledger", "WorkSchedules", "TimeOff", "Locations", 
-        "Users", "Roles", "Organization", "Advances", "MyLeaves", "LeaveApprovals", "OvertimeApprovals",
-        "AuditLogs"
-    };
-    foreach (var module in modules)
+    foreach (var module in ModuleCatalog.AllKeys)
     {
         options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));
     }

@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OfficeCore.Web\OfficeCore.Web.Client.csproj" />
+    <ProjectReference Include="..\OfficeCore.Shared\OfficeCore.Shared.csproj" />
   </ItemGroup>
 
 </Project>

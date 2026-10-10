@@ -87,6 +87,26 @@ public class UserController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
+
+        var isCurrentUserOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+        if (request.Roles is { Count: > 0 } && !isCurrentUserOwner)
+            return Forbid("Only the workspace owner can assign roles.");
+
+        var requestedRoleNames = (request.Roles ?? [])
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var rolesToAssign = requestedRoleNames.Count == 0
+            ? []
+            : await _context.OrganizationRoles
+                .Where(r => r.OrganizationId == orgId.Value && requestedRoleNames.Contains(r.Name))
+                .ToListAsync();
+        if (rolesToAssign.Count != requestedRoleNames.Count)
+            return BadRequest(new { message = "One or more selected roles do not exist in this workspace." });
+
         var user = new ApplicationUser
         {
             UserName = request.Email,
@@ -106,9 +126,6 @@ public class UserController : ControllerBase
         {
             // Employee roles will be handled below after creating Employee
         }
-
-        var orgId = _tenant.GetActiveOrganizationId();
-        if (orgId == null) return Forbid();
 
         var employee = new Employee
         {
@@ -142,13 +159,9 @@ public class UserController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
-        if (request.Roles != null && request.Roles.Any())
+        if (rolesToAssign.Count > 0)
         {
-            var orgRoles = await _context.OrganizationRoles
-                .Where(r => r.OrganizationId == orgId.Value && request.Roles.Contains(r.Name))
-                .ToListAsync();
-
-            foreach (var r in orgRoles)
+            foreach (var r in rolesToAssign)
             {
                 _context.EmployeeRoles.Add(new EmployeeRole
                 {
@@ -180,6 +193,23 @@ public class UserController : ControllerBase
         if (orgId == null) return Forbid();
         
         var currentUserId = _userManager.GetUserId(User);
+        var isCurrentUserOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+
+        if (request.Roles != null && !isCurrentUserOwner)
+            return Forbid("Only the workspace owner can assign roles.");
+
+        var requestedRoleNames = (request.Roles ?? [])
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var rolesToAssign = request.Roles == null || requestedRoleNames.Count == 0
+            ? []
+            : await _context.OrganizationRoles
+                .Where(r => r.OrganizationId == orgId.Value && requestedRoleNames.Contains(r.Name))
+                .ToListAsync();
+        if (request.Roles != null && rolesToAssign.Count != requestedRoleNames.Count)
+            return BadRequest(new { message = "One or more selected roles do not exist in this workspace." });
 
         var org = await _context.Organizations.FindAsync(orgId);
         var createdByUserId = org?.CreatedByUserId;
@@ -189,21 +219,23 @@ public class UserController : ControllerBase
             .Include(e => e.GovernmentRecord)
             .Include(e => e.EmployeeRoles)
                 .ThenInclude(er => er.Role)
+                    .ThenInclude(r => r!.Claims)
             .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
 
         if (employee == null || employee.User == null)
             return NotFound();
 
         bool isTargetOwner = employee.UserId == createdByUserId;
-        bool isCurrentUserOwner = currentUserId == createdByUserId;
-        bool isTargetAdmin = employee.EmployeeRoles.Any(er => er.Role?.Name == "Admin");
+        bool isTargetPrivileged = employee.EmployeeRoles.Any(er =>
+            er.Role?.Name == "Admin" ||
+            er.Role?.Claims.Any(c => c.ClaimType == "ModuleAccess" && (c.ClaimValue == "Users" || c.ClaimValue == "Roles")) == true);
 
         // Rule: Only the workspace owner can edit the workspace owner
         if (isTargetOwner && !isCurrentUserOwner)
             return Forbid();
 
         // Rule: Only the workspace owner can edit other admins
-        if (isTargetAdmin && !isCurrentUserOwner && currentUserId != employee.UserId)
+        if (isTargetPrivileged && !isCurrentUserOwner && currentUserId != employee.UserId)
             return Forbid();
 
         var oldState = new
@@ -244,7 +276,7 @@ public class UserController : ControllerBase
         _context.Employees.Update(employee);
         await _context.SaveChangesAsync();
 
-        if (request.Roles != null && !isTargetOwner)
+        if (request.Roles != null && !isTargetOwner && isCurrentUserOwner)
         {
 
             var currentEmployeeRoles = await _context.EmployeeRoles
@@ -253,11 +285,7 @@ public class UserController : ControllerBase
 
             _context.EmployeeRoles.RemoveRange(currentEmployeeRoles);
 
-            var newOrgRoles = await _context.OrganizationRoles
-                .Where(r => r.OrganizationId == orgId.Value && request.Roles.Contains(r.Name))
-                .ToListAsync();
-
-            foreach (var r in newOrgRoles)
+            foreach (var r in rolesToAssign)
             {
                 _context.EmployeeRoles.Add(new EmployeeRole
                 {

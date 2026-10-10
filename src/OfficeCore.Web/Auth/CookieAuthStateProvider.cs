@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
+using OfficeCore.Shared.Authorization;
 
 namespace OfficeCore.Web.Client.Auth;
 
@@ -62,8 +63,7 @@ public class CookieAuthStateProvider : AuthenticationStateProvider
                 claims.Add(new Claim("ModuleAccess", module));
 
             // Ensure default modules are always granted for authenticated accounts
-            var defaultModules = new[] { "Dashboard", "MyAttendance", "MyLeaves", "Advances", "Boards" };
-            foreach (var dm in defaultModules)
+            foreach (var dm in ModuleCatalog.DefaultKeys)
             {
                 if (!userInfo.Modules.Any(m => string.Equals(m, dm, StringComparison.OrdinalIgnoreCase)))
                 {
