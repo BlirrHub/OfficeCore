@@ -12,12 +12,14 @@
                 <button @onclick="LoadRoles" disabled="@_isLoading" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer" title="Refresh">
                     <svg class="size-4 @(_isLoading ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                 </button>
-                <AppButton OnClick="() => _showCreate = true">
-                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    New Role
-                </AppButton>
+                <AuthorizeView Policy="Permission:roles.create">
+                    <AppButton OnClick="() => _showCreate = true">
+                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        New Role
+                    </AppButton>
+                </AuthorizeView>
             </div>
         </Actions>
     </PageHeader>
@@ -58,10 +60,12 @@
                             <h3 class="font-semibold text-white">@role.Name</h3>
                             <p class="text-xs text-zinc-500 mt-0.5">@(role.Description ?? "No description")</p>
                         </div>
-                        <button @onclick="() => SelectRole(role)"
-                                class="text-xs text-fuchsia-400 hover:text-fuchsia-300 transition-colors font-medium cursor-pointer">
-                            Edit
-                        </button>
+                        <AuthorizeView Policy="Permission:roles.edit">
+                            <button @onclick="() => SelectRole(role)"
+                                    class="text-xs text-fuchsia-400 hover:text-fuchsia-300 transition-colors font-medium cursor-pointer">
+                                Edit
+                            </button>
+                        </AuthorizeView>
                     </div>
                     <div>
                         <p class="text-xs font-medium text-zinc-500 mb-2">Module Access</p>
@@ -125,12 +129,29 @@
                                 @foreach (var module in category.Value)
                                 {
                                     var sel = _selectedModules.Contains(module);
-                                    <button type="button"
-                                            @onclick="() => ToggleModule(module)"
-                                            class="@($"flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-left transition-all {(sel ? "bg-fuchsia-600/20 text-fuchsia-300 ring-1 ring-fuchsia-500/40" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800")}")">
-                                        <span class="@($"size-2 rounded-full shrink-0 {(sel ? "bg-fuchsia-400" : "bg-zinc-600")}")"></span>
-                                        @FormatModuleName(module)
-                                    </button>
+                                    <div class="rounded-lg bg-zinc-900 overflow-hidden @(sel ? "ring-1 ring-fuchsia-500/40" : "")">
+                                        <button type="button"
+                                                @onclick="() => ToggleModule(module)"
+                                                class="@($"w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-left transition-all {(sel ? "bg-fuchsia-600/20 text-fuchsia-300" : "text-zinc-400 hover:bg-zinc-800")}")">
+                                            <span class="@($"size-2 rounded-full shrink-0 {(sel ? "bg-fuchsia-400" : "bg-zinc-600")}")"></span>
+                                            @FormatModuleName(module)
+                                        </button>
+                                        @if (sel)
+                                        {
+                                            <div class="border-t border-zinc-800 px-3 py-2 space-y-1.5">
+                                                @foreach (var permission in PermissionCatalog.ForModule(module))
+                                                {
+                                                    <label class="flex items-start gap-2 text-[11px] text-zinc-400 cursor-pointer">
+                                                        <input type="checkbox"
+                                                               checked="@_selectedPermissions.Contains(permission.Key)"
+                                                               @onchange="() => TogglePermission(module, permission.Key)"
+                                                               class="mt-0.5 size-3 rounded border-zinc-700 bg-zinc-950 text-fuchsia-600" />
+                                                        <span>@permission.DisplayName</span>
+                                                    </label>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
                                 }
                             </div>
                         </div>
@@ -141,7 +162,9 @@
             <div class="flex justify-between gap-3 px-6 py-4 border-t border-zinc-800 shrink-0">
                 @if (isEdit)
                 {
-                    <button @onclick="PromptDelete" class="rounded-lg px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors">Delete Role</button>
+                    <AuthorizeView Policy="Permission:roles.delete">
+                        <button @onclick="PromptDelete" class="rounded-lg px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors">Delete Role</button>
+                    </AuthorizeView>
                 }
                 else
                 {
@@ -176,7 +199,7 @@
 
 @code {
     private static readonly IReadOnlyDictionary<string, string[]> ModuleCategories = ModuleCatalog.All
-        .Where(m => !m.IsDefault)
+        .Where(m => !m.IsDefault || m.Key == AccessModules.Boards)
         .GroupBy(m => m.Category)
         .ToDictionary(g => g.Key, g => g.Select(m => m.Key).ToArray());
 
@@ -192,6 +215,7 @@
     private bool _newRoleShowAsTitle = false;
     private bool _showDeleteModal = false;
     private HashSet<string> _selectedModules = new();
+    private HashSet<string> _selectedPermissions = new(StringComparer.OrdinalIgnoreCase);
 
     private bool _isLoading = false;
 
@@ -227,6 +251,9 @@
         _newRoleDesc = role.Description ?? "";
         _newRoleShowAsTitle = role.ShowAsTitle;
         _selectedModules = _roleModules.TryGetValue(role.Id, out var m) ? m.ToHashSet() : new();
+        _selectedPermissions = role.Permissions.Count > 0
+            ? role.Permissions.ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : PermissionCatalog.ExpandModules(_selectedModules).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     private void CloseModal()
@@ -237,11 +264,35 @@
         _newRoleDesc = string.Empty;
         _newRoleShowAsTitle = false;
         _selectedModules = new();
+        _selectedPermissions = new(StringComparer.OrdinalIgnoreCase);
     }
 
     private void ToggleModule(string module)
     {
-        if (!_selectedModules.Remove(module)) _selectedModules.Add(module);
+        if (_selectedModules.Remove(module))
+        {
+            foreach (var permission in PermissionCatalog.ForModule(module))
+                _selectedPermissions.Remove(permission.Key);
+        }
+        else
+        {
+            _selectedModules.Add(module);
+            foreach (var permission in PermissionCatalog.ForModule(module))
+                _selectedPermissions.Add(permission.Key);
+        }
+    }
+
+    private void TogglePermission(string module, string permission)
+    {
+        _selectedModules.Add(module);
+        if (!_selectedPermissions.Remove(permission))
+        {
+            _selectedPermissions.Add(permission);
+            return;
+        }
+
+        if (!PermissionCatalog.ForModule(module).Any(p => _selectedPermissions.Contains(p.Key)))
+            _selectedModules.Remove(module);
     }
 
     private async Task SaveRole()
@@ -258,7 +309,8 @@
                 Name = _newRoleName,
                 Description = _newRoleDesc,
                 ShowAsTitle = _newRoleShowAsTitle,
-                Modules = _selectedModules.ToList()
+                Modules = _selectedModules.ToList(),
+                Permissions = _selectedPermissions.ToList()
             });
             if (response.IsSuccessStatusCode)
             {
@@ -284,7 +336,8 @@
                 name = _newRoleName,
                 description = _newRoleDesc,
                 showAsTitle = _newRoleShowAsTitle,
-                modules = _selectedModules.ToList()
+                modules = _selectedModules.ToList(),
+                permissions = _selectedPermissions.ToList()
             });
 
             if (response.IsSuccessStatusCode)
@@ -331,6 +384,7 @@
         public string? Description { get; set; } 
         public bool ShowAsTitle { get; set; } 
         public List<string> Modules { get; set; } = [];
+        public List<string> Permissions { get; set; } = [];
     }
 
     private sealed class ApiError

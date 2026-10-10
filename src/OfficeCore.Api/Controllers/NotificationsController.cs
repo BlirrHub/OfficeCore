@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using OfficeCore.Shared.Authorization;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -62,8 +63,11 @@ public class NotificationsController : ControllerBase
             isAdmin = await _context.EmployeeRoles
                 .AsNoTracking()
                 .AnyAsync(er => er.EmployeeId == employee.Id &&
-                                er.Role != null && (er.Role.Name == "Admin" || er.Role.Name == "Owner" ||
-                                 er.Role.Claims.Any(c => c.ClaimType == "Permission" && (c.ClaimValue == "LeaveApprovals" || c.ClaimValue == "Ledger"))));
+                                er.Role != null && er.Role.Claims.Any(c =>
+                                    (c.ClaimType == PermissionCatalog.ClaimType &&
+                                     (c.ClaimValue == AccessPermissions.LeaveApprovalsManage || c.ClaimValue == AccessPermissions.LedgerManage)) ||
+                                    (c.ClaimType == "ModuleAccess" &&
+                                     (c.ClaimValue == AccessModules.LeaveApprovals || c.ClaimValue == AccessModules.Ledger))));
         }
 
         // 1. ADMIN NOTIFICATIONS: Pending leave and advance requests

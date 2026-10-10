@@ -1087,9 +1087,7 @@ else
                 var authState = await AuthProvider.GetAuthenticationStateAsync();
                 var user = authState.User;
                 var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                _canManageBoardMembers = user.IsInRole("Admin") 
-                    || user.HasClaim("ModuleAccess", "Users") 
-                    || user.HasClaim("ModuleAccess", "Roles") 
+                _canManageBoardMembers = user.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.BoardsManageMembers)
                     || user.HasClaim("IsWorkspaceOwner", "true");
                 
                 _canEditMemberRoles = _canManageBoardMembers;

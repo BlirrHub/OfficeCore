@@ -14,12 +14,16 @@ public class UserInfo
     public string? TitleRole { get; set; }
     public IEnumerable<string> Roles { get; set; } = [];
     public IEnumerable<string> Modules { get; set; } = [];
+    public IEnumerable<string> Permissions { get; set; } = [];
     public bool MustChangePassword { get; set; }
 
     public string FullName => $"{FirstName} {LastName}".Trim();
 
     public bool HasModule(string module) =>
         Modules.Contains(module, StringComparer.OrdinalIgnoreCase);
+
+    public bool HasPermission(string permission) =>
+        Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
 
     public bool IsAdmin() =>
         Roles.Contains("Admin", StringComparer.OrdinalIgnoreCase);
