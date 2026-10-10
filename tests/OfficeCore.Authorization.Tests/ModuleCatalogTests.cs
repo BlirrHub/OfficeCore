@@ -38,4 +38,37 @@ public class ModuleCatalogTests
         Assert.Contains(AccessModules.Payroll, normalized);
         Assert.Equal(["SuperAdmin"], invalid);
     }
+
+    [Fact]
+    public void Permission_keys_are_unique_known_and_grouped_by_module()
+    {
+        Assert.Equal(PermissionCatalog.All.Count, PermissionCatalog.AllKeys.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(PermissionCatalog.All, permission =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(permission.Key));
+            Assert.Contains(permission.Module, ModuleCatalog.AllKeys);
+        });
+    }
+
+    [Fact]
+    public void Module_expansion_provides_legacy_roles_with_action_permissions()
+    {
+        var permissions = PermissionCatalog.ExpandModules([AccessModules.Roles, AccessModules.AuditLogs]);
+
+        Assert.Contains(AccessPermissions.RolesEdit, permissions);
+        Assert.Contains(AccessPermissions.RolesDelete, permissions);
+        Assert.Contains(AccessPermissions.AuditView, permissions);
+        Assert.Contains(AccessPermissions.AuditExport, permissions);
+    }
+
+    [Fact]
+    public void Permission_normalization_rejects_unknown_values()
+    {
+        var valid = PermissionCatalog.TryNormalizeMany(
+            [" AUDIT.VIEW ", "audit.view", "system.root"], out var normalized, out var invalid);
+
+        Assert.False(valid);
+        Assert.Equal([AccessPermissions.AuditView], normalized);
+        Assert.Equal(["system.root"], invalid);
+    }
 }

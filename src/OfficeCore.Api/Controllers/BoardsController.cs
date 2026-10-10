@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using OfficeCore.Shared.Authorization;
 
 using Microsoft.AspNetCore.SignalR;
 using OfficeCore.Api.Hubs;
@@ -342,7 +343,7 @@ public class BoardsController : ControllerBase
         var org = await _context.Organizations.FindAsync(orgId);
         var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         bool isWorkspaceOwner = org != null && org.CreatedByUserId == currentUserId;
-        bool isWorkspaceAdmin = User.IsInRole("Admin") || User.HasClaim("ModuleAccess", "Users") || User.HasClaim("ModuleAccess", "Roles");
+        bool isWorkspaceAdmin = User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.BoardsManageMembers);
         bool isBoardOwner = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Owner);
         bool isBoardAdmin = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Admin);
 
@@ -398,7 +399,7 @@ public class BoardsController : ControllerBase
             var org = await _context.Organizations.FindAsync(orgId);
             var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             bool isWorkspaceOwner = org != null && org.CreatedByUserId == currentUserId;
-            bool isWorkspaceAdmin = User.IsInRole("Admin") || User.HasClaim("ModuleAccess", "Users") || User.HasClaim("ModuleAccess", "Roles");
+            bool isWorkspaceAdmin = User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.BoardsManageMembers);
             bool isBoardOwner = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Owner);
             bool isBoardAdmin = board.Members.Any(m => m.UserId == employee.Id && m.Role == BoardRole.Admin);
 

@@ -14,14 +14,17 @@ public class RoleController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly TenantService _tenant;
+    private readonly IAuditService _audit;
 
-    public RoleController(AppDbContext context, TenantService tenant)
+    public RoleController(AppDbContext context, TenantService tenant, IAuditService audit)
     {
         _context = context;
         _tenant = tenant;
+        _audit = audit;
     }
 
     [HttpGet]
+    [Authorize(Policy = "Permission:roles.view")]
     public async Task<IActionResult> GetRoles()
     {
         var orgId = _tenant.GetActiveOrganizationId();
@@ -38,6 +41,10 @@ public class RoleController : ControllerBase
                 Modules = r.Claims
                     .Where(c => c.ClaimType == "ModuleAccess")
                     .Select(c => c.ClaimValue)
+                    .ToList(),
+                Permissions = r.Claims
+                    .Where(c => c.ClaimType == PermissionCatalog.ClaimType)
+                    .Select(c => c.ClaimValue)
                     .ToList()
             })
             .ToListAsync();
@@ -46,6 +53,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Permission:roles.create")]
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -58,6 +66,9 @@ public class RoleController : ControllerBase
 
         if (!ModuleCatalog.TryNormalizeMany(request.Modules, out var modules, out var invalid))
             return BadRequest(new { message = "Unknown modules were supplied.", invalidModules = invalid });
+        var requestedPermissions = request.Permissions ?? PermissionCatalog.ExpandModules(modules).ToList();
+        if (!PermissionCatalog.TryNormalizeMany(requestedPermissions, out var permissions, out var invalidPermissions))
+            return BadRequest(new { message = "Unknown permissions were supplied.", invalidPermissions });
 
         var role = new OrganizationRole
         {
@@ -78,14 +89,24 @@ public class RoleController : ControllerBase
                 ClaimValue = module
             });
         }
+        foreach (var permission in permissions)
+        {
+            role.Claims.Add(new OrganizationRoleClaim
+            {
+                Id = Guid.NewGuid(), OrganizationRoleId = role.Id,
+                ClaimType = PermissionCatalog.ClaimType, ClaimValue = permission
+            });
+        }
 
         _context.OrganizationRoles.Add(role);
         await _context.SaveChangesAsync();
+        await _audit.LogSecurityAsync(AuditActions.Create, $"Created role '{role.Name}'.", role.Id.ToString(), new { modules, permissions });
 
         return Ok(new { message = "Role created successfully", roleId = role.Id });
     }
 
     [HttpPut("{id}/details")]
+    [Authorize(Policy = "Permission:roles.edit")]
     public async Task<IActionResult> UpdateRoleDetails(Guid id, [FromBody] UpdateRoleRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -112,6 +133,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "Permission:roles.edit")]
     public async Task<IActionResult> UpdateRole(Guid id, [FromBody] SaveRoleRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -121,6 +143,9 @@ public class RoleController : ControllerBase
         if (string.IsNullOrWhiteSpace(name)) return BadRequest(new { message = "Role name is required." });
         if (!ModuleCatalog.TryNormalizeMany(request.Modules, out var modules, out var invalid))
             return BadRequest(new { message = "Unknown modules were supplied.", invalidModules = invalid });
+        var requestedPermissions = request.Permissions ?? PermissionCatalog.ExpandModules(modules).ToList();
+        if (!PermissionCatalog.TryNormalizeMany(requestedPermissions, out var permissions, out var invalidPermissions))
+            return BadRequest(new { message = "Unknown permissions were supplied.", invalidPermissions });
 
         var role = await _context.OrganizationRoles
             .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
@@ -138,7 +163,8 @@ public class RoleController : ControllerBase
         // Delete directly in the database. Replacing a tracked navigation collection can
         // emit duplicate/stale DELETE commands and trigger DbUpdateConcurrencyException.
         await _context.OrganizationRoleClaims
-            .Where(c => c.OrganizationRoleId == role.Id && c.ClaimType == "ModuleAccess")
+            .Where(c => c.OrganizationRoleId == role.Id &&
+                        (c.ClaimType == "ModuleAccess" || c.ClaimType == PermissionCatalog.ClaimType))
             .ExecuteDeleteAsync();
 
         var newClaims = modules.Select(module => new OrganizationRoleClaim
@@ -149,32 +175,40 @@ public class RoleController : ControllerBase
             ClaimValue = module
         });
         _context.OrganizationRoleClaims.AddRange(newClaims);
+        _context.OrganizationRoleClaims.AddRange(permissions.Select(permission => new OrganizationRoleClaim
+        {
+            Id = Guid.NewGuid(), OrganizationRoleId = role.Id,
+            ClaimType = PermissionCatalog.ClaimType, ClaimValue = permission
+        }));
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
+        await _audit.LogSecurityAsync(AuditActions.Update, $"Updated role '{role.Name}'.", role.Id.ToString(), new { modules, permissions });
         return Ok(new { message = "Role updated successfully" });
     }
 
     [HttpGet("{id}/modules")]
+    [Authorize(Policy = "Permission:roles.view")]
     public async Task<IActionResult> GetRoleModules(Guid id)
     {
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
-        var role = await _context.OrganizationRoles
-            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
+        var modules = await _context.OrganizationRoles
+            .Where(r => r.Id == id && r.OrganizationId == orgId)
+            .Select(r => r.Claims
+                .Where(c => c.ClaimType == "ModuleAccess")
+                .Select(c => c.ClaimValue)
+                .ToList())
+            .FirstOrDefaultAsync();
 
-        if (role == null) return NotFound();
-
-        var modules = role.Claims
-            .Where(c => c.ClaimType == "ModuleAccess")
-            .Select(c => c.ClaimValue)
-            .ToList();
+        if (modules == null) return NotFound();
         
         return Ok(modules);
     }
 
     [HttpPut("{id}/modules")]
+    [Authorize(Policy = "Permission:roles.edit")]
     public async Task<IActionResult> UpdateRoleModules(Guid id, [FromBody] List<string> modules)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -192,7 +226,8 @@ public class RoleController : ControllerBase
         await using var transaction = await _context.Database.BeginTransactionAsync();
 
         await _context.OrganizationRoleClaims
-            .Where(c => c.OrganizationRoleId == role.Id && c.ClaimType == "ModuleAccess")
+            .Where(c => c.OrganizationRoleId == role.Id &&
+                        (c.ClaimType == "ModuleAccess" || c.ClaimType == PermissionCatalog.ClaimType))
             .ExecuteDeleteAsync();
 
         // Add new module claims
@@ -205,14 +240,22 @@ public class RoleController : ControllerBase
         }).ToList();
         
         _context.OrganizationRoleClaims.AddRange(newClaims);
+        _context.OrganizationRoleClaims.AddRange(PermissionCatalog.ExpandModules(normalizedModules)
+            .Select(permission => new OrganizationRoleClaim
+            {
+                Id = Guid.NewGuid(), OrganizationRoleId = role.Id,
+                ClaimType = PermissionCatalog.ClaimType, ClaimValue = permission
+            }));
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
+        await _audit.LogSecurityAsync(AuditActions.Update, $"Updated module access for role '{role.Name}'.", role.Id.ToString(), new { modules = normalizedModules });
 
         return Ok(new { message = "Role modules updated successfully" });
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "Permission:roles.delete")]
     public async Task<IActionResult> DeleteRole(Guid id)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -234,6 +277,7 @@ public class RoleController : ControllerBase
         _context.OrganizationRoles.Remove(role);
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
+        await _audit.LogSecurityAsync(AuditActions.Delete, $"Deleted role '{role.Name}' and removed {removedAssignments} assignment(s).", role.Id.ToString());
 
         return Ok(new
         {
@@ -249,6 +293,7 @@ public class CreateRoleRequest
     public string? Description { get; set; }
     public bool ShowAsTitle { get; set; }
     public List<string>? Modules { get; set; }
+    public List<string>? Permissions { get; set; }
 }
 
 public class UpdateRoleRequest
@@ -264,4 +309,5 @@ public class SaveRoleRequest
     public string? Description { get; set; }
     public bool ShowAsTitle { get; set; }
     public List<string> Modules { get; set; } = [];
+    public List<string>? Permissions { get; set; }
 }

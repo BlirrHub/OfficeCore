@@ -62,6 +62,9 @@ public class CookieAuthStateProvider : AuthenticationStateProvider
             foreach (var module in userInfo.Modules)
                 claims.Add(new Claim("ModuleAccess", module));
 
+            foreach (var permission in userInfo.Permissions)
+                claims.Add(new Claim(PermissionCatalog.ClaimType, permission));
+
             // Ensure default modules are always granted for authenticated accounts
             foreach (var dm in ModuleCatalog.DefaultKeys)
             {

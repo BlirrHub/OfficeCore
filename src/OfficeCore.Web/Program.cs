@@ -41,6 +41,11 @@ builder.Services.AddAuthorizationCore(options =>
     {
         options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));
     }
+    foreach (var permission in PermissionCatalog.AllKeys)
+    {
+        options.AddPolicy(PermissionPolicies.For(permission), policy =>
+            policy.RequireClaim(PermissionCatalog.ClaimType, permission));
+    }
 });
 builder.Services.AddScoped<CookieAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>

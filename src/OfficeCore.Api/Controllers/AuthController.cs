@@ -176,6 +176,7 @@ public class AuthController : ControllerBase
 
         // Gather role claims (module access) and find TitleRoles from Organization roles
         var moduleClaims = ModuleCatalog.DefaultKeys.ToList();
+        var permissionClaims = new List<string>();
         var titleRoles = new List<string>();
         var roles = new List<string>();
         bool isOwner = false;
@@ -190,6 +191,7 @@ public class AuthController : ControllerBase
             if (isOwner)
             {
                 moduleClaims = ModuleCatalog.AllKeys.ToList();
+                permissionClaims = PermissionCatalog.AllKeys.ToList();
             }
 
             var employee = await _context.Employees
@@ -217,6 +219,15 @@ public class AuthController : ControllerBase
                     moduleClaims.AddRange(er.Role.Claims
                         .Where(c => c.ClaimType == "ModuleAccess")
                         .Select(c => c.ClaimValue));
+                    var explicitPermissions = er.Role.Claims
+                        .Where(c => c.ClaimType == PermissionCatalog.ClaimType)
+                        .Select(c => c.ClaimValue)
+                        .ToArray();
+                    permissionClaims.AddRange(explicitPermissions.Length > 0
+                        ? explicitPermissions
+                        : PermissionCatalog.ExpandModules(er.Role.Claims
+                            .Where(c => c.ClaimType == "ModuleAccess")
+                            .Select(c => c.ClaimValue)));
                 }
             }
         }
@@ -234,7 +245,8 @@ public class AuthController : ControllerBase
             mustChangePassword = user.MustChangePassword,
             roles = roles,
             titleRole = titleRole,
-            modules = moduleClaims.Distinct()
+            modules = moduleClaims.Distinct(),
+            permissions = permissionClaims.Distinct()
         });
     }
 

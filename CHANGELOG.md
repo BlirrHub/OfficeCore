@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Security — [2026-10-10] (`acba-dev` Action-Level RBAC Foundation)
+
+- Added a canonical action-permission catalog covering role lifecycle, employee role assignment, audit viewing/export, payroll operations, attendance adjustment, approvals, administration, and board membership.
+- Roles now persist explicit `Permission` claims alongside module navigation claims; existing module-only roles remain compatible through deterministic module-to-permission expansion.
+- Added action-level authorization policies to API and Blazor clients, with workspace owners automatically receiving all canonical permissions.
+- Added granular permission controls beneath each selected module in Role Management.
+- Enforced specific permissions for role viewing/creation/editing/deletion, Audit Trail viewing/export, and board-member administration.
+- Added audit records for role creation, permission changes, module changes, and deletion.
+- Added permission-catalog validation and legacy-expansion tests.
+
 ### Fixed — [2026-10-10] (`acba-dev` Assigned Role Deletion)
 
 - Made custom role deletion atomically remove employee-role assignments before deleting the role, allowing assigned roles to be removed without foreign-key failures or manual database cleanup.

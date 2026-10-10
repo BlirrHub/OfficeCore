@@ -29,6 +29,7 @@ public class AuditController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "Permission:audit.view")]
     public async Task<IActionResult> GetAuditLogs(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -120,6 +121,7 @@ public class AuditController : ControllerBase
     }
 
     [HttpGet("summary")]
+    [Authorize(Policy = "Permission:audit.view")]
     public async Task<IActionResult> GetAuditSummary()
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -186,6 +188,7 @@ public class AuditController : ControllerBase
     }
 
     [HttpGet("export")]
+    [Authorize(Policy = "Permission:audit.export")]
     public async Task<IActionResult> ExportAuditLogs(
         [FromQuery] string? search = null,
         [FromQuery] string? action = null,

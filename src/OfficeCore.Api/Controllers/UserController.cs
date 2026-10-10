@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using OfficeCore.Api.Hubs;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using OfficeCore.Shared.Authorization;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -228,7 +229,10 @@ public class UserController : ControllerBase
         bool isTargetOwner = employee.UserId == createdByUserId;
         bool isTargetPrivileged = employee.EmployeeRoles.Any(er =>
             er.Role?.Name == "Admin" ||
-            er.Role?.Claims.Any(c => c.ClaimType == "ModuleAccess" && (c.ClaimValue == "Users" || c.ClaimValue == "Roles")) == true);
+            er.Role?.Claims.Any(c =>
+                (c.ClaimType == PermissionCatalog.ClaimType &&
+                 (c.ClaimValue == AccessPermissions.UsersManage || c.ClaimValue == AccessPermissions.RolesEdit || c.ClaimValue == AccessPermissions.EmployeeRolesAssign)) ||
+                (c.ClaimType == "ModuleAccess" && (c.ClaimValue == AccessModules.Users || c.ClaimValue == AccessModules.Roles))) == true);
 
         // Rule: Only the workspace owner can edit the workspace owner
         if (isTargetOwner && !isCurrentUserOwner)

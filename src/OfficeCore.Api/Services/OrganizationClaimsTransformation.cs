@@ -68,6 +68,8 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
             // Grant all modules to workspace owner automatically
             foreach (var m in ModuleCatalog.AllKeys)
                 claimsIdentity.AddClaim(new Claim("ModuleAccess", m));
+            foreach (var permission in PermissionCatalog.AllKeys)
+                claimsIdentity.AddClaim(new Claim(PermissionCatalog.ClaimType, permission));
         }
         else
         {
@@ -91,6 +93,19 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
             {
                 claimsIdentity.AddClaim(new Claim("ModuleAccess", claim.ClaimValue));
             }
+
+            var roleModules = er.Role.Claims
+                .Where(c => c.ClaimType == "ModuleAccess")
+                .Select(c => c.ClaimValue);
+            var explicitPermissions = er.Role.Claims
+                .Where(c => c.ClaimType == PermissionCatalog.ClaimType)
+                .Select(c => c.ClaimValue)
+                .ToArray();
+            var permissions = explicitPermissions.Length > 0
+                ? explicitPermissions
+                : PermissionCatalog.ExpandModules(roleModules);
+            foreach (var permission in permissions.Distinct(StringComparer.OrdinalIgnoreCase))
+                claimsIdentity.AddClaim(new Claim(PermissionCatalog.ClaimType, permission));
         }
 
         principal.AddIdentity(claimsIdentity);
