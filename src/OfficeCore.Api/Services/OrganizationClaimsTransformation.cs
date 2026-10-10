@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
+using OfficeCore.Shared.Authorization;
 
 namespace OfficeCore.Api.Services;
 
@@ -43,7 +44,7 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
         }
 
         var employee = await _context.Employees
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId.Value);
+            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId.Value && e.IsActive);
 
         if (employee == null)
         {
@@ -65,25 +66,14 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
         {
             claimsIdentity.AddClaim(new Claim("IsWorkspaceOwner", "true"));
             // Grant all modules to workspace owner automatically
-            var allModules = new[]
-            {
-                "Dashboard", "MyAttendance", "MyOvertime", "MyLeaves", "Advances", "Boards",
-                "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
-                "Users", "Roles", "LeaveApprovals", "OvertimeApprovals", "WorkSchedules", "TimeOff",
-                "Locations", "Organization", "AuditLogs"
-            };
-            foreach (var m in allModules)
+            foreach (var m in ModuleCatalog.AllKeys)
                 claimsIdentity.AddClaim(new Claim("ModuleAccess", m));
         }
         else
         {
             // Default modules for all authenticated accounts in the workspace
-            claimsIdentity.AddClaim(new Claim("ModuleAccess", "Dashboard"));
-            claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyAttendance"));
-            claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyOvertime"));
-            claimsIdentity.AddClaim(new Claim("ModuleAccess", "MyLeaves"));
-            claimsIdentity.AddClaim(new Claim("ModuleAccess", "Advances"));
-            claimsIdentity.AddClaim(new Claim("ModuleAccess", "Boards"));
+            foreach (var module in ModuleCatalog.DefaultKeys)
+                claimsIdentity.AddClaim(new Claim("ModuleAccess", module));
         }
 
         foreach (var er in employeeRoles)

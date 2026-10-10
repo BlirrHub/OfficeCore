@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
@@ -12,12 +11,11 @@ public static class DbSeeder
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        // Ensure database is created and migrations applied
+        // Production only applies schema migrations. Customer accounts,
+        // organizations, roles, and employees are provisioned through the app.
         await context.Database.MigrateAsync();
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
-
-        // Ensure Global Admin Role exists in Identity
         const string adminRoleName = "Admin";
         if (!await roleManager.RoleExistsAsync(adminRoleName))
         {

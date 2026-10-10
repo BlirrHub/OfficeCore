@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.DataProtection;
 using System.Threading.RateLimiting;
 using OfficeCore.Api.Data;
 using OfficeCore.Api.Models;
+using OfficeCore.Shared.Authorization;
 
 using System.Globalization;
 
@@ -131,13 +132,7 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
 
 builder.Services.AddAuthorization(options =>
 {
-    var modules = new[] { 
-        "Dashboard", "MyAttendance", "MyOvertime", "Clients", "Attendance", "Boards", "MyLeaves",
-        "Advances", "Ledger", "Payroll", "Invoices",
-        "Users", "Roles", "LeaveApprovals", "OvertimeApprovals", "WorkSchedules", "TimeOff", "Locations", "Organization",
-        "AuditLogs"
-    };
-    foreach (var module in modules)
+    foreach (var module in ModuleCatalog.AllKeys)
     {
         options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));
     }

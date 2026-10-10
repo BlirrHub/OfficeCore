@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using OfficeCore.Shared.Authorization;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -174,7 +175,7 @@ public class AuthController : ControllerBase
             return Unauthorized();
 
         // Gather role claims (module access) and find TitleRoles from Organization roles
-        var moduleClaims = new List<string> { "Dashboard", "MyAttendance", "MyOvertime", "MyLeaves", "Advances", "Boards" };
+        var moduleClaims = ModuleCatalog.DefaultKeys.ToList();
         var titleRoles = new List<string>();
         var roles = new List<string>();
         bool isOwner = false;
@@ -188,17 +189,11 @@ public class AuthController : ControllerBase
             isOwner = org != null && org.CreatedByUserId == user.Id;
             if (isOwner)
             {
-                moduleClaims = new List<string>
-                {
-                    "Dashboard", "MyAttendance", "MyOvertime", "MyLeaves", "Advances", "Boards",
-                    "Clients", "Attendance", "Ledger", "Payroll", "Invoices",
-                    "Users", "Roles", "LeaveApprovals", "OvertimeApprovals", "WorkSchedules", "TimeOff",
-                    "Locations", "Organization", "AuditLogs"
-                };
+                moduleClaims = ModuleCatalog.AllKeys.ToList();
             }
 
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.UserId == user.Id && e.OrganizationId == orgId.Value);
+                .FirstOrDefaultAsync(e => e.UserId == user.Id && e.OrganizationId == orgId.Value && e.IsActive);
 
             if (employee != null)
             {

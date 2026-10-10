@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using OfficeCore.Api.Hubs;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 using System.Security.Claims;
 
 namespace OfficeCore.Api.Controllers;
@@ -17,15 +18,18 @@ public class OrganizationsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<ChatHub> _chatHub;
+    private readonly TenantService _tenant;
 
     public OrganizationsController(
         AppDbContext context, 
         UserManager<ApplicationUser> userManager,
-        IHubContext<ChatHub> chatHub)
+        IHubContext<ChatHub> chatHub,
+        TenantService tenant)
     {
         _context = context;
         _userManager = userManager;
         _chatHub = chatHub;
+        _tenant = tenant;
     }
 
     [HttpGet("my")]
@@ -128,7 +132,7 @@ public class OrganizationsController : ControllerBase
 
         // Verify the user actually belongs to this org
         var employee = await _context.Employees
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == id);
+            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == id && e.IsActive);
 
         if (employee == null)
             return Forbid("You are not a member of this organization.");
@@ -151,11 +155,12 @@ public class OrganizationsController : ControllerBase
         var userId = _userManager.GetUserId(User);
         if (userId == null) return Unauthorized();
 
-        var isAdmin = await _context.EmployeeRoles
-            .AnyAsync(er => er.Employee!.UserId == userId && er.Employee.OrganizationId == id && er.Role!.Name == "Admin");
-            
-        if (!isAdmin)
-            return Forbid("Only workspace admins can update the workspace profile.");
+        var activeOrgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (activeOrgId != id) return Forbid();
+
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
+        if (!isOwner && !User.HasClaim("ModuleAccess", "Organization"))
+            return Forbid("Workspace ownership or Organization access is required.");
 
         var org = await _context.Organizations
             .Include(o => o.Phones)
@@ -190,11 +195,12 @@ public class OrganizationsController : ControllerBase
         var userId = _userManager.GetUserId(User);
         if (userId == null) return Unauthorized();
 
-        var isAdmin = await _context.EmployeeRoles
-            .AnyAsync(er => er.Employee!.UserId == userId && er.Employee.OrganizationId == id && er.Role!.Name == "Admin");
-            
-        if (!isAdmin)
-            return Forbid("Only workspace admins can update the workspace profile.");
+        var activeOrgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (activeOrgId != id) return Forbid();
+
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
+        if (!isOwner && !User.HasClaim("ModuleAccess", "Organization"))
+            return Forbid("Workspace ownership or Organization access is required.");
 
         var org = await _context.Organizations.FindAsync(id);
         if (org == null) return NotFound();
@@ -229,11 +235,9 @@ public class OrganizationsController : ControllerBase
         var userId = _userManager.GetUserId(User);
         if (userId == null) return Unauthorized();
 
-        var isAdmin = await _context.EmployeeRoles
-            .AnyAsync(er => er.Employee!.UserId == userId && er.Employee.OrganizationId == id && er.Role!.Name == "Admin");
-            
-        if (!isAdmin)
-            return Forbid("Only workspace admins can delete the workspace.");
+        var activeOrgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (activeOrgId != id || !await _tenant.IsCurrentUserWorkspaceOwnerAsync(id))
+            return Forbid("Only the workspace owner can delete the workspace.");
 
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null) return Unauthorized();
@@ -289,11 +293,12 @@ public class OrganizationsController : ControllerBase
         var userId = _userManager.GetUserId(User);
         if (userId == null) return Unauthorized();
 
-        var employee = await _context.Employees
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == id);
-        
-        if (employee == null)
-            return Forbid("You are not a member of this organization.");
+        var activeOrgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (activeOrgId != id) return Forbid();
+
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
+        if (!isOwner && !User.HasClaim("ModuleAccess", "Users"))
+            return Forbid("Workspace ownership or Users access is required.");
 
         string? email = request.Email?.Trim();
 

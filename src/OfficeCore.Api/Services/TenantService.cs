@@ -60,7 +60,7 @@ public class TenantService
         if (userId == null || orgId == null) return null;
 
         return await _context.Employees
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId);
+            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId && e.IsActive);
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ public class TenantService
         if (orgId == null) return null;
 
         return await _context.Employees
-            .FirstOrDefaultAsync(e => e.UserId == applicationUserId && e.OrganizationId == orgId);
+            .FirstOrDefaultAsync(e => e.UserId == applicationUserId && e.OrganizationId == orgId && e.IsActive);
     }
 
     /// <summary>
@@ -83,5 +83,15 @@ public class TenantService
     {
         var employee = await GetCurrentEmployeeAsync();
         return employee?.OrganizationId;
+    }
+
+    public async Task<bool> IsCurrentUserWorkspaceOwnerAsync(Guid? organizationId = null)
+    {
+        var userId = GetUserId();
+        var orgId = organizationId ?? await GetValidatedOrganizationIdAsync();
+        if (userId == null || orgId == null) return false;
+
+        return await _context.Organizations
+            .AnyAsync(o => o.Id == orgId.Value && o.CreatedByUserId == userId);
     }
 }

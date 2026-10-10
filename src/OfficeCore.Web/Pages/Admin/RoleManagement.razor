@@ -175,24 +175,13 @@
 }
 
 @code {
-    private static readonly Dictionary<string, string[]> ModuleCategories = new()
-    {
-        { "Finance", ["Ledger", "Payroll", "Invoices"] },
-        { "Administration", ["Clients", "Attendance", "Users", "Roles", "LeaveApprovals", "OvertimeApprovals", "WorkSchedules", "TimeOff", "Locations", "AuditLogs"] }
-    };
+    private static readonly IReadOnlyDictionary<string, string[]> ModuleCategories = ModuleCatalog.All
+        .Where(m => !m.IsDefault)
+        .GroupBy(m => m.Category)
+        .ToDictionary(g => g.Key, g => g.Select(m => m.Key).ToArray());
 
-    private static string FormatModuleName(string name) => name switch
-    {
-        "LeaveApprovals" => "Leave Approvals",
-        "OvertimeApprovals" => "Overtime Approvals",
-        "WorkSchedules" => "Work Schedules",
-        "TimeOff" => "Time Off",
-        "AuditLogs" => "Audit Trail",
-        "MyAttendance" => "My Attendance",
-        "MyLeaves" => "My Leaves",
-        "MyOvertime" => "My Overtime",
-        _ => name
-    };
+    private static string FormatModuleName(string name) =>
+        ModuleCatalog.All.FirstOrDefault(m => m.Key == name)?.DisplayName ?? name;
 
     private List<RoleDto>? _roles;
     private Dictionary<string, List<string>> _roleModules = new();
@@ -221,8 +210,7 @@
             {
                 foreach (var role in _roles)
                 {
-                    var modules = await Http.GetFromJsonAsync<List<string>>($"/api/role/{role.Id}/modules");
-                    _roleModules[role.Id] = modules ?? [];
+                    _roleModules[role.Id] = role.Modules;
                 }
             }
         }
@@ -266,15 +254,12 @@
                 return;
             }
 
-            // Update details
-            await Http.PutAsJsonAsync($"/api/role/{_editRole.Id}/details", new {
+            var response = await Http.PutAsJsonAsync($"/api/role/{_editRole.Id}", new {
                 Name = _newRoleName,
                 Description = _newRoleDesc,
-                ShowAsTitle = _newRoleShowAsTitle
+                ShowAsTitle = _newRoleShowAsTitle,
+                Modules = _selectedModules.ToList()
             });
-
-            // Update modules
-            var response = await Http.PutAsJsonAsync($"/api/role/{_editRole.Id}/modules", _selectedModules.ToList());
             if (response.IsSuccessStatusCode)
             {
                 CloseModal();
@@ -344,5 +329,6 @@
         public string? Name { get; set; } 
         public string? Description { get; set; } 
         public bool ShowAsTitle { get; set; } 
+        public List<string> Modules { get; set; } = [];
     }
 }

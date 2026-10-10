@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/OfficeCore.Shared/OfficeCore.Shared.csproj" />
     <Project Path="src/OfficeCore.Api/OfficeCore.Api.csproj" />
     <Project Path="src/OfficeCore.Desktop.Client/OfficeCore.Desktop.Client.csproj" />
     <Project Path="src/OfficeCore.Desktop.Server/OfficeCore.Desktop.Server.csproj" />
@@ -8,5 +9,8 @@
   </Folder>
   <Folder Name="/src/OfficeCore.Web/">
     <Project Path="src/OfficeCore.Web/OfficeCore.Web.Client.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OfficeCore.Authorization.Tests/OfficeCore.Authorization.Tests.csproj" />
   </Folder>
 </Solution>

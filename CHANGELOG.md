@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed & Security Hardening — [2026-10-10] (RBAC Foundation and Tenant Authorization)
+
+- Added the shared `OfficeCore.Shared` authorization catalog so API policies, Blazor policies, default access, owner access, role management, and seed data consume one canonical module definition.
+- Prevented inactive employees from resolving a tenant context, selecting a workspace, receiving transformed authorization claims, or appearing authenticated through `/api/auth/me` for that workspace.
+- Closed role-escalation paths by limiting role creation, modification, deletion, and employee role assignment to the immutable workspace owner relationship.
+- Added validation for selected role names and module identifiers, rejecting unknown grants instead of silently accepting or dropping them.
+- Aligned organization update and logo authorization with the active validated tenant and owner/module permissions; restricted workspace deletion to the workspace owner.
+- Consolidated role detail and module changes into a single atomic API operation and removed the role-management UI's per-role module request pattern.
+- Protected assigned roles from deletion and added duplicate role-name checks within a workspace.
+- Added the first automated authorization test project with module catalog, normalization, duplicate-removal, and invalid-grant coverage.
+
 ### Fixed & Security Hardening — [2026-10-06] (Core Stabilization, Multi-Tenancy Scoping, LAN-Safe CORS, Branch Separation & Safe Seed Guard)
 
 - **Safe Startup Seeder Guard (`DbSeeder.cs`):**
