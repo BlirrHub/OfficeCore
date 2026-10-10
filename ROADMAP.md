@@ -23,6 +23,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | **P1** | **RBAC Foundation Hardening & Shared Module Catalog** | Identity, Authorization & Multi-Tenancy | ✅ Completed | Centralized module definitions across API/UI, blocked self-promotion and non-owner role grants, enforced active memberships, aligned owner organization access, added atomic role updates and authorization tests |
+| **P2** | **ACBA Development Quick Demo Login** | Authentication & QA | ✅ Completed | Added one-click Admin Demo and Employee Demo login controls on `acba-dev`, wired to seeded owner and standard employee accounts |
 | **P1** | **Action-Level Permission Migration** | Identity, Authorization & Multi-Tenancy | 🟢 Ready for Implementation | Replace coarse module grants with granular permissions such as employees.roles.assign, payroll.finalize, and attendance.adjust while retaining modules as navigation metadata |
 | **P1** | **Installer Binaries Git Ignore** | Git Architecture | ✅ Completed | Ignored `dist/` and `Setup-*.exe` binaries across branches to prevent repository bloat |
 | **P1** | **E-Loan, Advance & Leave Request/Action Timestamps** | HR, Finance & Leaves | ✅ Completed | Added request and action-taken/resolution timestamps across DB schema, API controllers, and employee/admin UI |
