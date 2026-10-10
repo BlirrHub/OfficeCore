@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — [2026-10-10] (`acba-dev` Quick Demo Login)
+
+- Added Admin Demo and Employee Demo buttons to the login page for one-click ACBA development access.
+- Connected the buttons to the seeded `demo@officecore.com` owner and `adrian@officecore.com` standard employee accounts using the development-only demo password.
+
 ### Fixed & Security Hardening — [2026-10-10] (RBAC Foundation and Tenant Authorization)
 
 - Added the shared `OfficeCore.Shared` authorization catalog so API policies, Blazor policies, default access, owner access, role management, and seed data consume one canonical module definition.
