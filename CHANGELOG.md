@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security — [2026-10-14] (SMTP Credential Sanitization)
+
+- Blanked plaintext SMTP application password in `appsettings.json` to prevent credential exposure.
+
 ### Added & Security — [2026-10-10] (`acba-dev` Action-Level RBAC Foundation)
 
 - Added a canonical action-permission catalog covering role lifecycle, employee role assignment, audit viewing/export, payroll operations, attendance adjustment, approvals, administration, and board membership.
