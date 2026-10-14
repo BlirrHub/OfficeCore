@@ -851,14 +851,14 @@
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(_menuOpenBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") @(_menuAlignRight ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div class="absolute @(_menuOpenBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none ring-1 ring-white/10" @onclick:stopPropagation>
                                                         @if (_menuOpenBelow)
                                                         {
-                                                            <div class="absolute -top-1.5 @(_menuAlignRight ? "right-2.5" : "left-2.5") size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                            <div class="absolute -top-1.5 right-1.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
                                                         }
                                                         else
                                                         {
-                                                            <div class="absolute -bottom-1.5 @(_menuAlignRight ? "right-2.5" : "left-2.5") size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                            <div class="absolute -bottom-1.5 right-1.5 size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
                                                         }
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
                                                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
@@ -896,12 +896,12 @@
                                             var myUserId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
                                             var userCurrentRx = _messageUserReactions.TryGetValue(msg.Id, out var uMap) && uMap.TryGetValue(myUserId, out var curRx) ? curRx : null;
 
-                                            <div class="absolute @(_reactionOpenBelow ? "top-full mt-1.5" : "bottom-full mb-1.5") @(_reactionAlignRight ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap" @onclick:stopPropagation>
-                                                @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
+                                            <div class="absolute @(_reactionOpenBelow ? "top-full mt-2" : "bottom-full mb-2") @(isMine ? "right-0" : "left-0") bg-zinc-900/95 border border-zinc-700/80 rounded-full shadow-2xl px-2.5 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap ring-1 ring-white/10" @onclick:stopPropagation>
+                                                @foreach (var emoji in new[] { "❤️", "😆", "😮", "😢", "😡", "👍" })
                                                 {
                                                     var isSelected = emoji == userCurrentRx;
                                                     <button type="button" @onclick="() => ToggleReaction(msg.Id, emoji)" 
-                                                            class="size-6 sm:size-7 rounded-full flex items-center justify-center text-xs sm:text-sm hover:scale-125 transition-transform cursor-pointer @(isSelected ? "bg-fuchsia-600/30 ring-1.5 ring-fuchsia-400 scale-110" : "hover:bg-zinc-800")"
+                                                            class="size-7 sm:size-8 rounded-full flex items-center justify-center text-sm sm:text-base hover:scale-130 transition-transform cursor-pointer @(isSelected ? "bg-fuchsia-600/30 ring-1.5 ring-fuchsia-400 scale-110" : "hover:bg-zinc-800")"
                                                             title="@(isSelected ? "Remove reaction" : "React")">
                                                         @emoji
                                                     </button>
@@ -1048,14 +1048,14 @@
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(_menuOpenBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") @(_menuAlignRight ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div class="absolute @(_menuOpenBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none ring-1 ring-white/10" @onclick:stopPropagation>
                                                         @if (_menuOpenBelow)
                                                         {
-                                                            <div class="absolute -top-1.5 @(_menuAlignRight ? "right-2.5" : "left-2.5") size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                            <div class="absolute -top-1.5 left-1.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
                                                         }
                                                         else
                                                         {
-                                                            <div class="absolute -bottom-1.5 @(_menuAlignRight ? "right-2.5" : "left-2.5") size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                            <div class="absolute -bottom-1.5 left-1.5 size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
                                                         }
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
                                                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
@@ -1441,15 +1441,7 @@
     private Guid? _activeMessageMenuId = null;
     private Guid? _activeReactionMenuId = null;
     private bool _menuOpenBelow = false;
-    private bool _menuAlignRight = false;
     private bool _reactionOpenBelow = false;
-    private bool _reactionAlignRight = false;
-
-    private sealed class ChatMenuPlacementResult
-    {
-        public bool OpenBelow { get; set; }
-        public bool AlignRight { get; set; }
-    }
     private ChatMessageDto? _replyingToMessage = null;
     private Dictionary<Guid, Dictionary<string, string>> _messageUserReactions = new();
 
@@ -2757,12 +2749,7 @@
         try
         {
             var btnId = $"msg-menu-btn-{messageId}";
-            var placement = await JS.InvokeAsync<ChatMenuPlacementResult>("getChatMenuPlacement", btnId);
-            if (placement != null)
-            {
-                _menuOpenBelow = placement.OpenBelow;
-                _menuAlignRight = placement.AlignRight;
-            }
+            _menuOpenBelow = await JS.InvokeAsync<bool>("getChatMenuPlacement", btnId);
         }
         catch { }
 
@@ -2781,12 +2768,7 @@
         try
         {
             var btnId = $"msg-react-btn-{messageId}";
-            var placement = await JS.InvokeAsync<ChatMenuPlacementResult>("getChatMenuPlacement", btnId);
-            if (placement != null)
-            {
-                _reactionOpenBelow = placement.OpenBelow;
-                _reactionAlignRight = placement.AlignRight;
-            }
+            _reactionOpenBelow = await JS.InvokeAsync<bool>("getChatMenuPlacement", btnId);
         }
         catch { }
 
