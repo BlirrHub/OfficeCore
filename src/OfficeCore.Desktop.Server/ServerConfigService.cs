@@ -16,6 +16,14 @@ public class ServerConfig
     public bool StartMinimized { get; set; } = false;
     public bool StartWithWindows { get; set; } = false;
 
+    // Optional Production SMTP Notification Settings
+    public string SmtpHost { get; set; } = "smtp.gmail.com";
+    public int SmtpPort { get; set; } = 587;
+    public string SmtpUser { get; set; } = "";
+    public string SmtpPassword { get; set; } = "";
+    public string FromEmail { get; set; } = "";
+    public string FromName { get; set; } = "OfficeCore";
+
     public static string GetDefaultDbName()
     {
 #if DEBUG

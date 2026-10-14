@@ -206,6 +206,16 @@ public class ServerProcessManager : IDisposable
                 startInfo.EnvironmentVariables["ConnectionStrings__DefaultConnection"] = config.BuildConnectionString();
                 startInfo.EnvironmentVariables["ASPNETCORE_URLS"] = "http://0.0.0.0:5026";
 
+                if (!string.IsNullOrWhiteSpace(config.SmtpUser) && !string.IsNullOrWhiteSpace(config.SmtpPassword))
+                {
+                    startInfo.EnvironmentVariables["Email__SmtpHost"] = config.SmtpHost;
+                    startInfo.EnvironmentVariables["Email__SmtpPort"] = config.SmtpPort.ToString();
+                    startInfo.EnvironmentVariables["Email__SmtpUser"] = config.SmtpUser;
+                    startInfo.EnvironmentVariables["Email__SmtpPassword"] = config.SmtpPassword;
+                    startInfo.EnvironmentVariables["Email__FromEmail"] = string.IsNullOrWhiteSpace(config.FromEmail) ? config.SmtpUser : config.FromEmail;
+                    startInfo.EnvironmentVariables["Email__FromName"] = string.IsNullOrWhiteSpace(config.FromName) ? "OfficeCore" : config.FromName;
+                }
+
                 _serverProcess = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 
                 _serverProcess.OutputDataReceived += (s, e) =>

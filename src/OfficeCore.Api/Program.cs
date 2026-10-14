@@ -15,6 +15,11 @@ CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load optional local override configuration (gitignored, for private developer credentials & secrets)
+builder.Configuration
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.Local.json", optional: true, reloadOnChange: true);
+
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 // Allow any origin that reaches this server — needed for LAN clients connecting
 // via the desktop workstation app from a different machine on the network.
