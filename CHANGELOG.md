@@ -6,8 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Security — [2026-10-14] (SMTP Credential Sanitization)
+### Security & Configuration — [2026-10-14] (Local Secrets & Visual Studio Gitignore)
 
+- Added standard Visual Studio `.gitignore` definitions alongside OfficeCore rules, ensuring temporary files, build outputs, and local developer configs remain untracked.
+- Added support for gitignored `appsettings.Local.json` and `appsettings.{Environment}.Local.json` in API configuration for safe local credentials.
+- Added optional production SMTP configuration fields in Desktop Server Station settings (`ServerConfig`) injected as environment variables upon API launch.
 - Blanked plaintext SMTP application password in `appsettings.json` to prevent credential exposure.
 
 ### Added & Security — [2026-10-10] (`acba-dev` Action-Level RBAC Foundation)
