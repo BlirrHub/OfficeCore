@@ -777,7 +777,7 @@
                 }
 
                 <!-- Messages Area -->
-                <div class="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3 pt-8 flex flex-col-reverse" id="chat-messages-container" @onclick="CloseActiveMenus">
+                <div class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-3 pb-3 pt-8 flex flex-col-reverse" id="chat-messages-container" @onclick="CloseActiveMenus">
                     @if (_isLoadingMessages)
                     {
                         <div class="flex justify-center p-4">
@@ -844,21 +844,21 @@
                                             <!-- 3 dots more actions button (Image 1 & 2) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
+                                                        id="@($"msg-menu-btn-{msg.Id}")"
                                                         class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeMessageMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
                                                         title="More actions">
                                                     <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    bool openBelow = i <= 1;
-                                                    <div class="absolute @(openBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
-                                                        @if (openBelow)
+                                                    <div class="absolute @(_menuOpenBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") @(_menuAlignRight ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                        @if (_menuOpenBelow)
                                                         {
-                                                            <div class="absolute -top-1.5 left-2.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                            <div class="absolute -top-1.5 @(_menuAlignRight ? "right-2.5" : "left-2.5") size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
                                                         }
                                                         else
                                                         {
-                                                            <div class="absolute -bottom-1.5 left-2.5 size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                            <div class="absolute -bottom-1.5 @(_menuAlignRight ? "right-2.5" : "left-2.5") size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
                                                         }
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
                                                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
@@ -881,6 +881,7 @@
 
                                             <!-- React emoji button (Image 1) -->
                                             <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
+                                                    id="@($"msg-react-btn-{msg.Id}")"
                                                     class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeReactionMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
                                                     title="React">
                                                 <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -895,7 +896,7 @@
                                             var myUserId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
                                             var userCurrentRx = _messageUserReactions.TryGetValue(msg.Id, out var uMap) && uMap.TryGetValue(myUserId, out var curRx) ? curRx : null;
 
-                                            <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") @(isMine ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap" @onclick:stopPropagation>
+                                            <div class="absolute @(_reactionOpenBelow ? "top-full mt-1.5" : "bottom-full mb-1.5") @(_reactionAlignRight ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap" @onclick:stopPropagation>
                                                 @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
                                                 {
                                                     var isSelected = emoji == userCurrentRx;
@@ -1024,6 +1025,7 @@
                                         <div class="self-center flex items-center gap-0.5 chat-msg-actions relative z-20 shrink-0 px-1 py-0.5 rounded-full bg-zinc-900 border border-zinc-700/80 shadow-md backdrop-blur-md @(isMenuActive ? "is-active" : "")">
                                             <!-- React emoji button (Image 1) -->
                                             <button type="button" @onclick="() => ToggleReactionPicker(msg.Id)" @onclick:stopPropagation
+                                                    id="@($"msg-react-btn-{msg.Id}")"
                                                     class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeReactionMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
                                                     title="React">
                                                 <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -1039,21 +1041,21 @@
                                             <!-- 3 dots more actions button (Image 1 & 2) -->
                                             <div class="relative">
                                                 <button type="button" @onclick="() => ToggleMessageMenu(msg.Id)" @onclick:stopPropagation
+                                                        id="@($"msg-menu-btn-{msg.Id}")"
                                                         class="size-6 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer relative z-10 @(_activeMessageMenuId == msg.Id ? "text-fuchsia-400 bg-zinc-800" : "")"
                                                         title="More actions">
                                                     <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    bool openBelow = i <= 1;
-                                                    <div class="absolute @(openBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
-                                                        @if (openBelow)
+                                                    <div class="absolute @(_menuOpenBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") @(_menuAlignRight ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                        @if (_menuOpenBelow)
                                                         {
-                                                            <div class="absolute -top-1.5 right-2.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                            <div class="absolute -top-1.5 @(_menuAlignRight ? "right-2.5" : "left-2.5") size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
                                                         }
                                                         else
                                                         {
-                                                            <div class="absolute -bottom-1.5 right-2.5 size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
+                                                            <div class="absolute -bottom-1.5 @(_menuAlignRight ? "right-2.5" : "left-2.5") size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
                                                         }
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
                                                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
@@ -1438,6 +1440,16 @@
     private HashSet<Guid> _pinnedMessageIds = new();
     private Guid? _activeMessageMenuId = null;
     private Guid? _activeReactionMenuId = null;
+    private bool _menuOpenBelow = false;
+    private bool _menuAlignRight = false;
+    private bool _reactionOpenBelow = false;
+    private bool _reactionAlignRight = false;
+
+    private sealed class ChatMenuPlacementResult
+    {
+        public bool OpenBelow { get; set; }
+        public bool AlignRight { get; set; }
+    }
     private ChatMessageDto? _replyingToMessage = null;
     private Dictionary<Guid, Dictionary<string, string>> _messageUserReactions = new();
 
@@ -2733,16 +2745,52 @@
         _activeReactionMenuId = null;
     }
 
-    private void ToggleMessageMenu(Guid messageId)
+    private async Task ToggleMessageMenu(Guid messageId)
     {
         _activeReactionMenuId = null;
-        _activeMessageMenuId = _activeMessageMenuId == messageId ? null : messageId;
+        if (_activeMessageMenuId == messageId)
+        {
+            _activeMessageMenuId = null;
+            return;
+        }
+
+        try
+        {
+            var btnId = $"msg-menu-btn-{messageId}";
+            var placement = await JS.InvokeAsync<ChatMenuPlacementResult>("getChatMenuPlacement", btnId);
+            if (placement != null)
+            {
+                _menuOpenBelow = placement.OpenBelow;
+                _menuAlignRight = placement.AlignRight;
+            }
+        }
+        catch { }
+
+        _activeMessageMenuId = messageId;
     }
 
-    private void ToggleReactionPicker(Guid messageId)
+    private async Task ToggleReactionPicker(Guid messageId)
     {
         _activeMessageMenuId = null;
-        _activeReactionMenuId = _activeReactionMenuId == messageId ? null : messageId;
+        if (_activeReactionMenuId == messageId)
+        {
+            _activeReactionMenuId = null;
+            return;
+        }
+
+        try
+        {
+            var btnId = $"msg-react-btn-{messageId}";
+            var placement = await JS.InvokeAsync<ChatMenuPlacementResult>("getChatMenuPlacement", btnId);
+            if (placement != null)
+            {
+                _reactionOpenBelow = placement.OpenBelow;
+                _reactionAlignRight = placement.AlignRight;
+            }
+        }
+        catch { }
+
+        _activeReactionMenuId = messageId;
     }
 
     private async Task ToggleReaction(Guid messageId, string emoji)

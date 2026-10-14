@@ -6,6 +6,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### UI & UX Polish — [2026-10-14] (Role Modal Overhaul & Chat Dropdown Positioning)
+
+- **Role Management Modal Redesign**:
+  - Expanded modal layout from cramped 512px (`max-w-lg`) to a spacious 768px (`max-w-3xl`) container with full Light and Dark mode contrast compliance.
+  - Replaced the inner nested 30vh scroll container with a single, smooth `overflow-y-auto custom-scrollbar` modal body, eliminating double scrollbars and cutoffs.
+  - Applied `items-start` alignment across module cards so expanding fine-grained action checklists no longer stretches adjacent cards or creates awkward dark empty spaces.
+  - Organized modules by category (`Finance`, `Administration`, `Main`) with clear category dividers, permission count badges (`All N` or `X/Y active`), chevron toggles, and global "Select All" / "Clear All" convenience actions.
+  - Refined role identity fields, descriptive toggle for "Show as Primary Title", and theme-safe Delete Confirmation dialog.
+- **Global Chat Widget Dropdown & Reaction Picker Fixes**:
+  - Added `overflow-x-hidden` to the chat messages scroll container to prevent horizontal scrollbars caused by floating menus.
+  - Replaced static loop index placement (`i <= 1`) with dynamic bounding-box measurement (`getChatMenuPlacement`):
+    - Automatically opens downwards when within 150px of the top header, preventing clipping behind the room header on top messages.
+    - Automatically opens upwards when positioned near the bottom input bar on short or single-message chats, preventing clipping into the message input field.
+    - Dynamically anchors sent messages (`isMine`) to the right (`right-0`) and received messages (`!isMine`) to the left (`left-0`) so action menus and emoji reaction pickers stay safely within widget bounds without horizontal overflow.
+
 ### Security & Configuration — [2026-10-14] (Local Secrets & Visual Studio Gitignore)
 
 - Added standard Visual Studio `.gitignore` definitions alongside OfficeCore rules, ensuring temporary files, build outputs, and local developer configs remain untracked.
