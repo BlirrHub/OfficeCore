@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-10-14] Role Editor and Chat Menu Layout
+
+- Widened the role editor, consolidated its body into one scroll area with fixed header/footer, and improved permission spacing, checkboxes, selection counts, and responsive card sizing.
+- Moved chat action and reaction menus into native browser popovers, positioned against the visible message viewport and repositioned on scrolling/resizing to prevent clipping behind the composer or header.
+- Added keyboard-focus visibility for message action controls and retained theme color tokens.
+
 ### Added & Security — [2026-10-10] (`acba-dev` Action-Level RBAC Foundation)
 
 - Added a canonical action-permission catalog covering role lifecycle, employee role assignment, audit viewing/export, payroll operations, attendance adjustment, approvals, administration, and board membership.

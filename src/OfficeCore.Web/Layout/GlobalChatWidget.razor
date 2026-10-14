@@ -818,7 +818,7 @@
                             bool isPinned = _pinnedMessageIds.Contains(msg.Id);
                             bool isMenuActive = _activeMessageMenuId == msg.Id || _activeReactionMenuId == msg.Id;
 
-                            <div class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start") chat-msg-row relative items-end @(isMenuActive ? "z-30" : "z-0")">
+                            <div data-chat-menu-anchor="@(isMenuActive ? "active" : null)" class="flex gap-2 w-full @(isMine ? "justify-end" : "justify-start") chat-msg-row relative items-end @(isMenuActive ? "z-30" : "z-0")">
                                 @if (!isMine)
                                 {
                                     <div class="size-6 rounded-full bg-zinc-800 shrink-0 overflow-hidden self-end mb-1 border border-zinc-700">
@@ -851,7 +851,7 @@
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
                                                     bool openBelow = i <= 1;
-                                                    <div class="absolute @(openBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div popover="manual" data-chat-popup class="chat-popup bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 w-36 flex flex-col gap-0.5 select-none" @onclick:stopPropagation>
                                                         @if (openBelow)
                                                         {
                                                             <div class="absolute -top-1.5 left-2.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
@@ -895,7 +895,7 @@
                                             var myUserId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
                                             var userCurrentRx = _messageUserReactions.TryGetValue(msg.Id, out var uMap) && uMap.TryGetValue(myUserId, out var curRx) ? curRx : null;
 
-                                            <div class="absolute @(i <= 1 ? "top-full mt-1.5" : "bottom-full mb-1.5") @(isMine ? "right-0" : "left-0") bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap" @onclick:stopPropagation>
+                                            <div popover="manual" data-chat-popup class="chat-popup bg-zinc-900 border border-zinc-700/80 rounded-full shadow-2xl px-2 py-2 flex items-center gap-1 select-none whitespace-nowrap" @onclick:stopPropagation>
                                                 @foreach (var emoji in new[] { "👍", "❤️", "😂", "😮", "😢", "🙏" })
                                                 {
                                                     var isSelected = emoji == userCurrentRx;
@@ -1046,7 +1046,7 @@
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
                                                     bool openBelow = i <= 1;
-                                                    <div class="absolute @(openBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none" @onclick:stopPropagation>
+                                                    <div popover="manual" data-chat-popup class="chat-popup bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 w-36 flex flex-col gap-0.5 select-none" @onclick:stopPropagation>
                                                         @if (openBelow)
                                                         {
                                                             <div class="absolute -top-1.5 right-2.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
@@ -1417,6 +1417,7 @@
 </style>
 
 @code {
+    private IJSObjectReference? _chatPopupModule;
     private Dictionary<string, string> _draftMentions = new(StringComparer.OrdinalIgnoreCase);
 
     private bool _isOpen = false;
@@ -1782,6 +1783,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_isOpen || _chatPopupModule != null)
+        {
+            _chatPopupModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/chatPopup.js");
+            await _chatPopupModule.InvokeVoidAsync("positionActiveMenu");
+        }
         if (firstRender)
         {
             try 
@@ -2499,6 +2505,11 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_chatPopupModule != null)
+        {
+            await _chatPopupModule.InvokeVoidAsync("cleanup");
+            await _chatPopupModule.DisposeAsync();
+        }
         if (_hubConnection != null)
             await _hubConnection.DisposeAsync();
         
