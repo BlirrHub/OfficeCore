@@ -94,7 +94,7 @@
 {
     var isEdit = _editRole != null;
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div role="dialog" aria-modal="true" aria-label="Role permissions" class="w-full max-w-4xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden">
             <div class="flex items-center justify-between px-6 py-5 border-b border-zinc-800 shrink-0">
                 <h2 class="text-xl font-bold text-white">@(isEdit ? "Edit Role" : "New Role")</h2>
                 <button @onclick="CloseModal" class="text-zinc-500 hover:text-white transition-colors">
@@ -104,7 +104,8 @@
                 </button>
             </div>
 
-            <div class="px-6 py-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+            <div class="min-h-0 overflow-y-auto custom-scrollbar">
+            <div class="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-4 border-b border-zinc-800">
                 <div>
                     <label class="block text-xs font-medium text-zinc-400 mb-1">Role Name</label>
                     <input @bind="_newRoleName" class="w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
@@ -119,17 +120,21 @@
                 </div>
             </div>
 
-            <div class="px-6 pb-4">
-                <div class="space-y-4 max-h-[30vh] overflow-y-auto pr-2">
+            <div class="px-6 py-5">
+                <div class="flex items-center justify-between gap-4 mb-5">
+                    <div><h3 class="text-sm font-semibold text-white">Module permissions</h3><p class="text-xs text-zinc-400 mt-1">Select a module, then choose the actions this role can use.</p></div>
+                    <span class="text-xs text-fuchsia-400 shrink-0">@_selectedPermissions.Count selected</span>
+                </div>
+                <div class="space-y-6">
                     @foreach (var category in ModuleCategories)
                     {
                         <div>
                             <p class="text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-2">@category.Key</p>
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
                                 @foreach (var module in category.Value)
                                 {
                                     var sel = _selectedModules.Contains(module);
-                                    <div class="rounded-lg bg-zinc-900 overflow-hidden @(sel ? "ring-1 ring-fuchsia-500/40" : "")">
+                                    <div class="rounded-xl bg-zinc-900 border overflow-hidden @(sel ? "border-fuchsia-500/40" : "border-zinc-800")">
                                         <button type="button"
                                                 @onclick="() => ToggleModule(module)"
                                                 class="@($"w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-left transition-all {(sel ? "bg-fuchsia-600/20 text-fuchsia-300" : "text-zinc-400 hover:bg-zinc-800")}")">
@@ -138,14 +143,14 @@
                                         </button>
                                         @if (sel)
                                         {
-                                            <div class="border-t border-zinc-800 px-3 py-2 space-y-1.5">
+                                            <div class="border-t border-zinc-800 p-3 space-y-2">
                                                 @foreach (var permission in PermissionCatalog.ForModule(module))
                                                 {
-                                                    <label class="flex items-start gap-2 text-[11px] text-zinc-400 cursor-pointer">
+                                                    <label class="flex items-center gap-3 text-sm text-zinc-300 cursor-pointer rounded-lg px-2 py-2 hover:bg-zinc-800">
                                                         <input type="checkbox"
                                                                checked="@_selectedPermissions.Contains(permission.Key)"
                                                                @onchange="() => TogglePermission(module, permission.Key)"
-                                                               class="mt-0.5 size-3 rounded border-zinc-700 bg-zinc-950 text-fuchsia-600" />
+                                                               class="size-4 shrink-0 rounded accent-fuchsia-600" />
                                                         <span>@permission.DisplayName</span>
                                                     </label>
                                                 }
@@ -159,6 +164,7 @@
                 </div>
             </div>
 
+            </div>
             <div class="flex justify-between gap-3 px-6 py-4 border-t border-zinc-800 shrink-0">
                 @if (isEdit)
                 {
@@ -173,7 +179,7 @@
                 <div class="flex gap-3">
                     <button @onclick="CloseModal" class="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
                     <button @onclick="SaveRole"
-                            class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors">
+                            class="rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white keep-white hover:bg-fuchsia-500 transition-colors">
                         @(isEdit ? "Save Changes" : "Create Role")
                     </button>
                 </div>
