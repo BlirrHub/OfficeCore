@@ -113,15 +113,10 @@
         window.getChatMenuPlacement = function(btnId) {
             var btn = document.getElementById(btnId);
             var container = document.getElementById('chat-messages-container');
-            if (!btn || !container) return { openBelow: false, alignRight: false };
+            if (!btn || !container) return false;
             var bRect = btn.getBoundingClientRect();
             var cRect = container.getBoundingClientRect();
-            var distFromTop = bRect.top - cRect.top;
-            var distFromRight = cRect.right - bRect.right;
-            return {
-                openBelow: distFromTop < 150,
-                alignRight: distFromRight < 160
-            };
+            return (bRect.top - cRect.top) < 150;
         };
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
