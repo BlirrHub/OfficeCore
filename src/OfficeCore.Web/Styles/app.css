@@ -240,18 +240,4 @@ html.light * {
 input::-ms-reveal,
 input::-ms-clear {
     display: none;
-}
-/* Chat menus use the browser top layer to escape the message scroll container. */
-.chat-popup {
-    position: fixed;
-    inset: auto;
-    margin: 0;
-    max-width: calc(100vw - 32px);
-}
-.chat-popup > .pointer-events-none { display: none; }
-.chat-popup:not(:popover-open) { display: none; }
-.chat-msg-bubble-group:focus-within .chat-msg-actions {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-}
+}

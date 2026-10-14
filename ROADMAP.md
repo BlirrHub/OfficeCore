@@ -22,7 +22,6 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| **P1** | **Role Editor and Chat Menu Layout** | UI & Chat | ✅ Completed | Responsive permission editor with one scroll area; chat action/reaction popovers constrained to the visible message viewport |
 | **P1** | **RBAC Foundation Hardening & Shared Module Catalog** | Identity, Authorization & Multi-Tenancy | ✅ Completed | Centralized module definitions across API/UI, blocked self-promotion and non-owner role grants, enforced active memberships, aligned owner organization access, added atomic role updates and authorization tests |
 | **P1** | **Custom Role Editing & Audit Trail Policy Repair** | Identity, Authorization & Audit | ✅ Completed | Replaced concurrency-prone tracked claim replacement and aligned Audit Trail endpoints with the shared `AuditLogs` module permission |
 | **P1** | **Assigned Custom Role Deletion** | Identity & Authorization | ✅ Completed | Atomically detaches employee assignments when deleting a role and clearly warns administrators about the resulting access removal |
