@@ -22,6 +22,8 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| **P1** | **Payroll & Notification Regression Suite** | QA, Payroll & Tenant Isolation | ✅ Completed | 26 isolated API service/component tests plus 14 existing checks; repaired payroll calendar boundaries and active-member notification subscription |
+| **P1** | **PostgreSQL & Browser Workflow Integration Tests** | QA & Release Confidence | 🟢 Ready for Implementation | Disposable database and browser flows for login, attendance, approvals and payroll; service/component tests do not cover SQL, migrations, transactions, hardware or recovery |
 | **P1** | **Patch Vulnerable ASP.NET Core WASM Server Dependency** | Dependencies & Release Security | 🟢 Ready for Implementation | Release builds report NU1903 for Microsoft.AspNetCore.Components.WebAssembly.Server 9.0.0 (GHSA-qjpx-jqm5-h2c4); update supported patch dependencies and revalidate before deployment |
 | **P1** | **Branch Release Isolation & Synchronization** | Deployment & Git Workflow | ✅ Completed | Embedded database profiles in Debug/Release, isolated development settings, blocked cross-profile reserved databases and demo seeding outside development databases, removed production demo login, synchronized shared permission/UI fixes into development |
 | **P1** | **RBAC Foundation Hardening & Shared Module Catalog** | Identity, Authorization & Multi-Tenancy | ✅ Completed | Centralized module definitions across API/UI, blocked self-promotion and non-owner role grants, enforced active memberships, aligned owner organization access, added atomic role updates and authorization tests |
