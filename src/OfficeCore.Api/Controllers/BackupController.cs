@@ -35,17 +35,30 @@ public class BackupController : ControllerBase
 
     private async Task<bool> IsAuthorizedForBackupsAsync()
     {
+        // Reject proxied / tunneled requests (e.g. cloudflared) so remote traffic is never treated as local loopback
+        if (Request.Headers.ContainsKey("X-Forwarded-For") ||
+            Request.Headers.ContainsKey("CF-Connecting-IP") ||
+            Request.Headers.ContainsKey("X-Real-IP"))
+        {
+            return false;
+        }
+
         var remoteIp = HttpContext.Connection.RemoteIpAddress;
         var isLoopback = remoteIp != null && System.Net.IPAddress.IsLoopback(remoteIp);
 
-        // Allow local Server Station host orchestration requests from loopback
-        if (Request.Headers.TryGetValue("X-OfficeCore-Station", out var stationHeader) && stationHeader == "ServerStationOrchestrator")
-        {
-            if (isLoopback) return true;
-        }
-
         // Only permit host-local requests from loopback for full database backups
         if (!isLoopback) return false;
+
+        // Allow local Server Station host orchestration requests from loopback with a valid shared secret token
+        if (Request.Headers.TryGetValue("X-OfficeCore-Station", out var stationHeader) && stationHeader == "ServerStationOrchestrator")
+        {
+            if (Request.Headers.TryGetValue("X-OfficeCore-Station-Token", out var stationToken) &&
+                _backupService.ValidateStationToken(stationToken))
+            {
+                return true;
+            }
+            return false;
+        }
 
         if (User.Identity?.IsAuthenticated != true)
             return false;
@@ -53,7 +66,13 @@ public class BackupController : ControllerBase
         var userId = _userManager.GetUserId(User);
         if (userId == null) return false;
 
-        return await _context.Organizations.AnyAsync(o => o.CreatedByUserId == userId);
+        // Only the primary host workspace owner (earliest created organization on the server) can manage host-level backups
+        var primaryOrg = await _context.Organizations
+            .AsNoTracking()
+            .OrderBy(o => o.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        return primaryOrg != null && primaryOrg.CreatedByUserId == userId;
     }
 
     [HttpGet]
@@ -200,7 +219,14 @@ public class BackupController : ControllerBase
         if (!await IsAuthorizedForBackupsAsync())
             return Forbid("Administrative privileges required to update backup settings.");
 
-        await _backupService.SaveSettingsAsync(settings);
-        return Ok(new { message = "Backup settings updated successfully." });
+        try
+        {
+            await _backupService.SaveSettingsAsync(settings);
+            return Ok(new { message = "Backup settings updated successfully." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

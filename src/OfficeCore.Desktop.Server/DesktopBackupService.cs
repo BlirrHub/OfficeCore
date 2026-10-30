@@ -58,18 +58,19 @@ public class BackupDashboardData
 public class DesktopBackupService
 {
     private static readonly string BackupsFolder = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "OfficeCore", "Backups");
+        // Profile-scoped path resolved via ServerConfigService.GetProfileFolder()
+        ServerConfigService.GetProfileFolder(), "Backups");
 
     private static readonly string SettingsFile = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "OfficeCore", "backup_settings.json");
+        // Profile-scoped path resolved via ServerConfigService.GetProfileFolder()
+        ServerConfigService.GetProfileFolder(), "backup_settings.json");
 
     private HttpClient CreateClient(TimeSpan? timeout = null)
     {
         var client = new HttpClient { Timeout = timeout ?? TimeSpan.FromMinutes(5) };
         client.DefaultRequestHeaders.Add("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
         client.DefaultRequestHeaders.Add("X-OfficeCore-Station", "ServerStationOrchestrator");
+        client.DefaultRequestHeaders.Add("X-OfficeCore-Station-Token", ServerConfigService.GetOrCreateStationToken());
         return client;
     }
 

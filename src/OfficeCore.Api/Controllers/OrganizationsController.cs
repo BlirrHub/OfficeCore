@@ -206,6 +206,10 @@ public class OrganizationsController : ControllerBase
         if (org == null) return NotFound();
 
         if (file == null || file.Length == 0) return BadRequest("File is empty");
+        if (file.Length > 10 * 1024 * 1024) return BadRequest("Logo file exceeds the 10MB limit.");
+        var allowedLogoExts = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        var logoExt = Path.GetExtension(file.FileName)?.ToLowerInvariant() ?? string.Empty;
+        if (!allowedLogoExts.Contains(logoExt)) return BadRequest("Only .jpg, .jpeg, .png, .gif, and .webp image files are allowed.");
 
         var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "organizations");
         Directory.CreateDirectory(uploadDir);

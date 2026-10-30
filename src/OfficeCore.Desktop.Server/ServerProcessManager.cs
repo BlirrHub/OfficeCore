@@ -20,8 +20,8 @@ public class ServerProcessManager : IDisposable
 {
     private Process? _serverProcess;
     private CancellationTokenSource? _healthCheckCts;
-    private readonly HttpClient _httpClient = new() 
-    { 
+    private readonly HttpClient _httpClient = new()
+    {
         Timeout = TimeSpan.FromSeconds(2),
         DefaultRequestHeaders = { { "X-OfficeCore-Client", "OfficeCore-Desktop-Workstation" } }
     };
@@ -205,6 +205,7 @@ public class ServerProcessManager : IDisposable
 
                 startInfo.EnvironmentVariables["ConnectionStrings__DefaultConnection"] = config.BuildConnectionString();
                 startInfo.EnvironmentVariables["ASPNETCORE_URLS"] = "http://0.0.0.0:5026";
+                startInfo.EnvironmentVariables["OfficeCore__StationSecret"] = ServerConfigService.GetOrCreateStationToken();
 
                 if (!string.IsNullOrWhiteSpace(config.SmtpUser) && !string.IsNullOrWhiteSpace(config.SmtpPassword))
                 {
@@ -291,8 +292,8 @@ public class ServerProcessManager : IDisposable
 
             if (CurrentStatus == ServerStatus.Starting)
             {
-                LogReceived?.Invoke("[DesktopHost] Server started, but health probe timed out. It may still be finishing EF migrations.");
-                SetStatus(ServerStatus.Running);
+                LogReceived?.Invoke("[DesktopHost] Server health probe timed out after 45 seconds. Check the logs above for database or startup errors.");
+                SetStatus(ServerStatus.Error);
             }
         }, token);
     }
