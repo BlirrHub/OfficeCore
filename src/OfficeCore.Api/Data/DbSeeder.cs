@@ -13,6 +13,12 @@ public static class DbSeeder
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        // Reject a misconfigured demo deployment before migrations or seed writes.
+        if (!string.Equals(context.Database.GetDbConnection().Database, "officecoreacbadevdb", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Demo builds must use the officecoreacbadevdb database.");
+        }
+
         // Ensure database is created and migrations applied
         await context.Database.MigrateAsync();
 

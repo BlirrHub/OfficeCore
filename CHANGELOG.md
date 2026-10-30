@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 ---
 
 ## [Unreleased]
+### Fixed — [2026-10-30] (Branch Release Isolation & Synchronization)
+
+- Embedded the branch deployment database in Server Station assembly metadata for Debug and Release, including installers and Git worktrees.
+- Kept production configuration compatibility while isolating each development profile's saved settings; custom configured database names are preserved and other profiles' reserved database names are rejected.
+- Restricted development demo seeding to its dedicated database before schema migrations; removed production demo-login buttons and credentials on acba and aligned its source configuration with production.
+- Synchronized shared authorization foundation, assigned role deletion, role editor and chat popup fixes into development without adding ACBA hardware modules.
+- Documented branch promotion, validation and release expectations in BRANCHING.md.
+- Validation: Release solution builds and all 14 authorization/deployment tests passed on each maintained branch; verified database defaults from compiled Server Station assemblies. Existing NU1903 advisory for Microsoft.AspNetCore.Components.WebAssembly.Server 9.0.0 remains open; no live database, hardware or installer smoke test was performed.
 
 ### UI & UX Polish — [2026-10-14] (Role Modal Overhaul & Chat Dropdown Positioning)
 
