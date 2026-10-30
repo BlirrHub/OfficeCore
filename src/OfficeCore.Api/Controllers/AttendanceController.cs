@@ -57,8 +57,9 @@ public class AttendanceController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized("Employee profile not found in active workspace.");
 
-        var localToday = DateTime.Today;
-        var offset = TimeZoneInfo.Local.GetUtcOffset(localToday);
+        var phtNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8));
+        var localToday = phtNow.Date;
+        var offset = TimeSpan.FromHours(8);
         var todayStart = new DateTimeOffset(localToday, offset);
         var todayEnd = todayStart.AddDays(1);
 
@@ -192,8 +193,9 @@ public class AttendanceController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized("Employee profile not found in active workspace.");
 
-        var localToday = DateTime.Today;
-        var offset = TimeZoneInfo.Local.GetUtcOffset(localToday);
+        var phtNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8));
+        var localToday = phtNow.Date;
+        var offset = TimeSpan.FromHours(8);
         var todayStart = new DateTimeOffset(localToday, offset);
         var todayEnd = todayStart.AddDays(1);
 
@@ -612,8 +614,9 @@ public class AttendanceController : ControllerBase
 
         if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
 
-        var localToday = DateTime.Today;
-        var offset = TimeZoneInfo.Local.GetUtcOffset(localToday);
+        var phtNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8));
+        var localToday = phtNow.Date;
+        var offset = TimeSpan.FromHours(8);
         var todayStart = new DateTimeOffset(localToday, offset);
         var todayEnd = todayStart.AddDays(1);
 

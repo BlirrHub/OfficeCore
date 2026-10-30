@@ -250,6 +250,52 @@ public class PayrollComputationTests
         Assert.Empty(await fixture.Db.Payslips.ToListAsync());
     }
 
+    [Fact]
+    public async Task Split_shift_pairs_only_worked_intervals_and_excludes_midday_absence()
+    {
+        await using var fixture = new PayrollFixture();
+        fixture.Punch(8, AttendanceType.ClockIn);
+        fixture.Punch(10, AttendanceType.ClockOut);
+        fixture.Punch(15, AttendanceType.ClockIn);
+        fixture.Punch(17, AttendanceType.ClockOut);
+        var payslip = await fixture.Compute();
+        Assert.Equal(4, payslip.TotalWorkedHours);
+        Assert.Equal(400m, payslip.BasicPay);
+    }
+
+    [Fact]
+    public async Task Custom_daily_rate_and_attended_day_deduplication_apply_to_leaves()
+    {
+        await using var fixture = new PayrollFixture();
+        fixture.Employee.UseCustomDailyRate = true;
+        fixture.Employee.DailyRate = 900m;
+        fixture.Db.LeaveRequests.Add(new LeaveRequest
+        {
+            Id = Guid.NewGuid(), EmployeeId = fixture.Employee.Id,
+            OrganizationId = fixture.Organization.Id, Status = LeaveRequestStatus.Approved,
+            StartDate = fixture.CalendarDate, EndDate = fixture.CalendarDate
+        });
+        var leaveOnlyPayslip = await fixture.Compute();
+        Assert.Equal(900m, leaveOnlyPayslip.TotalLeavePay);
+
+        // If employee also attended that same day, do not double-credit full leave pay on top of attendance
+        fixture.Punch(8, AttendanceType.ClockIn);
+        fixture.Punch(17, AttendanceType.ClockOut);
+        var attendedPayslip = await fixture.Compute();
+        Assert.Equal(900m, attendedPayslip.BasicPay);
+        Assert.Equal(0m, attendedPayslip.TotalLeavePay);
+    }
+
+    [Fact]
+    public void Biometric_name_matching_uses_word_tokens_and_rejects_substring_collisions()
+    {
+        var ann = new ApplicationUser { FirstName = "Ann", LastName = "Smith" };
+        var joanna = new ApplicationUser { FirstName = "Joanna", LastName = "Cruz" };
+
+        Assert.False(BiometricReportService.MatchesEmployeeNameTokens("Joanna Cruz", ann));
+        Assert.True(BiometricReportService.MatchesEmployeeNameTokens("Cruz, Joanna", joanna));
+    }
+
     private sealed class PayrollFixture : IAsyncDisposable
     {
         private readonly TimeZoneInfo _officeTime;

@@ -39,8 +39,6 @@ public class PayrollComputationService : IPayrollComputationService
                 .ThenInclude(ws => ws!.Days)
             .Include(e => e.WorkSchedule)
                 .ThenInclude(ws => ws!.Breaks)
-            .Include(e => e.WorkSchedule)
-
             .ToListAsync();
 
         var generalSetting = await _context.GeneralPayrollSettings.FirstOrDefaultAsync(s => s.Key == "MinimumDailyRate" && s.OrganizationId == period.OrganizationId);
@@ -48,6 +46,10 @@ public class PayrollComputationService : IPayrollComputationService
 
         var govDeductions = await _context.GovernmentDeductionSettings
             .Where(s => s.OrganizationId == period.OrganizationId)
+            .ToListAsync();
+
+        var timeOffPolicies = await _context.TimeOffPolicies
+            .Where(p => p.OrganizationId == period.OrganizationId && p.IsActive)
             .ToListAsync();
 
         decimal monthlySss = govDeductions.FirstOrDefault(d => d.AgencyName == "SSS")?.EmployeeShare ?? 0m;
@@ -100,6 +102,7 @@ public class PayrollComputationService : IPayrollComputationService
             var empAttendance = allAttendance.Where(a => a.EmployeeId == emp.Id).ToList();
             var empOvertime = approvedOvertime.Where(o => o.EmployeeId == emp.Id).ToList();
             var creditedOtIds = new HashSet<Guid>();
+            var attendedDates = new HashSet<DateTime>();
             double totalNetHours = 0;
             double totalOvertimeHours = 0;
             int daysWithAttendance = 0;
@@ -109,7 +112,11 @@ public class PayrollComputationService : IPayrollComputationService
             {
                 // No schedule: Fixed rate employee for the cutoff period (e.g. Adrian 3775, Blaire 1000, Lina 2500)
                 basicPay = trackedDailyRate;
-                daysWithAttendance = empAttendance.Select(a => TimeZoneInfo.ConvertTime(a.Timestamp, _timeZone).Date).Distinct().Count();
+                foreach (var dt in empAttendance.Select(a => TimeZoneInfo.ConvertTime(a.Timestamp, _timeZone).Date).Distinct())
+                {
+                    attendedDates.Add(dt);
+                }
+                daysWithAttendance = attendedDates.Count;
                 totalNetHours = daysWithAttendance > 0 ? daysWithAttendance * 8 : 40;
             }
             else if (emp.WorkSchedule.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate)
@@ -124,6 +131,7 @@ public class PayrollComputationService : IPayrollComputationService
                     if (!isRestDay)
                     {
                         daysWithAttendance++;
+                        attendedDates.Add(date);
                         totalNetHours += 8; // Calculate standard 8 hours to yield full daily rate
                     }
                 }
@@ -131,111 +139,135 @@ public class PayrollComputationService : IPayrollComputationService
             }
             else
             {
-                // Group by day to find pairs
+                // Group by day and pair consecutive (ClockIn, ClockOut) intervals
                 var attendanceByDay = empAttendance.GroupBy(a => TimeZoneInfo.ConvertTime(a.Timestamp, _timeZone).Date);
 
                 foreach (var dayGroup in attendanceByDay)
                 {
                     var records = dayGroup.OrderBy(a => a.Timestamp).ToList();
-                    var clockIn = records.FirstOrDefault(r => r.Type == AttendanceType.ClockIn);
-                    var clockOut = records.LastOrDefault(r => r.Type == AttendanceType.ClockOut);
+                    var pairs = new List<(AttendanceRecord In, AttendanceRecord Out)>();
+                    AttendanceRecord? openIn = null;
 
-                    if (clockIn != null && clockOut != null && clockOut.Timestamp > clockIn.Timestamp)
+                    foreach (var rec in records)
+                    {
+                        if (rec.Type == AttendanceType.ClockIn)
+                        {
+                            // Keep earliest ClockIn if duplicate ClockIns occur before a ClockOut
+                            openIn ??= rec;
+                        }
+                        else if (rec.Type == AttendanceType.ClockOut && openIn != null && rec.Timestamp > openIn.Timestamp)
+                        {
+                            pairs.Add((openIn, rec));
+                            openIn = null;
+                        }
+                    }
+
+                    if (pairs.Count > 0)
                     {
                         var shiftDate = dayGroup.Key;
                         bool isRestDay = false;
                         WorkScheduleDay? schedDay = null;
                         if (emp.WorkSchedule?.Days != null)
                         {
-                            schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == TimeZoneInfo.ConvertTime(clockIn.Timestamp, _timeZone).DayOfWeek);
+                            schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == shiftDate.DayOfWeek);
                             if (schedDay != null && schedDay.IsRestDay) isRestDay = true;
                         }
 
                         if (!isRestDay)
                         {
-                            daysWithAttendance++;
-                            var timeIn = TimeZoneInfo.ConvertTime(clockIn.Timestamp, _timeZone).TimeOfDay;
-                            var timeOut = TimeZoneInfo.ConvertTime(clockOut.Timestamp, _timeZone).TimeOfDay;
+                            double dailyHours = 0;
 
-                            // Early in: rounded to scheduled start time (early time is not paid), unless schedule allows it
-                            var effectiveTimeIn = timeIn;
-                            if (schedDay?.StartTime.HasValue == true && timeIn < schedDay.StartTime.Value)
+                            for (int i = 0; i < pairs.Count; i++)
                             {
-                                if (emp.WorkSchedule == null || !emp.WorkSchedule.IncludeTimeTrackedBeforeScheduledStartTime)
+                                var (clockIn, clockOut) = pairs[i];
+                                var timeIn = TimeZoneInfo.ConvertTime(clockIn.Timestamp, _timeZone).TimeOfDay;
+                                var timeOut = TimeZoneInfo.ConvertTime(clockOut.Timestamp, _timeZone).TimeOfDay;
+
+                                var effectiveTimeIn = timeIn;
+                                if (i == 0)
                                 {
-                                    effectiveTimeIn = schedDay.StartTime.Value;
-                                }
-                            }
-                            // Afternoon half-day arriving during lunch break (12:00 PM - 1:00 PM): afternoon shift starts at 1:00 PM
-                            else if (timeIn >= new TimeSpan(12, 0, 0) && timeIn <= new TimeSpan(13, 0, 0))
-                            {
-                                effectiveTimeIn = new TimeSpan(13, 0, 0);
-                            }
-
-                            // Clock-out handling:
-                            var effectiveTimeOut = timeOut;
-
-                            // Morning half-day leaving during lunch break (12:00 PM - 1:00 PM): morning shift ends at 12:00 PM
-                            if (timeOut >= new TimeSpan(12, 0, 0) && timeOut <= new TimeSpan(13, 0, 0))
-                            {
-                                effectiveTimeOut = new TimeSpan(12, 0, 0);
-                            }
-                            else if (schedDay?.EndTime.HasValue == true)
-                            {
-                                if (timeOut > schedDay.EndTime.Value)
-                                {
-                                    var excessMinutes = (timeOut - schedDay.EndTime.Value).TotalMinutes;
-                                    // 15-minute threshold rule
-                                    if (excessMinutes < 15)
+                                    // Early in: rounded to scheduled start time (early time is not paid), unless schedule allows it
+                                    if (schedDay?.StartTime.HasValue == true && timeIn < schedDay.StartTime.Value)
                                     {
-                                        // Under 15 mins: automatically clamps down to shift end
-                                        effectiveTimeOut = schedDay.EndTime.Value;
-                                    }
-                                    else
-                                    {
-                                        // 15+ mins: Check for approved Pre-OT or Post-OT
-                                        var approvedOt = empOvertime.FirstOrDefault(o => o.Date.Date == shiftDate);
-                                        if (approvedOt != null)
+                                        if (emp.WorkSchedule == null || !emp.WorkSchedule.IncludeTimeTrackedBeforeScheduledStartTime)
                                         {
-                                            // Approved OT: Regular shift ends at scheduled end
-                                            effectiveTimeOut = schedDay.EndTime.Value;
-                                            var otHours = approvedOt.ApprovedHours ?? (timeOut - schedDay.EndTime.Value).TotalHours;
-                                            totalOvertimeHours += Math.Max(0, otHours);
-                                            creditedOtIds.Add(approvedOt.Id);
+                                            effectiveTimeIn = schedDay.StartTime.Value;
+                                        }
+                                    }
+                                    // Afternoon half-day arriving during lunch break (12:00 PM - 1:00 PM): afternoon shift starts at 1:00 PM
+                                    else if (timeIn >= new TimeSpan(12, 0, 0) && timeIn <= new TimeSpan(13, 0, 0))
+                                    {
+                                        effectiveTimeIn = new TimeSpan(13, 0, 0);
+                                    }
+                                }
+
+                                var effectiveTimeOut = timeOut;
+                                if (i == pairs.Count - 1)
+                                {
+                                    // Morning half-day leaving during lunch break (12:00 PM - 1:00 PM): morning shift ends at 12:00 PM
+                                    if (timeOut >= new TimeSpan(12, 0, 0) && timeOut <= new TimeSpan(13, 0, 0))
+                                    {
+                                        effectiveTimeOut = new TimeSpan(12, 0, 0);
+                                    }
+                                    else if (schedDay?.EndTime.HasValue == true)
+                                    {
+                                        if (timeOut > schedDay.EndTime.Value)
+                                        {
+                                            var excessMinutes = (timeOut - schedDay.EndTime.Value).TotalMinutes;
+                                            var thresholdMinutes = emp.WorkSchedule?.OvertimeThresholdMinutes > 0 ? emp.WorkSchedule.OvertimeThresholdMinutes : 15;
+                                            if (excessMinutes < thresholdMinutes)
+                                            {
+                                                effectiveTimeOut = schedDay.EndTime.Value;
+                                            }
+                                            else
+                                            {
+                                                var approvedOt = empOvertime.FirstOrDefault(o => o.Date.Date == shiftDate);
+                                                if (approvedOt != null)
+                                                {
+                                                    effectiveTimeOut = schedDay.EndTime.Value;
+                                                    var otHours = approvedOt.ApprovedHours ?? (timeOut - schedDay.EndTime.Value).TotalHours;
+                                                    totalOvertimeHours += Math.Max(0, otHours);
+                                                    creditedOtIds.Add(approvedOt.Id);
+                                                }
+                                                else
+                                                {
+                                                    effectiveTimeOut = schedDay.EndTime.Value;
+                                                }
+                                            }
                                         }
                                         else
                                         {
-                                            // Rejected or unapproved OT: automatically clamps down to scheduled shift out
-                                            effectiveTimeOut = schedDay.EndTime.Value;
+                                            effectiveTimeOut = timeOut;
                                         }
                                     }
                                 }
-                                else
-                                {
-                                    // Undertime: used as-is
-                                    effectiveTimeOut = timeOut;
-                                }
-                            }
 
-                            double dailyHours = (effectiveTimeOut - effectiveTimeIn).TotalHours;
+                                double pairHours = (effectiveTimeOut - effectiveTimeIn).TotalHours;
 
-                            // Deduct unpaid breaks
-                            if (emp.WorkSchedule?.Breaks != null)
-                            {
-                                foreach (var b in emp.WorkSchedule.Breaks.Where(br => !br.IsPaid))
+                                // Deduct unpaid breaks overlapping this interval
+                                if (pairHours > 0 && emp.WorkSchedule?.Breaks != null)
                                 {
-                                    // Overlap logic: max(0, min(timeOut, breakEnd) - max(timeIn, breakStart))
-                                    var overlapStart = effectiveTimeIn > b.StartTime ? effectiveTimeIn : b.StartTime;
-                                    var overlapEnd = effectiveTimeOut < b.EndTime ? effectiveTimeOut : b.EndTime;
-                                    if (overlapEnd > overlapStart)
+                                    foreach (var b in emp.WorkSchedule.Breaks.Where(br => !br.IsPaid))
                                     {
-                                        dailyHours -= (overlapEnd - overlapStart).TotalHours;
+                                        var overlapStart = effectiveTimeIn > b.StartTime ? effectiveTimeIn : b.StartTime;
+                                        var overlapEnd = effectiveTimeOut < b.EndTime ? effectiveTimeOut : b.EndTime;
+                                        if (overlapEnd > overlapStart)
+                                        {
+                                            pairHours -= (overlapEnd - overlapStart).TotalHours;
+                                        }
                                     }
+                                }
+
+                                if (pairHours > 0)
+                                {
+                                    dailyHours += pairHours;
                                 }
                             }
 
                             if (dailyHours > 0)
                             {
+                                daysWithAttendance++;
+                                attendedDates.Add(shiftDate);
                                 totalNetHours += dailyHours;
                             }
                         }
@@ -258,21 +290,30 @@ public class PayrollComputationService : IPayrollComputationService
                 basicPay = (decimal)totalNetHours * hourlyRate;
             }
 
-            // 2. Calculate Leave Pay using default/minimum rate
-            var leaveDailyRate = defaultRate;
+            // 2. Calculate Leave Pay
+            var leaveDailyRate = (emp.UseCustomDailyRate && emp.DailyRate.HasValue) ? emp.DailyRate.Value : defaultRate;
             var empLeaves = approvedLeaves.Where(l => l.EmployeeId == emp.Id).ToList();
             decimal totalLeavePay = 0;
             int totalLeaveDays = 0;
             int totalLeaveHours = 0;
+            var creditedLeaveDates = new HashSet<DateTime>();
 
             foreach (var leave in empLeaves)
             {
+                var matchingPolicy = timeOffPolicies.FirstOrDefault(p => p.LeaveType == leave.Type);
+                if (matchingPolicy != null && !matchingPolicy.IsPaid)
+                    continue;
+
                 var leaveStart = leave.StartDate.Date < localStart.Date ? localStart.Date : leave.StartDate.Date;
                 var leaveEnd = leave.EndDate.Date > localEnd.Date ? localEnd.Date : leave.EndDate.Date;
                 
                 int leaveDays = 0;
                 for (var date = leaveStart; date <= leaveEnd; date = date.AddDays(1))
                 {
+                    // Skip dates already credited via attendance or another leave request
+                    if (attendedDates.Contains(date) || !creditedLeaveDates.Add(date))
+                        continue;
+
                     // Skip rest days
                     bool isRestDay = false;
                     if (emp.WorkSchedule != null)
@@ -297,7 +338,7 @@ public class PayrollComputationService : IPayrollComputationService
             decimal sss = 0;
             decimal philhealth = 0;
             decimal pagibig = 0;
-            decimal tax = 0; // Tax calculation left as 0 for now unless there's a specific rule
+            decimal tax = 0;
 
             if (emp.GovernmentRecord != null && emp.GovernmentRecord.IsEligibleForDeductions)
             {
@@ -316,9 +357,9 @@ public class PayrollComputationService : IPayrollComputationService
                 decimal deduction = 0m;
                 if (advance.Type == AdvanceType.ELoan)
                 {
-                    // Delay E-Loan deduction to the next payroll period
-                    // (The period must start after the E-Loan was approved)
-                    if (periodStartDt > (advance.ResolutionDate ?? advance.RequestDate))
+                    // Delay E-Loan deduction to payroll periods that start after the approval date
+                    var approvalDate = DateOnly.FromDateTime((advance.ResolutionDate ?? advance.RequestDate).Date);
+                    if (period.StartDate > approvalDate)
                     {
                         deduction = (advance.InstallmentAmount ?? 0m) / 2m;
                     }
@@ -364,7 +405,7 @@ public class PayrollComputationService : IPayrollComputationService
                 PhilHealthDeduction = philhealth,
                 PagIbigDeduction = pagibig,
                 TaxDeduction = tax,
-                LateUndertimeDeduction = 0, // Obsolete, replaced by raw time tracking
+                LateUndertimeDeduction = 0,
                 AdvancesDeduction = advancesDeduction,
                 OtherAllowances = 0,
                 OtherDeductions = 0,

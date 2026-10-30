@@ -206,8 +206,8 @@ public class BiometricReportService
             }).OrderBy(e => e.FullName).ToList();
 
             // Fetch existing attendance records in this date window to flag duplicates
-            var startUtc = new DateTimeOffset(startDate.Value, TimeSpan.Zero);
-            var endUtc = new DateTimeOffset(endDate.Value.AddDays(1), TimeSpan.Zero);
+            var startUtc = new DateTimeOffset(startDate.Value, TimeSpan.FromHours(8)).ToUniversalTime();
+            var endUtc = new DateTimeOffset(endDate.Value.AddDays(1), TimeSpan.FromHours(8)).ToUniversalTime();
             var existingPunches = await _context.AttendanceRecords
                 .Where(a => a.OrganizationId == organizationId && a.Timestamp >= startUtc && a.Timestamp < endUtc)
                 .Select(a => new { a.EmployeeId, a.Timestamp, a.Type })
@@ -252,7 +252,7 @@ public class BiometricReportService
                             e.User != null && (
                                 string.Equals(e.User.FirstName?.Trim(), bioName.Trim(), StringComparison.OrdinalIgnoreCase) ||
                                 string.Equals(e.User.LastName?.Trim(), bioName.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                                bioName.Contains(e.User.FirstName?.Trim() ?? "---", StringComparison.OrdinalIgnoreCase)
+                                MatchesEmployeeNameTokens(bioName, e.User)
                             ));
                     }
 
@@ -546,7 +546,7 @@ public class BiometricReportService
 
                     foreach (var record in recordsToAdd.Where(r => r.Type == AttendanceType.ClockOut))
                     {
-                        if (!employeesWithSched.TryGetValue(record.EmployeeId, out var emp) || emp.WorkSchedule?.Days == null)
+                        if (!employeesWithSched.TryGetValue(record.EmployeeId, out var emp) || emp.WorkSchedule?.Days == null || !emp.WorkSchedule.HasOvertimePolicy || !emp.WorkSchedule.AutoSubmitOvertimeApproval)
                             continue;
 
                         var localTime = record.Timestamp.ToOffset(TimeSpan.FromHours(8));
@@ -560,7 +560,8 @@ public class BiometricReportService
                         if (punchTimeOfDay > scheduledEnd)
                         {
                             var excessMinutes = (punchTimeOfDay - scheduledEnd).TotalMinutes;
-                            if (excessMinutes >= 15)
+                            var thresholdMinutes = emp.WorkSchedule.OvertimeThresholdMinutes > 0 ? emp.WorkSchedule.OvertimeThresholdMinutes : 15;
+                            if (excessMinutes >= thresholdMinutes)
                             {
                                 var shiftDateUtc = DateTime.SpecifyKind(localTime.Date, DateTimeKind.Utc);
                                 bool alreadyHasOt = await _context.OvertimeRequests.AnyAsync(o =>
@@ -604,6 +605,32 @@ public class BiometricReportService
         }
 
         return (inserted, duplicates, updatedMappings);
+    }
+
+    public static bool MatchesEmployeeNameTokens(string reportedName, ApplicationUser user)
+    {
+        if (string.IsNullOrWhiteSpace(reportedName)) return false;
+        var first = user.FirstName?.Trim() ?? string.Empty;
+        var last = user.LastName?.Trim() ?? string.Empty;
+        var fullName = $"{first} {last}".Trim();
+        var reverseFullName = $"{last} {first}".Trim();
+
+        var cleaned = reportedName.Trim();
+        if (string.Equals(cleaned, fullName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(cleaned, reverseFullName, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var reportTokens = cleaned
+            .Split([' ', ',', '.', '-', '_'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(t => t.Length >= 2)
+            .ToList();
+        if (reportTokens.Count == 0) return false;
+
+        var empTokens = $"{first} {last}"
+            .Split([' ', ',', '.', '-', '_'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return reportTokens.All(rt => empTokens.Contains(rt));
     }
 
     private static bool ContainsIdLabel(DataRow row, out int colIndex)
