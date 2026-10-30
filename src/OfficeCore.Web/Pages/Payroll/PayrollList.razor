@@ -100,7 +100,7 @@
                             </td>
                             <td class="px-6 py-4">
                                 <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider @GetStatusBadgeClass(p.Status)">
-                                    @p.Status.ToString()
+                                    @GetStatusText(p.Status)
                                 </span>
                             </td>
                             <td class="px-6 py-4">
@@ -401,6 +401,15 @@
             periodToDelete = null;
         }
     }
+
+    private string GetStatusText(int status) => status switch
+    {
+        0 => "Draft",
+        1 => "Computed",
+        2 => "Finalized",
+        3 => "Paid",
+        _ => "Unknown"
+    };
 
     private string GetStatusBadgeClass(int status) => status switch
     {
