@@ -43,7 +43,7 @@ public class OvertimeController : ControllerBase
     [HttpGet("my")]
     public async Task<IActionResult> GetMyOvertime()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var employee = await _tenant.GetCurrentEmployeeAsync();
@@ -83,7 +83,7 @@ public class OvertimeController : ControllerBase
     [HttpPost("request")]
     public async Task<IActionResult> CreateRequest([FromBody] CreateOvertimeRequestDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var employee = await _tenant.GetCurrentEmployeeAsync();
@@ -138,7 +138,7 @@ public class OvertimeController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> CancelRequest(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var employee = await _tenant.GetCurrentEmployeeAsync();
@@ -175,6 +175,7 @@ public class OvertimeController : ControllerBase
 
     [HttpGet("admin")]
     [Authorize(Policy = "RequireOvertimeApprovals")]
+    [Authorize(Policy = "Permission:overtime-approvals.view")]
     public async Task<IActionResult> GetAdminRequests(
         [FromQuery] string? employeeId = null,
         [FromQuery] int? status = null,
@@ -182,7 +183,7 @@ public class OvertimeController : ControllerBase
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var query = _context.OvertimeRequests
@@ -252,9 +253,10 @@ public class OvertimeController : ControllerBase
 
     [HttpPost("admin/{id}/approve")]
     [Authorize(Policy = "RequireOvertimeApprovals")]
+    [Authorize(Policy = "Permission:overtime-approvals.manage")]
     public async Task<IActionResult> ApproveRequest(Guid id, [FromBody] ApproveOvertimeDto? dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var req = await _context.OvertimeRequests
@@ -294,9 +296,10 @@ public class OvertimeController : ControllerBase
 
     [HttpPost("admin/{id}/reject")]
     [Authorize(Policy = "RequireOvertimeApprovals")]
+    [Authorize(Policy = "Permission:overtime-approvals.manage")]
     public async Task<IActionResult> RejectRequest(Guid id, [FromBody] RejectOvertimeDto? dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var req = await _context.OvertimeRequests
@@ -333,9 +336,10 @@ public class OvertimeController : ControllerBase
 
     [HttpPost("admin/create")]
     [Authorize(Policy = "RequireOvertimeApprovals")]
+    [Authorize(Policy = "Permission:overtime-approvals.manage")]
     public async Task<IActionResult> AdminCreateOvertime([FromBody] AdminCreateOvertimeDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var employee = await _context.Employees

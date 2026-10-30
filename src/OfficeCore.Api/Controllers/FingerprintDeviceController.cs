@@ -21,9 +21,10 @@ public class FingerprintDeviceController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "Permission:attendance.view")]
     public async Task<IActionResult> GetDevice()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var device = await _context.FingerprintDevices
@@ -35,9 +36,10 @@ public class FingerprintDeviceController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public async Task<IActionResult> SaveDevice(FingerprintDeviceDto request)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var device = await _context.FingerprintDevices

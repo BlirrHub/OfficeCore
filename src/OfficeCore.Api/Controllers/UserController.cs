@@ -35,10 +35,53 @@ public class UserController : ControllerBase
         _chatHub = chatHub;
     }
 
+    private HashSet<string> GetCallerEffectivePermissions()
+    {
+        var explicitPermissions = User.FindAll(PermissionCatalog.ClaimType).Select(c => c.Value).ToList();
+        var moduleClaims = User.FindAll("ModuleAccess").Select(c => c.Value).ToList();
+        if (explicitPermissions.Count > 0)
+            return new HashSet<string>(explicitPermissions, StringComparer.OrdinalIgnoreCase);
+
+        return new HashSet<string>(PermissionCatalog.ExpandModules(moduleClaims), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool CallerCanAssignRoles(List<OrganizationRole> rolesToAssign, bool isCurrentUserOwner)
+    {
+        if (isCurrentUserOwner) return true;
+        var callerPermissions = GetCallerEffectivePermissions();
+        if (!callerPermissions.Contains(AccessPermissions.EmployeeRolesAssign))
+            return false;
+
+        var callerModules = new HashSet<string>(User.FindAll("ModuleAccess").Select(c => c.Value), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var role in rolesToAssign)
+        {
+            if (string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var roleModules = role.Claims.Where(c => c.ClaimType == "ModuleAccess").Select(c => c.ClaimValue);
+            foreach (var mod in roleModules)
+            {
+                if (!ModuleCatalog.DefaultKeys.Contains(mod, StringComparer.OrdinalIgnoreCase) && !callerModules.Contains(mod))
+                    return false;
+            }
+
+            var rolePerms = role.Claims.Where(c => c.ClaimType == PermissionCatalog.ClaimType).Select(c => c.ClaimValue);
+            foreach (var perm in rolePerms)
+            {
+                if (!callerPermissions.Contains(perm))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
     [HttpGet]
+    [Authorize(Policy = "Permission:users.view")]
     public async Task<IActionResult> GetUsers()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var org = await _context.Organizations.FindAsync(orgId);
@@ -86,14 +129,13 @@ public class UserController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Permission:users.manage")]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var isCurrentUserOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
-        if (request.Roles is { Count: > 0 } && !isCurrentUserOwner)
-            return Forbid("Only the workspace owner can assign roles.");
 
         var requestedRoleNames = (request.Roles ?? [])
             .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -103,10 +145,14 @@ public class UserController : ControllerBase
         var rolesToAssign = requestedRoleNames.Count == 0
             ? []
             : await _context.OrganizationRoles
+                .Include(r => r.Claims)
                 .Where(r => r.OrganizationId == orgId.Value && requestedRoleNames.Contains(r.Name))
                 .ToListAsync();
         if (rolesToAssign.Count != requestedRoleNames.Count)
             return BadRequest(new { message = "One or more selected roles do not exist in this workspace." });
+
+        if (request.Roles is { Count: > 0 } && !CallerCanAssignRoles(rolesToAssign, isCurrentUserOwner))
+            return Forbid("You do not have permission to assign the requested roles.");
 
         var user = new ApplicationUser
         {
@@ -122,11 +168,6 @@ public class UserController : ControllerBase
         var result = await _userManager.CreateAsync(user, "password");
         if (!result.Succeeded)
             return BadRequest(result.Errors);
-
-        if (request.Roles != null && request.Roles.Any())
-        {
-            // Employee roles will be handled below after creating Employee
-        }
 
         var employee = new Employee
         {
@@ -188,16 +229,14 @@ public class UserController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "Permission:users.manage")]
     public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserRequest request)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
         
         var currentUserId = _userManager.GetUserId(User);
         var isCurrentUserOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
-
-        if (request.Roles != null && !isCurrentUserOwner)
-            return Forbid("Only the workspace owner can assign roles.");
 
         var requestedRoleNames = (request.Roles ?? [])
             .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -207,10 +246,15 @@ public class UserController : ControllerBase
         var rolesToAssign = request.Roles == null || requestedRoleNames.Count == 0
             ? []
             : await _context.OrganizationRoles
+                .Include(r => r.Claims)
                 .Where(r => r.OrganizationId == orgId.Value && requestedRoleNames.Contains(r.Name))
                 .ToListAsync();
         if (request.Roles != null && rolesToAssign.Count != requestedRoleNames.Count)
             return BadRequest(new { message = "One or more selected roles do not exist in this workspace." });
+
+        bool canAssignRoles = request.Roles != null && CallerCanAssignRoles(rolesToAssign, isCurrentUserOwner);
+        if (request.Roles != null && !canAssignRoles)
+            return Forbid("You do not have permission to assign the requested roles.");
 
         var org = await _context.Organizations.FindAsync(orgId);
         var createdByUserId = org?.CreatedByUserId;
@@ -238,8 +282,10 @@ public class UserController : ControllerBase
         if (isTargetOwner && !isCurrentUserOwner)
             return Forbid();
 
-        // Rule: Only the workspace owner can edit other admins
+        // Rule: Only the workspace owner can edit other admins, and non-owners cannot self-assign roles
         if (isTargetPrivileged && !isCurrentUserOwner && currentUserId != employee.UserId)
+            return Forbid();
+        if (request.Roles != null && !isCurrentUserOwner && currentUserId == employee.UserId)
             return Forbid();
 
         var oldState = new
@@ -280,9 +326,8 @@ public class UserController : ControllerBase
         _context.Employees.Update(employee);
         await _context.SaveChangesAsync();
 
-        if (request.Roles != null && !isTargetOwner && isCurrentUserOwner)
+        if (request.Roles != null && !isTargetOwner && canAssignRoles)
         {
-
             var currentEmployeeRoles = await _context.EmployeeRoles
                 .Where(er => er.EmployeeId == employee.Id)
                 .ToListAsync();
@@ -326,9 +371,10 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("{id}/resign")]
+    [Authorize(Policy = "Permission:users.manage")]
     public async Task<IActionResult> ResignUser(string id, [FromBody] ResignRequest request)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var org = await _context.Organizations.FindAsync(orgId);
@@ -359,9 +405,10 @@ public class UserController : ControllerBase
     }
 
     [HttpGet("{id}/roles")]
+    [Authorize(Policy = "Permission:users.view")]
     public async Task<IActionResult> GetUserRoles(string id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var employee = await _context.Employees
@@ -379,9 +426,10 @@ public class UserController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "Permission:users.manage")]
     public async Task<IActionResult> RemoveUserFromOrganization(string id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var org = await _context.Organizations.FindAsync(orgId);

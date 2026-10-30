@@ -23,11 +23,47 @@ public class RoleController : ControllerBase
         _audit = audit;
     }
 
+    private HashSet<string> GetCallerEffectivePermissions()
+    {
+        var explicitPermissions = User.FindAll(PermissionCatalog.ClaimType).Select(c => c.Value).ToList();
+        if (explicitPermissions.Count > 0)
+            return new HashSet<string>(explicitPermissions, StringComparer.OrdinalIgnoreCase);
+        var moduleExpanded = PermissionCatalog.ExpandModules(User.FindAll("ModuleAccess").Select(c => c.Value));
+        return new HashSet<string>(moduleExpanded, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool HasCallerPermission(string permission, bool isOwner)
+    {
+        if (isOwner) return true;
+        return GetCallerEffectivePermissions().Contains(permission);
+    }
+
+    private bool CallerCanGrant(IEnumerable<string> modules, IEnumerable<string> permissions, bool isOwner)
+    {
+        if (isOwner) return true;
+        var callerModules = new HashSet<string>(User.FindAll("ModuleAccess").Select(c => c.Value), StringComparer.OrdinalIgnoreCase);
+        var callerPermissions = GetCallerEffectivePermissions();
+
+        foreach (var module in modules)
+        {
+            if (!ModuleCatalog.DefaultKeys.Contains(module, StringComparer.OrdinalIgnoreCase) && !callerModules.Contains(module))
+                return false;
+        }
+
+        foreach (var perm in permissions)
+        {
+            if (!callerPermissions.Contains(perm))
+                return false;
+        }
+
+        return true;
+    }
+
     [HttpGet]
     [Authorize(Policy = "Permission:roles.view")]
     public async Task<IActionResult> GetRoles()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var roles = await _context.OrganizationRoles
@@ -57,10 +93,14 @@ public class RoleController : ControllerBase
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null || !await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId)) return Forbid();
+        if (orgId == null) return Forbid();
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+        if (!HasCallerPermission(AccessPermissions.RolesCreate, isOwner)) return Forbid();
 
         var name = request.Name.Trim();
         if (string.IsNullOrWhiteSpace(name)) return BadRequest(new { message = "Role name is required." });
+        if (!isOwner && string.Equals(name, "Admin", StringComparison.OrdinalIgnoreCase))
+            return Forbid();
         if (await _context.OrganizationRoles.AnyAsync(r => r.OrganizationId == orgId && r.Name.ToLower() == name.ToLower()))
             return Conflict(new { message = "A role with this name already exists." });
 
@@ -69,6 +109,8 @@ public class RoleController : ControllerBase
         var requestedPermissions = request.Permissions ?? PermissionCatalog.ExpandModules(modules).ToList();
         if (!PermissionCatalog.TryNormalizeMany(requestedPermissions, out var permissions, out var invalidPermissions))
             return BadRequest(new { message = "Unknown permissions were supplied.", invalidPermissions });
+        if (!CallerCanGrant(modules, permissions, isOwner))
+            return Forbid();
 
         var role = new OrganizationRole
         {
@@ -110,16 +152,22 @@ public class RoleController : ControllerBase
     public async Task<IActionResult> UpdateRoleDetails(Guid id, [FromBody] UpdateRoleRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null || !await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId)) return Forbid();
+        if (orgId == null) return Forbid();
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+        if (!HasCallerPermission(AccessPermissions.RolesEdit, isOwner)) return Forbid();
 
         var role = await _context.OrganizationRoles
             .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
 
         if (role == null) return NotFound();
+        if (!isOwner && string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+            return Forbid();
 
         if (!string.IsNullOrWhiteSpace(request.Name))
         {
             var name = request.Name.Trim();
+            if (!isOwner && string.Equals(name, "Admin", StringComparison.OrdinalIgnoreCase))
+                return Forbid();
             if (await _context.OrganizationRoles.AnyAsync(r => r.OrganizationId == orgId && r.Id != id && r.Name.ToLower() == name.ToLower()))
                 return Conflict(new { message = "A role with this name already exists." });
             role.Name = name;
@@ -137,7 +185,9 @@ public class RoleController : ControllerBase
     public async Task<IActionResult> UpdateRole(Guid id, [FromBody] SaveRoleRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null || !await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId)) return Forbid();
+        if (orgId == null) return Forbid();
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+        if (!HasCallerPermission(AccessPermissions.RolesEdit, isOwner)) return Forbid();
 
         var name = request.Name.Trim();
         if (string.IsNullOrWhiteSpace(name)) return BadRequest(new { message = "Role name is required." });
@@ -146,10 +196,14 @@ public class RoleController : ControllerBase
         var requestedPermissions = request.Permissions ?? PermissionCatalog.ExpandModules(modules).ToList();
         if (!PermissionCatalog.TryNormalizeMany(requestedPermissions, out var permissions, out var invalidPermissions))
             return BadRequest(new { message = "Unknown permissions were supplied.", invalidPermissions });
+        if (!CallerCanGrant(modules, permissions, isOwner))
+            return Forbid();
 
         var role = await _context.OrganizationRoles
             .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
         if (role == null) return NotFound();
+        if (!isOwner && (string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "Admin", StringComparison.OrdinalIgnoreCase)))
+            return Forbid();
 
         if (await _context.OrganizationRoles.AnyAsync(r => r.OrganizationId == orgId && r.Id != id && r.Name.ToLower() == name.ToLower()))
             return Conflict(new { message = "A role with this name already exists." });
@@ -191,7 +245,7 @@ public class RoleController : ControllerBase
     [Authorize(Policy = "Permission:roles.view")]
     public async Task<IActionResult> GetRoleModules(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var modules = await _context.OrganizationRoles
@@ -212,16 +266,23 @@ public class RoleController : ControllerBase
     public async Task<IActionResult> UpdateRoleModules(Guid id, [FromBody] List<string> modules)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null || !await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId)) return Forbid();
+        if (orgId == null) return Forbid();
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+        if (!HasCallerPermission(AccessPermissions.RolesEdit, isOwner)) return Forbid();
 
         if (!ModuleCatalog.TryNormalizeMany(modules, out var normalizedModules, out var invalid))
             return BadRequest(new { message = "Unknown modules were supplied.", invalidModules = invalid });
+        var expandedPermissions = PermissionCatalog.ExpandModules(normalizedModules);
+        if (!CallerCanGrant(normalizedModules, expandedPermissions, isOwner))
+            return Forbid();
 
         var role = await _context.OrganizationRoles
             .Include(r => r.Claims)
             .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
 
         if (role == null) return NotFound();
+        if (!isOwner && string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+            return Forbid();
 
         await using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -240,7 +301,7 @@ public class RoleController : ControllerBase
         }).ToList();
         
         _context.OrganizationRoleClaims.AddRange(newClaims);
-        _context.OrganizationRoleClaims.AddRange(PermissionCatalog.ExpandModules(normalizedModules)
+        _context.OrganizationRoleClaims.AddRange(expandedPermissions
             .Select(permission => new OrganizationRoleClaim
             {
                 Id = Guid.NewGuid(), OrganizationRoleId = role.Id,
@@ -259,12 +320,16 @@ public class RoleController : ControllerBase
     public async Task<IActionResult> DeleteRole(Guid id)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null || !await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId)) return Forbid();
+        if (orgId == null) return Forbid();
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+        if (!HasCallerPermission(AccessPermissions.RolesDelete, isOwner)) return Forbid();
 
         var role = await _context.OrganizationRoles
             .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
 
         if (role == null) return NotFound();
+        if (!isOwner && string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+            return Forbid();
 
         await using var transaction = await _context.Database.BeginTransactionAsync();
 

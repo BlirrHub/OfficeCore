@@ -118,9 +118,13 @@ public class LocationsController : ControllerBase
     /// </summary>
     [HttpGet("active")]
     [Authorize(Policy = "RequireLocations")]
+    [Authorize(Policy = "Permission:locations.view")]
     public async Task<ActionResult<IEnumerable<ActiveFieldEmployeeDto>>> GetActiveFieldEmployees()
     {
         var orgId = _tenantService.CurrentOrganizationId;
+        var validatedOrgId = await _tenantService.GetValidatedOrganizationIdAsync();
+        if (validatedOrgId == null) return Forbid();
+        orgId = validatedOrgId.Value;
         var cutoff = DateTime.UtcNow.AddHours(-12); // Pings in the last 12 hours
 
         // Get latest ping per employee

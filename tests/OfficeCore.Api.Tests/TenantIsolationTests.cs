@@ -109,7 +109,7 @@ public class TenantIsolationTests
         {
             ControllerContext = fixture.ControllerContext
         };
-        Assert.IsType<NotFoundObjectResult>(await payrollController.GetMyPayslips());
+        Assert.IsType<ForbidResult>(await payrollController.GetMyPayslips());
     }
 
     private sealed class TenantTestFixture : IAsyncDisposable

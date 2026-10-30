@@ -37,7 +37,7 @@ public class AdvanceRequestController : ControllerBase
     [HttpGet("my")]
     public async Task<IActionResult> GetMyRequests()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
@@ -52,9 +52,10 @@ public class AdvanceRequestController : ControllerBase
 
     [HttpGet]
     [Authorize(Policy = "RequireLedger")]
+    [Authorize(Policy = "Permission:ledger.view")]
     public async Task<IActionResult> GetAllRequests()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         // Fetch first, then project in-memory to avoid SQLite string concat translation issues
@@ -86,7 +87,7 @@ public class AdvanceRequestController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateRequest(CreateAdvanceRequestDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
@@ -104,6 +105,7 @@ public class AdvanceRequestController : ControllerBase
         };
         
         // ELoan initial balance is the requested amount. CA also needs a remaining balance to be deducted.
+        if (dto.RequestedAmount <= 0) return BadRequest("Requested amount must be greater than zero.");
         request.RemainingBalance = request.RequestedAmount;
         if (request.Type != AdvanceType.ELoan)
         {
@@ -140,7 +142,7 @@ public class AdvanceRequestController : ControllerBase
     [HttpPut("{id}/cancel")]
     public async Task<IActionResult> CancelRequest(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
@@ -166,9 +168,10 @@ public class AdvanceRequestController : ControllerBase
 
     [HttpPut("{id}/admin-cancel")]
     [Authorize(Policy = "RequireLedger")]
+    [Authorize(Policy = "Permission:ledger.manage")]
     public async Task<IActionResult> AdminCancelRequest(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var request = await _context.AdvanceRequests
@@ -222,9 +225,10 @@ public class AdvanceRequestController : ControllerBase
 
     [HttpPut("{id}/approve")]
     [Authorize(Policy = "RequireLedger")]
+    [Authorize(Policy = "Permission:ledger.manage")]
     public async Task<IActionResult> ApproveRequest(Guid id, [FromBody] ApproveRequestDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var request = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
@@ -279,9 +283,10 @@ public class AdvanceRequestController : ControllerBase
 
     [HttpPut("{id}/reject")]
     [Authorize(Policy = "RequireLedger")]
+    [Authorize(Policy = "Permission:ledger.manage")]
     public async Task<IActionResult> RejectRequest(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var request = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
@@ -328,15 +333,17 @@ public class AdvanceRequestController : ControllerBase
     
     [HttpPost("admin-create")]
     [Authorize(Policy = "RequireLedger")]
+    [Authorize(Policy = "Permission:ledger.manage")]
     public async Task<IActionResult> AdminCreateRequest(AdminCreateAdvanceRequestDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => (e.UserId == dto.EmployeeId || e.Id == dto.EmployeeId) && e.OrganizationId == orgId.Value);
 
         if (employee == null) return BadRequest("Employee not found");
+        if (dto.RequestedAmount <= 0) return BadRequest("Requested amount must be greater than zero.");
 
         var requestDate = dto.RequestDate.HasValue
             ? (dto.RequestDate.Value.Kind == DateTimeKind.Utc 
@@ -403,9 +410,10 @@ public class AdvanceRequestController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequirePayroll")] // Only payroll admins can delete
+    [Authorize(Policy = "Permission:ledger.manage")]
     public async Task<IActionResult> DeleteRequest(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var advanceRequest = await _context.AdvanceRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);

@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Identity & Authorization — [2026-10-30] (Action-Level Permission Migration Across All Controllers & Delegated Role Administration)
+
+- **Granular `Permission:*` Policy Rollout (`ClientController`, `CompanyExpenseController`, `AdvanceRequestController`, `PayrollController`, `PayrollSettingsController`, `AttendanceController`, `FingerprintDeviceController`, `LeaveRequestController`, `OvertimeController`, `WorkScheduleController`, `TimeOffPoliciesController`, `HolidayCalendarController`, `LocationsController`, `UserController`, `OrganizationsController`, `DashboardController`, `DbSeeder`)**:
+  - Applied fine-grained `Permission:*` authorization policies across all remaining management and administrative API endpoints so view-only custom roles cannot execute state-mutating, approval, calculation, or finalization actions.
+  - Replaced additive class-level `[Authorize(Policy = "RequirePayroll")]` on `PayrollController` and `PayrollSettingsController` with action-specific policies so standard employees can read `GetMyPayslips` and `GetGeneralSettings` while restricting `GetPayslip` to either the payslip owner or callers with `payroll.view`.
+  - Updated `DashboardController` and `DbSeeder` to evaluate and seed canonical `Permission` claims alongside `ModuleAccess` claims.
+- **Delegated Role Management & Invite Email Verification (`RoleController`, `UserController`, `OrganizationsController`)**:
+  - Enabled non-owner administrators holding `roles.create` / `roles.edit` / `roles.delete` or `employees.roles.assign` to manage custom roles and assign roles to non-owner employees, while enforcing strict anti-escalation rules (cannot create/modify/assign the `"Admin"` role or grant modules/permissions the caller does not hold).
+  - Enforced case-insensitive email verification in `OrganizationsController.Join` when accepting email-targeted workspace invitations.
+  - Added automated RBAC policy and anti-escalation tests (`tests/OfficeCore.Api.Tests/RbacAuthorizationTests.cs`).
+
 ### Security, Dependencies & Backup Hardening — [2026-10-30] (NuGet Patching, Station Token Auth, Upload Validation & OTP Rate-Limiting)
 
 - **Patched Vulnerable ASP.NET Core 9.0 Dependencies (`OfficeCore.Api.csproj`, `OfficeCore.Web.Client.csproj`)**:
