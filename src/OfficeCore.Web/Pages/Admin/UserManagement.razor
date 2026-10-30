@@ -17,13 +17,15 @@
             <button @onclick="LoadData" disabled="@_isLoading" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer" title="Refresh">
                 <svg class="size-4 @(_isLoading ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
             </button>
-            <button @onclick="() => _showCreate = true"
-                    class="flex items-center gap-2 rounded-xl bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 cursor-pointer">
-                <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Invite Member
-            </button>
+            <AuthorizeView Policy="Permission:users.manage">
+                <button @onclick="() => _showCreate = true"
+                        class="flex items-center gap-2 rounded-xl bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 cursor-pointer">
+                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Invite Member
+                </button>
+            </AuthorizeView>
         </div>
     </div>
 

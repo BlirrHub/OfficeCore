@@ -177,9 +177,12 @@ public partial class MainWindow : Window
                     using var runKey = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
                     if (runKey != null)
                     {
+                        runKey.DeleteValue("OfficeCoreServerStation", false);
+                        runKey.DeleteValue("OfficeCore Server Station", false);
                         if (autoStartup)
                         {
-                            runKey.SetValue("OfficeCore Server Station", $"\"{destExe}\"");
+                            runKey.SetValue("OfficeCoreServerStation", $"\"{destExe}\" --background");
+                            runKey.DeleteValue("OfficeCore Server Station", false);
                         }
                         else
                         {

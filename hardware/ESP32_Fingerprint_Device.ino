@@ -178,7 +178,11 @@ void handleTCP() {
   if (!wifiEnabled || WiFi.status() != WL_CONNECTED) return;
   
   if (!client.connected()) {
-    client.connect(serverIp.c_str(), serverPort);
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastTcpRetry > TCP_RETRY_INTERVAL || lastTcpRetry == 0) {
+      lastTcpRetry = currentMillis;
+      client.connect(serverIp.c_str(), serverPort);
+    }
   }
   
   if (client.connected() && client.available()) {
@@ -206,7 +210,7 @@ void checkAttendance() {
 
 void enrollFingerprint() {
   int id = 1;
-  while (id < 127) {
+  while (id <= 127) {
     if (finger.loadModel(id) != FINGERPRINT_OK) {
       break; 
     }

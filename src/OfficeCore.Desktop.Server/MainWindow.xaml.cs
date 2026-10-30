@@ -50,7 +50,11 @@ public partial class MainWindow : Window
             webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
             webView.CoreWebView2.WebResourceRequested += (s, args) =>
             {
-                args.Request.Headers.SetHeader("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
+                if (Uri.TryCreate(args.Request.Uri, UriKind.Absolute, out var reqUri) &&
+                    (reqUri.IsLoopback || reqUri.Port == 5026))
+                {
+                    args.Request.Headers.SetHeader("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
+                }
             };
             webView.NavigationCompleted += WebView_NavigationCompleted;
         }
@@ -271,6 +275,7 @@ public partial class MainWindow : Window
             using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(2) };
             client.DefaultRequestHeaders.Add("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
             client.DefaultRequestHeaders.Add("X-OfficeCore-Station", "ServerStationOrchestrator");
+            client.DefaultRequestHeaders.Add("X-OfficeCore-Station-Token", ServerConfigService.GetOrCreateStationToken());
 
             var payload = System.Text.Json.JsonSerializer.Serialize(new { Label = "Server Station Quick Snapshot" });
             var content = new System.Net.Http.StringContent(payload, System.Text.Encoding.UTF8, "application/json");
@@ -633,6 +638,11 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
+            const int maxLogChars = 100_000;
+            if (ConsoleLogBox.Text.Length > maxLogChars)
+            {
+                ConsoleLogBox.Text = ConsoleLogBox.Text[^80_000..];
+            }
             ConsoleLogBox.AppendText($"{line}\n");
             ConsoleLogBox.ScrollToEnd();
         });

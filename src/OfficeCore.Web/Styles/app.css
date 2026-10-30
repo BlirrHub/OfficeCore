@@ -41,7 +41,7 @@ html.light .bg-\[\#09090b\] {
 }
 
 /* Headings and high-contrast text in light mode */
-html.light .text-white:not([class*="bg-fuchsia"]):not([class*="bg-violet"]):not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-gradient-"]):not(.keep-white) {
+html.light .text-white:not([class*="bg-fuchsia"]):not([class*="bg-violet"]):not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-amber"]):not([class*="bg-orange"]):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-teal"]):not([class*="bg-cyan"]):not([class*="bg-zinc-800"]):not([class*="bg-gradient-"]):not(.keep-white) {
     color: #0f172a !important;
 }
 

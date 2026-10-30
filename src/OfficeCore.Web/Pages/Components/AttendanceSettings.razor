@@ -320,7 +320,7 @@
         await LoadEmployees();
         
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"))
+            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"), options => { options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler }; })
             .WithAutomaticReconnect()
             .Build();
 
@@ -366,7 +366,7 @@
         {
             try
             {
-                _serialModule = await JS.InvokeAsync<IJSObjectReference>("import", $"/js/webserial.js?v={Guid.NewGuid()}");
+                _serialModule = await JS.InvokeAsync<IJSObjectReference>("import", "/js/webserial.js");
                 await _serialModule.InvokeVoidAsync("initSerial", _dotNetRef);
             }
             catch (Exception ex)
@@ -648,7 +648,8 @@
     public async Task OnSerialScanEvent(int fingerprintId)
     {
         // Fire and forget attendance scan POST
-        await Http.PostAsJsonAsync("/api/attendance/scan-event", new { FingerprintId = fingerprintId });
+        // webserial.js already posts /api/attendance/scan-event; refresh UI state only
+        await InvokeAsync(StateHasChanged);
     }
 
     [JSInvokable]
