@@ -88,6 +88,26 @@ public static class DbSeeder
         context.OrganizationRoles.Add(memberOrgRole);
         await context.SaveChangesAsync();
 
+        foreach (var permission in PermissionCatalog.AllKeys)
+        {
+            context.OrganizationRoleClaims.Add(new OrganizationRoleClaim
+            {
+                Id = Guid.NewGuid(),
+                OrganizationRoleId = adminOrgRole.Id,
+                ClaimType = PermissionCatalog.ClaimType,
+                ClaimValue = permission
+            });
+        }
+        foreach (var permission in PermissionCatalog.ExpandModules(ModuleCatalog.DefaultKeys))
+        {
+            context.OrganizationRoleClaims.Add(new OrganizationRoleClaim
+            {
+                Id = Guid.NewGuid(),
+                OrganizationRoleId = memberOrgRole.Id,
+                ClaimType = PermissionCatalog.ClaimType,
+                ClaimValue = permission
+            });
+        }
         foreach (var module in ModuleCatalog.AllKeys)
         {
             context.OrganizationRoleClaims.Add(new OrganizationRoleClaim

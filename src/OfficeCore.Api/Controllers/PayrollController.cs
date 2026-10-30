@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using OfficeCore.Shared.Authorization;
 using System.Security.Claims;
 
 namespace OfficeCore.Api.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Policy = "RequirePayroll")]
+[Authorize]
 public class PayrollController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -30,9 +31,10 @@ public class PayrollController : ControllerBase
     }
 
     [HttpGet("periods")]
+    [Authorize(Policy = "Permission:payroll.view")]
     public async Task<IActionResult> GetPayrollPeriods()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var periods = await _context.PayrollPeriods
@@ -43,9 +45,10 @@ public class PayrollController : ControllerBase
     }
 
     [HttpDelete("periods/{id}")]
+    [Authorize(Policy = "Permission:payroll.calculate")]
     public async Task<IActionResult> DeletePayrollPeriod(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
@@ -65,9 +68,10 @@ public class PayrollController : ControllerBase
     }
 
     [HttpPost("periods")]
+    [Authorize(Policy = "Permission:payroll.calculate")]
     public async Task<IActionResult> CreatePayrollPeriod(PayrollPeriod period)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         period.Id = Guid.NewGuid();
@@ -84,18 +88,20 @@ public class PayrollController : ControllerBase
     }
     
     [HttpGet("periods/{id}")]
+    [Authorize(Policy = "Permission:payroll.view")]
     public async Task<IActionResult> GetPayrollPeriod(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId);
         if (period == null) return NotFound();
         return Ok(period);
     }
 
     [HttpPost("periods/{id}/compute")]
+    [Authorize(Policy = "Permission:payroll.calculate")]
     public async Task<IActionResult> ComputePayroll(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
@@ -110,14 +116,15 @@ public class PayrollController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { Message = ex.ToString() });
+            return BadRequest(new { Message = ex.Message });
         }
     }
 
     [HttpGet("periods/{id}/payslips")]
+    [Authorize(Policy = "Permission:payroll.view")]
     public async Task<IActionResult> GetPayslips(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var periodExists = await _context.PayrollPeriods.AnyAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
@@ -183,9 +190,10 @@ public class PayrollController : ControllerBase
     }
 
     [HttpGet("periods/{id}/export/summary")]
+    [Authorize(Policy = "Permission:payroll.export")]
     public async Task<IActionResult> ExportPayrollSummaryCsv(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
@@ -214,7 +222,7 @@ public class PayrollController : ControllerBase
     [HttpGet("payslips/{id}")]
     public async Task<IActionResult> GetPayslip(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var payslip = await _context.Payslips
@@ -229,6 +237,10 @@ public class PayrollController : ControllerBase
 
         if (payslip == null) return NotFound();
 
+        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+        if (!isOwner && payslip.Employee?.UserId != callerId && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.PayrollView) && !User.HasClaim("ModuleAccess", AccessModules.Payroll))
+            return Forbid();
         double totalHours = payslip.TotalWorkedHours;
         if (totalHours == 0 && !string.IsNullOrWhiteSpace(payslip.CalculationDetailsJson))
         {
@@ -280,7 +292,7 @@ public class PayrollController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetMyPayslips()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -307,9 +319,10 @@ public class PayrollController : ControllerBase
     }
 
     [HttpPut("payslips/{id}")]
+    [Authorize(Policy = "Permission:payroll.calculate")]
     public async Task<IActionResult> UpdatePayslip(Guid id, [FromBody] PayslipUpdateRequest request)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var payslip = await _context.Payslips
@@ -363,9 +376,10 @@ public class PayrollController : ControllerBase
     }
 
     [HttpPost("periods/{id}/finalize")]
+    [Authorize(Policy = "Permission:payroll.finalize")]
     public async Task<IActionResult> FinalizePeriod(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);

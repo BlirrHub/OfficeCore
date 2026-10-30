@@ -21,9 +21,10 @@ public class ClientController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "Permission:clients.view")]
     public async Task<ActionResult<IEnumerable<Client>>> GetClients()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         return await _context.Clients
@@ -34,9 +35,10 @@ public class ClientController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Policy = "Permission:clients.view")]
     public async Task<ActionResult<Client>> GetClient(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var client = await _context.Clients
@@ -53,9 +55,10 @@ public class ClientController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Permission:clients.manage")]
     public async Task<ActionResult<Client>> CreateClient(Client client)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         client.Id = Guid.NewGuid();
@@ -81,9 +84,10 @@ public class ClientController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "Permission:clients.manage")]
     public async Task<IActionResult> UpdateClient(Guid id, Client clientUpdate)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         if (id != clientUpdate.Id)
@@ -127,9 +131,10 @@ public class ClientController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "Permission:clients.manage")]
     public async Task<IActionResult> ArchiveClient(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var client = await _context.Clients.FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == orgId);

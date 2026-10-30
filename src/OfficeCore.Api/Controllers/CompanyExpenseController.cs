@@ -25,9 +25,10 @@ public class CompanyExpenseController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "Permission:ledger.view")]
     public async Task<IActionResult> GetExpenses()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var expenses = await _context.CompanyExpenses
@@ -39,9 +40,10 @@ public class CompanyExpenseController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Permission:ledger.manage")]
     public async Task<IActionResult> CreateExpense(CreateCompanyExpenseDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var expense = new CompanyExpense
@@ -63,9 +65,10 @@ public class CompanyExpenseController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "Permission:ledger.manage")]
     public async Task<IActionResult> DeleteExpense(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var expense = await _context.CompanyExpenses

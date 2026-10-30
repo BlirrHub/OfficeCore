@@ -53,6 +53,7 @@ public class HolidayCalendarController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = "RequireTimeOff")]
+    [Authorize(Policy = "Permission:time-off.manage")]
     public async Task<IActionResult> CreateCalendar(HolidayCalendar calendar)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -91,6 +92,7 @@ public class HolidayCalendarController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = "RequireTimeOff")]
+    [Authorize(Policy = "Permission:time-off.manage")]
     public async Task<IActionResult> UpdateCalendar(Guid id, HolidayCalendar updatedCalendar)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -142,6 +144,7 @@ public class HolidayCalendarController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireTimeOff")]
+    [Authorize(Policy = "Permission:time-off.manage")]
     public async Task<IActionResult> DeleteCalendar(Guid id)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();

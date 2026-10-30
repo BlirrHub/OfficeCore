@@ -8,7 +8,7 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "RequirePayroll")]
+[Authorize]
 public class PayrollSettingsController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -23,6 +23,7 @@ public class PayrollSettingsController : ControllerBase
     // ─── Government Deductions ────────────────────────────────────────────────
 
     [HttpGet("deductions")]
+    [Authorize(Policy = "Permission:payroll.view")]
     public async Task<IActionResult> GetGovernmentDeductionSettings()
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -48,6 +49,7 @@ public class PayrollSettingsController : ControllerBase
     }
 
     [HttpPut("deductions")]
+    [Authorize(Policy = "Permission:payroll.settings.manage")]
     public async Task<IActionResult> UpdateGovernmentDeductionSettings([FromBody] List<GovernmentDeductionSettingDto> updatedSettings)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -98,6 +100,7 @@ public class PayrollSettingsController : ControllerBase
     }
 
     [HttpPut("general")]
+    [Authorize(Policy = "Permission:payroll.settings.manage")]
     public async Task<IActionResult> UpdateGeneralSettings([FromBody] GeneralSettingsDto dto)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();

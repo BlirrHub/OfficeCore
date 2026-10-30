@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using OfficeCore.Api.Hubs;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using OfficeCore.Shared.Authorization;
 using System.Security.Claims;
 
 namespace OfficeCore.Api.Controllers;
@@ -159,7 +160,7 @@ public class OrganizationsController : ControllerBase
         if (activeOrgId != id) return Forbid();
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
-        if (!isOwner && !User.HasClaim("ModuleAccess", "Organization"))
+        if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OrganizationManage) && !User.HasClaim("ModuleAccess", "Organization"))
             return Forbid("Workspace ownership or Organization access is required.");
 
         var org = await _context.Organizations
@@ -199,7 +200,7 @@ public class OrganizationsController : ControllerBase
         if (activeOrgId != id) return Forbid();
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
-        if (!isOwner && !User.HasClaim("ModuleAccess", "Organization"))
+        if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OrganizationManage) && !User.HasClaim("ModuleAccess", "Organization"))
             return Forbid("Workspace ownership or Organization access is required.");
 
         var org = await _context.Organizations.FindAsync(id);
@@ -301,7 +302,7 @@ public class OrganizationsController : ControllerBase
         if (activeOrgId != id) return Forbid();
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
-        if (!isOwner && !User.HasClaim("ModuleAccess", "Users"))
+        if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersManage) && !User.HasClaim("ModuleAccess", "Users"))
             return Forbid("Workspace ownership or Users access is required.");
 
         string? email = request.Email?.Trim();
@@ -374,6 +375,9 @@ public class OrganizationsController : ControllerBase
         // If it's targeted to an email, it's single use. Generic links are unlimited use.
         if (!string.IsNullOrEmpty(invitation.Email))
         {
+            var joiningUser = await _userManager.FindByIdAsync(userId);
+            if (joiningUser == null || !string.Equals(joiningUser.Email?.Trim(), invitation.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+                return Forbid("This invitation was issued for a different email address.");
             if (invitation.IsAccepted)
                 return BadRequest("This email invitation has already been accepted.");
                 

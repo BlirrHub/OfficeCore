@@ -55,9 +55,10 @@ public class WorkScheduleController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = "RequireWorkSchedules")]
+    [Authorize(Policy = "Permission:work-schedules.manage")]
     public async Task<IActionResult> CreateWorkSchedule(WorkScheduleDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var schedule = new WorkSchedule
@@ -129,9 +130,10 @@ public class WorkScheduleController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = "RequireWorkSchedules")]
+    [Authorize(Policy = "Permission:work-schedules.manage")]
     public async Task<IActionResult> UpdateWorkSchedule(Guid id, WorkScheduleDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         if (id != dto.Id)
@@ -206,9 +208,10 @@ public class WorkScheduleController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireWorkSchedules")]
+    [Authorize(Policy = "Permission:work-schedules.manage")]
     public async Task<IActionResult> DeleteWorkSchedule(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         var schedule = await _context.WorkSchedules.FirstOrDefaultAsync(ws => ws.Id == id && ws.OrganizationId == orgId);
         if (schedule == null)
             return NotFound();

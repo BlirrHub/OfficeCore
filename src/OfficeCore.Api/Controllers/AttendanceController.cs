@@ -51,7 +51,7 @@ public class AttendanceController : ControllerBase
     [HttpGet("my")]
     public async Task<IActionResult> GetMyAttendance()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var employee = await _tenant.GetCurrentEmployeeAsync();
@@ -186,7 +186,7 @@ public class AttendanceController : ControllerBase
     [HttpPost("punch")]
     public async Task<IActionResult> Punch()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var employee = await _tenant.GetCurrentEmployeeAsync();
@@ -326,9 +326,10 @@ public class AttendanceController : ControllerBase
 
     [HttpGet]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.view")]
     public async Task<IActionResult> GetAttendanceRecords([FromQuery] string? employeeId = null, [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var query = _context.AttendanceRecords
@@ -396,9 +397,10 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("export")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.view")]
     public async Task<IActionResult> ExportAttendance([FromQuery] string? employeeId = null, [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var query = _context.AttendanceRecords
@@ -444,9 +446,10 @@ public class AttendanceController : ControllerBase
 
     [HttpPost("admin-create")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public async Task<IActionResult> AdminCreateAttendanceRecord([FromBody] AdminCreateAttendanceDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var employee = await _context.Employees
@@ -489,9 +492,10 @@ public class AttendanceController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public async Task<IActionResult> DeleteAttendanceRecord(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var record = await _context.AttendanceRecords
@@ -520,6 +524,7 @@ public class AttendanceController : ControllerBase
 
     [HttpPost("enroll/{employeeId}")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public IActionResult StartEnrollment(string employeeId)
     {
         var started = _deviceService.StartEnrollment(employeeId);
@@ -533,6 +538,7 @@ public class AttendanceController : ControllerBase
 
     [HttpPost("cancel-enroll")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public IActionResult CancelEnrollment()
     {
         _deviceService.CancelEnrollment();
@@ -541,9 +547,10 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("fingerprints/{employeeId}")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.view")]
     public async Task<IActionResult> GetEmployeeFingerprints(string employeeId)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var prints = await _context.EmployeeFingerprints
@@ -556,9 +563,10 @@ public class AttendanceController : ControllerBase
 
     [HttpDelete("fingerprints/{id}")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public async Task<IActionResult> DeleteFingerprint(int id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var fp = await _context.EmployeeFingerprints
@@ -573,9 +581,10 @@ public class AttendanceController : ControllerBase
 
     [HttpPost("enroll-success")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public async Task<IActionResult> EnrollSuccess([FromBody] EnrollSuccessDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         var employee = await _context.Employees
@@ -652,9 +661,10 @@ public class AttendanceController : ControllerBase
     [HttpPost("import-biometric-preview")]
     [Authorize(Policy = "RequireAttendance")]
     [RequestSizeLimit(50_000_000)] // Up to 50MB
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public async Task<IActionResult> PreviewBiometricImport([FromForm] IFormFile file)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         if (file == null || file.Length == 0)
@@ -681,9 +691,10 @@ public class AttendanceController : ControllerBase
 
     [HttpPost("import-biometric-commit")]
     [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public async Task<IActionResult> CommitBiometricImport([FromBody] BiometricCommitRequestDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
 
         if (dto.Punches == null || dto.Punches.Count == 0)

@@ -43,7 +43,7 @@ public class LeaveRequestController : ControllerBase
     {
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
 
         var requests = await _context.LeaveRequests
             .Where(r => r.EmployeeId == employee.Id && r.OrganizationId == orgId)
@@ -67,9 +67,10 @@ public class LeaveRequestController : ControllerBase
 
     [HttpGet]
     [Authorize(Policy = "RequireLeaveApprovals")]
+    [Authorize(Policy = "Permission:leave-approvals.view")]
     public async Task<IActionResult> GetAllRequests()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var requests = await _context.LeaveRequests
@@ -99,11 +100,12 @@ public class LeaveRequestController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SubmitRequest([FromForm] CreateLeaveRequestDto request)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
 
+        if (request.EndDate.Date < request.StartDate.Date) return BadRequest("End date cannot be earlier than start date.");
         string? attachmentPath = null;
 
         if (request.Attachment != null && request.Attachment.Length > 0)
@@ -170,9 +172,10 @@ public class LeaveRequestController : ControllerBase
 
     [HttpPut("{id}/status")]
     [Authorize(Policy = "RequireLeaveApprovals")]
+    [Authorize(Policy = "Permission:leave-approvals.manage")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateLeaveStatusDto request)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var leaveRequest = await _context.LeaveRequests
@@ -234,15 +237,17 @@ public class LeaveRequestController : ControllerBase
 
     [HttpPost("admin-create")]
     [Authorize(Policy = "RequireLeaveApprovals")]
+    [Authorize(Policy = "Permission:leave-approvals.manage")]
     public async Task<IActionResult> AdminCreateRequest(AdminCreateLeaveRequestDto request)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => (e.UserId == request.EmployeeId || e.Id == request.EmployeeId) && e.OrganizationId == orgId.Value);
 
         if (employee == null) return BadRequest("Employee not found");
+        if (request.EndDate.Date < request.StartDate.Date) return BadRequest("End date cannot be earlier than start date.");
 
         var leaveRequest = new LeaveRequest
         {
@@ -289,9 +294,10 @@ public class LeaveRequestController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireLeaveApprovals")]
+    [Authorize(Policy = "Permission:leave-approvals.manage")]
     public async Task<IActionResult> DeleteRequest(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var leaveRequest = await _context.LeaveRequests.FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId.Value);
@@ -311,7 +317,7 @@ public class LeaveRequestController : ControllerBase
     [HttpDelete("{id}/cancel")]
     public async Task<IActionResult> CancelRequest(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();

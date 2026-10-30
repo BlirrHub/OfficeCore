@@ -48,6 +48,7 @@ public class TimeOffPoliciesController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = "RequireTimeOff")]
+    [Authorize(Policy = "Permission:time-off.manage")]
     public async Task<ActionResult<TimeOffPolicy>> CreatePolicy([FromBody] TimeOffPolicy policy)
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
@@ -64,6 +65,7 @@ public class TimeOffPoliciesController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = "RequireTimeOff")]
+    [Authorize(Policy = "Permission:time-off.manage")]
     public async Task<IActionResult> UpdatePolicy(Guid id, [FromBody] TimeOffPolicy updated)
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
@@ -86,6 +88,7 @@ public class TimeOffPoliciesController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireTimeOff")]
+    [Authorize(Policy = "Permission:time-off.manage")]
     public async Task<IActionResult> DeletePolicy(Guid id)
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();

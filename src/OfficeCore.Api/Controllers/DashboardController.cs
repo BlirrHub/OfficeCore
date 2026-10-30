@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using OfficeCore.Shared.Authorization;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -113,16 +114,16 @@ public class DashboardController : ControllerBase
         // Check module claims for this user
         var perms = new DashboardPermissionsDto
         {
-            CanManageLeaves = User.HasClaim("ModuleAccess", "LeaveApprovals"),
-            CanManageOvertime = User.HasClaim("ModuleAccess", "OvertimeApprovals"),
-            CanManageAttendance = User.HasClaim("ModuleAccess", "Attendance"),
-            CanManageUsers = User.HasClaim("ModuleAccess", "Users"),
-            CanManageAdvances = User.HasClaim("ModuleAccess", "Ledger"),
-            CanManagePayroll = User.HasClaim("ModuleAccess", "Payroll"),
-            CanViewBoards = User.HasClaim("ModuleAccess", "Boards"),
-            CanViewLocations = User.HasClaim("ModuleAccess", "Locations"),
-            CanViewClients = User.HasClaim("ModuleAccess", "Clients"),
-            CanViewInvoices = User.HasClaim("ModuleAccess", "Invoices")
+            CanManageLeaves = User.HasClaim("ModuleAccess", "LeaveApprovals") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LeaveApprovalsView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LeaveApprovalsManage),
+            CanManageOvertime = User.HasClaim("ModuleAccess", "OvertimeApprovals") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OvertimeApprovalsView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OvertimeApprovalsManage),
+            CanManageAttendance = User.HasClaim("ModuleAccess", "Attendance") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.AttendanceView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.AttendanceAdjust),
+            CanManageUsers = User.HasClaim("ModuleAccess", "Users") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersManage),
+            CanManageAdvances = User.HasClaim("ModuleAccess", "Ledger") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LedgerView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LedgerManage),
+            CanManagePayroll = User.HasClaim("ModuleAccess", "Payroll") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.PayrollView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.PayrollCalculate),
+            CanViewBoards = User.HasClaim("ModuleAccess", "Boards") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.BoardsView),
+            CanViewLocations = User.HasClaim("ModuleAccess", "Locations") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LocationsView),
+            CanViewClients = User.HasClaim("ModuleAccess", "Clients") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.ClientsView),
+            CanViewInvoices = User.HasClaim("ModuleAccess", "Invoices") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.InvoicesView)
         };
 
         // Determine if user has any managerial/admin capabilities
