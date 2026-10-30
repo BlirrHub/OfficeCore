@@ -1,8 +1,9 @@
 using System;
-using System.IO;
 using System.Data.Common;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace OfficeCore.Desktop.Server;
@@ -60,21 +61,50 @@ public class ServerConfig
 
 public static class ServerConfigService
 {
+    public static string GetProfileFolder()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var defaultDatabase = ServerConfig.GetDefaultDbName();
+        // Keep the production path compatible; isolate development settings.
+        var folder = defaultDatabase == "OfficeCoreDb"
+            ? Path.Combine(appData, "OfficeCore")
+            : Path.Combine(appData, "OfficeCore", defaultDatabase);
+        if (!Directory.Exists(folder))
+        {
+            Directory.CreateDirectory(folder);
+        }
+        return folder;
+    }
+
+    public static string GetOrCreateStationToken()
+    {
+        try
+        {
+            var tokenPath = Path.Combine(GetProfileFolder(), "station_secret.key");
+            if (File.Exists(tokenPath))
+            {
+                var existing = File.ReadAllText(tokenPath).Trim();
+                if (existing.Length >= 32)
+                {
+                    return existing;
+                }
+            }
+
+            var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+            File.WriteAllText(tokenPath, token);
+            return token;
+        }
+        catch
+        {
+            return "OfficeCore-Local-Station-Fallback-Token";
+        }
+    }
+
     private static string GetConfigPath()
     {
         try
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var defaultDatabase = ServerConfig.GetDefaultDbName();
-            // Keep the production path compatible; isolate development settings.
-            var folder = defaultDatabase == "OfficeCoreDb"
-                ? Path.Combine(appData, "OfficeCore")
-                : Path.Combine(appData, "OfficeCore", defaultDatabase);
-            if (!Directory.Exists(folder))
-            {
-                Directory.CreateDirectory(folder);
-            }
-            return Path.Combine(folder, "server_config.json");
+            return Path.Combine(GetProfileFolder(), "server_config.json");
         }
         catch
         {
@@ -128,6 +158,8 @@ public static class ServerConfigService
 
     public static void SetStartupWithWindows(bool enable)
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         try
         {
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
@@ -135,17 +167,20 @@ public static class ServerConfigService
             if (key == null) return;
 
             const string appName = "OfficeCoreServerStation";
+            const string legacyAppName = "OfficeCore Server Station";
             if (enable)
             {
                 var exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
                 if (!string.IsNullOrEmpty(exePath))
                 {
                     key.SetValue(appName, $"\"{exePath}\" --background");
+                    key.DeleteValue(legacyAppName, false);
                 }
             }
             else
             {
                 key.DeleteValue(appName, false);
+                key.DeleteValue(legacyAppName, false);
             }
         }
         catch { }
@@ -153,12 +188,14 @@ public static class ServerConfigService
 
     public static bool IsStartupWithWindowsEnabled()
     {
+        if (!OperatingSystem.IsWindows()) return false;
+
         try
         {
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
                 @"Software\Microsoft\Windows\CurrentVersion\Run", false);
             if (key == null) return false;
-            return key.GetValue("OfficeCoreServerStation") != null;
+            return key.GetValue("OfficeCoreServerStation") != null || key.GetValue("OfficeCore Server Station") != null;
         }
         catch { return false; }
     }

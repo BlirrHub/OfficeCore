@@ -111,7 +111,14 @@ public class LeaveRequestController : ControllerBase
             var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "leaves");
             Directory.CreateDirectory(uploadsFolder);
 
-            var uniqueFileName = Guid.NewGuid().ToString() + "_" + request.Attachment.FileName;
+            if (request.Attachment.Length > 15 * 1024 * 1024)
+                return BadRequest("Attachment exceeds the 15MB limit.");
+            var allowedLeaveExts = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".doc", ".docx", ".txt" };
+            var safeLeaveFileName = Path.GetFileName(request.Attachment.FileName);
+            var leaveExt = Path.GetExtension(safeLeaveFileName)?.ToLowerInvariant() ?? string.Empty;
+            if (!allowedLeaveExts.Contains(leaveExt))
+                return BadRequest("Unsupported attachment file type.");
+            var uniqueFileName = Guid.NewGuid().ToString() + "_" + safeLeaveFileName;
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
             using (var fileStream = new FileStream(filePath, FileMode.Create))

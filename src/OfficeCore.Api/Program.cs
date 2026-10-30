@@ -53,12 +53,15 @@ builder.Services.AddCors(opt =>
 
             // 2. Local LAN office subnets & mDNS (.local)
             if (host.EndsWith(".local", StringComparison.OrdinalIgnoreCase)) return true;
-            if (host.StartsWith("192.168.") || host.StartsWith("10.")) return true;
             if (System.Net.IPAddress.TryParse(host, out var ip))
             {
                 var bytes = ip.GetAddressBytes();
-                if (bytes.Length == 4 && bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
-                    return true;
+                if (bytes.Length == 4)
+                {
+                    if (bytes[0] == 10) return true;
+                    if (bytes[0] == 192 && bytes[1] == 168) return true;
+                    if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
+                }
             }
 
             // 3. Explicitly allowed origins from configuration

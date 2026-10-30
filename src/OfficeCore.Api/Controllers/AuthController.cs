@@ -59,6 +59,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("send-otp")]
+    [EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Email) && string.IsNullOrWhiteSpace(request.PhoneNumber))
@@ -95,6 +96,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("verify-otp")]
+    [EnableRateLimiting("LoginPolicy")]
     public IActionResult VerifyOtp([FromBody] VerifyOtpRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Code))
@@ -257,6 +259,10 @@ public class AuthController : ControllerBase
         if (user == null) return Unauthorized();
 
         if (file == null || file.Length == 0) return BadRequest("File is empty");
+        if (file.Length > 10 * 1024 * 1024) return BadRequest("Profile picture exceeds the 10MB limit.");
+        var allowedImageExts = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        var ext = Path.GetExtension(file.FileName)?.ToLowerInvariant() ?? string.Empty;
+        if (!allowedImageExts.Contains(ext)) return BadRequest("Only .jpg, .jpeg, .png, .gif, and .webp image files are allowed.");
 
         var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "profiles");
         Directory.CreateDirectory(uploadDir);

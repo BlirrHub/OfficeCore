@@ -1222,6 +1222,10 @@ public class BoardsController : ControllerBase
         Directory.CreateDirectory(uploadDir);
 
         var sanitizedFileName = Path.GetFileName(file.FileName);
+        var allowedBoardExts = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip", ".rar", ".7z", ".mp4", ".mp3", ".wav" };
+        var boardExt = Path.GetExtension(sanitizedFileName)?.ToLowerInvariant() ?? string.Empty;
+        if (!allowedBoardExts.Contains(boardExt))
+            return BadRequest("File type is not permitted.");
         var uniqueFileName = $"{Guid.NewGuid()}_{sanitizedFileName}";
         var filePath = Path.Combine(uploadDir, uniqueFileName);
 

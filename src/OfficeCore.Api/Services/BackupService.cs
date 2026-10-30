@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -50,6 +52,7 @@ public class BackupService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<BackupService> _logger;
+    private readonly string _profileFolder;
     private readonly string _backupsDirectory;
     private readonly string _settingsFilePath;
 
@@ -59,9 +62,27 @@ public class BackupService
         _logger = logger;
 
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var baseFolder = Path.Combine(localAppData, "OfficeCore");
-        _backupsDirectory = Path.Combine(baseFolder, "Backups");
-        _settingsFilePath = Path.Combine(baseFolder, "backup_settings.json");
+        var connString = _configuration.GetConnectionString("DefaultConnection");
+        var dbName = "OfficeCoreDb";
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            try
+            {
+                var csb = new NpgsqlConnectionStringBuilder(connString);
+                if (!string.IsNullOrWhiteSpace(csb.Database))
+                {
+                    dbName = csb.Database;
+                }
+            }
+            catch { }
+        }
+
+        _profileFolder = string.Equals(dbName, "OfficeCoreDb", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(localAppData, "OfficeCore")
+            : Path.Combine(localAppData, "OfficeCore", dbName);
+
+        _backupsDirectory = Path.Combine(_profileFolder, "Backups");
+        _settingsFilePath = Path.Combine(_profileFolder, "backup_settings.json");
 
         if (!Directory.Exists(_backupsDirectory))
         {
@@ -71,13 +92,51 @@ public class BackupService
 
     public string GetBackupsDirectory() => _backupsDirectory;
 
+    public bool ValidateStationToken(string? providedToken)
+    {
+        if (string.IsNullOrWhiteSpace(providedToken))
+            return false;
+
+        var expected = _configuration["OfficeCore:StationSecret"];
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            try
+            {
+                var tokenPath = Path.Combine(_profileFolder, "station_secret.key");
+                if (File.Exists(tokenPath))
+                {
+                    expected = File.ReadAllText(tokenPath).Trim();
+                }
+            }
+            catch { }
+        }
+
+        if (string.IsNullOrWhiteSpace(expected))
+            return false;
+
+        var a = Encoding.UTF8.GetBytes(providedToken.Trim());
+        var b = Encoding.UTF8.GetBytes(expected.Trim());
+        return a.Length == b.Length && CryptographicOperations.FixedTimeEquals(a, b);
+    }
+
+    private static bool IsValidPgBinDirectory(string? dirPath)
+    {
+        if (string.IsNullOrWhiteSpace(dirPath) || dirPath.Contains(".."))
+            return false;
+        if (!Path.IsPathRooted(dirPath) || !Directory.Exists(dirPath))
+            return false;
+
+        var pgDump = Path.Combine(dirPath, "pg_dump.exe");
+        var pgRestore = Path.Combine(dirPath, "pg_restore.exe");
+        return File.Exists(pgDump) && File.Exists(pgRestore);
+    }
+
     public string? DetectPgBinPath()
     {
         var settings = GetSettings();
-        if (!string.IsNullOrWhiteSpace(settings.CustomPgBinPath) && Directory.Exists(settings.CustomPgBinPath))
+        if (IsValidPgBinDirectory(settings.CustomPgBinPath))
         {
-            var testDump = Path.Combine(settings.CustomPgBinPath, "pg_dump.exe");
-            if (File.Exists(testDump)) return settings.CustomPgBinPath;
+            return settings.CustomPgBinPath;
         }
 
         // Check standard PostgreSQL installation directories
@@ -138,6 +197,11 @@ public class BackupService
     {
         try
         {
+            if (!string.IsNullOrWhiteSpace(settings.CustomPgBinPath) && !IsValidPgBinDirectory(settings.CustomPgBinPath))
+            {
+                throw new InvalidOperationException("CustomPgBinPath must be a valid local directory containing pg_dump.exe and pg_restore.exe.");
+            }
+
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(_settingsFilePath, json);
         }
@@ -373,9 +437,10 @@ public class BackupService
             return new RestoreResult { Success = false, Message = "Uploaded file does not exist on server." };
         }
 
-        // Move/copy into backups directory with clear name
+        // Preserve .sql vs .dump extension when storing in backups directory
+        var ext = Path.GetExtension(tempFilePath).Equals(".sql", StringComparison.OrdinalIgnoreCase) ? ".sql" : ".dump";
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var permanentFileName = $"uploaded_{timestamp}.dump";
+        var permanentFileName = $"uploaded_{timestamp}{ext}";
         var permanentPath = Path.Combine(_backupsDirectory, permanentFileName);
         File.Copy(tempFilePath, permanentPath, overwrite: true);
 
@@ -394,10 +459,12 @@ public class BackupService
             };
         }
 
-        var pgRestoreExe = Path.Combine(pgBin, "pg_restore.exe");
-        if (!File.Exists(pgRestoreExe))
+        var isSqlPlain = dumpFilePath.EndsWith(".sql", StringComparison.OrdinalIgnoreCase);
+        var toolExeName = isSqlPlain ? "psql.exe" : "pg_restore.exe";
+        var toolExe = Path.Combine(pgBin, toolExeName);
+        if (!File.Exists(toolExe))
         {
-            return new RestoreResult { Success = false, Message = $"pg_restore.exe was not found in: {pgBin}" };
+            return new RestoreResult { Success = false, Message = $"{toolExeName} was not found in: {pgBin}" };
         }
 
         // STEP 1: Pre-Restore Safety Snapshot!
@@ -416,18 +483,15 @@ public class BackupService
         var username = builder.Username ?? "postgres";
         var password = builder.Password ?? "";
 
-        // Arguments for pg_restore:
-        // -d {database} : Target db
-        // -c : Clean (drop database objects before recreating)
-        // --if-exists : Don't fail if object doesn't exist when dropping
-        // -v : Verbose
-        var args = $"-h \"{host}\" -p {port} -U \"{username}\" -d \"{database}\" -c --if-exists -v \"{dumpFilePath}\"";
+        var args = isSqlPlain
+            ? $"-h \"{host}\" -p {port} -U \"{username}\" -d \"{database}\" -v ON_ERROR_STOP=1 -f \"{dumpFilePath}\""
+            : $"-h \"{host}\" -p {port} -U \"{username}\" -d \"{database}\" -c --if-exists -v \"{dumpFilePath}\"";
 
         try
         {
             var psi = new ProcessStartInfo
             {
-                FileName = pgRestoreExe,
+                FileName = toolExe,
                 Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -437,7 +501,7 @@ public class BackupService
 
             psi.Environment["PGPASSWORD"] = password;
 
-            _logger.LogInformation("Starting pg_restore from {Path}...", dumpFilePath);
+            _logger.LogInformation("Starting {Tool} from {Path}...", toolExeName, dumpFilePath);
 
             using var process = new Process { StartInfo = psi };
             process.Start();
@@ -452,7 +516,7 @@ public class BackupService
                 return new RestoreResult
                 {
                     Success = false,
-                    Message = "pg_restore timed out after 5 minutes.",
+                    Message = $"{toolExeName} timed out after 5 minutes.",
                     PreRestoreSnapshotName = preSnapshotName
                 };
             }
@@ -460,10 +524,10 @@ public class BackupService
             var stderr = await errorOutputTask;
 
             // In pg_restore, exit code 1 is frequently issued for non-fatal drop warnings
-            // (e.g., relation did not exist to drop). Exit code 0 or 1 with non-critical warnings is acceptable.
-            if (process.ExitCode > 1)
+            var maxAllowedExitCode = isSqlPlain ? 0 : 1;
+            if (process.ExitCode > maxAllowedExitCode)
             {
-                _logger.LogError("pg_restore failed with exit code {Code}: {Error}", process.ExitCode, stderr);
+                _logger.LogError("{Tool} failed with exit code {Code}: {Error}", toolExeName, process.ExitCode, stderr);
                 return new RestoreResult
                 {
                     Success = false,
@@ -475,7 +539,7 @@ public class BackupService
             // Clear pools again after restore
             NpgsqlConnection.ClearAllPools();
 
-            _logger.LogInformation("pg_restore completed successfully.");
+            _logger.LogInformation("{Tool} completed successfully.", toolExeName);
             return new RestoreResult
             {
                 Success = true,
@@ -485,7 +549,7 @@ public class BackupService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception while executing pg_restore.");
+            _logger.LogError(ex, "Exception while executing {Tool}.", toolExeName);
             return new RestoreResult
             {
                 Success = false,

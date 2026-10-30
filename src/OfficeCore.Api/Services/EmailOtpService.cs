@@ -55,13 +55,13 @@ public class EmailOtpService : IEmailOtpService
         {
             Code = code,
             ExpiresAt = DateTime.UtcNow.AddMinutes(5),
-            Attempts = 0
+            Attempts = _otpStore.TryGetValue(normalized, out var existingEntry) && DateTime.UtcNow <= existingEntry.ExpiresAt ? existingEntry.Attempts : 0
         };
 
         _otpStore[normalized] = entry;
 
         _logger.LogInformation("====================================================");
-        _logger.LogInformation("📧 [Email OTP Verification] To: {Email} | Code: {Code} | Valid for 5 mins", normalized, code);
+        _logger.LogDebug("📧 [Email OTP Verification] To: {Email} | Code: {Code} | Valid for 5 mins", normalized, code);
         _logger.LogInformation("====================================================");
 
         // Check if SMTP is configured
