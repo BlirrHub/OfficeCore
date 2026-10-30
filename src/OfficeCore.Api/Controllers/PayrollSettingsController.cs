@@ -25,7 +25,7 @@ public class PayrollSettingsController : ControllerBase
     [HttpGet("deductions")]
     public async Task<IActionResult> GetGovernmentDeductionSettings()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var settings = await _context.GovernmentDeductionSettings
@@ -50,7 +50,7 @@ public class PayrollSettingsController : ControllerBase
     [HttpPut("deductions")]
     public async Task<IActionResult> UpdateGovernmentDeductionSettings([FromBody] List<GovernmentDeductionSettingDto> updatedSettings)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         foreach (var dto in updatedSettings)
@@ -75,7 +75,7 @@ public class PayrollSettingsController : ControllerBase
     [Authorize] // All authenticated users can read
     public async Task<IActionResult> GetGeneralSettings()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var setting = await _context.GeneralPayrollSettings
@@ -100,7 +100,7 @@ public class PayrollSettingsController : ControllerBase
     [HttpPut("general")]
     public async Task<IActionResult> UpdateGeneralSettings([FromBody] GeneralSettingsDto dto)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var setting = await _context.GeneralPayrollSettings

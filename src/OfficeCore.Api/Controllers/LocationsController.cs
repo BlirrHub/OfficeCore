@@ -68,7 +68,7 @@ public class LocationsController : ControllerBase
             .Include(e => e.User)
             .Include(e => e.EmployeeRoles)
                 .ThenInclude(er => er.Role)
-            .FirstOrDefaultAsync(e => e.OrganizationId == orgId && e.UserId == _tenantService.GetUserId());
+            .FirstOrDefaultAsync(e => e.OrganizationId == orgId && e.UserId == _tenantService.GetUserId() && e.IsActive);
 
         if (employee == null)
         {

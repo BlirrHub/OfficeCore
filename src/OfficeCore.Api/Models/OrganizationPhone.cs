@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace OfficeCore.Api.Models;
 
-public class OrganizationPhone
+public class OrganizationPhone : ITenantEntity
 {
     public Guid Id { get; set; }
     public Guid OrganizationId { get; set; }

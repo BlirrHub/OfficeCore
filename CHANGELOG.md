@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security & Multi-Tenancy — [2026-10-30] (Tenant Membership Validation & SignalR Isolation)
+
+- **Validated Active Organization Membership (`ChatController`, `PayrollSettingsController`, `HolidayCalendarController`, `TimeOffPoliciesController`, `DashboardController`)**:
+  - Replaced unvalidated `GetActiveOrganizationId()` / `CurrentOrganizationId` lookups on `[Authorize]` endpoints with `GetValidatedOrganizationIdAsync()` and active employee verification to prevent cross-tenant read/write via spoofed `ActiveOrganizationId` cookies.
+- **SignalR Hub & Notification Membership Enforcement (`AttendanceHub`, `BoardHub`, `ChatHub`, `NotificationHub`, `NotificationsController`, `LocationsController`, `PayrollController`)**:
+  - `AttendanceHub` now validates active workspace membership before subscribing to `org_{orgId}` and aborts unauthorized connections.
+  - `BoardHub.JoinBoardGroup` now requires an active employee membership and board membership/ownership within the active organization before joining board groups.
+  - `ChatHub.SendTypingIndicator` now verifies room membership before broadcasting typing events.
+  - Enforced `e.IsActive` checks across `NotificationsController`, `LocationsController.PingLocation`, and `PayrollController.GetMyPayslips` (and added `[Authorize]` override to `GetMyPayslips` so standard employees can access their own payslips).
+  - Included `OvertimeApprovals` / `overtime.approve` in `NotificationHub` and `NotificationsController` admin notification routing.
+  - Scoped `BoardsController` card assignee resolution, board update broadcasts, `UserController` `WorkScheduleId` assignment, and `BiometricReportService` punch commits strictly to the active organization; implemented `ITenantEntity` on `OrganizationPhone`.
+  - Added automated multi-tenant isolation regression tests (`tests/OfficeCore.Api.Tests/TenantIsolationTests.cs`).
+
 ### UI & UX — [2026-10-30] (Top-Layer Chat Popovers & Simplified Invite Code UX)
 
 - **Top-Layer Chat Popovers (`GlobalChatWidget.razor`, `chatPopover.js`)**:

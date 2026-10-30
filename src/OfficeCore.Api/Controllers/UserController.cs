@@ -139,7 +139,7 @@ public class UserController : ControllerBase
             UseCustomDailyRate = request.UseCustomDailyRate,
             DateHired = request.DateHired.HasValue ? DateTime.SpecifyKind(request.DateHired.Value, DateTimeKind.Utc) : null,
             IsEligibleForLeave = request.IsEligibleForLeave,
-            WorkScheduleId = request.WorkScheduleId,
+            WorkScheduleId = request.WorkScheduleId.HasValue && await _context.WorkSchedules.AnyAsync(w => w.Id == request.WorkScheduleId.Value && w.OrganizationId == orgId.Value) ? request.WorkScheduleId : null,
             GovernmentRecord = request.GovernmentRecord != null ? new EmployeeGovernmentRecord
             {
                 EmployeeId = "", // Updated after save or handled by EF
@@ -259,7 +259,7 @@ public class UserController : ControllerBase
         employee.UseCustomDailyRate = request.UseCustomDailyRate;
         employee.DateHired = request.DateHired.HasValue ? DateTime.SpecifyKind(request.DateHired.Value, DateTimeKind.Utc) : null;
         employee.IsEligibleForLeave = request.IsEligibleForLeave;
-        employee.WorkScheduleId = request.WorkScheduleId;
+        employee.WorkScheduleId = request.WorkScheduleId.HasValue && await _context.WorkSchedules.AnyAsync(w => w.Id == request.WorkScheduleId.Value && w.OrganizationId == orgId.Value) ? request.WorkScheduleId : null;
 
         if (request.GovernmentRecord != null)
         {

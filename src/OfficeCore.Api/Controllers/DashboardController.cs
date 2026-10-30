@@ -105,7 +105,8 @@ public class DashboardController : ControllerBase
             .Include(e => e.User)
             .Include(e => e.EmployeeRoles)
                 .ThenInclude(er => er.Role)
-            .FirstOrDefaultAsync(e => e.OrganizationId == orgId && e.UserId == userId);
+            .FirstOrDefaultAsync(e => e.OrganizationId == orgId && e.UserId == userId && e.IsActive);
+        if (employee == null) return Forbid();
 
         var roleName = employee?.EmployeeRoles.Select(r => r.Role?.Name).FirstOrDefault(r => !string.IsNullOrEmpty(r)) ?? "Employee";
 

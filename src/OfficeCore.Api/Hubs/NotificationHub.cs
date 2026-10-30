@@ -82,9 +82,13 @@ public class NotificationHub : Hub
                         .AnyAsync(er => er.Employee != null && er.Employee.UserId == userId && er.Employee.OrganizationId == orgId.Value &&
                                         er.Role != null && er.Role.Claims.Any(c =>
                                             (c.ClaimType == PermissionCatalog.ClaimType &&
-                                             (c.ClaimValue == AccessPermissions.LeaveApprovalsManage || c.ClaimValue == AccessPermissions.LedgerManage)) ||
+                                             (c.ClaimValue == AccessPermissions.LeaveApprovalsManage ||
+                                              c.ClaimValue == AccessPermissions.LedgerManage ||
+                                              c.ClaimValue == AccessPermissions.OvertimeApprovalsManage)) ||
                                             (c.ClaimType == "ModuleAccess" &&
-                                             (c.ClaimValue == AccessModules.LeaveApprovals || c.ClaimValue == AccessModules.Ledger))));
+                                             (c.ClaimValue == AccessModules.LeaveApprovals ||
+                                              c.ClaimValue == AccessModules.Ledger ||
+                                              c.ClaimValue == AccessModules.OvertimeApprovals))));
                 }
 
                 if (isWorkspaceAdmin)

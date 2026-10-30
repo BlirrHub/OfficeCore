@@ -46,10 +46,15 @@ public class NotificationsController : ControllerBase
         var notifications = new List<NotificationPayload>();
         var now = DateTime.UtcNow;
 
-        // Resolve current employee
+        // Resolve current active employee in the selected organization
         var employee = await _context.Employees
             .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId.Value);
+            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId.Value && e.IsActive);
+
+        if (employee == null)
+        {
+            return Ok(new List<NotificationPayload>());
+        }
 
         // Check if user is an admin / manager in this workspace
         var isAdmin = false;
@@ -58,19 +63,23 @@ public class NotificationsController : ControllerBase
         {
             isAdmin = true;
         }
-        else if (employee != null)
+        else
         {
             isAdmin = await _context.EmployeeRoles
                 .AsNoTracking()
                 .AnyAsync(er => er.EmployeeId == employee.Id &&
                                 er.Role != null && er.Role.Claims.Any(c =>
                                     (c.ClaimType == PermissionCatalog.ClaimType &&
-                                     (c.ClaimValue == AccessPermissions.LeaveApprovalsManage || c.ClaimValue == AccessPermissions.LedgerManage)) ||
+                                     (c.ClaimValue == AccessPermissions.LeaveApprovalsManage ||
+                                      c.ClaimValue == AccessPermissions.LedgerManage ||
+                                      c.ClaimValue == AccessPermissions.OvertimeApprovalsManage)) ||
                                     (c.ClaimType == "ModuleAccess" &&
-                                     (c.ClaimValue == AccessModules.LeaveApprovals || c.ClaimValue == AccessModules.Ledger))));
+                                     (c.ClaimValue == AccessModules.LeaveApprovals ||
+                                      c.ClaimValue == AccessModules.Ledger ||
+                                      c.ClaimValue == AccessModules.OvertimeApprovals))));
         }
 
-        // 1. ADMIN NOTIFICATIONS: Pending leave and advance requests
+        // 1. ADMIN NOTIFICATIONS: Pending leave, overtime, and advance requests
         if (isAdmin)
         {
             var pendingLeaves = await _context.LeaveRequests
@@ -125,144 +134,197 @@ public class NotificationsController : ControllerBase
                     Timestamp = a.RequestDate
                 });
             }
+
+            var pendingOvertimes = await _context.OvertimeRequests
+                .AsNoTracking()
+                .Include(r => r.Employee)
+                    .ThenInclude(e => e!.User)
+                .Where(r => r.OrganizationId == orgId.Value && r.Status == OvertimeStatus.Pending)
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(10)
+                .ToListAsync();
+
+            foreach (var ot in pendingOvertimes)
+            {
+                var empName = $"{ot.Employee?.User?.FirstName} {ot.Employee?.User?.LastName}".Trim();
+                if (string.IsNullOrWhiteSpace(empName)) empName = "An employee";
+
+                notifications.Add(new NotificationPayload
+                {
+                    Id = $"overtime_pending_{ot.Id}",
+                    Title = "Pending Overtime Review",
+                    Message = $"{empName} filed an overtime request for {ot.Date:MMM dd} ({ot.RequestedHours:0.##}h).",
+                    Category = "Overtime",
+                    Status = "Pending",
+                    TargetUrl = "/admin/overtime-approvals",
+                    Timestamp = ot.CreatedAt
+                });
+            }
         }
 
         // 2. EMPLOYEE REQUEST RESULTS: Approved or Rejected requests from the last 14 days
-        if (employee != null)
+        var resolvedSince = now.AddDays(-14);
+
+        var myResolvedLeaves = await _context.LeaveRequests
+            .AsNoTracking()
+            .Where(r => r.EmployeeId == employee.Id &&
+                        r.OrganizationId == orgId.Value &&
+                        r.Status != LeaveRequestStatus.Pending &&
+                        r.Status != LeaveRequestStatus.Cancelled &&
+                        r.ActionTakenAt != null &&
+                        r.ActionTakenAt >= resolvedSince)
+            .OrderByDescending(r => r.ActionTakenAt)
+            .Take(5)
+            .ToListAsync();
+
+        foreach (var l in myResolvedLeaves)
         {
-            var resolvedSince = now.AddDays(-14);
+            var isApproved = l.Status == LeaveRequestStatus.Approved;
+            var statusText = isApproved ? "approved" : "rejected";
+            var titleText = isApproved ? "Leave Request Approved" : "Leave Request Rejected";
 
-            var myResolvedLeaves = await _context.LeaveRequests
-                .AsNoTracking()
-                .Where(r => r.EmployeeId == employee.Id &&
-                            r.OrganizationId == orgId.Value &&
-                            r.Status != LeaveRequestStatus.Pending &&
-                            r.Status != LeaveRequestStatus.Cancelled &&
-                            r.ActionTakenAt != null &&
-                            r.ActionTakenAt >= resolvedSince)
-                .OrderByDescending(r => r.ActionTakenAt)
-                .Take(5)
-                .ToListAsync();
-
-            foreach (var l in myResolvedLeaves)
+            notifications.Add(new NotificationPayload
             {
-                var isApproved = l.Status == LeaveRequestStatus.Approved;
-                var statusText = isApproved ? "approved" : "rejected";
-                var titleText = isApproved ? "Leave Request Approved" : "Leave Request Rejected";
+                Id = $"leave_resolved_{l.Id}",
+                Title = titleText,
+                Message = $"Your {l.Type} leave request for {l.StartDate:MMM dd} - {l.EndDate:MMM dd} was {statusText}.",
+                Category = "Leave",
+                Status = l.Status.ToString(),
+                TargetUrl = "/myleaves",
+                Timestamp = l.ActionTakenAt ?? l.CreatedAt
+            });
+        }
 
-                notifications.Add(new NotificationPayload
-                {
-                    Id = $"leave_resolved_{l.Id}",
-                    Title = titleText,
-                    Message = $"Your {l.Type} leave request for {l.StartDate:MMM dd} - {l.EndDate:MMM dd} was {statusText}.",
-                    Category = "Leave",
-                    Status = l.Status.ToString(),
-                    TargetUrl = "/myleaves",
-                    Timestamp = l.ActionTakenAt ?? l.CreatedAt
-                });
-            }
+        var myResolvedAdvances = await _context.AdvanceRequests
+            .AsNoTracking()
+            .Where(r => r.EmployeeId == employee.Id &&
+                        r.OrganizationId == orgId.Value &&
+                        r.Status != AdvanceStatus.Pending &&
+                        r.Status != AdvanceStatus.Cancelled &&
+                        r.ResolutionDate != null &&
+                        r.ResolutionDate >= resolvedSince)
+            .OrderByDescending(r => r.ResolutionDate)
+            .Take(5)
+            .ToListAsync();
 
-            var myResolvedAdvances = await _context.AdvanceRequests
-                .AsNoTracking()
-                .Where(r => r.EmployeeId == employee.Id &&
-                            r.OrganizationId == orgId.Value &&
-                            r.Status != AdvanceStatus.Pending &&
-                            r.Status != AdvanceStatus.Cancelled &&
-                            r.ResolutionDate != null &&
-                            r.ResolutionDate >= resolvedSince)
-                .OrderByDescending(r => r.ResolutionDate)
-                .Take(5)
-                .ToListAsync();
+        foreach (var a in myResolvedAdvances)
+        {
+            var isApproved = a.Status == AdvanceStatus.Approved;
+            var statusText = isApproved ? "approved" : "rejected";
+            var typeTitle = a.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+            var titleText = isApproved ? $"{typeTitle} Request Approved" : $"{typeTitle} Request Rejected";
 
-            foreach (var a in myResolvedAdvances)
+            notifications.Add(new NotificationPayload
             {
-                var isApproved = a.Status == AdvanceStatus.Approved;
-                var statusText = isApproved ? "approved" : "rejected";
-                var typeTitle = a.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
-                var titleText = isApproved ? $"{typeTitle} Request Approved" : $"{typeTitle} Request Rejected";
+                Id = $"advance_resolved_{a.Id}",
+                Title = titleText,
+                Message = $"Your {typeTitle} request of ₱{a.RequestedAmount:N2} was {statusText}.",
+                Category = "Advance",
+                Status = a.Status.ToString(),
+                TargetUrl = "/advances",
+                Timestamp = a.ResolutionDate ?? a.RequestDate
+            });
+        }
 
-                notifications.Add(new NotificationPayload
-                {
-                    Id = $"advance_resolved_{a.Id}",
-                    Title = titleText,
-                    Message = $"Your {typeTitle} request of ₱{a.RequestedAmount:N2} was {statusText}.",
-                    Category = "Advance",
-                    Status = a.Status.ToString(),
-                    TargetUrl = "/advances",
-                    Timestamp = a.ResolutionDate ?? a.RequestDate
-                });
-            }
+        var myResolvedOvertimes = await _context.OvertimeRequests
+            .AsNoTracking()
+            .Where(r => r.EmployeeId == employee.Id &&
+                        r.OrganizationId == orgId.Value &&
+                        r.Status != OvertimeStatus.Pending &&
+                        r.Status != OvertimeStatus.Cancelled &&
+                        r.ActionTakenAt != null &&
+                        r.ActionTakenAt >= resolvedSince)
+            .OrderByDescending(r => r.ActionTakenAt)
+            .Take(5)
+            .ToListAsync();
 
-            // 3. TASK NOTIFICATIONS: Assigned tasks and tasks closing due date
-            var myCards = await _context.BoardCards
-                .AsNoTracking()
-                .Include(c => c.List)
-                    .ThenInclude(l => l.Board)
-                .Include(c => c.Assignees)
-                .Where(c => c.OrganizationId == orgId.Value &&
-                            (c.AssignedToUserId == employee.Id ||
-                             c.AssignedToUserId == employee.UserId ||
-                             c.Assignees.Any(a => a.EmployeeId == employee.Id || a.EmployeeId == employee.UserId)))
-                .ToListAsync();
+        foreach (var ot in myResolvedOvertimes)
+        {
+            var isApproved = ot.Status == OvertimeStatus.Approved;
+            var statusText = isApproved ? "approved" : "rejected";
+            var titleText = isApproved ? "Overtime Request Approved" : "Overtime Request Rejected";
 
-            foreach (var card in myCards)
+            notifications.Add(new NotificationPayload
             {
-                var boardName = card.List?.Board?.Name ?? "Task Board";
-                var boardId = card.List?.BoardId ?? Guid.Empty;
+                Id = $"overtime_resolved_{ot.Id}",
+                Title = titleText,
+                Message = $"Your overtime request for {ot.Date:MMM dd} ({ot.ApprovedHours ?? ot.RequestedHours:0.##}h) was {statusText}.",
+                Category = "Overtime",
+                Status = ot.Status.ToString(),
+                TargetUrl = "/my-overtime",
+                Timestamp = ot.ActionTakenAt ?? ot.CreatedAt
+            });
+        }
 
-                // Due date checks
-                if (card.DueDate.HasValue)
+        // 3. TASK NOTIFICATIONS: Assigned tasks and tasks closing due date
+        var myCards = await _context.BoardCards
+            .AsNoTracking()
+            .Include(c => c.List)
+                .ThenInclude(l => l.Board)
+            .Include(c => c.Assignees)
+            .Where(c => c.OrganizationId == orgId.Value &&
+                        (c.AssignedToUserId == employee.Id ||
+                         c.AssignedToUserId == employee.UserId ||
+                         c.Assignees.Any(a => a.EmployeeId == employee.Id || a.EmployeeId == employee.UserId)))
+            .ToListAsync();
+
+        foreach (var card in myCards)
+        {
+            var boardName = card.List?.Board?.Name ?? "Task Board";
+            var boardId = card.List?.BoardId ?? Guid.Empty;
+
+            // Due date checks
+            if (card.DueDate.HasValue)
+            {
+                var dueUtc = card.DueDate.Value;
+                var diff = dueUtc - now;
+
+                if (diff.TotalHours < 0 && diff.TotalDays > -14)
                 {
-                    var dueUtc = card.DueDate.Value;
-                    var diff = dueUtc - now;
-
-                    if (diff.TotalHours < 0 && diff.TotalDays > -14)
-                    {
-                        // Overdue
-                        notifications.Add(new NotificationPayload
-                        {
-                            Id = $"task_overdue_{card.Id}",
-                            Title = "Task Overdue",
-                            Message = $"Task \"{card.Title}\" in {boardName} was due on {dueUtc:MMM dd, yyyy}.",
-                            Category = "Task",
-                            Status = "Overdue",
-                            TargetUrl = $"/boards/{boardId}",
-                            Timestamp = dueUtc
-                        });
-                    }
-                    else if (diff.TotalHours >= 0 && diff.TotalHours <= 48)
-                    {
-                        // Closing due date (within 48 hours)
-                        var hoursLeft = Math.Max(1, (int)diff.TotalHours);
-                        var dueLabel = hoursLeft <= 24 ? $"{hoursLeft}h remaining" : "due tomorrow";
-                        notifications.Add(new NotificationPayload
-                        {
-                            Id = $"task_due_{card.Id}",
-                            Title = "Task Closing Due Date",
-                            Message = $"Task \"{card.Title}\" in {boardName} is due soon ({dueLabel}).",
-                            Category = "Task",
-                            Status = "DueSoon",
-                            TargetUrl = $"/boards/{boardId}",
-                            Timestamp = now
-                        });
-                    }
-                }
-
-                // Recent assignments (assigned within the last 7 days)
-                var assignment = card.Assignees.FirstOrDefault(a => a.EmployeeId == employee.Id || a.EmployeeId == employee.UserId);
-                if (assignment != null && assignment.AssignedAt >= now.AddDays(-7))
-                {
+                    // Overdue
                     notifications.Add(new NotificationPayload
                     {
-                        Id = $"task_assigned_{card.Id}",
-                        Title = "Task Assigned",
-                        Message = $"You were assigned to \"{card.Title}\" on board \"{boardName}\".",
+                        Id = $"task_overdue_{card.Id}",
+                        Title = "Task Overdue",
+                        Message = $"Task \"{card.Title}\" in {boardName} was due on {dueUtc:MMM dd, yyyy}.",
                         Category = "Task",
-                        Status = "Assigned",
+                        Status = "Overdue",
                         TargetUrl = $"/boards/{boardId}",
-                        Timestamp = assignment.AssignedAt
+                        Timestamp = dueUtc
                     });
                 }
+                else if (diff.TotalHours >= 0 && diff.TotalHours <= 48)
+                {
+                    // Closing due date (within 48 hours)
+                    var hoursLeft = Math.Max(1, (int)diff.TotalHours);
+                    var dueLabel = hoursLeft <= 24 ? $"{hoursLeft}h remaining" : "due tomorrow";
+                    notifications.Add(new NotificationPayload
+                    {
+                        Id = $"task_due_{card.Id}",
+                        Title = "Task Closing Due Date",
+                        Message = $"Task \"{card.Title}\" in {boardName} is due soon ({dueLabel}).",
+                        Category = "Task",
+                        Status = "DueSoon",
+                        TargetUrl = $"/boards/{boardId}",
+                        Timestamp = now
+                    });
+                }
+            }
+
+            // Recent assignments (assigned within the last 7 days)
+            var assignment = card.Assignees.FirstOrDefault(a => a.EmployeeId == employee.Id || a.EmployeeId == employee.UserId);
+            if (assignment != null && assignment.AssignedAt >= now.AddDays(-7))
+            {
+                notifications.Add(new NotificationPayload
+                {
+                    Id = $"task_assigned_{card.Id}",
+                    Title = "Task Assigned",
+                    Message = $"You were assigned to \"{card.Title}\" on board \"{boardName}\".",
+                    Category = "Task",
+                    Status = "Assigned",
+                    TargetUrl = $"/boards/{boardId}",
+                    Timestamp = assignment.AssignedAt
+                });
             }
         }
 
