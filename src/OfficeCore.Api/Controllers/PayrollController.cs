@@ -277,6 +277,7 @@ public class PayrollController : ControllerBase
     }
 
     [HttpGet("my-payslips")]
+    [Authorize]
     public async Task<IActionResult> GetMyPayslips()
     {
         var orgId = _tenant.GetActiveOrganizationId();
@@ -285,7 +286,7 @@ public class PayrollController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
 
-        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId.Value);
+        var employee = await _context.Employees.FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == orgId.Value && e.IsActive);
         if (employee == null) return NotFound("Employee profile not found");
 
         var payslips = await _context.Payslips

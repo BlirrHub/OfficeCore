@@ -23,7 +23,8 @@ public class HolidayCalendarController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetCalendars()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         if (orgId == null) return Forbid();
 
         var calendars = await _context.HolidayCalendars
@@ -37,7 +38,8 @@ public class HolidayCalendarController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetCalendar(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         var calendar = await _context.HolidayCalendars
             .Where(c => c.OrganizationId == orgId)
             .Include(c => c.Holidays)
@@ -53,7 +55,8 @@ public class HolidayCalendarController : ControllerBase
     [Authorize(Policy = "RequireTimeOff")]
     public async Task<IActionResult> CreateCalendar(HolidayCalendar calendar)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         if (orgId == null) return Forbid();
 
         calendar.Id = Guid.NewGuid();
@@ -90,7 +93,8 @@ public class HolidayCalendarController : ControllerBase
     [Authorize(Policy = "RequireTimeOff")]
     public async Task<IActionResult> UpdateCalendar(Guid id, HolidayCalendar updatedCalendar)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         if (orgId == null) return Forbid();
 
         if (id != updatedCalendar.Id)
@@ -140,7 +144,8 @@ public class HolidayCalendarController : ControllerBase
     [Authorize(Policy = "RequireTimeOff")]
     public async Task<IActionResult> DeleteCalendar(Guid id)
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         var calendar = await _context.HolidayCalendars.FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == orgId);
         if (calendar == null)
             return NotFound();

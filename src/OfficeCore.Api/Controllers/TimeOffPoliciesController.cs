@@ -24,7 +24,8 @@ public class TimeOffPoliciesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<TimeOffPolicy>>> GetPolicies()
     {
-        var orgId = _tenantService.CurrentOrganizationId;
+        var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         var policies = await _context.TimeOffPolicies
             .Where(p => p.OrganizationId == orgId && p.IsActive)
             .OrderBy(p => p.Name)
@@ -36,7 +37,8 @@ public class TimeOffPoliciesController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<TimeOffPolicy>> GetPolicy(Guid id)
     {
-        var orgId = _tenantService.CurrentOrganizationId;
+        var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         var policy = await _context.TimeOffPolicies
             .FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId);
 
@@ -48,9 +50,10 @@ public class TimeOffPoliciesController : ControllerBase
     [Authorize(Policy = "RequireTimeOff")]
     public async Task<ActionResult<TimeOffPolicy>> CreatePolicy([FromBody] TimeOffPolicy policy)
     {
-        var orgId = _tenantService.CurrentOrganizationId;
+        var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         policy.Id = Guid.NewGuid();
-        policy.OrganizationId = orgId;
+        policy.OrganizationId = orgId.Value;
         policy.CreatedAt = DateTime.UtcNow;
 
         _context.TimeOffPolicies.Add(policy);
@@ -63,7 +66,8 @@ public class TimeOffPoliciesController : ControllerBase
     [Authorize(Policy = "RequireTimeOff")]
     public async Task<IActionResult> UpdatePolicy(Guid id, [FromBody] TimeOffPolicy updated)
     {
-        var orgId = _tenantService.CurrentOrganizationId;
+        var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         var existing = await _context.TimeOffPolicies
             .FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId);
 
@@ -84,7 +88,8 @@ public class TimeOffPoliciesController : ControllerBase
     [Authorize(Policy = "RequireTimeOff")]
     public async Task<IActionResult> DeletePolicy(Guid id)
     {
-        var orgId = _tenantService.CurrentOrganizationId;
+        var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
         var policy = await _context.TimeOffPolicies
             .FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId);
 

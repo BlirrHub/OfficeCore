@@ -394,7 +394,9 @@ public class BoardsController : ControllerBase
         if (board == null) return NotFound();
 
         // Members can remove themselves, but only Workspace Owner, Workspace Admin, or Board Owner can remove others
-        if (employee.Id != targetUserId)
+        var targetEmp = await _context.Employees.FirstOrDefaultAsync(e => e.OrganizationId == orgId && (e.Id == targetUserId || e.UserId == targetUserId));
+        var resolvedTargetEmpId = targetEmp?.Id ?? targetUserId;
+        if (employee.Id != resolvedTargetEmpId)
         {
             var org = await _context.Organizations.FindAsync(orgId);
             var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -407,7 +409,7 @@ public class BoardsController : ControllerBase
                 return Forbid();
         }
 
-        var targetMember = board.Members.FirstOrDefault(m => m.UserId == targetUserId);
+        var targetMember = board.Members.FirstOrDefault(m => m.UserId == resolvedTargetEmpId || m.UserId == targetUserId);
         if (targetMember != null)
         {
             _context.BoardMembers.Remove(targetMember);
@@ -534,6 +536,7 @@ public class BoardsController : ControllerBase
             ? req.AssigneeIds.Distinct().ToList()
             : (!string.IsNullOrWhiteSpace(req.AssignedToUserId) ? new List<string> { req.AssignedToUserId } : new List<string>());
 
+        assigneeIds = assigneeIds.Count > 0 ? await _context.Employees.Where(e => e.OrganizationId == orgId.Value && e.IsActive && (assigneeIds.Contains(e.Id) || (e.UserId != null && assigneeIds.Contains(e.UserId)))).Select(e => e.Id).Distinct().ToListAsync() : new List<string>();
         var primaryAssignee = assigneeIds.FirstOrDefault();
 
         var card = new BoardCard
@@ -568,7 +571,7 @@ public class BoardsController : ControllerBase
         {
             var assignedEmps = await _context.Employees
                 .AsNoTracking()
-                .Where(e => assigneeIds.Contains(e.Id) || (e.UserId != null && assigneeIds.Contains(e.UserId)))
+                .Where(e => e.OrganizationId == orgId.Value && (assigneeIds.Contains(e.Id) || (e.UserId != null && assigneeIds.Contains(e.UserId))))
                 .ToListAsync();
 
             foreach (var emp in assignedEmps)
@@ -619,6 +622,7 @@ public class BoardsController : ControllerBase
             ? req.AssigneeIds.Distinct().ToList()
             : (!string.IsNullOrWhiteSpace(req.AssignedToUserId) ? new List<string> { req.AssignedToUserId } : new List<string>());
 
+        assigneeIds = assigneeIds.Count > 0 ? await _context.Employees.Where(e => e.OrganizationId == orgId.Value && e.IsActive && (assigneeIds.Contains(e.Id) || (e.UserId != null && assigneeIds.Contains(e.UserId)))).Select(e => e.Id).Distinct().ToListAsync() : new List<string>();
         card.Title = req.Title;
         card.Description = req.Description;
         card.AssignedToUserId = assigneeIds.FirstOrDefault();
@@ -649,14 +653,14 @@ public class BoardsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
-        await NotifyBoardUpdated(card.List.BoardId);
+        await NotifyBoardUpdated(card.List!.BoardId);
 
         // Notify newly added assignees
         if (newlyAddedEmpIds.Count > 0)
         {
             var newEmps = await _context.Employees
                 .AsNoTracking()
-                .Where(e => newlyAddedEmpIds.Contains(e.Id) || (e.UserId != null && newlyAddedEmpIds.Contains(e.UserId)))
+                .Where(e => e.OrganizationId == orgId.Value && (newlyAddedEmpIds.Contains(e.Id) || (e.UserId != null && newlyAddedEmpIds.Contains(e.UserId))))
                 .ToListAsync();
 
             foreach (var emp in newEmps)
@@ -759,7 +763,7 @@ public class BoardsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
-        await NotifyBoardUpdated(card.List.BoardId);
+        await NotifyBoardUpdated(card.List!.BoardId);
         if (targetList.BoardId != card.List.BoardId)
         {
             await NotifyBoardUpdated(targetList.BoardId);
@@ -818,7 +822,7 @@ public class BoardsController : ControllerBase
 
         _context.BoardCards.Remove(card);
         await _context.SaveChangesAsync();
-        await NotifyBoardUpdated(card.List.BoardId);
+        await NotifyBoardUpdated(card.List!.BoardId);
         return Ok();
     }
 
@@ -866,7 +870,7 @@ public class BoardsController : ControllerBase
     private async Task NotifyBoardUpdated(Guid boardId)
     {
         await _hubContext.Clients.Group(boardId.ToString()).SendAsync("BoardUpdated");
-        await _hubContext.Clients.All.SendAsync("BoardUpdated");
+        await _hubContext.Clients.Group(boardId.ToString()).SendAsync("BoardUpdated");
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId.HasValue)
         {
@@ -875,8 +879,8 @@ public class BoardsController : ControllerBase
         }
         else
         {
-            await _notificationHub.Clients.All.SendAsync("BoardUpdated");
-            await _notificationHub.Clients.All.SendAsync("TaskUpdated");
+            // Skip cross-tenant broadcast when no active organization is resolved
+            // Skip cross-tenant TaskUpdated broadcast when no active organization is resolved
         }
     }
 
@@ -981,7 +985,7 @@ public class BoardsController : ControllerBase
             _context.BoardCardLabels.Add(new BoardCardLabel { CardId = cardId, LabelId = labelId, OrganizationId = orgId.Value });
             await _context.SaveChangesAsync();
         }
-        await NotifyBoardUpdated(card.List.BoardId);
+        await NotifyBoardUpdated(card.List!.BoardId);
         return Ok();
     }
 
@@ -1010,7 +1014,7 @@ public class BoardsController : ControllerBase
         {
             _context.BoardCardLabels.Remove(cardLabel);
             await _context.SaveChangesAsync();
-            await NotifyBoardUpdated(card.List.BoardId);
+            await NotifyBoardUpdated(card.List!.BoardId);
         }
         return Ok();
     }
@@ -1028,7 +1032,11 @@ public class BoardsController : ControllerBase
         var orgId = _tenant.GetActiveOrganizationId();
         if (orgId == null) return Forbid();
 
-        var card = await _context.BoardCards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
+        var card = await _context.BoardCards.Include(c => c.List).ThenInclude(l => l.Board).ThenInclude(b => b.Members).FirstOrDefaultAsync(c => c.Id == cardId && c.OrganizationId == orgId.Value);
+        if (card == null) return NotFound();
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
+        var commentMember = card.List?.Board?.Members.FirstOrDefault(m => m.UserId == userId);
+        if (!isOwner && (commentMember == null || commentMember.Role == BoardRole.Viewer)) return Forbid();
         if (card == null) return NotFound();
 
         var comment = new BoardCardComment
@@ -1042,7 +1050,7 @@ public class BoardsController : ControllerBase
         };
         _context.BoardCardComments.Add(comment);
         await _context.SaveChangesAsync();
-        await NotifyBoardUpdated(card.List.BoardId);
+        await NotifyBoardUpdated(card.List!.BoardId);
         
         return Ok(comment);
     }
@@ -1079,7 +1087,7 @@ public class BoardsController : ControllerBase
         };
         _context.BoardCardChecklists.Add(checklist);
         await _context.SaveChangesAsync();
-        await NotifyBoardUpdated(card.List.BoardId);
+        await NotifyBoardUpdated(card.List!.BoardId);
         
         return Ok(checklist);
     }
@@ -1236,7 +1244,7 @@ public class BoardsController : ControllerBase
 
         _context.BoardCardAttachments.Add(attachment);
         await _context.SaveChangesAsync();
-        await NotifyBoardUpdated(card.List.BoardId);
+        await NotifyBoardUpdated(card.List!.BoardId);
 
         return Ok(new
         {

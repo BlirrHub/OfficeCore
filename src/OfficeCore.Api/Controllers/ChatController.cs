@@ -33,7 +33,7 @@ public class ChatController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
         
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
 
         // SQLite cannot translate correlated sub-queries (LastMessage, UnreadCount) inside a .Select().
         // Fetch all required data into memory first, then project.
@@ -234,7 +234,7 @@ public class ChatController : ControllerBase
     {
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var message = await _context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.OrganizationId == orgId.Value);
@@ -277,7 +277,7 @@ public class ChatController : ControllerBase
     {
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         if (string.IsNullOrWhiteSpace(req.Emoji))
@@ -336,7 +336,7 @@ public class ChatController : ControllerBase
     {
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var message = await _context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.OrganizationId == orgId.Value);
@@ -363,7 +363,7 @@ public class ChatController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
 
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
@@ -478,7 +478,7 @@ public class ChatController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
 
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         if (string.IsNullOrWhiteSpace(req.Name))
@@ -555,7 +555,7 @@ public class ChatController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
 
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var room = await _context.ChatRooms
@@ -613,7 +613,7 @@ public class ChatController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
 
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var room = await _context.ChatRooms
@@ -649,7 +649,7 @@ public class ChatController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
 
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         if (string.IsNullOrWhiteSpace(req.Name))
@@ -681,7 +681,7 @@ public class ChatController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
 
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var room = await _context.ChatRooms
@@ -733,7 +733,7 @@ public class ChatController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Forbid();
 
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         var room = await _context.ChatRooms
@@ -760,7 +760,7 @@ public class ChatController : ControllerBase
     [HttpGet("users")]
     public async Task<IActionResult> GetUsersForChat()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
         // Only return employees in the current organization

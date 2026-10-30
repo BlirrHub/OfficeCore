@@ -22,20 +22,16 @@ public class BoardHub : Hub
     {
         if (!Guid.TryParse(boardId, out var parsedBoardId)) return;
 
-        var orgId = _tenant.GetActiveOrganizationId();
-        bool boardExists;
-        if (orgId.HasValue)
-        {
-            boardExists = await _context.Boards
-                .AnyAsync(b => b.Id == parsedBoardId && b.OrganizationId == orgId.Value);
-        }
-        else
-        {
-            boardExists = await _context.Boards
-                .AnyAsync(b => b.Id == parsedBoardId);
-        }
+        var employee = await _tenant.GetCurrentEmployeeAsync();
+        if (employee == null) return;
 
-        if (boardExists)
+        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(employee.OrganizationId);
+        var hasBoardAccess = await _context.Boards
+            .AnyAsync(b => b.Id == parsedBoardId &&
+                           b.OrganizationId == employee.OrganizationId &&
+                           (isOwner || b.Members.Any(m => m.UserId == employee.Id)));
+
+        if (hasBoardAccess)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, boardId);
         }
@@ -46,4 +42,3 @@ public class BoardHub : Hub
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, boardId);
     }
 }
-

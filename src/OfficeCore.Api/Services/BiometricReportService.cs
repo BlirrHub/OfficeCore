@@ -497,7 +497,11 @@ public class BiometricReportService
 
             var recordsToAdd = new List<AttendanceRecord>();
 
-            foreach (var item in request.Punches)
+            var validOrgEmpIds = await _context.Employees
+                .Where(e => e.OrganizationId == organizationId)
+                .Select(e => e.Id)
+                .ToHashSetAsync();
+            foreach (var item in request.Punches.Where(p => validOrgEmpIds.Contains(p.EmployeeId)))
             {
                 var itemUtc = item.Timestamp.ToUniversalTime();
                 var isDup = existingPunches.Any(ep =>
@@ -547,7 +551,7 @@ public class BiometricReportService
 
                         var localTime = record.Timestamp.ToOffset(TimeSpan.FromHours(8));
                         var shiftDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == localTime.DayOfWeek);
-                        if (shiftDay?.EndTime.HasValue != true || shiftDay.IsRestDay)
+                        if (shiftDay == null || !shiftDay.EndTime.HasValue || shiftDay.IsRestDay)
                             continue;
 
                         var scheduledEnd = shiftDay.EndTime.Value;

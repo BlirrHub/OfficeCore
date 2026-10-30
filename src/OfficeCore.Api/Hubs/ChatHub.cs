@@ -24,7 +24,7 @@ public class ChatHub : Hub
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee != null)
         {
-            var orgId = _tenant.GetActiveOrganizationId();
+            var orgId = employee.OrganizationId;
             await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId}_employee_{employee.Id}");
             await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId}_chat");
         }
@@ -56,9 +56,15 @@ public class ChatHub : Hub
 
     public async Task SendTypingIndicator(string roomId)
     {
+        if (!Guid.TryParse(roomId, out var roomGuid)) return;
+
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return;
-        
+
+        var isMember = await _context.ChatRoomMembers
+            .AnyAsync(m => m.ChatRoomId == roomGuid && m.UserId == employee.Id);
+        if (!isMember) return;
+
         await Clients.Group($"room_{roomId}").SendAsync("UserTyping", roomId, employee.Id);
     }
 }
