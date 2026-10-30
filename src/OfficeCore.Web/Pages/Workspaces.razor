@@ -232,14 +232,14 @@
                 </div>
                 <div>
                     <h2 class="text-xl font-bold text-white">Join a Workspace</h2>
-                    <p class="text-xs text-zinc-400">Enter invite code or paste invitation link</p>
+                    <p class="text-xs text-zinc-400">Enter your invitation code</p>
                 </div>
             </div>
 
             <div class="mt-5 space-y-4">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
-                        <label class="block text-xs font-medium text-zinc-300">Invite Code or URL</label>
+                        <label class="block text-xs font-medium text-zinc-300">Invitation Code</label>
                         @if (!string.IsNullOrEmpty(_joinInput))
                         {
                             <button type="button" @onclick="ClearJoinInput" class="text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer">
@@ -252,11 +252,11 @@
                                value="@_joinInput"
                                @oninput="OnJoinInputChange"
                                @onkeydown="HandleJoinInputKeyDown"
-                               placeholder="e.g. 7f9a1c2d... or http://server:5026/join/..."
+                               placeholder="Enter invitation code"
                                class="block w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2.5 text-white text-xs font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors placeholder:font-sans placeholder:text-zinc-500" />
                     </div>
                     <p class="mt-1.5 text-[11px] text-zinc-400">
-                        Paste the code or full link given to you by an organization administrator.
+                        Paste the invitation code given to you by an organization administrator.
                     </p>
                 </div>
 
@@ -519,7 +519,7 @@
         var token = ExtractToken(_joinInput);
         if (string.IsNullOrWhiteSpace(token))
         {
-            _joinError = "Please enter an invite code or link.";
+            _joinError = "Please enter an invitation code.";
             return;
         }
 

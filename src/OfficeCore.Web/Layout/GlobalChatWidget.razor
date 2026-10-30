@@ -16,7 +16,7 @@
     <!-- Chat Window -->
     @if (_isOpen)
     {
-        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl w-96 h-[600px] mb-4 flex flex-col overflow-hidden transition-all duration-300 relative select-none">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl w-[calc(100vw-3rem)] sm:w-96 h-[600px] max-h-[calc(100dvh-7rem)] mb-4 flex flex-col overflow-hidden transition-all duration-300 relative select-none">
             @if (_activeRoom == null)
             {
                 <!-- Rooms List Header -->
@@ -851,15 +851,7 @@
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(_menuOpenBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") right-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none ring-1 ring-white/10" @onclick:stopPropagation>
-                                                        @if (_menuOpenBelow)
-                                                        {
-                                                            <div class="absolute -top-1.5 right-1.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
-                                                        }
-                                                        else
-                                                        {
-                                                            <div class="absolute -bottom-1.5 right-1.5 size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
-                                                        }
+                                                    <div popover="manual" role="menu" aria-label="Message actions" data-chat-popover data-chat-side="@(isMine ? "sent" : "received")" data-chat-anchor="@($"msg-menu-btn-{msg.Id}")" class="chat-popover fixed m-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 backdrop-blur-md select-none ring-1 ring-white/10" @onclick:stopPropagation>
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
                                                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
@@ -896,7 +888,7 @@
                                             var myUserId = !string.IsNullOrEmpty(_currentEmployeeId) ? _currentEmployeeId : "current-user";
                                             var userCurrentRx = _messageUserReactions.TryGetValue(msg.Id, out var uMap) && uMap.TryGetValue(myUserId, out var curRx) ? curRx : null;
 
-                                            <div class="absolute @(_reactionOpenBelow ? "top-full mt-2" : "bottom-full mb-2") @(isMine ? "right-0" : "left-0") bg-zinc-900/95 border border-zinc-700/80 rounded-full shadow-2xl px-2.5 py-1 z-50 flex items-center gap-1 animate-fade-in backdrop-blur-md select-none whitespace-nowrap ring-1 ring-white/10" @onclick:stopPropagation>
+                                            <div popover="manual" role="group" aria-label="Message reactions" data-chat-popover data-chat-side="@(isMine ? "sent" : "received")" data-chat-anchor="@($"msg-react-btn-{msg.Id}")" class="chat-popover fixed m-0 bg-zinc-900/95 border border-zinc-700/80 rounded-full shadow-2xl px-2.5 py-1 z-50 flex items-center gap-1 backdrop-blur-md select-none whitespace-nowrap ring-1 ring-white/10" @onclick:stopPropagation>
                                                 @foreach (var emoji in new[] { "❤️", "😆", "😮", "😢", "😡", "👍" })
                                                 {
                                                     var isSelected = emoji == userCurrentRx;
@@ -1048,15 +1040,7 @@
                                                 </button>
                                                 @if (_activeMessageMenuId == msg.Id)
                                                 {
-                                                    <div class="absolute @(_menuOpenBelow ? "top-full mt-2.5" : "bottom-full mb-2.5") left-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 animate-fade-in backdrop-blur-md select-none ring-1 ring-white/10" @onclick:stopPropagation>
-                                                        @if (_menuOpenBelow)
-                                                        {
-                                                            <div class="absolute -top-1.5 left-1.5 size-3 bg-zinc-900 border-t border-l border-zinc-700/80 rotate-45 pointer-events-none"></div>
-                                                        }
-                                                        else
-                                                        {
-                                                            <div class="absolute -bottom-1.5 left-1.5 size-3 bg-zinc-900 border-b border-r border-zinc-700/80 rotate-45 pointer-events-none"></div>
-                                                        }
+                                                    <div popover="manual" role="menu" aria-label="Message actions" data-chat-popover data-chat-side="@(isMine ? "sent" : "received")" data-chat-anchor="@($"msg-menu-btn-{msg.Id}")" class="chat-popover fixed m-0 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 z-50 w-36 flex flex-col gap-0.5 backdrop-blur-md select-none ring-1 ring-white/10" @onclick:stopPropagation>
                                                         <button type="button" @onclick="() => ForwardMessage(msg)" class="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl flex items-center gap-2 cursor-pointer transition-colors relative z-10">
                                                             <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                                             <span>Forward</span>
@@ -1440,8 +1424,6 @@
     private HashSet<Guid> _pinnedMessageIds = new();
     private Guid? _activeMessageMenuId = null;
     private Guid? _activeReactionMenuId = null;
-    private bool _menuOpenBelow = false;
-    private bool _reactionOpenBelow = false;
     private ChatMessageDto? _replyingToMessage = null;
     private Dictionary<Guid, Dictionary<string, string>> _messageUserReactions = new();
 
@@ -1786,6 +1768,12 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_activeMessageMenuId.HasValue || _activeReactionMenuId.HasValue)
+        {
+            _popoverReference ??= Microsoft.JSInterop.DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("positionChatPopovers", _popoverReference);
+        }
+
         if (firstRender)
         {
             try 
@@ -2503,6 +2491,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        _popoverReference?.Dispose();
+
         if (_hubConnection != null)
             await _hubConnection.DisposeAsync();
         
@@ -2731,50 +2721,32 @@
         catch { }
     }
 
+    private Microsoft.JSInterop.DotNetObjectReference<GlobalChatWidget>? _popoverReference;
+
+    [Microsoft.JSInterop.JSInvokable]
+    public Task DismissChatPopovers()
+    {
+        CloseActiveMenus();
+        return InvokeAsync(StateHasChanged);
+    }
+
     private void CloseActiveMenus()
     {
         _activeMessageMenuId = null;
         _activeReactionMenuId = null;
     }
 
-    private async Task ToggleMessageMenu(Guid messageId)
+    private void ToggleMessageMenu(Guid messageId)
     {
         _activeReactionMenuId = null;
-        if (_activeMessageMenuId == messageId)
-        {
-            _activeMessageMenuId = null;
-            return;
-        }
-
-        try
-        {
-            var btnId = $"msg-menu-btn-{messageId}";
-            _menuOpenBelow = await JS.InvokeAsync<bool>("getChatMenuPlacement", btnId);
-        }
-        catch { }
-
-        _activeMessageMenuId = messageId;
+        _activeMessageMenuId = _activeMessageMenuId == messageId ? null : messageId;
     }
 
-    private async Task ToggleReactionPicker(Guid messageId)
+    private void ToggleReactionPicker(Guid messageId)
     {
         _activeMessageMenuId = null;
-        if (_activeReactionMenuId == messageId)
-        {
-            _activeReactionMenuId = null;
-            return;
-        }
-
-        try
-        {
-            var btnId = $"msg-react-btn-{messageId}";
-            _reactionOpenBelow = await JS.InvokeAsync<bool>("getChatMenuPlacement", btnId);
-        }
-        catch { }
-
-        _activeReactionMenuId = messageId;
+        _activeReactionMenuId = _activeReactionMenuId == messageId ? null : messageId;
     }
-
     private async Task ToggleReaction(Guid messageId, string emoji)
     {
         _activeReactionMenuId = null;

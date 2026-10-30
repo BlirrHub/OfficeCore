@@ -547,7 +547,7 @@ public class BiometricReportService
 
                         var localTime = record.Timestamp.ToOffset(TimeSpan.FromHours(8));
                         var shiftDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == localTime.DayOfWeek);
-                        if (shiftDay == null || !shiftDay.EndTime.HasValue || shiftDay.IsRestDay)
+                        if (shiftDay?.EndTime.HasValue != true || shiftDay.IsRestDay)
                             continue;
 
                         var scheduledEnd = shiftDay.EndTime.Value;
