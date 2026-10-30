@@ -64,7 +64,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 - [x] **Default Modules Configuration:** Dashboard, My Attendance, My Leaves, Advances unconditionally active for all authenticated users.
 - [x] **Audit Log Explorer:** Administrative ledger (`/admin/audit-logs`) tracking sensitive actions (salary edits, role changes, organization settings).
 - [x] **Multi-Use Time-Expiring Invite Codes:** Made generic invite links unlimited use but expire after 7 days to match user expectations (like Discord invite links).
-- [ ] **Simplified Invite Code UX:** Remove the full URL invite link from User Management, displaying only the clean, portable Invite Code (e.g. `OC-7X9B2K`) designed for native desktop client entry.
+- [x] **Simplified Invite Code UX:** Remove the full URL invite link from User Management, displaying only the clean, portable Invite Code (e.g. `OC-7X9B2K`) designed for native desktop client entry.
 - [ ] **Custom Organization Branding:** Allow workspaces to upload custom company logos, favicon, and brand accent colors.
 - [ ] **Single Sign-On (SSO):** Google Workspace and Microsoft Entra ID (Azure AD) OAuth2 login integration.
 

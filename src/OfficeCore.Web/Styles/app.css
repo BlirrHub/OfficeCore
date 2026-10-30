@@ -241,3 +241,11 @@ input::-ms-reveal,
 input::-ms-clear {
     display: none;
 }
+/* Top-layer chat menus escape the scrolling message area's clipping boundary. */
+.chat-popover {
+    margin: 0;
+    position: fixed;
+}
+.chat-popover:not(:popover-open) {
+    display: none;
+}

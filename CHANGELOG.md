@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ---
 
 ## [Unreleased]
+
+### UI & UX — [2026-10-30] (Top-Layer Chat Popovers & Simplified Invite Code UX)
+
+- **Top-Layer Chat Popovers (`GlobalChatWidget.razor`, `chatPopover.js`)**:
+  - Migrated chat message reaction pickers and 3-dot action menus to native HTML `popover="manual"` top-layer elements so menus never clip against scroll container overflow boundaries.
+  - Added container-aware top-flip and horizontal/vertical clamping relative to `#chat-messages-container` so popups near the top of the floating chat window flip below the message bubble instead of overlapping the chat header.
+  - Automatically dismisses open chat popovers when their message anchor scrolls outside the visible `#chat-messages-container` viewport.
+  - Added Node UI unit test suite (`npm run test:ui` / `tests/ui/chat-popover.test.cjs`) covering directional alignment, container top-flip, scroll-out detection, and mobile viewport clamping.
+- **Simplified Invite Code UX (`UserManagement.razor`, `Workspaces.razor`)**:
+  - Removed the redundant full URL invite link from the User Management invitation modal, standardizing on the portable Invitation Code while preserving URL token extraction in `Workspaces.razor` for backward compatibility.
 ### Fixed & Tested — [2026-10-30] (Payroll and Notification Regression Coverage)
 
 - Added a separate API service/component test project exercising actual payroll, tenant membership and notification group routing with isolated EF in-memory stores; no existing database or hardware is accessed.
