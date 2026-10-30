@@ -1,5 +1,8 @@
 using System;
 using System.IO;
+using System.Data.Common;
+using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 
 namespace OfficeCore.Desktop.Server;
@@ -24,35 +27,34 @@ public class ServerConfig
     public string FromEmail { get; set; } = "";
     public string FromName { get; set; } = "OfficeCore";
 
+    // Embedded in both Debug and Release builds; never infer deployment from .git.
     public static string GetDefaultDbName()
     {
-#if DEBUG
-        try
-        {
-            var dir = AppDomain.CurrentDomain.BaseDirectory;
-            while (dir != null)
-            {
-                var headFile = Path.Combine(dir, ".git", "HEAD");
-                if (File.Exists(headFile))
-                {
-                    var head = File.ReadAllText(headFile);
-                    if (head.Contains("refs/heads/development"))
-                        return "officecoredevdb";
-                    if (head.Contains("refs/heads/acba-dev"))
-                        return "officecoreacbadevdb";
-                    break;
-                }
-                dir = Directory.GetParent(dir)?.FullName;
-            }
-        }
-        catch { }
-#endif
-        return "OfficeCoreDb";
+        return typeof(ServerConfig).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(attribute => attribute.Key == "OfficeCoreDefaultDatabase").Value
+            ?? throw new InvalidOperationException("The deployment database profile is missing.");
     }
 
     public string BuildConnectionString()
     {
-        return $"Host={DbHost};Port={DbPort};Database={DbName};Username={DbUser};Password={DbPassword};Include Error Detail=true";
+        var defaultDatabase = GetDefaultDbName();
+        var reservedDatabases = new[] { "OfficeCoreDb", "officecoredevdb", "officecoreacbadevdb" };
+        if (reservedDatabases.Contains(DbName, StringComparer.OrdinalIgnoreCase)
+            && !string.Equals(DbName, defaultDatabase, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("This build cannot use another deployment's reserved database.");
+        }
+
+        var connection = new DbConnectionStringBuilder
+        {
+            ["Host"] = DbHost,
+            ["Port"] = DbPort,
+            ["Database"] = DbName,
+            ["Username"] = DbUser,
+            ["Password"] = DbPassword,
+            ["Include Error Detail"] = true
+        };
+        return connection.ConnectionString;
     }
 }
 
@@ -63,7 +65,11 @@ public static class ServerConfigService
         try
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var folder = Path.Combine(appData, "OfficeCore");
+            var defaultDatabase = ServerConfig.GetDefaultDbName();
+            // Keep the production path compatible; isolate development settings.
+            var folder = defaultDatabase == "OfficeCoreDb"
+                ? Path.Combine(appData, "OfficeCore")
+                : Path.Combine(appData, "OfficeCore", defaultDatabase);
             if (!Directory.Exists(folder))
             {
                 Directory.CreateDirectory(folder);
@@ -72,7 +78,7 @@ public static class ServerConfigService
         }
         catch
         {
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "server_config.json");
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"server_config.{ServerConfig.GetDefaultDbName()}.json");
         }
     }
 
@@ -91,13 +97,6 @@ public static class ServerConfigService
                 var config = JsonSerializer.Deserialize<ServerConfig>(json);
                 if (config != null)
                 {
-#if DEBUG
-                    var defaultDb = ServerConfig.GetDefaultDbName();
-                    if (config.DbName is "OfficeCoreDb" or "officecoredevdb" or "officecoreacbadevdb" || string.IsNullOrWhiteSpace(config.DbName))
-                    {
-                        config.DbName = defaultDb;
-                    }
-#endif
                     _current = config;
                     return config;
                 }

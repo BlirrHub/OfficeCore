@@ -17,4 +17,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OfficeCore.Shared\OfficeCore.Shared.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\src\OfficeCore.Desktop.Server\ServerConfigService.cs" Link="Deployment\ServerConfigService.cs" />
+    <AssemblyMetadata Include="OfficeCoreDefaultDatabase" Value="OfficeCoreDb" />
+  </ItemGroup>
 </Project>
