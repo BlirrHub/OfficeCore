@@ -11,6 +11,7 @@
     <Project Path="src/OfficeCore.Web/OfficeCore.Web.Client.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/OfficeCore.Api.Tests/OfficeCore.Api.Tests.csproj" />
     <Project Path="tests/OfficeCore.Authorization.Tests/OfficeCore.Authorization.Tests.csproj" />
   </Folder>
 </Solution>

@@ -30,16 +30,25 @@ public class NotificationHub : Hub
 
     public override async Task OnConnectedAsync()
     {
-        var orgId = _tenant.GetActiveOrganizationId();
+        var requestedOrgId = _tenant.GetActiveOrganizationId();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? _tenant.GetUserId();
 
-        if (!orgId.HasValue && !string.IsNullOrEmpty(userId))
+        // A selected workspace must belong to an active membership. Never fall back
+        // to another workspace when a client explicitly requests an unauthorized one.
+        if (!requestedOrgId.HasValue && !string.IsNullOrEmpty(userId))
         {
-            var employee = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.UserId == userId);
+            var employee = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.UserId == userId && e.IsActive);
             if (employee != null)
             {
                 orgId = employee.OrganizationId;
             }
+        }
+
+        if (!orgId.HasValue || string.IsNullOrEmpty(userId))
+        {
+            Context.Abort();
+            return;
         }
 
         Console.WriteLine($"[SignalR] NotificationHub connected. ConnectionId: {Context.ConnectionId}, UserId: {userId}, OrgId: {orgId}");

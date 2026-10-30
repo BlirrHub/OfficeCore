@@ -8,9 +8,12 @@ public class PayrollComputationService : IPayrollComputationService
 {
     private readonly AppDbContext _context;
 
-    public PayrollComputationService(AppDbContext context)
+    private readonly TimeZoneInfo _timeZone;
+
+    public PayrollComputationService(AppDbContext context, TimeZoneInfo? timeZone = null)
     {
         _context = context;
+        _timeZone = timeZone ?? TimeZoneInfo.Local;
     }
 
     public async Task ComputePayrollPeriodAsync(Guid payrollPeriodId)
@@ -59,8 +62,12 @@ public class PayrollComputationService : IPayrollComputationService
         // Convert local start of day (00:00:00) and local end of day (23:59:59.999) to UTC so that early morning punches in positive UTC offsets (e.g., UTC+8) are not clipped
         var localStart = period.StartDate.ToDateTime(TimeOnly.MinValue);
         var localEnd = period.EndDate.ToDateTime(TimeOnly.MaxValue);
-        var periodStartDt = new DateTimeOffset(localStart, TimeZoneInfo.Local.GetUtcOffset(localStart)).UtcDateTime;
-        var periodEndDt = new DateTimeOffset(localEnd, TimeZoneInfo.Local.GetUtcOffset(localEnd)).UtcDateTime;
+        var periodStartDt = new DateTimeOffset(localStart, _timeZone.GetUtcOffset(localStart)).UtcDateTime;
+        var periodEndDt = new DateTimeOffset(localEnd, _timeZone.GetUtcOffset(localEnd)).UtcDateTime;
+        // Leave and overtime dates are calendar labels stored at UTC midnight by their controllers.
+        // They must not be clipped against the UTC instants used for attendance timestamps.
+        var calendarStart = DateTime.SpecifyKind(localStart, DateTimeKind.Utc);
+        var calendarEnd = DateTime.SpecifyKind(localEnd, DateTimeKind.Utc);
         
         // Use the explicitly defined DeductionMultiplier for government deductions
         decimal proportionMultiplier = period.DeductionMultiplier;
@@ -71,13 +78,13 @@ public class PayrollComputationService : IPayrollComputationService
             .ToListAsync();
 
         var approvedLeaves = await _context.LeaveRequests
-            .Where(lr => lr.OrganizationId == period.OrganizationId && lr.Status == LeaveRequestStatus.Approved && lr.StartDate <= periodEndDt && lr.EndDate >= periodStartDt)
+            .Where(lr => lr.OrganizationId == period.OrganizationId && lr.Status == LeaveRequestStatus.Approved && lr.StartDate <= calendarEnd && lr.EndDate >= calendarStart)
             .ToListAsync();
 
         var approvedOvertime = await _context.OvertimeRequests
             .Where(o => o.OrganizationId == period.OrganizationId 
                      && o.Status == OvertimeStatus.Approved 
-                     && o.Date >= periodStartDt && o.Date <= periodEndDt)
+                     && o.Date >= calendarStart && o.Date <= calendarEnd)
             .ToListAsync();
 
         var allActiveAdvances = await _context.AdvanceRequests
@@ -102,12 +109,12 @@ public class PayrollComputationService : IPayrollComputationService
             {
                 // No schedule: Fixed rate employee for the cutoff period (e.g. Adrian 3775, Blaire 1000, Lina 2500)
                 basicPay = trackedDailyRate;
-                daysWithAttendance = empAttendance.Select(a => a.Timestamp.ToLocalTime().Date).Distinct().Count();
+                daysWithAttendance = empAttendance.Select(a => TimeZoneInfo.ConvertTime(a.Timestamp, _timeZone).Date).Distinct().Count();
                 totalNetHours = daysWithAttendance > 0 ? daysWithAttendance * 8 : 40;
             }
             else if (emp.WorkSchedule.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate)
             {
-                for (var date = periodStartDt; date <= periodEndDt; date = date.AddDays(1))
+                for (var date = localStart.Date; date <= localEnd.Date; date = date.AddDays(1))
                 {
                     bool isRestDay = false;
                     var schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == date.DayOfWeek);
@@ -125,7 +132,7 @@ public class PayrollComputationService : IPayrollComputationService
             else
             {
                 // Group by day to find pairs
-                var attendanceByDay = empAttendance.GroupBy(a => a.Timestamp.ToLocalTime().Date);
+                var attendanceByDay = empAttendance.GroupBy(a => TimeZoneInfo.ConvertTime(a.Timestamp, _timeZone).Date);
 
                 foreach (var dayGroup in attendanceByDay)
                 {
@@ -140,15 +147,15 @@ public class PayrollComputationService : IPayrollComputationService
                         WorkScheduleDay? schedDay = null;
                         if (emp.WorkSchedule?.Days != null)
                         {
-                            schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == clockIn.Timestamp.ToLocalTime().DayOfWeek);
+                            schedDay = emp.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == TimeZoneInfo.ConvertTime(clockIn.Timestamp, _timeZone).DayOfWeek);
                             if (schedDay != null && schedDay.IsRestDay) isRestDay = true;
                         }
 
                         if (!isRestDay)
                         {
                             daysWithAttendance++;
-                            var timeIn = clockIn.Timestamp.ToLocalTime().TimeOfDay;
-                            var timeOut = clockOut.Timestamp.ToLocalTime().TimeOfDay;
+                            var timeIn = TimeZoneInfo.ConvertTime(clockIn.Timestamp, _timeZone).TimeOfDay;
+                            var timeOut = TimeZoneInfo.ConvertTime(clockOut.Timestamp, _timeZone).TimeOfDay;
 
                             // Early in: rounded to scheduled start time (early time is not paid), unless schedule allows it
                             var effectiveTimeIn = timeIn;
@@ -260,8 +267,8 @@ public class PayrollComputationService : IPayrollComputationService
 
             foreach (var leave in empLeaves)
             {
-                var leaveStart = leave.StartDate < periodStartDt ? periodStartDt : leave.StartDate;
-                var leaveEnd = leave.EndDate > periodEndDt ? periodEndDt : leave.EndDate;
+                var leaveStart = leave.StartDate.Date < localStart.Date ? localStart.Date : leave.StartDate.Date;
+                var leaveEnd = leave.EndDate.Date > localEnd.Date ? localEnd.Date : leave.EndDate.Date;
                 
                 int leaveDays = 0;
                 for (var date = leaveStart; date <= leaveEnd; date = date.AddDays(1))

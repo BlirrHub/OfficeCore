@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ---
 
 ## [Unreleased]
+### Fixed & Tested — [2026-10-30] (Payroll and Notification Regression Coverage)
+
+- Added a separate API service/component test project exercising actual payroll, tenant membership and notification group routing with isolated EF in-memory stores; no existing database or hardware is accessed.
+- Reproduced seven failing regression cases before fixes: fixed-rate weekday boundaries, leave spanning a cutoff, foreign workspace notification cookies and inactive notification memberships.
+- Corrected payroll to use office calendar days for fixed-rate schedules and leave clipping, and UTC-midnight date labels for leave/overtime queries; attendance remains filtered by actual UTC instants. Added an optional timezone constructor argument for deterministic tests while retaining the server-local default.
+- NotificationHub now validates active membership before subscribing to a selected workspace and aborts unauthorized connections; missing selection can fall back only to active membership.
+- Expanded coverage to midnight attendance, positive/negative UTC offsets, breaks, overtime, incomplete punches, deduction proration, remaining advance balances, tenant isolation, recomputation and locked payroll. All 26 API and 14 existing authorization/deployment tests passed.
+- Documented test execution and limits in tests/OfficeCore.Api.Tests/README.md. PostgreSQL/browser/hardware/recovery testing and the existing NU1903 dependency advisory remain outstanding.
+
 ### Fixed — [2026-10-30] (Branch Release Isolation & Synchronization)
 
 - Embedded the branch deployment database in Server Station assembly metadata for Debug and Release, including installers and Git worktrees.
