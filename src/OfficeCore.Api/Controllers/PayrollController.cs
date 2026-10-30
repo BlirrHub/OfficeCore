@@ -385,7 +385,7 @@ public class PayrollController : ControllerBase
         var period = await _context.PayrollPeriods.FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId.Value);
         if (period == null) return NotFound();
 
-        if (period.Status == PayrollStatus.Finalized)
+        if (period.Status == PayrollStatus.Finalized || period.Status == PayrollStatus.Paid)
             return BadRequest("Period is already finalized");
 
         period.Status = PayrollStatus.Finalized;

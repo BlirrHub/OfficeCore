@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Payroll, Attendance & Biometric Logic — [2026-10-30] (Multi-Pair Attendance, Leave Deduplication, E-Loan Alignment & Biometric Matching)
+
+- **Payroll Computation Accuracy (`PayrollComputationService`, `PayrollController`)**:
+  - Replaced single first-in/last-out daily punch selection with consecutive `(ClockIn, ClockOut)` interval pairing so split shifts and mid-day absences are accurately calculated while preserving early-arrival clamping, unpaid break overlap deductions, and overtime threshold rules.
+  - Updated leave pay calculation to honor `Employee.UseCustomDailyRate`, respect `TimeOffPolicy.IsPaid` flags, and deduplicate calendar dates already credited via attendance or overlapping leave requests.
+  - Aligned E-Loan deduction cutoff date comparisons (`period.StartDate > approvalDate`) between `PayrollComputationService` and `PayrollController.FinalizePeriod`, guarded `FinalizePeriod` against double deduction on paid periods, and sanitized `ComputePayroll` exception messages (`ex.Message`).
+- **Biometric Report & Hardware Scanner Fixes (`BiometricReportService`, `FingerprintDeviceService`, `AttendanceController`)**:
+  - Corrected `PreviewBiometricReportAsync` duplicate-check UTC window to apply the `+08:00` Philippine time offset so early-morning (`00:00–07:59 PHT`) punches are included in duplicate detection.
+  - Replaced raw substring `.Contains()` employee name matching with word-boundary token matching (`MatchesEmployeeNameTokens`) to prevent partial-name collisions (e.g., `"Ann"` matching `"Joanna"`).
+  - Updated biometric commit overtime auto-detection to respect `WorkSchedule.HasOvertimePolicy`, `AutoSubmitOvertimeApproval`, and `OvertimeThresholdMinutes`.
+  - Fixed `FingerprintDeviceService.LinkFingerprintAsync` to look up `context.Employees` (storing `Employee.Id` and `Employee.OrganizationId` instead of `ApplicationUser`), standardized Philippine local day boundaries in `LogAttendanceAsync` and `LogScanEvent`, and scoped SignalR device broadcasts to `org_{organizationId}`.
+  - Added input validation on `LeaveRequestController` (`EndDate >= StartDate`) and `AdvanceRequestController` (`RequestedAmount > 0`), plus unit tests in `PayrollComputationTests.cs`.
+
 ### Identity & Authorization — [2026-10-30] (Action-Level Permission Migration Across All Controllers & Delegated Role Administration)
 
 - **Granular `Permission:*` Policy Rollout (`ClientController`, `CompanyExpenseController`, `AdvanceRequestController`, `PayrollController`, `PayrollSettingsController`, `AttendanceController`, `FingerprintDeviceController`, `LeaveRequestController`, `OvertimeController`, `WorkScheduleController`, `TimeOffPoliciesController`, `HolidayCalendarController`, `LocationsController`, `UserController`, `OrganizationsController`, `DashboardController`, `DbSeeder`)**:

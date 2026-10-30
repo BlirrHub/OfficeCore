@@ -243,11 +243,12 @@ public class FingerprintDeviceService : BackgroundService
             return;
         }
 
-        var todayUtc = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+        var phtNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8));
+        var todayUtc = new DateTimeOffset(phtNow.Date, TimeSpan.FromHours(8)).ToUniversalTime();
         var tomorrowUtc = todayUtc.AddDays(1);
 
         var latestRecord = await context.AttendanceRecords
-            .Where(a => a.EmployeeId == mapping.EmployeeId 
+            .Where(a => a.OrganizationId == mapping.OrganizationId && a.EmployeeId == mapping.EmployeeId
                      && a.Timestamp >= todayUtc 
                      && a.Timestamp < tomorrowUtc)
             .OrderByDescending(a => a.Timestamp)
@@ -276,7 +277,7 @@ public class FingerprintDeviceService : BackgroundService
         var hubContext = scope.ServiceProvider.GetService<IHubContext<AttendanceHub>>();
         if (hubContext != null)
         {
-            await hubContext.Clients.All.SendAsync("ReceiveAttendanceUpdate");
+            await hubContext.Clients.Group($"org_{mapping.OrganizationId}").SendAsync("ReceiveAttendanceUpdate");
         }
     }
 
@@ -291,12 +292,13 @@ public class FingerprintDeviceService : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var employee = await context.Users.FindAsync(_pendingEnrollEmployeeId);
+        var employee = await context.Employees.FirstOrDefaultAsync(e => e.Id == _pendingEnrollEmployeeId || e.UserId == _pendingEnrollEmployeeId);
         if (employee != null)
         {
             context.EmployeeFingerprints.Add(new EmployeeFingerprint
             {
-                EmployeeId = _pendingEnrollEmployeeId,
+                EmployeeId = employee.Id,
+                OrganizationId = employee.OrganizationId,
                 FingerprintId = fingerprintId
             });
             await context.SaveChangesAsync();
@@ -305,7 +307,7 @@ public class FingerprintDeviceService : BackgroundService
             var hubContext = scope.ServiceProvider.GetService<Microsoft.AspNetCore.SignalR.IHubContext<OfficeCore.Api.Hubs.AttendanceHub>>();
             if (hubContext != null)
             {
-                await hubContext.Clients.All.SendAsync("ReceiveEnrollmentSuccess", _pendingEnrollEmployeeId);
+                await hubContext.Clients.Group($"org_{employee.OrganizationId}").SendAsync("ReceiveEnrollmentSuccess", employee.Id);
             }
         }
 
