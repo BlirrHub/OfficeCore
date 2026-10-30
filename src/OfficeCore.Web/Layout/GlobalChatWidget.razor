@@ -1648,7 +1648,7 @@
                 }
 
                 // Add to known boards
-                _myBoardIds.Add(boardId);
+                // Do not mutate _myBoardIds during render
 
                 var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
                 var colorClass = type == "board"
@@ -1681,7 +1681,7 @@
                 }
 
                 // Add to known boards
-                _myBoardIds.Add(boardId);
+                // Do not mutate _myBoardIds during render
 
                 var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
                 var colorClass = type == "board"
@@ -1951,6 +1951,7 @@
                 _typingUserName = member != null ? member.FirstName : "Someone";
                 _isTyping = true;
                 _typingTimer?.Stop();
+                _typingTimer?.Dispose();
                 _typingTimer = new System.Timers.Timer(2500);
                 _typingTimer.Elapsed += (s, e) => { _isTyping = false; _typingUserName = null; InvokeAsync(StateHasChanged); };
                 _typingTimer.Start();
@@ -1995,6 +1996,7 @@
 
         try
         {
+            _hubConnection.Reconnected += async _ => { if (_activeRoom != null) { try { await _hubConnection.InvokeAsync("JoinRoom", _activeRoom.Id); } catch { } } };
             await _hubConnection.StartAsync();
         }
         catch (OperationCanceledException) { }

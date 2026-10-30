@@ -329,7 +329,7 @@
 
         // 4. Connect SignalR
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"))
+            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"), options => { options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler }; })
             .WithAutomaticReconnect()
             .Build();
 

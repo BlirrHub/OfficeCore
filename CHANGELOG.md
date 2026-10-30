@@ -6,6 +6,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Frontend, Desktop Stations, Installers & Hardware Firmware — [2026-10-30] (SignalR CookieHandler, Chat Resilience, Light-Mode CSS, Uninstaller Cleanup & ESP32 Fixes)
+
+- **Blazor WASM Frontend (`GlobalChatWidget.razor`, `AttendanceSettings.razor`, `RoleManagement.razor`, `UserManagement.razor`, `WorkSchedules.razor`, `Styles/app.css`, SignalR Pages)**:
+  - Attached `CookieHandler` (`HttpMessageHandlerFactory`) to all 10 remaining SignalR `HubConnectionBuilder` connections (`LeaveApprovals.razor`, `OvertimeApprovals.razor`, `AttendanceSettings.razor`, `Advances.razor`, `Attendance.razor`, `Ledger.razor`, `Locations.razor`, `MyAttendance.razor`, `MyLeaves.razor`, `MyOvertime.razor`) and replaced stale `http://localhost:5000` fallbacks with `http://localhost:5026`.
+  - Registered `_hubConnection.Reconnected` in `GlobalChatWidget.razor` to automatically rejoin `_activeRoom.Id`, disposed `_typingTimer` before replacement to prevent timer leaks, and removed render-time `_myBoardIds.Add` side effects from `FormatMessageContent`.
+  - Removed duplicate `/api/attendance/scan-event` POST from `AttendanceSettings.razor` (`OnSerialScanEvent`, since `webserial.js` already posts scan events) and removed per-render `?v={Guid.NewGuid()}` module cache-busting on `/js/webserial.js`.
+  - Gated administrative action buttons in `RoleManagement.razor` (`EmptyState`), `UserManagement.razor` (`Invite Member`), and `WorkSchedules.razor` (`Add New Schedule`, `Edit`, `Delete`) behind granular `<AuthorizeView Policy="Permission:...">` policies.
+  - Expanded light-mode `.text-white:not(...)` exclusions in `Styles/app.css` to preserve white contrast on `bg-amber`, `bg-orange`, `bg-indigo`, `bg-rose`, `bg-teal`, `bg-cyan`, and `bg-zinc-800` surfaces, and rebuilt `wwwroot/app.css`.
+- **Desktop Server Station, Workstation Client & Installers (`OfficeCore.Desktop.Server`, `OfficeCore.Desktop.Client`, `OfficeCore.Server.Installer`, `OfficeCore.Client.Installer`)**:
+  - Updated `PerformUninstall()` in `OfficeCore.Server.Installer` and `OfficeCore.Client.Installer` to terminate running `OfficeCore.ServerStation`, `OfficeCore.Api`, and `OfficeCore.Client` processes, remove both `"OfficeCoreServerStation"` and legacy `"OfficeCore Server Station"` startup registry values, and delete the installation directory (`installDir`).
+  - Standardized Windows startup registry registration in `OfficeCore.Server.Installer` (`"OfficeCoreServerStation"` with `--background` flag) to match `ServerConfigService.cs`.
+  - Scoped WebView2 `X-OfficeCore-Client` request header injection in `OfficeCore.Desktop.Server` and `OfficeCore.Desktop.Client` to loopback/configured OfficeCore server hosts so custom headers are not leaked to external map/routing providers, added `X-OfficeCore-Station-Token` to `QuickSnapshot_Click`, and capped `ConsoleLogBox` buffer size in `OfficeCore.Desktop.Server`.
+- **ESP32 Biometric Firmware (`hardware/ESP32_Fingerprint_Device.ino`)**:
+  - Throttled TCP reconnection attempts in `handleTCP()` using `TCP_RETRY_INTERVAL` (`5000ms`) so unreachable servers do not block the main sensor loop every `50ms`, and updated `enrollFingerprint()` slot search condition from `while (id < 127)` to `while (id <= 127)` so slot `127` is properly checked before reporting a full sensor.
+
 ### Payroll, Attendance & Biometric Logic — [2026-10-30] (Multi-Pair Attendance, Leave Deduplication, E-Loan Alignment & Biometric Matching)
 
 - **Payroll Computation Accuracy (`PayrollComputationService`, `PayrollController`)**:

@@ -373,7 +373,7 @@
         var hubUrl = new Uri(Http.BaseAddress!, "hubs/notifications").ToString();
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl)
+            .WithUrl(hubUrl, options => { options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler }; })
             .WithAutomaticReconnect()
             .Build();
 

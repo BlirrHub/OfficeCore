@@ -473,9 +473,9 @@
     {
         try
         {
-            var apiBase = Configuration["ApiBaseUrl"] ?? "http://localhost:5000";
+            var apiBase = (Configuration["ApiBaseUrl"] ?? Http.BaseAddress?.ToString() ?? "http://localhost:5026").TrimEnd('/');
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl($"{apiBase}/hubs/notifications")
+                .WithUrl($"{apiBase}/hubs/notifications", options => { options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler }; })
                 .WithAutomaticReconnect()
                 .Build();
 

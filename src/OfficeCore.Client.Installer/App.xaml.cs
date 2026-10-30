@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
@@ -32,6 +33,25 @@ public partial class App : Application
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             var installDir = Path.Combine(localAppData, "Programs", "OfficeCore Client");
 
+            // Stop running Client processes before removing files
+            try
+            {
+                foreach (var proc in Process.GetProcessesByName("OfficeCore.Client"))
+                {
+                    try
+                    {
+                        proc.Kill(entireProcessTree: true);
+                        proc.WaitForExit(3000);
+                    }
+                    catch { }
+                    finally
+                    {
+                        proc.Dispose();
+                    }
+                }
+            }
+            catch { }
+
             var desktopShortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "OfficeCore Workstation.lnk");
             var startMenuDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", "OfficeCore");
             var startMenuShortcut = Path.Combine(startMenuDir, "OfficeCore Workstation.lnk");
@@ -52,6 +72,39 @@ public partial class App : Application
 
             // Remove registry
             Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OfficeCoreClient", false);
+
+            // Delete installed files and schedule directory cleanup if Uninstall.exe is running from installDir
+            if (Directory.Exists(installDir))
+            {
+                var currentExe = Environment.ProcessPath;
+                foreach (var file in Directory.GetFiles(installDir, "*", SearchOption.AllDirectories))
+                {
+                    if (!string.Equals(file, currentExe, StringComparison.OrdinalIgnoreCase))
+                    {
+                        try { File.Delete(file); } catch { }
+                    }
+                }
+
+                try
+                {
+                    Directory.Delete(installDir, true);
+                }
+                catch
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = $"/C timeout /t 2 /nobreak > NUL & rmdir /s /q \"{installDir}\"",
+                            CreateNoWindow = true,
+                            UseShellExecute = false,
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        });
+                    }
+                    catch { }
+                }
+            }
 
             MessageBox.Show("OfficeCore Workstation was successfully removed from your computer.",
                             "Uninstall Complete", MessageBoxButton.OK, MessageBoxImage.Information);

@@ -44,7 +44,13 @@ public partial class MainWindow : Window
             webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
             webView.CoreWebView2.WebResourceRequested += (s, args) =>
             {
-                args.Request.Headers.SetHeader("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
+                if (Uri.TryCreate(args.Request.Uri, UriKind.Absolute, out var reqUri) &&
+                    (reqUri.IsLoopback ||
+                     (Uri.TryCreate(_config.ServerUrl, UriKind.Absolute, out var serverUri) &&
+                      string.Equals(reqUri.Host, serverUri.Host, StringComparison.OrdinalIgnoreCase))))
+                {
+                    args.Request.Headers.SetHeader("X-OfficeCore-Client", "OfficeCore-Desktop-Workstation");
+                }
             };
             webView.NavigationCompleted += WebView_NavigationCompleted;
         }
