@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject HttpClient Http
+@inject HubConnectionFactory HubFactory
 @inject ToastService ToastService
 @implements IAsyncDisposable
 @using Microsoft.AspNetCore.SignalR.Client
@@ -319,10 +320,10 @@
         await LoadDevice();
         await LoadEmployees();
         
-        _hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"), options => { options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler }; })
-            .WithAutomaticReconnect()
-            .Build();
+        _hubConnection = HubFactory.Create("attendanceHub");
+
+
+
 
         _hubConnection.On<string, string>("ReceiveEnrollmentStatus", (empId, status) =>
         {

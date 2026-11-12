@@ -6,6 +6,7 @@
 @using OfficeCore.Web.Models
 @implements IAsyncDisposable
 @inject HttpClient Http
+@inject HubConnectionFactory HubFactory
 @inject NavigationManager Nav
 @inject ToastService ToastService
 @inject AuthenticationStateProvider AuthStateProvider
@@ -328,10 +329,7 @@
         await LoadMyAttendance();
 
         // 4. Connect SignalR
-        _hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(Http.BaseAddress!, "attendanceHub"), options => { options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler }; })
-            .WithAutomaticReconnect()
-            .Build();
+        _hubConnection = HubFactory.Create("attendanceHub");
 
         _hubConnection.On("ReceiveAttendanceUpdate", async () =>
         {

@@ -3,6 +3,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
 @inject HttpClient Http
+@inject HubConnectionFactory HubFactory
 @inject ToastService ToastService
 @implements IAsyncDisposable
 @using Microsoft.AspNetCore.SignalR.Client
@@ -798,15 +799,7 @@
 
     private async Task ConnectToHub()
     {
-        var hubUrl = new Uri(Http.BaseAddress!, "hubs/notifications").ToString();
-
-        _hubConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options =>
-            {
-                options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler };
-            })
-            .WithAutomaticReconnect()
-            .Build();
+        _hubConnection = HubFactory.Create("hubs/notifications");
 
         Func<Task> reloadData = async () =>
         {

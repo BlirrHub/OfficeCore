@@ -13,6 +13,8 @@ namespace OfficeCore.Web.Client.Auth;
 public class CookieAuthStateProvider : AuthenticationStateProvider
 {
     private readonly HttpClient _httpClient;
+    private readonly object _cacheLock = new();
+    private Task<AuthenticationState>? _cachedAuthStateTask;
 
     private static readonly AuthenticationState _anonymous =
         new(new ClaimsPrincipal(new ClaimsIdentity()));
@@ -22,7 +24,16 @@ public class CookieAuthStateProvider : AuthenticationStateProvider
         _httpClient = httpClient;
     }
 
-    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+    public override Task<AuthenticationState> GetAuthenticationStateAsync()
+    {
+        lock (_cacheLock)
+        {
+            _cachedAuthStateTask ??= FetchAuthenticationStateAsync();
+            return _cachedAuthStateTask;
+        }
+    }
+
+    private async Task<AuthenticationState> FetchAuthenticationStateAsync()
     {
         try
         {
@@ -80,11 +91,23 @@ public class CookieAuthStateProvider : AuthenticationStateProvider
         }
         catch
         {
+            lock (_cacheLock)
+            {
+                _cachedAuthStateTask = null;
+            }
             return _anonymous;
         }
     }
 
     /// <summary>Call this after login/logout to refresh the auth state in the UI.</summary>
-    public void NotifyAuthStateChanged() =>
-        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+    public void NotifyAuthStateChanged()
+    {
+        Task<AuthenticationState> refreshedTask;
+        lock (_cacheLock)
+        {
+            refreshedTask = FetchAuthenticationStateAsync();
+            _cachedAuthStateTask = refreshedTask;
+        }
+        NotifyAuthenticationStateChanged(refreshedTask);
+    }
 }

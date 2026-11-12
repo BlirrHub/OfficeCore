@@ -136,7 +136,7 @@
             
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<JoinResponseDto>();
+                var result = await response.Content.ReadFromJsonAsync<JoinWorkspaceResponseDto>();
                 if (result != null)
                 {
                     _success = true;
@@ -180,21 +180,5 @@
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
         return name.Substring(0, Math.Min(2, name.Length)).ToUpper();
-    }
-
-    private class InvitationDetailsDto
-    {
-        public string Token { get; set; } = string.Empty;
-        public string OrganizationName { get; set; } = string.Empty;
-        public string InvitedBy { get; set; } = string.Empty;
-        public bool HasEmail { get; set; }
-        public string? TargetEmail { get; set; }
-    }
-
-    private class JoinResponseDto
-    {
-        public string Message { get; set; } = string.Empty;
-        public Guid OrganizationId { get; set; }
-        public string OrganizationName { get; set; } = string.Empty;
     }
 }

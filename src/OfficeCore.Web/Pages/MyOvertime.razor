@@ -1,6 +1,7 @@
 @page "/my-overtime"
 @attribute [Authorize]
 @inject HttpClient Http
+@inject HubConnectionFactory HubFactory
 @inject OfficeCore.Web.Services.ToastService ToastService
 @inject NavigationManager Navigation
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
@@ -324,11 +325,7 @@
     {
         try
         {
-            var apiBase = (Configuration["ApiBaseUrl"] ?? Http.BaseAddress?.ToString() ?? "http://localhost:5026").TrimEnd('/');
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl($"{apiBase}/hubs/notifications", options => { options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler }; })
-                .WithAutomaticReconnect()
-                .Build();
+            _hubConnection = HubFactory.Create("hubs/notifications");
 
             _hubConnection.On("OvertimeUpdated", async () =>
             {
