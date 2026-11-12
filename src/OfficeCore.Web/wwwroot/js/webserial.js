@@ -185,6 +185,7 @@ function processLine(line) {
             fetch('/api/attendance/scan-event', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ fingerprintId: fingerprintId })
             }).catch(e => console.error("WebSerial Fetch Error:", e));
             

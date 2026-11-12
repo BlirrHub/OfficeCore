@@ -358,14 +358,17 @@ public class BiometricReportService
                                         // "a employee in our out between 12:00PM and 1:00PM you should automatically read it as 12:00PM"
                                         if (originalTimeSpan >= lunchStart && originalTimeSpan <= lunchEnd)
                                         {
-                                            effectiveTimeSpan = lunchStart; // 12:00 PM
+                                            effectiveTimeSpan = punchType == AttendanceType.ClockIn ? lunchEnd : lunchStart;
                                             isNormalized = true;
                                         }
                                         // SHIFT END / OVERTIME NORMALIZATION (Punches past scheduled end):
                                         else if (punchType == AttendanceType.ClockOut && originalTimeSpan > schedEnd)
                                         {
                                             var excessMinutes = (originalTimeSpan - schedEnd).TotalMinutes;
-                                            if (excessMinutes < 15)
+                                            var thresholdMinutes = matchedEmp?.WorkSchedule?.OvertimeThresholdMinutes > 0
+                                                ? matchedEmp.WorkSchedule.OvertimeThresholdMinutes
+                                                : 15;
+                                            if (excessMinutes < thresholdMinutes)
                                             {
                                                 // "if it's less than 15 min just set it to 5" -> clamp down to scheduled end
                                                 effectiveTimeSpan = schedEnd;

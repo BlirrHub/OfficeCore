@@ -409,7 +409,7 @@ public class AdvanceRequestController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = "RequirePayroll")] // Only payroll admins can delete
+    [Authorize(Policy = "RequireLedger")]
     [Authorize(Policy = "Permission:ledger.manage")]
     public async Task<IActionResult> DeleteRequest(Guid id)
     {

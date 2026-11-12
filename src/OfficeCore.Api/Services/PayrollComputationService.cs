@@ -42,7 +42,7 @@ public class PayrollComputationService : IPayrollComputationService
             .ToListAsync();
 
         var generalSetting = await _context.GeneralPayrollSettings.FirstOrDefaultAsync(s => s.Key == "MinimumDailyRate" && s.OrganizationId == period.OrganizationId);
-        var defaultRate = generalSetting?.Value ?? 610m;
+        var defaultRate = (generalSetting != null && generalSetting.Value > 0m) ? generalSetting.Value : 610m;
 
         var govDeductions = await _context.GovernmentDeductionSettings
             .Where(s => s.OrganizationId == period.OrganizationId)
@@ -144,7 +144,10 @@ public class PayrollComputationService : IPayrollComputationService
 
                 foreach (var dayGroup in attendanceByDay)
                 {
-                    var records = dayGroup.OrderBy(a => a.Timestamp).ToList();
+                    var records = dayGroup
+                        .OrderBy(a => a.Timestamp)
+                        .ThenByDescending(a => a.Type)
+                        .ToList();
                     var pairs = new List<(AttendanceRecord In, AttendanceRecord Out)>();
                     AttendanceRecord? openIn = null;
 
@@ -225,7 +228,8 @@ public class PayrollComputationService : IPayrollComputationService
                                                 if (approvedOt != null)
                                                 {
                                                     effectiveTimeOut = schedDay.EndTime.Value;
-                                                    var otHours = approvedOt.ApprovedHours ?? (timeOut - schedDay.EndTime.Value).TotalHours;
+                                                    var actualOtHours = (timeOut - schedDay.EndTime.Value).TotalHours;
+                                                    var otHours = Math.Min(approvedOt.ApprovedHours ?? actualOtHours, actualOtHours);
                                                     totalOvertimeHours += Math.Max(0, otHours);
                                                     creditedOtIds.Add(approvedOt.Id);
                                                 }
@@ -275,9 +279,21 @@ public class PayrollComputationService : IPayrollComputationService
                 }
             }
 
-            // Include any additional approved standalone OT (e.g. approved OT on non-work days or separate requests)
+            // Include approved standalone OT only when no scheduled workday shift EndTime governs that date
+            // (e.g. rest days, fixed-weekly schedules, or employees without a tracked schedule).
+            bool hasTrackedSchedule = emp.WorkSchedule != null &&
+                                      !(emp.WorkSchedule.WorkArrangement == WorkArrangement.Fixed && emp.WorkSchedule.IsFixedWeeklyRate);
             foreach (var standaloneOt in empOvertime.Where(o => !creditedOtIds.Contains(o.Id)))
             {
+                if (hasTrackedSchedule)
+                {
+                    var otSchedDay = emp.WorkSchedule!.Days.FirstOrDefault(d => d.DayOfWeek == standaloneOt.Date.Date.DayOfWeek);
+                    if (otSchedDay != null && !otSchedDay.IsRestDay && otSchedDay.EndTime.HasValue)
+                    {
+                        continue;
+                    }
+                }
+
                 var otHours = standaloneOt.ApprovedHours ?? standaloneOt.RequestedHours;
                 totalOvertimeHours += Math.Max(0, otHours);
             }

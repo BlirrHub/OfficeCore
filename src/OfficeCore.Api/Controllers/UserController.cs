@@ -77,6 +77,16 @@ public class UserController : ControllerBase
         return true;
     }
 
+    private static bool IsPrivilegedEmployee(Employee employee)
+    {
+        return employee.EmployeeRoles.Any(er =>
+            er.Role?.Name == "Admin" ||
+            er.Role?.Claims.Any(c =>
+                (c.ClaimType == PermissionCatalog.ClaimType &&
+                 (c.ClaimValue == AccessPermissions.UsersManage || c.ClaimValue == AccessPermissions.RolesEdit || c.ClaimValue == AccessPermissions.EmployeeRolesAssign)) ||
+                (c.ClaimType == "ModuleAccess" && (c.ClaimValue == AccessModules.Users || c.ClaimValue == AccessModules.Roles))) == true);
+    }
+
     [HttpGet]
     [Authorize(Policy = "Permission:users.view")]
     public async Task<IActionResult> GetUsers()
@@ -271,12 +281,7 @@ public class UserController : ControllerBase
             return NotFound();
 
         bool isTargetOwner = employee.UserId == createdByUserId;
-        bool isTargetPrivileged = employee.EmployeeRoles.Any(er =>
-            er.Role?.Name == "Admin" ||
-            er.Role?.Claims.Any(c =>
-                (c.ClaimType == PermissionCatalog.ClaimType &&
-                 (c.ClaimValue == AccessPermissions.UsersManage || c.ClaimValue == AccessPermissions.RolesEdit || c.ClaimValue == AccessPermissions.EmployeeRolesAssign)) ||
-                (c.ClaimType == "ModuleAccess" && (c.ClaimValue == AccessModules.Users || c.ClaimValue == AccessModules.Roles))) == true);
+        bool isTargetPrivileged = IsPrivilegedEmployee(employee);
 
         // Rule: Only the workspace owner can edit the workspace owner
         if (isTargetOwner && !isCurrentUserOwner)
@@ -379,15 +384,23 @@ public class UserController : ControllerBase
 
         var org = await _context.Organizations.FindAsync(orgId);
         var createdByUserId = org?.CreatedByUserId;
+        var currentUserId = _userManager.GetUserId(User);
+        var isCurrentUserOwner = createdByUserId == currentUserId;
 
         var employee = await _context.Employees
             .Include(e => e.User)
+            .Include(e => e.EmployeeRoles)
+                .ThenInclude(er => er.Role)
+                    .ThenInclude(r => r!.Claims)
             .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
         if (employee == null)
             return NotFound();
 
         if (employee.UserId == createdByUserId)
             return BadRequest(new { message = "The workspace owner cannot be resigned." });
+
+        if (IsPrivilegedEmployee(employee) && !isCurrentUserOwner && currentUserId != employee.UserId)
+            return Forbid();
 
         employee.IsActive = false;
         employee.ResignedDate = DateTime.SpecifyKind(request.ResignedDate, DateTimeKind.Utc);
@@ -434,8 +447,14 @@ public class UserController : ControllerBase
 
         var org = await _context.Organizations.FindAsync(orgId);
         var createdByUserId = org?.CreatedByUserId;
+        var currentUserId = _userManager.GetUserId(User);
+        var isCurrentUserOwner = createdByUserId == currentUserId;
 
         var employee = await _context.Employees
+            .Include(e => e.User)
+            .Include(e => e.EmployeeRoles)
+                .ThenInclude(er => er.Role)
+                    .ThenInclude(r => r!.Claims)
             .FirstOrDefaultAsync(e => e.UserId == id && e.OrganizationId == orgId.Value);
 
         if (employee == null)
@@ -444,12 +463,45 @@ public class UserController : ControllerBase
         if (employee.UserId == createdByUserId)
             return BadRequest(new { message = "The workspace owner cannot be removed." });
 
+        if (IsPrivilegedEmployee(employee) && !isCurrentUserOwner)
+            return Forbid();
+
+        bool hasHistoricalRecords =
+            await _context.Payslips.AnyAsync(p => p.EmployeeId == employee.Id && p.OrganizationId == orgId.Value) ||
+            await _context.AttendanceRecords.AnyAsync(a => a.EmployeeId == employee.Id && a.OrganizationId == orgId.Value) ||
+            await _context.LeaveRequests.AnyAsync(l => l.EmployeeId == employee.Id && l.OrganizationId == orgId.Value) ||
+            await _context.OvertimeRequests.AnyAsync(o => o.EmployeeId == employee.Id && o.OrganizationId == orgId.Value) ||
+            await _context.AdvanceRequests.AnyAsync(a => a.EmployeeId == employee.Id && a.OrganizationId == orgId.Value) ||
+            await _context.ChatMessages.AnyAsync(m => m.SenderId == employee.Id && m.OrganizationId == orgId.Value) ||
+            await _context.Boards.AnyAsync(b => b.CreatedById == employee.Id && b.OrganizationId == orgId.Value) ||
+            await _context.BoardCardComments.AnyAsync(c => c.UserId == employee.Id && c.OrganizationId == orgId.Value) ||
+            await _context.BoardCardAttachments.AnyAsync(a => a.UserId == employee.Id && a.OrganizationId == orgId.Value);
+
+        if (hasHistoricalRecords)
+        {
+            return BadRequest(new { message = "This employee has existing payroll, attendance, board, or chat history and cannot be permanently deleted. Use Resign / Deactivate instead." });
+        }
+
+        var pinnedMessages = await _context.ChatMessages
+            .Where(m => m.PinnedById == employee.Id && m.OrganizationId == orgId.Value)
+            .ToListAsync();
+        foreach (var msg in pinnedMessages) msg.PinnedById = null;
+
+        var assignedCards = await _context.BoardCards
+            .Where(c => c.AssignedToUserId == employee.Id && c.OrganizationId == orgId.Value)
+            .ToListAsync();
+        foreach (var card in assignedCards) card.AssignedToUserId = null;
+
+        var name = employee.User != null ? $"{employee.User.FirstName} {employee.User.LastName}".Trim() : id;
+
         // Remove the employee from this organization
         _context.Employees.Remove(employee);
-        
-        // Save changes will cascade delete org-specific records like BoardMember depending on EF config,
-        // or the user just loses access to this org.
         await _context.SaveChangesAsync();
+
+        await _audit.LogEmployeeAsync(
+            AuditActions.Delete,
+            $"Removed employee {name} from workspace",
+            employee.Id);
 
         return Ok(new { message = "User removed from workspace successfully" });
     }

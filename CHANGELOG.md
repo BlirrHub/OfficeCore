@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — [2026-11-13] (Option A: Payroll, RBAC & Biometric Tenant Security Hardening)
+- **Payroll Minimum Daily Rate & Overtime Math** (`PayrollSettingsController.cs`, `PayrollComputationService.cs`): Stopped auto-inserting `MinimumDailyRate = 0m` when unset (falling back cleanly to `610m` and rejecting `<= 0m` updates); added deterministic `OrderBy(a => a.Timestamp).ThenByDescending(a => a.Type)` tie-breaking (`ClockOut` before `ClockIn` on identical timestamps); capped approved workday overtime to actual worked excess hours and prevented unworked standalone `OvertimeRequest` entries from paying out on regular scheduled workdays.
+- **Biometric Lunch-Window Normalization** (`BiometricReportService.cs`): Fixed lunch-window (`12:00`–`13:00`) normalization so `ClockIn` snaps to `13:00` instead of colliding with `ClockOut` at `12:00`, and respected `WorkSchedule.OvertimeThresholdMinutes` in preview OT calculations.
+- **RBAC & Employee Lifecycle Safety** (`UserController.cs`, `AdvanceRequestController.cs`, `OrganizationClaimsTransformation.cs`, `OrganizationsController.cs`): Prevented non-owner managers from resigning or deleting privileged Admin accounts; blocked hard-deletion of employees with historical records (returning `400 Bad Request` instead of FK crashes) and logged audit trails; fixed `AdvanceRequestController.DeleteRequest` policy to `RequireLedger`; ensured role-less employees receive default module permissions (`boards.view`); and filtered `GetMyOrganizations()` to active memberships only.
+- **Biometric Hardware Multi-Tenancy** (`AttendanceController.cs`, `FingerprintDeviceService.cs`, `webserial.js`): Required `[Authorize]`, `GetValidatedOrganizationIdAsync()`, and `credentials: 'include'` on `/api/attendance/scan-event`, scoped TCP/WebSerial enrollment and scan lookups by `OrganizationId` + `Employee.IsActive`, and replaced `Clients.All` SignalR broadcasts with `Clients.Group($"org_{orgId}")`.
+- **Regression Tests** (`PayrollComputationTests.cs`, `RbacAuthorizationTests.cs`, `TenantIsolationTests.cs`): Added unit and controller tests covering minimum daily rate fallback, timestamp tie-breaking, overtime capping, biometric lunch-window preview-to-payroll flow, RBAC privilege hierarchy/delete guards, and biometric tenant isolation.
+
 ### Repository, Branch Architecture & Git Configuration — [2026-11-13] (ACBA Two-Branch Workflow & Git Ignore Rules)
 
 - **Branch Streamlining & ACBA Specialization (`BRANCHING.md`, Git Branches)**:
