@@ -227,7 +227,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# SQLite temp files
+# Local databases and SQLite temp files
+*.db
+*.sqlite
+*.sqlite3
 *.db-shm
 *.db-wal
 
@@ -241,6 +244,7 @@ Setup-*.exe
 **/client_config.json
 **/server_config.json
 **/desktop_config.json
+**/station_secret.key
 
 # Biometric test/client reports
 *.xls

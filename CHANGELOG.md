@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Repository, Branch Architecture & Git Configuration — [2026-11-13] (ACBA Two-Branch Workflow & Git Ignore Rules)
+
+- **Branch Streamlining & ACBA Specialization (`BRANCHING.md`, Git Branches)**:
+  - Streamlined repository to focus exclusively on ACBA requirements and biometric hardware integrations, establishing a clean two-branch topology: `acba-development` (active staging, demo testing, feature implementation) and `acba-production` (production releases, default GitHub branch).
+  - Retired, deleted, and pruned legacy generic branches (`development`, `master`, `codex/system-regression-tests`, and old branch names `acba` and `acba-dev`) locally and remotely on GitHub (`origin`).
+  - Updated `BRANCHING.md` with explicit guidelines on promotion workflows (`cherry-pick -x`), release tagging, and database isolation profiles (`officecoreacbadevdb` vs `OfficeCoreDb`).
+- **Git Ignore Security Hardening (`.gitignore`)**:
+  - Explicitly added ignore rules for local database files (`*.db`, `*.sqlite`, `*.sqlite3`) and machine station secret keys (`**/station_secret.key`) to prevent local databases and workstation secrets from being committed.
+
 ### Frontend, Desktop Stations, Installers & Hardware Firmware — [2026-10-30] (SignalR CookieHandler, Chat Resilience, Light-Mode CSS, Uninstaller Cleanup & ESP32 Fixes)
 
 - **Blazor WASM Frontend (`GlobalChatWidget.razor`, `AttendanceSettings.razor`, `RoleManagement.razor`, `UserManagement.razor`, `WorkSchedules.razor`, `Styles/app.css`, SignalR Pages)**:
