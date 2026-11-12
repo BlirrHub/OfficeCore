@@ -1,14 +1,29 @@
-# Branch and release workflow
+# Branch and release workflow (ACBA-Dedicated)
 
-- `development`: generic product development; excludes ACBA-specific hardware.
-- `acba-dev`: ACBA integration and demo testing, including biometric hardware.
-- `acba`: approved ACBA production releases; no demo accounts or login controls.
-- `master`: legacy and outside the current maintenance workflow.
+This repository is dedicated specifically to the **ACBA** deployment of OfficeCore, including biometric hardware integrations and customized business workflows.
 
-Use short-lived `codex/` feature branches from the target development branch. Validate general fixes on `development`, then cherry-pick the reviewed commits into `acba-dev`. ACBA-only changes stay on `acba-dev`. Promote reviewed changes to `acba` selectively, excluding demo seeding and environment configuration. Avoid whole-branch merges while these variants differ. Record source commits when cherry-picking (`git cherry-pick -x`).
+## Active Branches
 
-Before pushing, build the API and Server Station in Release, run authorization and deployment tests, rebuild Tailwind when UI classes change, and inspect the staged diff. Test ACBA hardware changes on the actual device before release. Tag approved production releases after validation; do not create release tags for untested local work.
+- **`acba-development`**: Active day-to-day development, bug fixes, feature staging, demo testing, and biometric hardware integrations for ACBA.
+- **`acba-production`**: Approved, tested ACBA production releases (default branch on GitHub). Contains production logic with zero demo accounts, quick-login controls, or simulated seed employees.
 
-Deployment database defaults are explicit assembly metadata in Server Station: `officecoredevdb` for development, `officecoreacbadevdb` for acba-dev and `OfficeCoreDb` for acba. Debug and Release behave alike. The API configuration must match the same profile. Development seeders reject other database names before migrations. Development Server Station settings live in separate profile folders under LocalAppData/OfficeCore; configure credentials again on first launch after this change. Production retains its existing settings path. Custom production database names remain supported.
+*(Note: Legacy generic branches `development`, `master`, `acba`, and `acba-dev` have been retired and deleted).*
 
-Keep user uploads, local databases, private configuration and installer outputs out of new commits. Existing tracked runtime data requires a separate content review before removal. Never include unrelated working changes in maintenance commits.
+## Workflow & Promotion
+
+1. **Feature Work:** Create short-lived feature branches off `acba-development`.
+2. **Validation:** Validate all changes on `acba-development` against the test suite (`dotnet test OfficeCore.slnx`), UI build (`npm.cmd run css:build`), and hardware integrations (ESP32 / AS608 biometric scanner).
+3. **Promotion to Production:** Promote reviewed commits from `acba-development` to `acba-production` selectively (using `git cherry-pick -x`), excluding demo seeding (`DbSeeder.cs`) and environment configuration (`appsettings.json`). Avoid raw whole-branch merges while demo seeding differences exist between development and production.
+4. **Release Tagging:** Tag approved production releases on `acba-production` after end-to-end verification. Do not create release tags for unvalidated local work.
+
+## Deployment Database Profiles
+
+Deployment database defaults are explicit assembly metadata in Server Station (`OfficeCoreDefaultDatabase`):
+- `acba-development` targets `officecoreacbadevdb`.
+- `acba-production` targets `OfficeCoreDb`.
+
+Development seeders reject other database names before migrations to prevent accidental overwrites. Server Station settings are isolated per profile folder under `%LocalAppData%/OfficeCore` (`officecoreacbadevdb` vs production root). Custom production database names remain supported.
+
+## Repository Hygiene
+
+Keep user uploads, local databases (`*.db`, `*.sqlite`), private configuration (`appsettings.*.Local.json`, `station_secret.key`), and installer outputs (`dist/`, `Setup-*.exe`) out of new commits. Never include unrelated working changes in maintenance commits.
