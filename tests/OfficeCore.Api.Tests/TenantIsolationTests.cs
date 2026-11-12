@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
@@ -110,6 +112,71 @@ public class TenantIsolationTests
             ControllerContext = fixture.ControllerContext
         };
         Assert.IsType<ForbidResult>(await payrollController.GetMyPayslips());
+    }
+
+    [Fact]
+    public async Task GetMyOrganizations_excludes_inactive_memberships()
+    {
+        await using var fixture = new TenantTestFixture();
+        // Add user from Org One as an inactive (resigned) employee in OtherOrganization
+        fixture.Db.Employees.Add(new Employee
+        {
+            Id = Guid.NewGuid().ToString(),
+            UserId = fixture.Employee.UserId,
+            OrganizationId = fixture.OtherOrganization.Id,
+            IsActive = false
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        var orgsController = new OrganizationsController(fixture.Db, fixture.UserManager, null!, fixture.Tenant)
+        {
+            ControllerContext = fixture.ControllerContext
+        };
+        var ok = Assert.IsType<OkObjectResult>(await orgsController.GetMyOrganizations());
+        var list = Assert.IsAssignableFrom<IEnumerable<object>>(ok.Value);
+        var single = Assert.Single(list);
+        var idProp = single.GetType().GetProperty("id") ?? single.GetType().GetProperty("Id");
+        Assert.Equal(fixture.Organization.Id, (Guid)idProp!.GetValue(single)!);
+    }
+
+    [Fact]
+    public async Task Attendance_LogScanEvent_and_StartEnrollment_enforce_auth_and_tenant_scoping()
+    {
+        var scanMethod = typeof(AttendanceController).GetMethod(nameof(AttendanceController.LogScanEvent));
+        Assert.NotNull(scanMethod);
+        Assert.Null(scanMethod!.GetCustomAttribute<AllowAnonymousAttribute>());
+        Assert.NotNull(scanMethod.GetCustomAttribute<AuthorizeAttribute>());
+
+        await using var fixture = new TenantTestFixture();
+        fixture.SelectWorkspace(fixture.Organization.Id);
+
+        // Add fingerprint in OtherOrganization (same FingerprintId 77) and an inactive employee fingerprint in active Organization (FingerprintId 88)
+        var inactiveUser = new ApplicationUser { Id = Guid.NewGuid().ToString(), UserName = "resigned@test.com", Email = "resigned@test.com", FirstName = "Res", LastName = "Signed" };
+        var inactiveEmp = new Employee { Id = Guid.NewGuid().ToString(), UserId = inactiveUser.Id, User = inactiveUser, OrganizationId = fixture.Organization.Id, IsActive = false };
+        fixture.Db.AddRange(inactiveUser, inactiveEmp);
+        fixture.Db.EmployeeFingerprints.AddRange(
+            new EmployeeFingerprint { EmployeeId = fixture.OtherEmployee.Id, OrganizationId = fixture.OtherOrganization.Id, FingerprintId = 77 },
+            new EmployeeFingerprint { EmployeeId = inactiveEmp.Id, OrganizationId = fixture.Organization.Id, FingerprintId = 88 });
+        await fixture.Db.SaveChangesAsync();
+
+        var attendanceController = new AttendanceController(
+            fixture.Db,
+            null!,
+            null!,
+            null!,
+            fixture.Tenant,
+            null!,
+            new BiometricReportService(fixture.Db))
+        {
+            ControllerContext = fixture.ControllerContext
+        };
+
+        // Cross-tenant fingerprint cannot be scanned from active org
+        Assert.IsType<NotFoundObjectResult>(await attendanceController.LogScanEvent(new ScanEventDto { FingerprintId = 77 }));
+        // Inactive employee fingerprint cannot be scanned
+        Assert.IsType<NotFoundObjectResult>(await attendanceController.LogScanEvent(new ScanEventDto { FingerprintId = 88 }));
+        // Cross-tenant enrollment target is rejected before touching TCP device service
+        Assert.IsType<NotFoundObjectResult>(await attendanceController.StartEnrollment(fixture.OtherEmployee.Id));
     }
 
     private sealed class TenantTestFixture : IAsyncDisposable

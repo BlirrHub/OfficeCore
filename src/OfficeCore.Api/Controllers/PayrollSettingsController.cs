@@ -11,6 +11,7 @@ namespace OfficeCore.Api.Controllers;
 [Authorize]
 public class PayrollSettingsController : ControllerBase
 {
+    private const decimal DefaultMinimumDailyRate = 610m;
     private readonly AppDbContext _context;
     private readonly TenantService _tenant;
 
@@ -83,20 +84,8 @@ public class PayrollSettingsController : ControllerBase
         var setting = await _context.GeneralPayrollSettings
             .FirstOrDefaultAsync(s => s.Key == MinDailyRateKey && s.OrganizationId == orgId.Value);
 
-        if (setting == null)
-        {
-            setting = new GeneralPayrollSetting
-            {
-                Key = MinDailyRateKey,
-                Value = 0m,
-                Description = "Default minimum daily rate used when employee has no custom rate.",
-                OrganizationId = orgId.Value
-            };
-            _context.GeneralPayrollSettings.Add(setting);
-            await _context.SaveChangesAsync();
-        }
-
-        return Ok(new GeneralSettingsDto { MinimumDailyRate = setting.Value });
+        var rate = setting != null && setting.Value > 0m ? setting.Value : DefaultMinimumDailyRate;
+        return Ok(new GeneralSettingsDto { MinimumDailyRate = rate });
     }
 
     [HttpPut("general")]
@@ -105,6 +94,11 @@ public class PayrollSettingsController : ControllerBase
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
+
+        if (dto.MinimumDailyRate <= 0m)
+        {
+            return BadRequest(new { message = "Minimum daily rate must be greater than zero." });
+        }
 
         var setting = await _context.GeneralPayrollSettings
             .FirstOrDefaultAsync(s => s.Key == MinDailyRateKey && s.OrganizationId == orgId.Value);

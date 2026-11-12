@@ -150,6 +150,8 @@ public class RbacAuthorizationTests
     [InlineData(typeof(CompanyExpenseController), nameof(CompanyExpenseController.CreateExpense), "Permission:ledger.manage")]
     [InlineData(typeof(AdvanceRequestController), nameof(AdvanceRequestController.GetAllRequests), "Permission:ledger.view")]
     [InlineData(typeof(AdvanceRequestController), nameof(AdvanceRequestController.ApproveRequest), "Permission:ledger.manage")]
+    [InlineData(typeof(AdvanceRequestController), nameof(AdvanceRequestController.DeleteRequest), "RequireLedger")]
+    [InlineData(typeof(AdvanceRequestController), nameof(AdvanceRequestController.DeleteRequest), "Permission:ledger.manage")]
     [InlineData(typeof(PayrollController), nameof(PayrollController.GetPayrollPeriods), "Permission:payroll.view")]
     [InlineData(typeof(PayrollController), nameof(PayrollController.ComputePayroll), "Permission:payroll.calculate")]
     [InlineData(typeof(PayrollController), nameof(PayrollController.FinalizePeriod), "Permission:payroll.finalize")]
@@ -173,6 +175,113 @@ public class RbacAuthorizationTests
         Assert.NotNull(method);
         var policies = method!.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Select(a => a.Policy).ToList();
         Assert.Contains(expectedPolicy, policies);
+    }
+
+    [Fact]
+    public async Task Non_owner_manager_cannot_resign_or_remove_admin_while_owner_can_and_history_blocks_delete()
+    {
+        var services = new ServiceCollection();
+        var dbName = $"rbac-users-{Guid.NewGuid():N}";
+        services.AddLogging();
+        services.AddDbContext<AppDbContext>(o =>
+            o.UseInMemoryDatabase(dbName).ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
+        services.AddIdentityCore<ApplicationUser>()
+            .AddEntityFrameworkStores<AppDbContext>();
+
+        var http = new DefaultHttpContext();
+        services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = http });
+        services.AddScoped<TenantService>();
+        services.AddScoped<IAuditService, AuditService>();
+
+        await using var provider = services.BuildServiceProvider();
+        var db = provider.GetRequiredService<AppDbContext>();
+        var userManager = provider.GetRequiredService<UserManager<ApplicationUser>>();
+        var tenant = provider.GetRequiredService<TenantService>();
+        var audit = provider.GetRequiredService<IAuditService>();
+
+        var owner = new ApplicationUser { Id = Guid.NewGuid().ToString(), UserName = "owner@test.com", Email = "owner@test.com", FirstName = "Owner", LastName = "User" };
+        var manager = new ApplicationUser { Id = Guid.NewGuid().ToString(), UserName = "mgr@test.com", Email = "mgr@test.com", FirstName = "Mgr", LastName = "User" };
+        var adminUser = new ApplicationUser { Id = Guid.NewGuid().ToString(), UserName = "admin@test.com", Email = "admin@test.com", FirstName = "Admin", LastName = "User" };
+        var staffUser = new ApplicationUser { Id = Guid.NewGuid().ToString(), UserName = "staff@test.com", Email = "staff@test.com", FirstName = "Staff", LastName = "User" };
+
+        var org = new Organization { Id = Guid.NewGuid(), Name = "Org", CreatedByUserId = owner.Id };
+        var adminRole = new OrganizationRole { Id = Guid.NewGuid(), Name = "Admin", OrganizationId = org.Id };
+        var ownerEmp = new Employee { Id = Guid.NewGuid().ToString(), UserId = owner.Id, User = owner, OrganizationId = org.Id, IsActive = true };
+        var mgrEmp = new Employee { Id = Guid.NewGuid().ToString(), UserId = manager.Id, User = manager, OrganizationId = org.Id, IsActive = true };
+        var adminEmp = new Employee
+        {
+            Id = Guid.NewGuid().ToString(),
+            UserId = adminUser.Id,
+            User = adminUser,
+            OrganizationId = org.Id,
+            IsActive = true,
+            EmployeeRoles = new List<EmployeeRole> { new() { Role = adminRole, OrganizationRoleId = adminRole.Id } }
+        };
+        var staffEmp = new Employee { Id = Guid.NewGuid().ToString(), UserId = staffUser.Id, User = staffUser, OrganizationId = org.Id, IsActive = true };
+
+        db.AddRange(owner, manager, adminUser, staffUser, org, adminRole, ownerEmp, mgrEmp, adminEmp, staffEmp);
+        db.AttendanceRecords.Add(new AttendanceRecord
+        {
+            Id = Guid.NewGuid(),
+            EmployeeId = staffEmp.Id,
+            OrganizationId = org.Id,
+            Timestamp = DateTimeOffset.UtcNow,
+            Type = AttendanceType.ClockIn
+        });
+        await db.SaveChangesAsync();
+
+        var controller = new UserController(userManager, db, tenant, audit, null!)
+        {
+            ControllerContext = new ControllerContext { HttpContext = http }
+        };
+        http.Request.Headers.Cookie = $"ActiveOrganizationId={org.Id}";
+
+        // Non-owner manager cannot resign or delete privileged Admin
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, manager.Id) }, "Test"));
+        Assert.IsType<ForbidResult>(await controller.ResignUser(adminUser.Id, new ResignRequest { ResignedDate = DateTime.UtcNow.Date }));
+        Assert.IsType<ForbidResult>(await controller.RemoveUserFromOrganization(adminUser.Id));
+
+        // Employee with historical attendance records cannot be hard-deleted (prevents FK crash)
+        Assert.IsType<BadRequestObjectResult>(await controller.RemoveUserFromOrganization(staffUser.Id));
+
+        // Workspace owner CAN resign the Admin
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, owner.Id) }, "Test"));
+        Assert.IsType<OkObjectResult>(await controller.ResignUser(adminUser.Id, new ResignRequest { ResignedDate = DateTime.UtcNow.Date }));
+        Assert.False((await db.Employees.FindAsync(adminEmp.Id))!.IsActive);
+    }
+
+    [Fact]
+    public async Task Roleless_employee_claims_include_default_boards_view_permission()
+    {
+        var services = new ServiceCollection();
+        var dbName = $"rbac-claims-{Guid.NewGuid():N}";
+        services.AddLogging();
+        services.AddDbContext<AppDbContext>(o =>
+            o.UseInMemoryDatabase(dbName).ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
+        services.AddIdentityCore<ApplicationUser>()
+            .AddEntityFrameworkStores<AppDbContext>();
+
+        var http = new DefaultHttpContext();
+        services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = http });
+        services.AddScoped<TenantService>();
+
+        await using var provider = services.BuildServiceProvider();
+        var db = provider.GetRequiredService<AppDbContext>();
+        var tenant = provider.GetRequiredService<TenantService>();
+
+        var ownerId = Guid.NewGuid().ToString();
+        var staffId = Guid.NewGuid().ToString();
+        var org = new Organization { Id = Guid.NewGuid(), Name = "Org", CreatedByUserId = ownerId };
+        db.Organizations.Add(org);
+        db.Employees.Add(new Employee { Id = Guid.NewGuid().ToString(), UserId = staffId, OrganizationId = org.Id, IsActive = true });
+        await db.SaveChangesAsync();
+
+        http.Request.Headers.Cookie = $"ActiveOrganizationId={org.Id}";
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, staffId) }, "Test"));
+        var transform = new OrganizationClaimsTransformation(db, tenant);
+
+        var transformed = await transform.TransformAsync(principal);
+        Assert.True(transformed.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.BoardsView));
     }
 
 }

@@ -41,7 +41,7 @@ public class OrganizationsController : ControllerBase
 
         var myEmployees = await _context.Employees
             .Include(e => e.Organization)
-            .Where(e => e.UserId == userId && e.Organization != null)
+            .Where(e => e.UserId == userId && e.IsActive && e.Organization != null)
             .ToListAsync();
 
         var result = myEmployees.Select(e => new

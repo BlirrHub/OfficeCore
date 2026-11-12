@@ -76,6 +76,8 @@ public class OrganizationClaimsTransformation : IClaimsTransformation
             // Default modules for all authenticated accounts in the workspace
             foreach (var module in ModuleCatalog.DefaultKeys)
                 claimsIdentity.AddClaim(new Claim("ModuleAccess", module));
+            foreach (var permission in PermissionCatalog.ExpandModules(ModuleCatalog.DefaultKeys))
+                claimsIdentity.AddClaim(new Claim(PermissionCatalog.ClaimType, permission));
         }
 
         foreach (var er in employeeRoles)

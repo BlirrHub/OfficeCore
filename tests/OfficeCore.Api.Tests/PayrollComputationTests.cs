@@ -1,4 +1,12 @@
+using System.IO.Compression;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using OfficeCore.Api.Controllers;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
 using Xunit;
@@ -294,6 +302,208 @@ public class PayrollComputationTests
 
         Assert.False(BiometricReportService.MatchesEmployeeNameTokens("Joanna Cruz", ann));
         Assert.True(BiometricReportService.MatchesEmployeeNameTokens("Cruz, Joanna", joanna));
+    }
+
+    [Fact]
+    public async Task Minimum_daily_rate_zero_falls_back_to_610_and_settings_controller_enforces_positive_default()
+    {
+        await using var fixture = new PayrollFixture();
+        fixture.Employee.DailyRate = null;
+        fixture.Db.GeneralPayrollSettings.Add(new GeneralPayrollSetting
+        {
+            Key = "MinimumDailyRate",
+            Value = 0m,
+            OrganizationId = fixture.Organization.Id
+        });
+        fixture.Punch(8, AttendanceType.ClockIn);
+        fixture.Punch(17, AttendanceType.ClockOut);
+
+        var payslip = await fixture.Compute();
+        Assert.Equal(610m, payslip.BasicPay);
+
+        // Controller should return 610 without persisting 0 and reject <= 0 updates.
+        var http = new DefaultHttpContext();
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, fixture.Employee.UserId) }, "Test"));
+        http.Request.Headers.Cookie = $"ActiveOrganizationId={fixture.Organization.Id}";
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddScoped(_ => fixture.Db);
+        services.AddIdentityCore<ApplicationUser>().AddEntityFrameworkStores<AppDbContext>();
+        var accessor = new HttpContextAccessor { HttpContext = http };
+        services.AddSingleton<IHttpContextAccessor>(accessor);
+        services.AddScoped<TenantService>();
+        await using var sp = services.BuildServiceProvider();
+        var tenant = sp.GetRequiredService<TenantService>();
+        var controller = new PayrollSettingsController(fixture.Db, tenant)
+        {
+            ControllerContext = new ControllerContext { HttpContext = http }
+        };
+
+        var getRes = Assert.IsType<OkObjectResult>(await controller.GetGeneralSettings());
+        var minimumDailyRateProp = getRes.Value!.GetType().GetProperty("minimumDailyRate")
+            ?? getRes.Value!.GetType().GetProperty("MinimumDailyRate");
+        Assert.NotNull(minimumDailyRateProp);
+        Assert.Equal(610m, (decimal)minimumDailyRateProp!.GetValue(getRes.Value)!);
+
+        var badUpdate = await controller.UpdateGeneralSettings(new GeneralSettingsDto { MinimumDailyRate = 0m });
+        Assert.IsType<BadRequestObjectResult>(badUpdate);
+    }
+
+    [Fact]
+    public async Task Equal_timestamps_order_clock_out_before_clock_in()
+    {
+        await using var fixture = new PayrollFixture();
+        // Add ClockIn at 10:00 before ClockOut at 10:00 to ensure EF/insertion order does not break pairing.
+        fixture.Punch(8, AttendanceType.ClockIn);
+        fixture.Punch(10, AttendanceType.ClockIn);
+        fixture.Punch(10, AttendanceType.ClockOut);
+        fixture.Punch(17, AttendanceType.ClockOut);
+
+        var payslip = await fixture.Compute();
+        Assert.Equal(8, payslip.TotalWorkedHours);
+        Assert.Equal(800m, payslip.BasicPay);
+    }
+
+    [Fact]
+    public async Task Scheduled_workday_pre_overtime_is_zero_when_unworked_and_capped_by_actual_excess_hours()
+    {
+        // Case 1: Regular workday with 8:00-17:00 punches (no excess) and PreOvertime request -> 0 OT pay
+        await using (var noExcess = new PayrollFixture())
+        {
+            noExcess.Punch(8, AttendanceType.ClockIn);
+            noExcess.Punch(17, AttendanceType.ClockOut);
+            noExcess.Db.OvertimeRequests.Add(new OvertimeRequest
+            {
+                Id = Guid.NewGuid(),
+                EmployeeId = noExcess.Employee.Id,
+                OrganizationId = noExcess.Organization.Id,
+                Type = OvertimeType.PreOvertime,
+                Date = noExcess.CalendarDate,
+                Status = OvertimeStatus.Approved,
+                ApprovedHours = 2.0
+            });
+
+            var payslip = await noExcess.Compute();
+            Assert.Equal(800m, payslip.BasicPay);
+            Assert.Equal(0m, payslip.TotalOvertimePay);
+        }
+
+        // Case 2: Regular workday with 1h actual OT (17:00->18:00) and 3h ApprovedHours -> capped to 1h OT
+        await using (var capped = new PayrollFixture())
+        {
+            capped.Punch(8, AttendanceType.ClockIn);
+            capped.Punch(18, AttendanceType.ClockOut);
+            capped.Db.OvertimeRequests.Add(new OvertimeRequest
+            {
+                Id = Guid.NewGuid(),
+                EmployeeId = capped.Employee.Id,
+                OrganizationId = capped.Organization.Id,
+                Type = OvertimeType.PostOvertime,
+                Date = capped.CalendarDate,
+                Status = OvertimeStatus.Approved,
+                ApprovedHours = 3.0
+            });
+
+            var payslip = await capped.Compute();
+            Assert.Equal(800m, payslip.BasicPay);
+            Assert.Equal(125m, payslip.TotalOvertimePay); // 1h * (800 / 8) * 1.25
+        }
+    }
+
+    [Fact]
+    public async Task Biometric_lunch_window_punches_normalize_to_1200_out_and_1300_in_and_yield_8_hours()
+    {
+        await using var fixture = new PayrollFixture();
+        fixture.Employee.EmployeeId = "001";
+        await fixture.Db.SaveChangesAsync();
+
+        using var xlsx = BuildSingleDayBiometricXlsx("10/26/2026 ~ 10/26/2026", "001", "Test Employee", "08:00 12:05 12:55 17:00");
+        var bioService = new BiometricReportService(fixture.Db);
+        var preview = await bioService.PreviewBiometricReportAsync(xlsx, fixture.Organization.Id);
+
+        Assert.True(preview.Success);
+        var empLog = Assert.Single(preview.Employees);
+        var day = Assert.Single(empLog.Days);
+        Assert.Equal(4, day.Punches.Count);
+
+        Assert.Equal(AttendanceType.ClockIn, day.Punches[0].Type);
+        Assert.Equal("08:00", day.Punches[0].Time);
+        Assert.Equal(AttendanceType.ClockOut, day.Punches[1].Type);
+        Assert.Equal("12:00", day.Punches[1].Time);
+        Assert.Equal(AttendanceType.ClockIn, day.Punches[2].Type);
+        Assert.Equal("13:00", day.Punches[2].Time);
+        Assert.Equal(AttendanceType.ClockOut, day.Punches[3].Type);
+        Assert.Equal("17:00", day.Punches[3].Time);
+
+        foreach (var punch in day.Punches)
+        {
+            fixture.Db.AttendanceRecords.Add(new AttendanceRecord
+            {
+                Id = Guid.NewGuid(),
+                EmployeeId = fixture.Employee.Id,
+                OrganizationId = fixture.Organization.Id,
+                Timestamp = punch.Timestamp,
+                Type = punch.Type
+            });
+        }
+
+        var payslip = await fixture.Compute();
+        Assert.Equal(8, payslip.TotalWorkedHours);
+        Assert.Equal(800m, payslip.BasicPay);
+    }
+
+    private static MemoryStream BuildSingleDayBiometricXlsx(string dateRange, string bioId, string name, string punches)
+    {
+        var ms = new MemoryStream();
+        using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            static void WriteEntry(ZipArchive zip, string path, string content)
+            {
+                var entry = zip.CreateEntry(path);
+                using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+                writer.Write(content);
+            }
+
+            WriteEntry(archive, "[Content_Types].xml", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+                  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+                  <Default Extension="xml" ContentType="application/xml"/>
+                  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+                  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+                </Types>
+                """.Trim());
+            WriteEntry(archive, "_rels/.rels", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+                </Relationships>
+                """.Trim());
+            WriteEntry(archive, "xl/workbook.xml", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <sheets><sheet name="Attend. Logs" sheetId="1" r:id="rId1"/></sheets>
+                </workbook>
+                """.Trim());
+            WriteEntry(archive, "xl/_rels/workbook.xml.rels", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+                </Relationships>
+                """.Trim());
+            WriteEntry(archive, "xl/worksheets/sheet1.xml", $"""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+                  <sheetData>
+                    <row r="1"><c r="A1" t="inlineStr"><is><t>{dateRange}</t></is></c></row>
+                    <row r="2"><c r="A2" t="inlineStr"><is><t>ID : {bioId}</t></is></c><c r="B2" t="inlineStr"><is><t>Name : {name}</t></is></c></row>
+                    <row r="3"><c r="A3" t="inlineStr"><is><t>{punches}</t></is></c></row>
+                  </sheetData>
+                </worksheet>
+                """.Trim());
+        }
+        ms.Position = 0;
+        return ms;
     }
 
     private sealed class PayrollFixture : IAsyncDisposable

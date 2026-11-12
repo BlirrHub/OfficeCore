@@ -527,9 +527,18 @@ public class AttendanceController : ControllerBase
     [HttpPost("enroll/{employeeId}")]
     [Authorize(Policy = "RequireAttendance")]
     [Authorize(Policy = "Permission:attendance.adjust")]
-    public IActionResult StartEnrollment(string employeeId)
+    public async Task<IActionResult> StartEnrollment(string employeeId)
     {
-        var started = _deviceService.StartEnrollment(employeeId);
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
+
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.OrganizationId == orgId.Value
+                                   && (e.Id == employeeId || e.UserId == employeeId)
+                                   && e.IsActive);
+        if (employee == null) return NotFound(new { message = "Employee not found in active workspace." });
+
+        var started = _deviceService.StartEnrollment(employee.Id, orgId.Value);
         if (started)
         {
             return Ok(new { message = "Device is in enrollment mode. Please scan finger on the sensor." });
@@ -541,9 +550,12 @@ public class AttendanceController : ControllerBase
     [HttpPost("cancel-enroll")]
     [Authorize(Policy = "RequireAttendance")]
     [Authorize(Policy = "Permission:attendance.adjust")]
-    public IActionResult CancelEnrollment()
+    public async Task<IActionResult> CancelEnrollment()
     {
-        _deviceService.CancelEnrollment();
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Forbid();
+
+        _deviceService.CancelEnrollment(orgId.Value);
         return Ok(new { message = "Enrollment cancelled." });
     }
 
@@ -606,11 +618,18 @@ public class AttendanceController : ControllerBase
 
     // Hardware Scanner scan callback endpoint
     [HttpPost("scan-event")]
-    [AllowAnonymous] // ESP32 Wi-Fi hardware posts directly to this endpoint
+    [Authorize]
     public async Task<IActionResult> LogScanEvent([FromBody] ScanEventDto dto)
     {
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        if (orgId == null) return Unauthorized("No active workspace selected.");
+
         var mapping = await _context.EmployeeFingerprints
-            .FirstOrDefaultAsync(f => f.FingerprintId == dto.FingerprintId);
+            .Include(f => f.Employee)
+            .FirstOrDefaultAsync(f => f.FingerprintId == dto.FingerprintId
+                                   && f.OrganizationId == orgId.Value
+                                   && f.Employee != null
+                                   && f.Employee.IsActive);
 
         if (mapping == null) return NotFound(new { message = "Unknown fingerprint." });
 
