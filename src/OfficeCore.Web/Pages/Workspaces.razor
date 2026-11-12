@@ -366,7 +366,7 @@
     private InvitationDetailsDto? _verifiedInvitation;
     private bool _hasProcessedQueryParams;
     
-    private List<OrganizationDto>? _organizations;
+    private List<WorkspaceSummaryDto>? _organizations;
     private List<InvitationDto>? _pendingInvitations;
     private UserDto? _user;
     private CreateOrgModel _createModel = new();
@@ -400,7 +400,7 @@
         try
         {
             var userTask = Http.GetFromJsonAsync<UserDto>("/api/auth/me");
-            var orgsTask = Http.GetFromJsonAsync<List<OrganizationDto>>("/api/organizations/my");
+            var orgsTask = Http.GetFromJsonAsync<List<WorkspaceSummaryDto>>("/api/organizations/my");
             var invitesTask = Http.GetFromJsonAsync<List<InvitationDto>>("/api/organizations/invitations/pending");
             
             await Task.WhenAll(userTask, orgsTask, invitesTask);
@@ -566,7 +566,7 @@
             var response = await Http.PostAsJsonAsync("/api/organizations/join", new { Token = token });
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<JoinResponseDto>();
+                var result = await response.Content.ReadFromJsonAsync<JoinWorkspaceResponseDto>();
                 if (result != null)
                 {
                     ToastService.ShowSuccess($"Joined {result.OrganizationName} successfully!");
@@ -602,7 +602,7 @@
             var response = await Http.PostAsJsonAsync("/api/organizations", new { Name = _createModel.Name });
             if (response.IsSuccessStatusCode)
             {
-                var newOrg = await response.Content.ReadFromJsonAsync<OrganizationDto>();
+                var newOrg = await response.Content.ReadFromJsonAsync<WorkspaceSummaryDto>();
                 if (newOrg != null)
                 {
                     await SelectOrganization(newOrg.Id);
@@ -680,14 +680,6 @@
         return name.Substring(0, Math.Min(2, name.Length)).ToUpper();
     }
 
-    private class OrganizationDto
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public DateTime JoinedAt { get; set; }
-        public string? LogoUrl { get; set; }
-    }
-
     private class InvitationDto
     {
         public string Token { get; set; } = string.Empty;
@@ -695,22 +687,6 @@
         public string InvitedBy { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime ExpiresAt { get; set; }
-    }
-
-    private class InvitationDetailsDto
-    {
-        public string Token { get; set; } = string.Empty;
-        public string OrganizationName { get; set; } = string.Empty;
-        public string InvitedBy { get; set; } = string.Empty;
-        public bool HasEmail { get; set; }
-        public string? TargetEmail { get; set; }
-    }
-
-    private class JoinResponseDto
-    {
-        public string Message { get; set; } = string.Empty;
-        public Guid OrganizationId { get; set; }
-        public string OrganizationName { get; set; } = string.Empty;
     }
 
     private class UserDto

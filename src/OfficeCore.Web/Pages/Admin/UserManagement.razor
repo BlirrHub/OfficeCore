@@ -750,7 +750,6 @@
     private bool _copiedToken;
     private string _inviteTab = "link";
     
-    private class OrganizationDto { public Guid Id { get; set; } }
     private class InviteResponseDto 
     { 
         public string Token { get; set; } = string.Empty;
@@ -766,7 +765,7 @@
 
         try
         {
-            var orgRes = await Http.GetFromJsonAsync<OrganizationDto>("/api/organizations/current");
+            var orgRes = await Http.GetFromJsonAsync<WorkspaceSummaryDto>("/api/organizations/current");
             if (orgRes == null) {
                 ToastService.ShowError("Failed to get current organization.");
                 return;

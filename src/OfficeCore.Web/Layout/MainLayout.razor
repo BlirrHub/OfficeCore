@@ -151,8 +151,8 @@
     private bool _isSidebarCollapsed = false;
     private bool _isMobileSidebarOpen = false;
     private bool _isOrgDropdownOpen = false;
-    private List<OrganizationDto>? _organizations;
-    private OrganizationDto? _currentOrganization;
+    private List<WorkspaceSummaryDto>? _organizations;
+    private WorkspaceSummaryDto? _currentOrganization;
 
     [Inject] private HttpClient Http { get; set; } = default!;
     [Inject] private Auth.CookieAuthStateProvider CookieAuthProvider { get; set; } = default!;
@@ -185,11 +185,11 @@
     {
         try
         {
-            _organizations = await Http.GetFromJsonAsync<List<OrganizationDto>>("/api/organizations/my");
+            _organizations = await Http.GetFromJsonAsync<List<WorkspaceSummaryDto>>("/api/organizations/my");
         }
         catch
         {
-            _organizations = new List<OrganizationDto>();
+            _organizations = new List<WorkspaceSummaryDto>();
         }
     }
 
@@ -197,7 +197,7 @@
     {
         try
         {
-            _currentOrganization = await Http.GetFromJsonAsync<OrganizationDto>("/api/organizations/current");
+            _currentOrganization = await Http.GetFromJsonAsync<WorkspaceSummaryDto>("/api/organizations/current");
         }
         catch
         {
@@ -241,14 +241,6 @@
         {
             Nav.NavigateTo("/change-password");
         }
-    }
-
-    private class OrganizationDto
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string? LogoUrl { get; set; }
-        public DateTime JoinedAt { get; set; }
     }
 
     private void ToggleSidebar()

@@ -52,5 +52,6 @@ builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<CookieAuthStateProvider>());
 
 builder.Services.AddScoped<ToastService>();
+builder.Services.AddScoped<HubConnectionFactory>();
 
 await builder.Build().RunAsync();

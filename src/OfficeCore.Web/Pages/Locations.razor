@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "RequireLocations")]
 @using Microsoft.AspNetCore.SignalR.Client
 @inject HttpClient Http
+@inject HubConnectionFactory HubFactory
 @inject OfficeCore.Web.Services.ToastService ToastService
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthProvider
@@ -511,12 +512,7 @@
     {
         try
         {
-            var hubUrl = new Uri(Http.BaseAddress!, "hubs/notifications").ToString();
-
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(hubUrl, options => { options.HttpMessageHandlerFactory = handler => new OfficeCore.Web.Client.Auth.CookieHandler { InnerHandler = handler }; })
-                .WithAutomaticReconnect()
-                .Build();
+            _hubConnection = HubFactory.Create("hubs/notifications");
 
             _hubConnection.On<ActiveFieldEmployeeDto>("FieldLocationUpdated", async (ping) =>
             {
