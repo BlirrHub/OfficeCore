@@ -141,7 +141,7 @@ public partial class BoardsController
         if (targetList == null) return NotFound();
 
         var orderedLists = board.Lists.Where(l => l.Id != listId).OrderBy(l => l.OrderIndex).ToList();
-        orderedLists.Insert(Math.Min(req.NewOrderIndex, orderedLists.Count), targetList);
+        orderedLists.Insert(Math.Clamp(req.NewOrderIndex, 0, orderedLists.Count), targetList);
 
         for (int i = 0; i < orderedLists.Count; i++)
         {

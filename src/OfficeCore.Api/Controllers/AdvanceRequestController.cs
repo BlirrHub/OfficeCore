@@ -239,6 +239,7 @@ public class AdvanceRequestController : ControllerBase
 
         request.Status = AdvanceStatus.Approved;
         request.ResolutionDate = DateTime.UtcNow;
+        request.RemainingBalance ??= request.RequestedAmount;
 
         if (request.Type == AdvanceType.ELoan)
         {

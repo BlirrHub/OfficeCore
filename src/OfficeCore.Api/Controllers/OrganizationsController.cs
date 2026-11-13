@@ -322,7 +322,8 @@ public class OrganizationsController : ControllerBase
                 return BadRequest("This user is already a member of this workspace.");
             }
 
-            var alreadyInvited = await _context.OrganizationInvitations.AnyAsync(i => i.Email == email && i.OrganizationId == id && !i.IsAccepted && i.ExpiresAt > DateTime.UtcNow);
+            var normalizedEmail = email.Trim().ToLower();
+            var alreadyInvited = await _context.OrganizationInvitations.AnyAsync(i => i.Email != null && i.Email.ToLower() == normalizedEmail && i.OrganizationId == id && !i.IsAccepted && i.ExpiresAt > DateTime.UtcNow);
             if (alreadyInvited)
             {
                 return BadRequest("This user already has a pending invitation to this workspace.");
@@ -433,10 +434,13 @@ public class OrganizationsController : ControllerBase
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
 
+        if (string.IsNullOrWhiteSpace(user?.Email)) return Ok(Array.Empty<object>());
+
+        var normalizedEmail = user.Email.Trim().ToLower();
         var pendingInvites = await _context.OrganizationInvitations
             .Include(i => i.Organization)
             .Include(i => i.InvitedBy)
-            .Where(i => i.Email == user.Email && !i.IsAccepted && i.ExpiresAt > DateTime.UtcNow)
+            .Where(i => i.Email != null && i.Email.ToLower() == normalizedEmail && !i.IsAccepted && i.ExpiresAt > DateTime.UtcNow)
             .Select(i => new
             {
                 Token = i.Token,
@@ -476,8 +480,11 @@ public class OrganizationsController : ControllerBase
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
 
+        if (string.IsNullOrWhiteSpace(user.Email)) return NotFound();
+
+        var normalizedEmail = user.Email.Trim().ToLower();
         var invitation = await _context.OrganizationInvitations
-            .FirstOrDefaultAsync(i => i.Token == token && i.Email == user.Email && !i.IsAccepted);
+            .FirstOrDefaultAsync(i => i.Token == token && i.Email != null && i.Email.ToLower() == normalizedEmail && !i.IsAccepted);
 
         if (invitation == null) return NotFound("Invitation not found.");
 

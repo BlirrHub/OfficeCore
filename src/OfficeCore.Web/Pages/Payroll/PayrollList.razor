@@ -253,7 +253,7 @@
                     (p.Remarks != null && p.Remarks.ToLower().Contains(term)) ||
                     p.StartDate.ToString("MMM dd yyyy").ToLower().Contains(term) ||
                     p.EndDate.ToString("MMM dd yyyy").ToLower().Contains(term) ||
-                    p.Status.ToString().ToLower().Contains(term)
+                    GetStatusText(p.Status).ToLower().Contains(term)
                 );
             }
 

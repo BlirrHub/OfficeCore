@@ -24,6 +24,8 @@ public interface IFileStorageService
 
     ResolvedStoredFile? ResolveFile(string category, string fileName);
 
+    bool DeleteFile(string? relativeUrl);
+
     void MigrateLegacyWebRootUploads(string? webRootPath);
 }
 
@@ -152,6 +154,35 @@ public sealed class LocalFileStorageService : IFileStorageService
             return null;
 
         return new ResolvedStoredFile(fullPath, mimeInfo.Mime, mimeInfo.Inline);
+    }
+
+    public bool DeleteFile(string? relativeUrl)
+    {
+        if (string.IsNullOrWhiteSpace(relativeUrl))
+            return false;
+
+        var trimmed = relativeUrl.Trim().TrimStart('/');
+        if (trimmed.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
+            trimmed = trimmed["uploads/".Length..];
+
+        var parts = trimmed.Split('/', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+            return false;
+
+        var resolved = ResolveFile(parts[0], parts[1]);
+        if (resolved == null)
+            return false;
+
+        try
+        {
+            File.Delete(resolved.FullPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not delete stored file {FilePath}", resolved.FullPath);
+            return false;
+        }
     }
 
     public void MigrateLegacyWebRootUploads(string? webRootPath)

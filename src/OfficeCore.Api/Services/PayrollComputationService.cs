@@ -386,7 +386,8 @@ public class PayrollComputationService : IPayrollComputationService
                     deduction = advance.RemainingBalance ?? advance.RequestedAmount;
                 }
                 
-                if (deduction > advance.RemainingBalance) deduction = advance.RemainingBalance ?? 0m;
+                var remainingBalance = advance.RemainingBalance ?? advance.RequestedAmount;
+                if (deduction > remainingBalance) deduction = remainingBalance;
                 advancesDeduction += deduction;
             }
 

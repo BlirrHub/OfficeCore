@@ -17,7 +17,6 @@ public class LeaveRequestController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IWebHostEnvironment _env;
     private readonly TenantService _tenant;
     private readonly IHubContext<NotificationHub> _hub;
     private readonly IAuditService _audit;
@@ -26,7 +25,6 @@ public class LeaveRequestController : ControllerBase
     public LeaveRequestController(
         AppDbContext context,
         UserManager<ApplicationUser> userManager,
-        IWebHostEnvironment env,
         TenantService tenant,
         IHubContext<NotificationHub> hub,
         IAuditService audit,
@@ -34,7 +32,6 @@ public class LeaveRequestController : ControllerBase
     {
         _context = context;
         _userManager = userManager;
-        _env = env;
         _tenant = tenant;
         _hub = hub;
         _audit = audit;
@@ -201,10 +198,7 @@ public class LeaveRequestController : ControllerBase
             new { OldStatus = oldStatus.ToString(), NewStatus = request.Status.ToString() });
 
         // 1. Silent data refresh signal for pages
-        if (orgId.HasValue)
-        {
-            await _hub.Clients.Group($"org_{orgId}").SendAsync("LeaveRequestUpdated");
-        }
+        await _hub.Clients.Group($"org_{orgId.Value}").SendAsync("LeaveRequestUpdated");
 
         // 2. Targeted notification for the requesting employee on the result
         if (!string.IsNullOrEmpty(leaveRequest.Employee?.UserId))
@@ -237,6 +231,7 @@ public class LeaveRequestController : ControllerBase
         if (orgId == null) return Forbid();
 
         var employee = await _context.Employees
+            .Include(e => e.User)
             .FirstOrDefaultAsync(e => (e.UserId == request.EmployeeId || e.Id == request.EmployeeId) && e.OrganizationId == orgId.Value);
 
         if (employee == null) return BadRequest("Employee not found");

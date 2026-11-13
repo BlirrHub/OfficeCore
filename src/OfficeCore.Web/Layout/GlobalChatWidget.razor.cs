@@ -42,8 +42,6 @@ public partial class GlobalChatWidget
     private HashSet<Guid> _forwardedRoomIds = new();
     private bool _isForwarding = false;
     
-    private HashSet<string> _myBoardIds = new();
-    
     private string _newMessageContentValue = string.Empty;
     private string _newMessageContent 
     {
@@ -112,15 +110,6 @@ public partial class GlobalChatWidget
 
     private void InsertTag(ChatSearchTagDto tag)
     {
-        if (tag.Type == "Board")
-        {
-            _myBoardIds.Add(tag.Id);
-        }
-        else if (!string.IsNullOrEmpty(tag.BoardId))
-        {
-            _myBoardIds.Add(tag.BoardId);
-        }
-
         var lastIndex = _newMessageContentValue.LastIndexOf('#');
         if (lastIndex >= 0)
         {
@@ -144,8 +133,6 @@ public partial class GlobalChatWidget
                 candidates.AddRange(res.Boards);
                 candidates.AddRange(res.Tasks);
                 _tagCandidates = candidates;
-                foreach (var b in res.Boards) _myBoardIds.Add(b.Id);
-                foreach (var t in res.Tasks) if (!string.IsNullOrEmpty(t.BoardId)) _myBoardIds.Add(t.BoardId);
                 StateHasChanged();
             }
         }
@@ -263,9 +250,6 @@ public partial class GlobalChatWidget
                     taskId = parts[1];
                 }
 
-                // Add to known boards
-                // Do not mutate _myBoardIds during render
-
                 var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
                 var colorClass = type == "board"
                     ? (isMine ? "text-amber-300 hover:text-amber-200" : "text-amber-400 hover:text-amber-300")
@@ -295,9 +279,6 @@ public partial class GlobalChatWidget
                     boardId = parts[0];
                     taskId = parts[1];
                 }
-
-                // Add to known boards
-                // Do not mutate _myBoardIds during render
 
                 var href = type == "board" ? $"/boards/{boardId}" : $"/boards/{boardId}?taskId={taskId}";
                 var colorClass = type == "board"
@@ -370,18 +351,6 @@ public partial class GlobalChatWidget
         _ => _rooms
     };
 
-    private class BasicBoardDto { public Guid Id { get; set; } }
-
-    private async Task LoadMyBoards()
-    {
-        try {
-            var res = await Http.GetFromJsonAsync<List<BasicBoardDto>>("/api/boards");
-            if (res != null) {
-                _myBoardIds = res.Select(b => b.Id.ToString()).ToHashSet();
-            }
-        } catch { }
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_activeMessageMenuId.HasValue || _activeReactionMenuId.HasValue)
@@ -434,7 +403,6 @@ public partial class GlobalChatWidget
 
         // Load employees in org for chat searches (returns Employee.Id as Id)
         await ReloadUsers();
-        await LoadMyBoards();
 
         _hubConnection = HubFactory.Create("hubs/chat");
 
@@ -562,7 +530,7 @@ public partial class GlobalChatWidget
                 _isTyping = true;
                 _typingTimer?.Stop();
                 _typingTimer?.Dispose();
-                _typingTimer = new System.Timers.Timer(2500);
+                _typingTimer = new System.Timers.Timer(2500) { AutoReset = false };
                 _typingTimer.Elapsed += (s, e) => { _isTyping = false; _typingUserName = null; InvokeAsync(StateHasChanged); };
                 _typingTimer.Start();
                 InvokeAsync(StateHasChanged);
@@ -637,10 +605,6 @@ public partial class GlobalChatWidget
         {
             _activeRoom = null;
             _showGroupDetails = false;
-        }
-        else if (_isOpen)
-        {
-            _ = LoadMyBoards();
         }
     }
 
@@ -773,11 +737,13 @@ public partial class GlobalChatWidget
         _replyingToMessage = null;
         room.UnreadCount = 0;
         ClearPendingAttachment();
-        _ = LoadMyBoards();
         
         try
         {
-            await _hubConnection!.SendAsync("JoinRoom", room.Id.ToString());
+            if (_hubConnection?.State == HubConnectionState.Connected)
+            {
+                await _hubConnection.SendAsync("JoinRoom", room.Id.ToString());
+            }
             _messages = await Http.GetFromJsonAsync<List<ChatMessageDto>>($"/api/chat/rooms/{room.Id}/messages") ?? new();
 
             _pinnedMessageIds.Clear();
@@ -1460,12 +1426,6 @@ public partial class GlobalChatWidget
             _isForwarding = false;
             StateHasChanged();
         }
-    }
-
-    private void ReportMessage(ChatMessageDto msg)
-    {
-        _activeMessageMenuId = null;
-        ToastService.ShowSuccess("Message reported to administrator.");
     }
 
     private bool ShouldShowDivider(DateTime current, DateTime? previous)

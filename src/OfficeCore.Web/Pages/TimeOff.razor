@@ -144,7 +144,7 @@
                         <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        <input type="text" placeholder="Search calendars" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
+                        <input type="text" @bind="_calendarSearch" @bind:event="oninput" placeholder="Search calendars" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                     </div>
                     
                     <AuthorizeView Policy="Permission:time-off.manage">
@@ -160,13 +160,13 @@
                     {
                         <div class="text-sm text-zinc-500">Loading...</div>
                     }
-                    else if (!_calendars.Any())
+                    else if (!FilteredCalendars.Any())
                     {
-                        <div class="text-sm text-zinc-500">No calendars added yet.</div>
+                        <div class="text-sm text-zinc-500">@(string.IsNullOrWhiteSpace(_calendarSearch) ? "No calendars added yet." : "No matching calendars.")</div>
                     }
                     else
                     {
-                        foreach (var cal in _calendars)
+                        foreach (var cal in FilteredCalendars)
                         {
                             var calClass = _selectedCalendar?.Id == cal.Id ? "bg-fuchsia-950/20 text-white" : "hover:bg-zinc-900 text-zinc-300";
                             <button @onclick="() => SelectCalendar(cal)" class="w-full text-left px-3 py-3 rounded-lg transition-colors flex flex-col gap-1 @calClass">
@@ -533,6 +533,12 @@
     
     private List<HolidayCalendarDto>? _calendars;
     private HolidayCalendarDto? _selectedCalendar;
+    private string _calendarSearch = string.Empty;
+
+    private IEnumerable<HolidayCalendarDto> FilteredCalendars =>
+        _calendars?.Where(c => string.IsNullOrWhiteSpace(_calendarSearch) ||
+            c.Name.Contains(_calendarSearch.Trim(), StringComparison.OrdinalIgnoreCase))
+        ?? Enumerable.Empty<HolidayCalendarDto>();
     
     private bool _isCreating = false;
     private bool _isEditing = false;

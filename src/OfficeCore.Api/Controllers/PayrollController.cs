@@ -444,11 +444,12 @@ public class PayrollController : ControllerBase
                     deduction = advance.RemainingBalance ?? advance.RequestedAmount;
                 }
                 
-                if (deduction > advance.RemainingBalance) deduction = advance.RemainingBalance ?? 0m;
+                var remainingBalance = advance.RemainingBalance ?? advance.RequestedAmount;
+                if (deduction > remainingBalance) deduction = remainingBalance;
                 
                 if (deduction > deductionToApply) deduction = deductionToApply;
 
-                advance.RemainingBalance -= deduction;
+                advance.RemainingBalance = Math.Max(0m, remainingBalance - deduction);
                 deductionToApply -= deduction;
             }
         }
