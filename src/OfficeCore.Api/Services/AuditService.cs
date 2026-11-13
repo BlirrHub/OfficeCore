@@ -74,7 +74,7 @@ public class AuditService : IAuditService
     {
         try
         {
-            var orgId = customOrgId ?? _tenant.GetActiveOrganizationId();
+            var orgId = customOrgId ?? await _tenant.GetValidatedOrganizationIdAsync();
             if (orgId == null || orgId == Guid.Empty)
             {
                 // Fallback: Check if there is an organization in context or default to first

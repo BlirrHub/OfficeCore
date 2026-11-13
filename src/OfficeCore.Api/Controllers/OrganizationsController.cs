@@ -144,7 +144,8 @@ public class OrganizationsController : ControllerBase
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
-            Expires = DateTimeOffset.UtcNow.AddDays(7)
+            IsEssential = true,
+            Expires = DateTimeOffset.UtcNow.AddDays(30)
         });
 
         return Ok(new { message = "Organization selected", organizationId = id });

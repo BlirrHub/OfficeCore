@@ -357,6 +357,9 @@ public partial class BoardsController : ControllerBase
         if (targetEmployee == null)
             return NotFound("Employee not found in this organization.");
 
+        if (req.Role == BoardRole.Owner && !isWorkspaceOwner && !isWorkspaceAdmin && !isBoardOwner)
+            return Forbid();
+
         var targetMember = board.Members.FirstOrDefault(m => m.UserId == targetEmployee.Id);
         
         if (targetMember != null)

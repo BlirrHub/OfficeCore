@@ -156,14 +156,15 @@ public class DashboardController : ControllerBase
 
         dto.PrimaryBoardId = primaryBoardId != Guid.Empty ? primaryBoardId : null;
 
-        var todayUtcStart = DateTime.UtcNow.Date;
+        var phtNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8));
+        var todayStartUtc = new DateTimeOffset(phtNow.Date, TimeSpan.FromHours(8)).ToUniversalTime();
 
         // ── 1. Calculate Personal ESS Data for the caller ──
         if (employee != null)
         {
             // Personal attendance today
             var myTodayRecords = await _context.AttendanceRecords
-                .Where(a => a.OrganizationId == orgId && a.EmployeeId == employee.Id && a.Timestamp.UtcDateTime >= todayUtcStart)
+                .Where(a => a.OrganizationId == orgId && a.EmployeeId == employee.Id && a.Timestamp >= todayStartUtc)
                 .OrderBy(a => a.Timestamp)
                 .ToListAsync();
 
@@ -193,7 +194,7 @@ public class DashboardController : ControllerBase
                 .CountAsync(l => l.OrganizationId == orgId && l.EmployeeId == employee.Id && l.Status == LeaveRequestStatus.Pending);
 
             dto.PersonalApprovedLeavesCount = await _context.LeaveRequests
-                .CountAsync(l => l.OrganizationId == orgId && l.EmployeeId == employee.Id && l.Status == LeaveRequestStatus.Approved && l.StartDate.Year == DateTime.UtcNow.Year);
+                .CountAsync(l => l.OrganizationId == orgId && l.EmployeeId == employee.Id && l.Status == LeaveRequestStatus.Approved && l.StartDate.Year == phtNow.Year);
 
             dto.PersonalPendingOvertimeCount = await _context.OvertimeRequests
                 .CountAsync(o => o.OrganizationId == orgId && o.EmployeeId == employee.Id && o.Status == OvertimeStatus.Pending);
@@ -313,7 +314,7 @@ public class DashboardController : ControllerBase
 
             // Team attendance today
             dto.PresentTodayCount = await _context.AttendanceRecords
-                .Where(a => a.OrganizationId == orgId && a.Type == AttendanceType.ClockIn && a.Timestamp >= todayUtcStart)
+                .Where(a => a.OrganizationId == orgId && a.Type == AttendanceType.ClockIn && a.Timestamp >= todayStartUtc)
                 .Select(a => a.EmployeeId)
                 .Distinct()
                 .CountAsync();

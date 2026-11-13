@@ -606,7 +606,7 @@ public partial class GlobalChatWidget
 
         try
         {
-            _hubConnection.Reconnected += async _ => { if (_activeRoom != null) { try { await _hubConnection.InvokeAsync("JoinRoom", _activeRoom.Id); } catch { } } };
+            _hubConnection.Reconnected += async _ => { if (_activeRoom != null) { try { await _hubConnection.InvokeAsync("JoinRoom", _activeRoom.Id.ToString()); } catch { } } };
             await _hubConnection.StartAsync();
         }
         catch (OperationCanceledException) { }
