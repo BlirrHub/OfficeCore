@@ -54,8 +54,10 @@
                 </select>
                 <select @bind="_typeFilter" @bind:after="ResetPage" class="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
                     <option value="-1">All Types</option>
-                    <option value="0">Sick Leave</option>
-                    <option value="1">Vacation Leave</option>
+                    @foreach (var lt in LeaveTypeCatalog.All)
+                    {
+                        <option value="@lt.Value">@lt.Label</option>
+                    }
                 </select>
                 <button @onclick="RefreshData" disabled="@_isLoading" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors" title="Refresh">
                     <svg class="size-4 @(_isLoading ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
@@ -122,17 +124,12 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4">
+                                        @{
+                                            var lt = LeaveTypeCatalog.Get(request.Type);
+                                        }
                                         <div class="flex items-center gap-2">
-                                            @if (request.Type == 0)
-                                            {
-                                                <span class="w-2 h-2 rounded-full bg-red-400"></span>
-                                                <span class="text-zinc-300">Sick Leave</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-                                                <span class="text-zinc-300">Vacation Leave</span>
-                                            }
+                                            <span class="w-2 h-2 rounded-full @lt.DotClass"></span>
+                                            <span class="text-zinc-300">@lt.Label</span>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 text-zinc-300">
@@ -256,7 +253,7 @@
                     <div>
                         <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Leave Type</label>
                         <div class="text-white font-medium">
-                            @(_selectedRequest.Type == 0 ? "Sick Leave" : "Vacation Leave")
+                            @LeaveTypeCatalog.Get(_selectedRequest.Type).Label
                         </div>
                     </div>
                     <div>
@@ -279,10 +276,11 @@
                 </div>
 
                 <!-- Attachment -->
-                @if (_selectedRequest.Type == 0) // Sick leave attachments
+                @if (_selectedRequest.Type == LeaveTypeCatalog.Sick || !string.IsNullOrEmpty(_selectedRequest.AttachmentPath))
                 {
+                    var attachmentTitle = _selectedRequest.Type == LeaveTypeCatalog.Sick ? "Medical Certificate" : "Leave Attachment";
                     <div>
-                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Medical Attachment</label>
+                        <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">@(_selectedRequest.Type == LeaveTypeCatalog.Sick ? "Medical Attachment" : "Supporting Attachment")</label>
                         @if (string.IsNullOrEmpty(_selectedRequest.AttachmentPath))
                         {
                             <div class="p-4 bg-zinc-950 rounded-xl border border-zinc-800/50 flex items-center justify-center text-zinc-500 text-sm">
@@ -293,15 +291,15 @@
                         {
                             var resolvedAttachment = MediaUrlHelper.Resolve(_selectedRequest.AttachmentPath, Configuration);
                             <div class="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950">
-                                <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, "Medical Certificate")' class="w-full block hover:opacity-85 transition-opacity cursor-pointer text-left">
-                                    <img src="@resolvedAttachment" class="w-full max-h-64 object-contain bg-black/40" alt="Medical Certificate" />
+                                <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, attachmentTitle)' class="w-full block hover:opacity-85 transition-opacity cursor-pointer text-left">
+                                    <img src="@resolvedAttachment" class="w-full max-h-64 object-contain bg-black/40" alt="@attachmentTitle" />
                                 </button>
                                 <div class="p-3 border-t border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
-                                    <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, "Medical Certificate")' class="text-xs text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1.5 cursor-pointer">
+                                    <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, attachmentTitle)' class="text-xs text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1.5 cursor-pointer">
                                         <svg class="size-3.5 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
                                         <span>Click image to view in Photo Viewer</span>
                                     </button>
-                                    <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, "Medical Certificate")' class="text-fuchsia-400 hover:text-fuchsia-300 text-xs font-semibold flex items-center gap-1 cursor-pointer">
+                                    <button type="button" @onclick='() => OpenViewer(_selectedRequest.AttachmentPath, attachmentTitle)' class="text-fuchsia-400 hover:text-fuchsia-300 text-xs font-semibold flex items-center gap-1 cursor-pointer">
                                         <span>Preview &amp; Save</span>
                                         <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                                     </button>
@@ -393,8 +391,10 @@
                                 <div>
                                     <label class="block text-sm font-medium text-zinc-400 mb-1">Leave Type</label>
                                     <InputSelect @bind-Value="_newLeave.Type" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:border-fuchsia-500 focus:outline-none">
-                                        <option value="0">Sick Leave</option>
-                                        <option value="1">Vacation Leave</option>
+                                        @foreach (var lt in LeaveTypeCatalog.All)
+                                        {
+                                            <option value="@lt.Value">@lt.Label</option>
+                                        }
                                     </InputSelect>
                                 </div>
                             </div>

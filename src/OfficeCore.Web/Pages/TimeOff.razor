@@ -65,7 +65,7 @@
                         <Authorized>
                             <EmptyState Card="false"
                                         Title="No Leave Policies Defined"
-                                        Description="Create your company's standard leave rules (e.g. 15-day Vacation Leave, 10-day Sick Leave)."
+                                        Description="Create your company's standard leave rules (e.g. Vacation, Sick, Emergency, Maternity, or Other)."
                                         ActionText="Add First Policy"
                                         OnAction="OpenCreatePolicyModal">
                                 <Icon>
@@ -96,10 +96,13 @@
                     {
                         <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all flex flex-col justify-between group">
                             <div>
+                                @{
+                                    var lt = LeaveTypeCatalog.Get(policy.LeaveType);
+                                }
                                 <div class="flex items-start justify-between mb-3">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold @(policy.LeaveType == 0 ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-sky-500/10 text-sky-400 border border-sky-500/20")">
-                                        <span class="size-1.5 rounded-full @(policy.LeaveType == 0 ? "bg-amber-400" : "bg-sky-400")"></span>
-                                        @(policy.LeaveType == 0 ? "Sick Leave" : "Vacation Leave")
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold @lt.BadgeClass">
+                                        <span class="size-1.5 rounded-full @lt.DotClass"></span>
+                                        @lt.Label
                                     </span>
                                     <span class="text-xs font-medium @(policy.IsPaid ? "text-emerald-400" : "text-zinc-500")">
                                         @(policy.IsPaid ? "Paid" : "Unpaid")
@@ -113,7 +116,7 @@
                                 <div class="space-y-1 text-xs text-zinc-400">
                                     <p class="flex items-center gap-1.5">
                                         <span class="@(policy.RequiresAttachment ? "text-amber-400" : "text-zinc-600")">●</span>
-                                        @(policy.RequiresAttachment ? "Medical certificate required" : "No certificate required")
+                                        @(policy.RequiresAttachment ? "Document attachment required" : "No attachment required")
                                     </p>
                                 </div>
                             </div>
@@ -486,8 +489,10 @@
                     <div>
                         <label class="block text-xs font-semibold text-zinc-400 mb-1">Leave Type</label>
                         <select @bind="_policyModel.LeaveType" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
-                            <option value="0">Sick Leave</option>
-                            <option value="1">Vacation Leave</option>
+                            @foreach (var lt in LeaveTypeCatalog.All)
+                            {
+                                <option value="@lt.Value">@lt.Label</option>
+                            }
                         </select>
                     </div>
                     <div>
