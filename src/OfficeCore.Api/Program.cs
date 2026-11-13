@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
 using OfficeCore.Api.Data;
 using OfficeCore.Api.Models;
+using OfficeCore.Api.Services;
 using OfficeCore.Shared.Authorization;
 
 using System.Globalization;
@@ -27,6 +29,12 @@ builder.Configuration
 var allowedOrigins = builder.Configuration
     .GetSection("AllowedOrigins")
     .Get<string[]>() ?? Array.Empty<string>();
+var legacyBlazorOrigin = builder.Configuration["BlazorOrigin"];
+if (!string.IsNullOrWhiteSpace(legacyBlazorOrigin))
+{
+    allowedOrigins = allowedOrigins.Append(legacyBlazorOrigin).ToArray();
+}
+var allowLanOrigins = builder.Configuration.GetValue("Cors:AllowLanOrigins", true);
 
 var devOrigins = new[]
 {
@@ -44,6 +52,7 @@ builder.Services.AddCors(opt =>
         {
             if (string.IsNullOrWhiteSpace(origin)) return false;
             if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+            if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return false;
 
             var host = uri.Host;
 
@@ -51,9 +60,8 @@ builder.Services.AddCors(opt =>
             if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || host == "127.0.0.1" || host == "::1")
                 return true;
 
-            // 2. Local LAN office subnets & mDNS (.local)
-            if (host.EndsWith(".local", StringComparison.OrdinalIgnoreCase)) return true;
-            if (System.Net.IPAddress.TryParse(host, out var ip))
+            // 2. Local LAN office RFC1918 subnets (explicitly configurable)
+            if (allowLanOrigins && System.Net.IPAddress.TryParse(host, out var ip))
             {
                 var bytes = ip.GetAddressBytes();
                 if (bytes.Length == 4)
@@ -72,15 +80,21 @@ builder.Services.AddCors(opt =>
         .AllowCredentials()));
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
-// Fixed-window rate limit for the login endpoint: 5 attempts per minute per IP.
+// Per-IP partitioned fixed-window rate limit for auth endpoints: 5 attempts per minute per IP.
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter("LoginPolicy", opt =>
+    options.AddPolicy("LoginPolicy", httpContext =>
     {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 0;
+        var clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"login-ip:{clientIp}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
     });
 
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -88,8 +102,13 @@ builder.Services.AddRateLimiter(options =>
     {
         context.HttpContext.Response.ContentType = "application/json";
         await context.HttpContext.Response.WriteAsync(
-            "{\"message\":\"Too many login attempts. Please wait a minute and try again.\"}");
+            "{\"message\":\"Too many authentication attempts. Please wait a minute and try again.\"}");
     };
+});
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 });
 
 // ─── Data Protection ─────────────────────────────────────────────────────────
@@ -111,11 +130,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // ─── Identity ─────────────────────────────────────────────────────────────────
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
-    options.Password.RequireDigit = false;
-    options.Password.RequireLowercase = false;
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = false;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = 8;
 
     // Enable account lockout after 5 failed attempts for 5 minutes
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
@@ -154,13 +173,17 @@ builder.Services.AddAuthorization(options =>
 // ─── Services ─────────────────────────────────────────────────────────────────
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.AddControllers().AddJsonOptions(options =>
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<MustChangePasswordFilter>();
+}).AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
 });
 builder.Services.AddSignalR();
 
 // Register Background Services
+builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddSingleton<OfficeCore.Api.Services.FingerprintDeviceService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<OfficeCore.Api.Services.FingerprintDeviceService>());
 builder.Services.AddSingleton<OfficeCore.Api.Services.BackupService>();
@@ -180,14 +203,25 @@ builder.Services.AddSingleton<OfficeCore.Api.Services.IEmailOtpService, OfficeCo
 // ─── Build ────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
-// Seed the database
+// Seed the database and move legacy public uploads outside wwwroot
 await DbSeeder.SeedAsync(app.Services);
+app.Services.GetRequiredService<IFileStorageService>().MigrateLegacyWebRootUploads(app.Environment.WebRootPath);
 
 // Configure the HTTP request pipeline.
+app.UseForwardedHeaders();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=()";
+    await next();
+});
 
 // NOTE: Do NOT use UseHttpsRedirection() — the server runs on plain HTTP (http://0.0.0.0:5026).
 // HTTPS redirects cause Blazor WASM fetch requests from LAN clients to silently fail

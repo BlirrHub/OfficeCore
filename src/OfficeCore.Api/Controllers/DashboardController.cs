@@ -305,132 +305,157 @@ public class DashboardController : ControllerBase
             dto.RecentActivities = dto.PersonalRecentActivities;
         }
 
-        // ── 2. Calculate Workspace Management Data (if user is manager/admin) ──
+        // ── 2. Calculate Workspace Management Data strictly per-permission ──
         if (isManager)
         {
-            // Total team members
-            dto.TotalEmployees = await _context.Employees
-                .CountAsync(e => e.OrganizationId == orgId && e.IsActive && e.IsEmployee);
+            if (perms.CanManageUsers || perms.CanManageAttendance)
+            {
+                dto.TotalEmployees = await _context.Employees
+                    .CountAsync(e => e.OrganizationId == orgId && e.IsActive && e.IsEmployee);
+            }
 
-            // Team attendance today
-            dto.PresentTodayCount = await _context.AttendanceRecords
-                .Where(a => a.OrganizationId == orgId && a.Type == AttendanceType.ClockIn && a.Timestamp >= todayStartUtc)
-                .Select(a => a.EmployeeId)
-                .Distinct()
-                .CountAsync();
+            if (perms.CanManageAttendance)
+            {
+                dto.PresentTodayCount = await _context.AttendanceRecords
+                    .Where(a => a.OrganizationId == orgId && a.Type == AttendanceType.ClockIn && a.Timestamp >= todayStartUtc)
+                    .Select(a => a.EmployeeId)
+                    .Distinct()
+                    .CountAsync();
 
-            dto.AttendanceRatePercent = dto.TotalEmployees > 0 
-                ? Math.Round(((double)dto.PresentTodayCount.Value / dto.TotalEmployees.Value) * 100, 1) 
-                : 0;
+                dto.AttendanceRatePercent = dto.TotalEmployees > 0
+                    ? Math.Round(((double)dto.PresentTodayCount.Value / dto.TotalEmployees.Value) * 100, 1)
+                    : 0;
+            }
 
-            // Pending approvals
-            dto.PendingLeavesCount = await _context.LeaveRequests
-                .CountAsync(l => l.OrganizationId == orgId && l.Status == LeaveRequestStatus.Pending);
+            if (perms.CanManageLeaves)
+            {
+                dto.PendingLeavesCount = await _context.LeaveRequests
+                    .CountAsync(l => l.OrganizationId == orgId && l.Status == LeaveRequestStatus.Pending);
+            }
 
-            dto.PendingAdvancesCount = await _context.AdvanceRequests
-                .CountAsync(a => a.OrganizationId == orgId && a.Status == AdvanceStatus.Pending);
+            if (perms.CanManageAdvances)
+            {
+                dto.PendingAdvancesCount = await _context.AdvanceRequests
+                    .CountAsync(a => a.OrganizationId == orgId && a.Status == AdvanceStatus.Pending);
+            }
 
-            dto.PendingOvertimeCount = await _context.OvertimeRequests
-                .CountAsync(o => o.OrganizationId == orgId && o.Status == OvertimeStatus.Pending);
+            if (perms.CanManageOvertime)
+            {
+                dto.PendingOvertimeCount = await _context.OvertimeRequests
+                    .CountAsync(o => o.OrganizationId == orgId && o.Status == OvertimeStatus.Pending);
+            }
 
-            // Board tasks
-            var allCards = await _context.BoardCards
-                .Include(c => c.List)
-                .Where(c => c.OrganizationId == orgId)
-                .ToListAsync();
+            if (perms.CanViewBoards)
+            {
+                var allCards = await _context.BoardCards
+                    .Include(c => c.List)
+                    .Where(c => c.OrganizationId == orgId)
+                    .ToListAsync();
 
-            dto.TotalTasksCount = allCards.Count;
-            dto.CompletedTasksCount = allCards.Count(c => c.List != null && 
-                (c.List.Name.Contains("Done", StringComparison.OrdinalIgnoreCase) || 
-                 c.List.Name.Contains("Completed", StringComparison.OrdinalIgnoreCase)));
-            dto.InProgressTasksCount = allCards.Count(c => c.List != null && 
-                c.List.Name.Contains("Progress", StringComparison.OrdinalIgnoreCase));
+                dto.TotalTasksCount = allCards.Count;
+                dto.CompletedTasksCount = allCards.Count(c => c.List != null &&
+                    (c.List.Name.Contains("Done", StringComparison.OrdinalIgnoreCase) ||
+                     c.List.Name.Contains("Completed", StringComparison.OrdinalIgnoreCase)));
+                dto.InProgressTasksCount = allCards.Count(c => c.List != null &&
+                    c.List.Name.Contains("Progress", StringComparison.OrdinalIgnoreCase));
+            }
 
-            // Outside field staff
-            var cutoff = DateTime.UtcNow.AddHours(-12);
-            dto.ActiveOutsideStaffCount = await _context.EmployeeLocationPings
-                .Where(p => p.OrganizationId == orgId && p.Timestamp >= cutoff)
-                .Select(p => p.EmployeeId)
-                .Distinct()
-                .CountAsync();
+            if (perms.CanViewLocations)
+            {
+                var cutoff = DateTime.UtcNow.AddHours(-12);
+                dto.ActiveOutsideStaffCount = await _context.EmployeeLocationPings
+                    .Where(p => p.OrganizationId == orgId && p.Timestamp >= cutoff)
+                    .Select(p => p.EmployeeId)
+                    .Distinct()
+                    .CountAsync();
+            }
 
-            // Workspace activity feed (org-wide)
+            // Workspace activity feed (org-wide, scoped per authorized module)
             var workspaceActivities = new List<DashboardActivityItemDto>();
 
-            var recentAttendance = await _context.AttendanceRecords
-                .Include(a => a.Employee)
-                    .ThenInclude(e => e!.User)
-                .Where(a => a.OrganizationId == orgId)
-                .OrderByDescending(a => a.Timestamp)
-                .Take(6)
-                .ToListAsync();
-
-            foreach (var att in recentAttendance)
+            if (perms.CanManageAttendance)
             {
-                var name = att.Employee?.User != null 
-                    ? $"{att.Employee.User.FirstName} {att.Employee.User.LastName}".Trim() 
-                    : "Employee";
-                workspaceActivities.Add(new DashboardActivityItemDto
+                var recentAttendance = await _context.AttendanceRecords
+                    .Include(a => a.Employee)
+                        .ThenInclude(e => e!.User)
+                    .Where(a => a.OrganizationId == orgId)
+                    .OrderByDescending(a => a.Timestamp)
+                    .Take(6)
+                    .ToListAsync();
+
+                foreach (var att in recentAttendance)
                 {
-                    Id = att.Id.ToString(),
-                    Title = $"{name} clocked {(att.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
-                    Description = $"Via {att.Source} at {att.Timestamp.ToLocalTime():h:mm tt}",
-                    Category = "Attendance",
-                    Icon = "attendance",
-                    BadgeColor = att.Type == AttendanceType.ClockIn ? "emerald" : "zinc",
-                    Timestamp = att.Timestamp.UtcDateTime
-                });
+                    var name = att.Employee?.User != null
+                        ? $"{att.Employee.User.FirstName} {att.Employee.User.LastName}".Trim()
+                        : "Employee";
+                    workspaceActivities.Add(new DashboardActivityItemDto
+                    {
+                        Id = att.Id.ToString(),
+                        Title = $"{name} clocked {(att.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
+                        Description = $"Via {att.Source} at {att.Timestamp.ToLocalTime():h:mm tt}",
+                        Category = "Attendance",
+                        Icon = "attendance",
+                        BadgeColor = att.Type == AttendanceType.ClockIn ? "emerald" : "zinc",
+                        Timestamp = att.Timestamp.UtcDateTime
+                    });
+                }
             }
 
-            var recentLeaves = await _context.LeaveRequests
-                .Include(l => l.Employee)
-                    .ThenInclude(e => e!.User)
-                .Where(l => l.OrganizationId == orgId)
-                .OrderByDescending(l => l.CreatedAt)
-                .Take(5)
-                .ToListAsync();
-
-            foreach (var l in recentLeaves)
+            if (perms.CanManageLeaves)
             {
-                var name = l.Employee?.User != null 
-                    ? $"{l.Employee.User.FirstName} {l.Employee.User.LastName}".Trim() 
-                    : "Employee";
-                workspaceActivities.Add(new DashboardActivityItemDto
+                var recentLeaves = await _context.LeaveRequests
+                    .Include(l => l.Employee)
+                        .ThenInclude(e => e!.User)
+                    .Where(l => l.OrganizationId == orgId)
+                    .OrderByDescending(l => l.CreatedAt)
+                    .Take(5)
+                    .ToListAsync();
+
+                foreach (var l in recentLeaves)
                 {
-                    Id = l.Id.ToString(),
-                    Title = $"{name} requested {l.Type} Leave",
-                    Description = $"{l.StartDate:MMM dd} - {l.EndDate:MMM dd} • Status: {l.Status}",
-                    Category = "Leave",
-                    Icon = "leave",
-                    BadgeColor = l.Status == LeaveRequestStatus.Approved ? "emerald" : l.Status == LeaveRequestStatus.Rejected ? "red" : l.Status == LeaveRequestStatus.Cancelled ? "zinc" : "amber",
-                    Timestamp = l.CreatedAt
-                });
+                    var name = l.Employee?.User != null
+                        ? $"{l.Employee.User.FirstName} {l.Employee.User.LastName}".Trim()
+                        : "Employee";
+                    workspaceActivities.Add(new DashboardActivityItemDto
+                    {
+                        Id = l.Id.ToString(),
+                        Title = $"{name} requested {l.Type} Leave",
+                        Description = $"{l.StartDate:MMM dd} - {l.EndDate:MMM dd} • Status: {l.Status}",
+                        Category = "Leave",
+                        Icon = "leave",
+                        BadgeColor = l.Status == LeaveRequestStatus.Approved ? "emerald" : l.Status == LeaveRequestStatus.Rejected ? "red" : l.Status == LeaveRequestStatus.Cancelled ? "zinc" : "amber",
+                        Timestamp = l.CreatedAt
+                    });
+                }
             }
 
-            var recentAdvances = await _context.AdvanceRequests
-                .Include(a => a.Employee)
-                    .ThenInclude(e => e!.User)
-                .Where(a => a.OrganizationId == orgId)
-                .OrderByDescending(a => a.RequestDate)
-                .Take(5)
-                .ToListAsync();
-
-            foreach (var adv in recentAdvances)
+            if (perms.CanManageAdvances)
             {
-                var name = adv.Employee?.User != null
-                    ? $"{adv.Employee.User.FirstName} {adv.Employee.User.LastName}".Trim()
-                    : "Employee";
-                var typeLabel = adv.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
-                workspaceActivities.Add(new DashboardActivityItemDto
+                var recentAdvances = await _context.AdvanceRequests
+                    .Include(a => a.Employee)
+                        .ThenInclude(e => e!.User)
+                    .Where(a => a.OrganizationId == orgId)
+                    .OrderByDescending(a => a.RequestDate)
+                    .Take(5)
+                    .ToListAsync();
+
+                foreach (var adv in recentAdvances)
                 {
-                    Id = adv.Id.ToString(),
-                    Title = $"{name} requested {typeLabel} (₱{adv.RequestedAmount:N2})",
-                    Description = $"Status: {adv.Status}" + (!string.IsNullOrWhiteSpace(adv.Note) ? $" • {adv.Note}" : ""),
-                    Category = "Advance",
-                    Icon = "advance",
-                    BadgeColor = adv.Status == AdvanceStatus.Approved ? "emerald" : adv.Status == AdvanceStatus.Rejected ? "red" : "amber",
-                    Timestamp = adv.RequestDate.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(adv.RequestDate, DateTimeKind.Utc) : adv.RequestDate.ToUniversalTime()
-                });
+                    var name = adv.Employee?.User != null
+                        ? $"{adv.Employee.User.FirstName} {adv.Employee.User.LastName}".Trim()
+                        : "Employee";
+                    var typeLabel = adv.Type == AdvanceType.ELoan ? "E-Loan" : "Cash Advance";
+                    workspaceActivities.Add(new DashboardActivityItemDto
+                    {
+                        Id = adv.Id.ToString(),
+                        Title = $"{name} requested {typeLabel} (₱{adv.RequestedAmount:N2})",
+                        Description = $"Status: {adv.Status}" + (!string.IsNullOrWhiteSpace(adv.Note) ? $" • {adv.Note}" : ""),
+                        Category = "Advance",
+                        Icon = "advance",
+                        BadgeColor = adv.Status == AdvanceStatus.Approved ? "emerald" : adv.Status == AdvanceStatus.Rejected ? "red" : "amber",
+                        Timestamp = adv.RequestDate.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(adv.RequestDate, DateTimeKind.Utc) : adv.RequestDate.ToUniversalTime()
+                    });
+                }
             }
 
             dto.WorkspaceRecentActivities = workspaceActivities

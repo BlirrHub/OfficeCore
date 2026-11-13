@@ -47,7 +47,9 @@ public class NotificationAccessTests
         Assert.False(fixture.Connection.Aborted);
         Assert.Contains($"org_{fixture.Organization.Id}", fixture.Groups.Joined);
         Assert.Contains($"user_{fixture.Employee.UserId}", fixture.Groups.Joined);
-        Assert.DoesNotContain($"org_{fixture.Organization.Id}_admins", fixture.Groups.Joined);
+        Assert.DoesNotContain($"org_{fixture.Organization.Id}_admins_leaves", fixture.Groups.Joined);
+        Assert.DoesNotContain($"org_{fixture.Organization.Id}_admins_ledger", fixture.Groups.Joined);
+        Assert.DoesNotContain($"org_{fixture.Organization.Id}_admins_overtime", fixture.Groups.Joined);
     }
 
     [Fact]
@@ -57,7 +59,9 @@ public class NotificationAccessTests
         fixture.Organization.CreatedByUserId = fixture.Employee.UserId;
         fixture.SelectWorkspace(fixture.Organization.Id);
         await fixture.Connect();
-        Assert.Contains($"org_{fixture.Organization.Id}_admins", fixture.Groups.Joined);
+        Assert.Contains($"org_{fixture.Organization.Id}_admins_leaves", fixture.Groups.Joined);
+        Assert.Contains($"org_{fixture.Organization.Id}_admins_ledger", fixture.Groups.Joined);
+        Assert.Contains($"org_{fixture.Organization.Id}_admins_overtime", fixture.Groups.Joined);
     }
 
     [Fact]
@@ -67,6 +71,37 @@ public class NotificationAccessTests
         await fixture.Connect();
         Assert.False(fixture.Connection.Aborted);
         Assert.Contains($"org_{fixture.Organization.Id}", fixture.Groups.Joined);
+    }
+
+    [Fact]
+    public async Task Leave_manager_joins_only_leave_admin_group_not_ledger_or_overtime()
+    {
+        await using var fixture = new HubFixture();
+        var role = new OrganizationRole
+        {
+            Id = Guid.NewGuid(),
+            Name = "LeaveManager",
+            OrganizationId = fixture.Organization.Id
+        };
+        fixture.Db.OrganizationRoles.Add(role);
+        fixture.Db.OrganizationRoleClaims.Add(new OrganizationRoleClaim
+        {
+            OrganizationRoleId = role.Id,
+            ClaimType = OfficeCore.Shared.Authorization.PermissionCatalog.ClaimType,
+            ClaimValue = OfficeCore.Shared.Authorization.AccessPermissions.LeaveApprovalsManage
+        });
+        fixture.Db.EmployeeRoles.Add(new EmployeeRole
+        {
+            EmployeeId = fixture.Employee.Id,
+            OrganizationRoleId = role.Id
+        });
+
+        fixture.SelectWorkspace(fixture.Organization.Id);
+        await fixture.Connect();
+
+        Assert.Contains($"org_{fixture.Organization.Id}_admins_leaves", fixture.Groups.Joined);
+        Assert.DoesNotContain($"org_{fixture.Organization.Id}_admins_ledger", fixture.Groups.Joined);
+        Assert.DoesNotContain($"org_{fixture.Organization.Id}_admins_overtime", fixture.Groups.Joined);
     }
 
     private sealed class HubFixture : IAsyncDisposable

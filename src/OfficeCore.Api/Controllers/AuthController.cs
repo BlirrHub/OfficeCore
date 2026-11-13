@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -19,6 +20,7 @@ public class AuthController : ControllerBase
     private readonly Services.TenantService _tenant;
     private readonly Services.ISmsOtpService _smsOtpService;
     private readonly Services.IEmailOtpService _emailOtpService;
+    private readonly IFileStorageService _fileStorage;
 
     public AuthController(
         SignInManager<ApplicationUser> signInManager,
@@ -27,7 +29,8 @@ public class AuthController : ControllerBase
         AppDbContext context,
         Services.TenantService tenant,
         Services.ISmsOtpService smsOtpService,
-        Services.IEmailOtpService emailOtpService)
+        Services.IEmailOtpService emailOtpService,
+        IFileStorageService? fileStorage = null)
     {
         _signInManager = signInManager;
         _userManager = userManager;
@@ -36,6 +39,7 @@ public class AuthController : ControllerBase
         _tenant = tenant;
         _smsOtpService = smsOtpService;
         _emailOtpService = emailOtpService;
+        _fileStorage = fileStorage ?? new LocalFileStorageService();
     }
 
     [HttpPost("login")]
@@ -123,6 +127,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
@@ -252,35 +257,29 @@ public class AuthController : ControllerBase
         });
     }
 
+    [Authorize]
     [HttpPost("profile-picture")]
     public async Task<IActionResult> UploadProfilePicture(IFormFile file)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
 
-        if (file == null || file.Length == 0) return BadRequest("File is empty");
-        if (file.Length > 10 * 1024 * 1024) return BadRequest("Profile picture exceeds the 10MB limit.");
         var allowedImageExts = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
-        var ext = Path.GetExtension(file.FileName)?.ToLowerInvariant() ?? string.Empty;
-        if (!allowedImageExts.Contains(ext)) return BadRequest("Only .jpg, .jpeg, .png, .gif, and .webp image files are allowed.");
+        var ext = Path.GetExtension(file?.FileName ?? string.Empty).ToLowerInvariant();
+        var fileName = $"{user.Id}_{Guid.NewGuid()}{ext}";
 
-        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "profiles");
-        Directory.CreateDirectory(uploadDir);
+        var stored = await _fileStorage.ValidateAndSaveAsync(file, "profiles", fileName, allowedImageExts, 10 * 1024 * 1024);
+        if (!stored.Success || stored.RelativeUrl == null)
+            return BadRequest(stored.ErrorMessage ?? "Invalid profile picture.");
 
-        var fileName = $"{user.Id}_{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-        var filePath = Path.Combine(uploadDir, fileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        user.ProfilePictureUrl = $"/uploads/profiles/{fileName}";
+        user.ProfilePictureUrl = stored.RelativeUrl;
         await _userManager.UpdateAsync(user);
 
         return Ok(new { profilePictureUrl = user.ProfilePictureUrl });
     }
 
+    [Authorize]
+    [EnableRateLimiting("LoginPolicy")]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {
@@ -301,6 +300,7 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Password changed successfully" });
     }
 
+    [Authorize]
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {

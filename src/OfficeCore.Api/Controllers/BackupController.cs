@@ -79,7 +79,7 @@ public class BackupController : ControllerBase
     public async Task<IActionResult> GetBackups()
     {
         if (!await IsAuthorizedForBackupsAsync())
-            return Forbid("Administrative privileges required to access database backups.");
+            return this.ForbiddenMessage("Administrative privileges required to access database backups.");
 
         var backups = await _backupService.GetBackupsAsync();
         var pgBinPath = _backupService.DetectPgBinPath();
@@ -102,11 +102,22 @@ public class BackupController : ControllerBase
         public string? Label { get; set; }
     }
 
+    public class UpdateBackupSettingsRequest
+    {
+        public bool AutoBackupEnabled { get; set; } = true;
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$", ErrorMessage = "ScheduledTime must be HH:mm.")]
+        public string ScheduledTime { get; set; } = "23:00";
+        [System.ComponentModel.DataAnnotations.Range(1, 365)]
+        public int RetentionCount { get; set; } = 14;
+        public string? CustomPgBinPath { get; set; }
+    }
+
     [HttpPost("create")]
     public async Task<IActionResult> CreateBackup([FromBody] CreateBackupRequest? req)
     {
         if (!await IsAuthorizedForBackupsAsync())
-            return Forbid("Administrative privileges required to create database backups.");
+            return this.ForbiddenMessage("Administrative privileges required to create database backups.");
 
         var result = await _backupService.CreateBackupAsync(req?.Label, isAutomatic: false);
         if (!result.Success)
@@ -121,7 +132,7 @@ public class BackupController : ControllerBase
     public async Task<IActionResult> DownloadBackup(string fileName)
     {
         if (!await IsAuthorizedForBackupsAsync())
-            return Forbid("Administrative privileges required to download database backups.");
+            return this.ForbiddenMessage("Administrative privileges required to download database backups.");
 
         var filePath = _backupService.GetBackupFilePath(fileName);
         if (filePath == null)
@@ -137,7 +148,7 @@ public class BackupController : ControllerBase
     public async Task<IActionResult> UploadBackup(IFormFile file)
     {
         if (!await IsAuthorizedForBackupsAsync())
-            return Forbid("Administrative privileges required to upload database backups.");
+            return this.ForbiddenMessage("Administrative privileges required to upload database backups.");
 
         if (file == null || file.Length == 0)
             return BadRequest("Uploaded file is empty.");
@@ -175,7 +186,7 @@ public class BackupController : ControllerBase
     public async Task<IActionResult> RestoreBackup(string fileName)
     {
         if (!await IsAuthorizedForBackupsAsync())
-            return Forbid("Administrative privileges required to restore database backups.");
+            return this.ForbiddenMessage("Administrative privileges required to restore database backups.");
 
         var result = await _backupService.RestoreBackupAsync(fileName);
         if (!result.Success)
@@ -194,7 +205,7 @@ public class BackupController : ControllerBase
     public async Task<IActionResult> DeleteBackup(string fileName)
     {
         if (!await IsAuthorizedForBackupsAsync())
-            return Forbid("Administrative privileges required to delete database backups.");
+            return this.ForbiddenMessage("Administrative privileges required to delete database backups.");
 
         var deleted = await _backupService.DeleteBackupAsync(fileName);
         if (!deleted)
@@ -207,21 +218,27 @@ public class BackupController : ControllerBase
     public async Task<IActionResult> GetSettings()
     {
         if (!await IsAuthorizedForBackupsAsync())
-            return Forbid("Administrative privileges required to view backup settings.");
+            return this.ForbiddenMessage("Administrative privileges required to view backup settings.");
 
         var settings = _backupService.GetSettings();
         return Ok(settings);
     }
 
     [HttpPut("settings")]
-    public async Task<IActionResult> UpdateSettings([FromBody] BackupSettings settings)
+    public async Task<IActionResult> UpdateSettings([FromBody] UpdateBackupSettingsRequest request)
     {
         if (!await IsAuthorizedForBackupsAsync())
-            return Forbid("Administrative privileges required to update backup settings.");
+            return this.ForbiddenMessage("Administrative privileges required to update backup settings.");
 
         try
         {
-            await _backupService.SaveSettingsAsync(settings);
+            var existing = _backupService.GetSettings();
+            existing.AutoBackupEnabled = request.AutoBackupEnabled;
+            existing.ScheduledTime = request.ScheduledTime;
+            existing.RetentionCount = request.RetentionCount;
+            existing.CustomPgBinPath = request.CustomPgBinPath;
+
+            await _backupService.SaveSettingsAsync(existing);
             return Ok(new { message = "Backup settings updated successfully." });
         }
         catch (InvalidOperationException ex)

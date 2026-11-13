@@ -1,5 +1,5 @@
 @page "/payroll"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequirePayroll")]
 @using System.Net.Http.Json
 @using OfficeCore.Web.Client.Pages.Payroll.Components
 @inject HttpClient Http

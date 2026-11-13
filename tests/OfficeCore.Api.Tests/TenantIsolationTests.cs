@@ -145,7 +145,7 @@ public class TenantIsolationTests
         var scanMethod = typeof(AttendanceController).GetMethod(nameof(AttendanceController.LogScanEvent));
         Assert.NotNull(scanMethod);
         Assert.Null(scanMethod!.GetCustomAttribute<AllowAnonymousAttribute>());
-        Assert.NotNull(scanMethod.GetCustomAttribute<AuthorizeAttribute>());
+        Assert.NotEmpty(scanMethod.GetCustomAttributes<AuthorizeAttribute>());
 
         await using var fixture = new TenantTestFixture();
         fixture.SelectWorkspace(fixture.Organization.Id);

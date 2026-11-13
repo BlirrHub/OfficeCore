@@ -54,26 +54,73 @@ public class ClientController : ControllerBase
         return client;
     }
 
+    public sealed class BusinessRequest
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string Name { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.MaxLength(500)]
+        public string? Address { get; set; }
+        [System.ComponentModel.DataAnnotations.MaxLength(50)]
+        public string? PhoneNumber { get; set; }
+        [System.ComponentModel.DataAnnotations.MaxLength(50)]
+        public string? TinId { get; set; }
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? BusinessType { get; set; }
+        public bool IsVatRegistered { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    public sealed class ClientRequest
+    {
+        public Guid Id { get; set; }
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string FullName { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? Email { get; set; }
+        [System.ComponentModel.DataAnnotations.MaxLength(50)]
+        public string? PhoneNumber { get; set; }
+        public bool IsActive { get; set; } = true;
+        public List<BusinessRequest>? Businesses { get; set; }
+    }
+
     [HttpPost]
     [Authorize(Policy = "Permission:clients.manage")]
-    public async Task<ActionResult<Client>> CreateClient(Client client)
+    public async Task<ActionResult<Client>> CreateClient([FromBody] ClientRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
-        client.Id = Guid.NewGuid();
-        client.DateAdded = DateTime.UtcNow;
-        client.IsActive = true;
-        client.OrganizationId = orgId.Value;
-        
-        // Ensure businesses have new IDs and point to this client
-        if (client.Businesses != null)
+        var client = new Client
         {
-            foreach (var business in client.Businesses)
+            Id = Guid.NewGuid(),
+            FullName = request.FullName.Trim(),
+            Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
+            PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim(),
+            DateAdded = DateTime.UtcNow,
+            IsActive = true,
+            OrganizationId = orgId.Value
+        };
+
+        if (request.Businesses != null)
+        {
+            foreach (var b in request.Businesses)
             {
-                business.Id = Guid.NewGuid();
-                business.ClientId = client.Id;
-                business.OrganizationId = orgId.Value;
+                client.Businesses.Add(new Business
+                {
+                    Id = Guid.NewGuid(),
+                    ClientId = client.Id,
+                    Name = b.Name.Trim(),
+                    Address = b.Address,
+                    PhoneNumber = b.PhoneNumber,
+                    TinId = b.TinId,
+                    BusinessType = b.BusinessType,
+                    IsVatRegistered = b.IsVatRegistered,
+                    IsActive = b.IsActive,
+                    OrganizationId = orgId.Value
+                });
             }
         }
 
@@ -85,12 +132,12 @@ public class ClientController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = "Permission:clients.manage")]
-    public async Task<IActionResult> UpdateClient(Guid id, Client clientUpdate)
+    public async Task<IActionResult> UpdateClient(Guid id, [FromBody] ClientRequest clientUpdate)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
-        if (id != clientUpdate.Id)
+        if (clientUpdate.Id != Guid.Empty && id != clientUpdate.Id)
         {
             return BadRequest();
         }
@@ -105,23 +152,31 @@ public class ClientController : ControllerBase
             return NotFound();
         }
 
-        client.FullName = clientUpdate.FullName;
-        client.Email = clientUpdate.Email;
-        client.PhoneNumber = clientUpdate.PhoneNumber;
+        client.FullName = clientUpdate.FullName.Trim();
+        client.Email = string.IsNullOrWhiteSpace(clientUpdate.Email) ? null : clientUpdate.Email.Trim();
+        client.PhoneNumber = string.IsNullOrWhiteSpace(clientUpdate.PhoneNumber) ? null : clientUpdate.PhoneNumber.Trim();
         client.IsActive = clientUpdate.IsActive;
         client.OrganizationId = orgId.Value;
 
-        // Update Businesses - very simple approach
         _context.Businesses.RemoveRange(client.Businesses);
-        
+
         if (clientUpdate.Businesses != null)
         {
             foreach (var b in clientUpdate.Businesses)
             {
-                b.Id = Guid.NewGuid();
-                b.ClientId = client.Id;
-                b.OrganizationId = orgId.Value;
-                _context.Businesses.Add(b);
+                _context.Businesses.Add(new Business
+                {
+                    Id = Guid.NewGuid(),
+                    ClientId = client.Id,
+                    Name = b.Name.Trim(),
+                    Address = b.Address,
+                    PhoneNumber = b.PhoneNumber,
+                    TinId = b.TinId,
+                    BusinessType = b.BusinessType,
+                    IsVatRegistered = b.IsVatRegistered,
+                    IsActive = b.IsActive,
+                    OrganizationId = orgId.Value
+                });
             }
         }
 

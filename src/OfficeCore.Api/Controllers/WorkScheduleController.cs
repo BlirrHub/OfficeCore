@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeCore.Api.Models;
 using OfficeCore.Api.Services;
+using OfficeCore.Shared.Authorization;
 
 namespace OfficeCore.Api.Controllers;
 
@@ -20,11 +21,24 @@ public class WorkScheduleController : ControllerBase
         _tenant = tenant;
     }
 
+    private async Task<bool> CanViewWorkSchedulesAsync(Guid orgId)
+    {
+        if (await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId))
+            return true;
+
+        return User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.WorkSchedulesView)
+            || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.WorkSchedulesManage)
+            || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersView)
+            || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersManage)
+            || User.HasClaim("ModuleAccess", AccessModules.WorkSchedules)
+            || User.HasClaim("ModuleAccess", AccessModules.Users);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetWorkSchedules()
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null) return Forbid();
+        if (orgId == null || !await CanViewWorkSchedulesAsync(orgId.Value)) return Forbid();
 
         var schedules = await _context.WorkSchedules
             .Where(ws => ws.OrganizationId == orgId)
@@ -39,7 +53,7 @@ public class WorkScheduleController : ControllerBase
     public async Task<IActionResult> GetWorkSchedule(Guid id)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null) return Forbid();
+        if (orgId == null || !await CanViewWorkSchedulesAsync(orgId.Value)) return Forbid();
 
         var schedule = await _context.WorkSchedules
             .Where(ws => ws.OrganizationId == orgId)

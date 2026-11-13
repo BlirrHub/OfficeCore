@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace OfficeCore.Api.Services;
@@ -19,6 +20,7 @@ public class EmailOtpService : IEmailOtpService
 {
     private readonly ILogger<EmailOtpService> _logger;
     private readonly IConfiguration _config;
+    private readonly IHostEnvironment? _env;
 
     private class OtpEntry
     {
@@ -30,10 +32,11 @@ public class EmailOtpService : IEmailOtpService
     private static readonly ConcurrentDictionary<string, OtpEntry> _otpStore = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, DateTime> _verifiedEmails = new(StringComparer.OrdinalIgnoreCase);
 
-    public EmailOtpService(ILogger<EmailOtpService> logger, IConfiguration config)
+    public EmailOtpService(ILogger<EmailOtpService> logger, IConfiguration config, IHostEnvironment? env = null)
     {
         _logger = logger;
         _config = config;
+        _env = env;
     }
 
     public static string NormalizeEmail(string email)
@@ -110,15 +113,25 @@ public class EmailOtpService : IEmailOtpService
                 mail.To.Add(normalized);
                 await client.SendMailAsync(mail);
                 _logger.LogInformation("📧 Successfully sent OTP email via SMTP to {Email}", normalized);
+                return (true, "Verification code sent to your email inbox.", null);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to send email via SMTP to {Email}. Falling back to simulation/console log.", normalized);
+                _otpStore.TryRemove(normalized, out _);
+                _logger.LogError(ex, "Failed to send OTP email via SMTP to {Email}.", normalized);
+                return (false, "Unable to send verification email. Please verify SMTP settings and try again.", null);
             }
         }
 
-        string msg = "Verification code sent to your email inbox.";
-        return (true, msg, null);
+        var allowSimulation = (_env?.IsDevelopment() ?? true) || _config.GetValue("Email:AllowSimulatedOtp", false);
+        if (!allowSimulation)
+        {
+            _otpStore.TryRemove(normalized, out _);
+            _logger.LogWarning("SMTP is not configured and simulated OTPs are disabled in this environment.");
+            return (false, "Email verification service is not configured.", null);
+        }
+
+        return (true, "Verification code sent (development simulation mode).", null);
     }
 
     public bool VerifyOtp(string email, string code)

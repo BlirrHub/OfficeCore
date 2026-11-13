@@ -21,6 +21,7 @@ public class LeaveRequestController : ControllerBase
     private readonly TenantService _tenant;
     private readonly IHubContext<NotificationHub> _hub;
     private readonly IAuditService _audit;
+    private readonly IFileStorageService _fileStorage;
 
     public LeaveRequestController(
         AppDbContext context,
@@ -28,7 +29,8 @@ public class LeaveRequestController : ControllerBase
         IWebHostEnvironment env,
         TenantService tenant,
         IHubContext<NotificationHub> hub,
-        IAuditService audit)
+        IAuditService audit,
+        IFileStorageService? fileStorage = null)
     {
         _context = context;
         _userManager = userManager;
@@ -36,6 +38,7 @@ public class LeaveRequestController : ControllerBase
         _tenant = tenant;
         _hub = hub;
         _audit = audit;
+        _fileStorage = fileStorage ?? new LocalFileStorageService();
     }
 
     [HttpGet("my")]
@@ -110,25 +113,15 @@ public class LeaveRequestController : ControllerBase
 
         if (request.Attachment != null && request.Attachment.Length > 0)
         {
-            var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "leaves");
-            Directory.CreateDirectory(uploadsFolder);
-
-            if (request.Attachment.Length > 15 * 1024 * 1024)
-                return BadRequest("Attachment exceeds the 15MB limit.");
             var allowedLeaveExts = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".doc", ".docx", ".txt" };
             var safeLeaveFileName = Path.GetFileName(request.Attachment.FileName);
-            var leaveExt = Path.GetExtension(safeLeaveFileName)?.ToLowerInvariant() ?? string.Empty;
-            if (!allowedLeaveExts.Contains(leaveExt))
-                return BadRequest("Unsupported attachment file type.");
-            var uniqueFileName = Guid.NewGuid().ToString() + "_" + safeLeaveFileName;
-            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+            var uniqueFileName = $"{Guid.NewGuid()}_{safeLeaveFileName}";
 
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
-            {
-                await request.Attachment.CopyToAsync(fileStream);
-            }
+            var stored = await _fileStorage.ValidateAndSaveAsync(request.Attachment, "leaves", uniqueFileName, allowedLeaveExts, 15 * 1024 * 1024);
+            if (!stored.Success || stored.RelativeUrl == null)
+                return BadRequest(stored.ErrorMessage ?? "Unsupported attachment file type.");
 
-            attachmentPath = $"/uploads/leaves/{uniqueFileName}";
+            attachmentPath = stored.RelativeUrl;
         }
 
         var leaveRequest = new LeaveRequest
@@ -165,7 +158,7 @@ public class LeaveRequestController : ControllerBase
             TargetUrl = "/admin/leave-approvals",
             Timestamp = DateTime.UtcNow
         };
-        await _hub.Clients.Group($"org_{orgId.Value}_admins").SendAsync("ReceiveNotification", adminNotif);
+        await _hub.Clients.Group($"org_{orgId.Value}_admins_leaves").SendAsync("ReceiveNotification", adminNotif);
 
         return Ok(leaveRequest);
     }

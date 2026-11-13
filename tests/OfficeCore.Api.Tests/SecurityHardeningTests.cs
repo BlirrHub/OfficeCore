@@ -60,7 +60,8 @@ public class SecurityHardeningTests
 
         // 1. Spoofed X-OfficeCore-Station without token -> Forbid
         http.Request.Headers["X-OfficeCore-Station"] = "ServerStationOrchestrator";
-        Assert.IsType<ForbidResult>(await controller.GetBackups());
+        var spoofForbidden = Assert.IsType<ObjectResult>(await controller.GetBackups());
+        Assert.Equal(403, spoofForbidden.StatusCode);
 
         // 2. Valid token -> Ok
         http.Request.Headers["X-OfficeCore-Station-Token"] = "test-secret-station-token-0123456789abcdef";
@@ -68,12 +69,14 @@ public class SecurityHardeningTests
 
         // 3. Valid token but forwarded via Cloudflare Tunnel -> Forbid
         http.Request.Headers["CF-Connecting-IP"] = "203.0.113.5";
-        Assert.IsType<ForbidResult>(await controller.GetBackups());
+        var tunnelForbidden = Assert.IsType<ObjectResult>(await controller.GetBackups());
+        Assert.Equal(403, tunnelForbidden.StatusCode);
 
         // 4. Secondary workspace creator on loopback without station token -> Forbid
         http.Request.Headers.Clear();
         http.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, secondaryOwner.Id) }, "Test"));
-        Assert.IsType<ForbidResult>(await controller.GetBackups());
+        var secondaryForbidden = Assert.IsType<ObjectResult>(await controller.GetBackups());
+        Assert.Equal(403, secondaryForbidden.StatusCode);
 
         // 5. Primary host workspace owner on loopback -> Ok
         http.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, primaryOwner.Id) }, "Test"));

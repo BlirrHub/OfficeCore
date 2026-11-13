@@ -56,31 +56,39 @@ public class NotificationsController : ControllerBase
             return Ok(new List<NotificationPayload>());
         }
 
-        // Check if user is an admin / manager in this workspace
-        var isAdmin = false;
+        // Check module-specific admin/approver permissions in this workspace
         var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orgId.Value);
-        if (org != null && org.CreatedByUserId == userId)
+        bool isOwner = org != null && org.CreatedByUserId == userId;
+        bool canLeaveApprovals = isOwner;
+        bool canLedgerApprovals = isOwner;
+        bool canOvertimeApprovals = isOwner;
+
+        if (!isOwner)
         {
-            isAdmin = true;
-        }
-        else
-        {
-            isAdmin = await _context.EmployeeRoles
+            var roleClaims = await _context.EmployeeRoles
                 .AsNoTracking()
-                .AnyAsync(er => er.EmployeeId == employee.Id &&
-                                er.Role != null && er.Role.Claims.Any(c =>
-                                    (c.ClaimType == PermissionCatalog.ClaimType &&
-                                     (c.ClaimValue == AccessPermissions.LeaveApprovalsManage ||
-                                      c.ClaimValue == AccessPermissions.LedgerManage ||
-                                      c.ClaimValue == AccessPermissions.OvertimeApprovalsManage)) ||
-                                    (c.ClaimType == "ModuleAccess" &&
-                                     (c.ClaimValue == AccessModules.LeaveApprovals ||
-                                      c.ClaimValue == AccessModules.Ledger ||
-                                      c.ClaimValue == AccessModules.OvertimeApprovals))));
+                .Where(er => er.EmployeeId == employee.Id && er.Role != null)
+                .SelectMany(er => er.Role!.Claims.Select(c => new { c.ClaimType, c.ClaimValue }))
+                .ToListAsync();
+
+            canLeaveApprovals = roleClaims.Any(c =>
+                (c.ClaimType == PermissionCatalog.ClaimType &&
+                 (c.ClaimValue == AccessPermissions.LeaveApprovalsView || c.ClaimValue == AccessPermissions.LeaveApprovalsManage)) ||
+                (c.ClaimType == "ModuleAccess" && c.ClaimValue == AccessModules.LeaveApprovals));
+
+            canLedgerApprovals = roleClaims.Any(c =>
+                (c.ClaimType == PermissionCatalog.ClaimType &&
+                 (c.ClaimValue == AccessPermissions.LedgerView || c.ClaimValue == AccessPermissions.LedgerManage)) ||
+                (c.ClaimType == "ModuleAccess" && c.ClaimValue == AccessModules.Ledger));
+
+            canOvertimeApprovals = roleClaims.Any(c =>
+                (c.ClaimType == PermissionCatalog.ClaimType &&
+                 (c.ClaimValue == AccessPermissions.OvertimeApprovalsView || c.ClaimValue == AccessPermissions.OvertimeApprovalsManage)) ||
+                (c.ClaimType == "ModuleAccess" && c.ClaimValue == AccessModules.OvertimeApprovals));
         }
 
-        // 1. ADMIN NOTIFICATIONS: Pending leave, overtime, and advance requests
-        if (isAdmin)
+        // 1. MODULE-SCOPED ADMIN NOTIFICATIONS: Pending leave, advance, and overtime requests
+        if (canLeaveApprovals)
         {
             var pendingLeaves = await _context.LeaveRequests
                 .AsNoTracking()
@@ -107,7 +115,10 @@ public class NotificationsController : ControllerBase
                     Timestamp = l.CreatedAt
                 });
             }
+        }
 
+        if (canLedgerApprovals)
+        {
             var pendingAdvances = await _context.AdvanceRequests
                 .AsNoTracking()
                 .Include(r => r.Employee)
@@ -134,7 +145,10 @@ public class NotificationsController : ControllerBase
                     Timestamp = a.RequestDate
                 });
             }
+        }
 
+        if (canOvertimeApprovals)
+        {
             var pendingOvertimes = await _context.OvertimeRequests
                 .AsNoTracking()
                 .Include(r => r.Employee)

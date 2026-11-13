@@ -134,7 +134,7 @@ public class AdvanceRequestController : ControllerBase
             TargetUrl = "/ledger",
             Timestamp = DateTime.UtcNow
         };
-        await _hub.Clients.Group($"org_{orgId.Value}_admins").SendAsync("ReceiveNotification", adminNotif);
+        await _hub.Clients.Group($"org_{orgId.Value}_admins_ledger").SendAsync("ReceiveNotification", adminNotif);
 
         return CreatedAtAction(nameof(GetMyRequests), new { id = request.Id }, request);
     }
