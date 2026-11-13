@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireTimeOff")]
 public class TimeOffPoliciesController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -21,7 +22,21 @@ public class TimeOffPoliciesController : ControllerBase
         _tenantService = tenantService;
     }
 
+    public sealed class TimeOffPolicyRequest
+    {
+        [Required]
+        [MaxLength(100)]
+        public string Name { get; set; } = string.Empty;
+        public LeaveType LeaveType { get; set; }
+        [Range(0, 365)]
+        public decimal DefaultDaysPerYear { get; set; } = 15;
+        public bool IsPaid { get; set; } = true;
+        public bool RequiresAttachment { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
     [HttpGet]
+    [Authorize(Policy = "Permission:time-off.view")]
     public async Task<ActionResult<IEnumerable<TimeOffPolicy>>> GetPolicies()
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
@@ -35,6 +50,7 @@ public class TimeOffPoliciesController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Policy = "Permission:time-off.view")]
     public async Task<ActionResult<TimeOffPolicy>> GetPolicy(Guid id)
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
@@ -49,13 +65,22 @@ public class TimeOffPoliciesController : ControllerBase
     [HttpPost]
     [Authorize(Policy = "RequireTimeOff")]
     [Authorize(Policy = "Permission:time-off.manage")]
-    public async Task<ActionResult<TimeOffPolicy>> CreatePolicy([FromBody] TimeOffPolicy policy)
+    public async Task<ActionResult<TimeOffPolicy>> CreatePolicy([FromBody] TimeOffPolicyRequest request)
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
-        policy.Id = Guid.NewGuid();
-        policy.OrganizationId = orgId.Value;
-        policy.CreatedAt = DateTime.UtcNow;
+        var policy = new TimeOffPolicy
+        {
+            Id = Guid.NewGuid(),
+            Name = request.Name.Trim(),
+            LeaveType = request.LeaveType,
+            DefaultDaysPerYear = request.DefaultDaysPerYear,
+            IsPaid = request.IsPaid,
+            RequiresAttachment = request.RequiresAttachment,
+            IsActive = true,
+            OrganizationId = orgId.Value,
+            CreatedAt = DateTime.UtcNow
+        };
 
         _context.TimeOffPolicies.Add(policy);
         await _context.SaveChangesAsync();
@@ -66,7 +91,7 @@ public class TimeOffPoliciesController : ControllerBase
     [HttpPut("{id}")]
     [Authorize(Policy = "RequireTimeOff")]
     [Authorize(Policy = "Permission:time-off.manage")]
-    public async Task<IActionResult> UpdatePolicy(Guid id, [FromBody] TimeOffPolicy updated)
+    public async Task<IActionResult> UpdatePolicy(Guid id, [FromBody] TimeOffPolicyRequest updated)
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
@@ -75,7 +100,7 @@ public class TimeOffPoliciesController : ControllerBase
 
         if (existing == null) return NotFound();
 
-        existing.Name = updated.Name;
+        existing.Name = updated.Name.Trim();
         existing.LeaveType = updated.LeaveType;
         existing.DefaultDaysPerYear = updated.DefaultDaysPerYear;
         existing.IsPaid = updated.IsPaid;

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ namespace OfficeCore.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireTimeOff")]
 public class HolidayCalendarController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -20,11 +21,29 @@ public class HolidayCalendarController : ControllerBase
         _tenant = tenant;
     }
 
+    public sealed class HolidayItemDto
+    {
+        [Required]
+        [MaxLength(100)]
+        public string Name { get; set; } = string.Empty;
+        public DateTime Date { get; set; }
+    }
+
+    public sealed class HolidayCalendarRequest
+    {
+        public Guid Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string Name { get; set; } = string.Empty;
+        public bool IsDefault { get; set; }
+        public List<HolidayItemDto>? Holidays { get; set; }
+    }
+
     [HttpGet]
+    [Authorize(Policy = "Permission:time-off.view")]
     public async Task<IActionResult> GetCalendars()
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null) return Forbid();
         if (orgId == null) return Forbid();
 
         var calendars = await _context.HolidayCalendars
@@ -36,6 +55,7 @@ public class HolidayCalendarController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Policy = "Permission:time-off.view")]
     public async Task<IActionResult> GetCalendar(Guid id)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -54,18 +74,21 @@ public class HolidayCalendarController : ControllerBase
     [HttpPost]
     [Authorize(Policy = "RequireTimeOff")]
     [Authorize(Policy = "Permission:time-off.manage")]
-    public async Task<IActionResult> CreateCalendar(HolidayCalendar calendar)
+    public async Task<IActionResult> CreateCalendar([FromBody] HolidayCalendarRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
-        if (orgId == null) return Forbid();
 
-        calendar.Id = Guid.NewGuid();
-        calendar.OrganizationId = orgId.Value;
+        var calendar = new HolidayCalendar
+        {
+            Id = Guid.NewGuid(),
+            Name = request.Name.Trim(),
+            IsDefault = request.IsDefault,
+            OrganizationId = orgId.Value
+        };
         
         if (calendar.IsDefault)
         {
-            // Set all other calendars to non-default
             var defaultCalendars = await _context.HolidayCalendars.Where(c => c.IsDefault && c.OrganizationId == orgId).ToListAsync();
             foreach (var defaultCalendar in defaultCalendars)
             {
@@ -73,14 +96,17 @@ public class HolidayCalendarController : ControllerBase
             }
         }
         
-        if (calendar.Holidays != null)
+        if (request.Holidays != null)
         {
-            foreach (var holiday in calendar.Holidays)
+            foreach (var h in request.Holidays)
             {
-                holiday.HolidayCalendarId = calendar.Id;
-                holiday.Id = 0; // Let DB generate ID
-                holiday.Date = DateTime.SpecifyKind(holiday.Date, DateTimeKind.Utc);
-                holiday.OrganizationId = orgId.Value;
+                calendar.Holidays.Add(new Holiday
+                {
+                    HolidayCalendarId = calendar.Id,
+                    Name = h.Name.Trim(),
+                    Date = DateTime.SpecifyKind(h.Date, DateTimeKind.Utc),
+                    OrganizationId = orgId.Value
+                });
             }
         }
 
@@ -93,13 +119,12 @@ public class HolidayCalendarController : ControllerBase
     [HttpPut("{id}")]
     [Authorize(Policy = "RequireTimeOff")]
     [Authorize(Policy = "Permission:time-off.manage")]
-    public async Task<IActionResult> UpdateCalendar(Guid id, HolidayCalendar updatedCalendar)
+    public async Task<IActionResult> UpdateCalendar(Guid id, [FromBody] HolidayCalendarRequest updatedCalendar)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
-        if (orgId == null) return Forbid();
 
-        if (id != updatedCalendar.Id)
+        if (updatedCalendar.Id != Guid.Empty && id != updatedCalendar.Id)
             return BadRequest();
 
         var existingCalendar = await _context.HolidayCalendars
@@ -119,21 +144,22 @@ public class HolidayCalendarController : ControllerBase
             }
         }
 
-        existingCalendar.Name = updatedCalendar.Name;
+        existingCalendar.Name = updatedCalendar.Name.Trim();
         existingCalendar.IsDefault = updatedCalendar.IsDefault;
 
-        // Update holidays
         _context.Holidays.RemoveRange(existingCalendar.Holidays);
         
         if (updatedCalendar.Holidays != null)
         {
             foreach (var h in updatedCalendar.Holidays)
             {
-                h.Id = 0;
-                h.HolidayCalendarId = id;
-                h.Date = DateTime.SpecifyKind(h.Date, DateTimeKind.Utc);
-                h.OrganizationId = orgId.Value;
-                existingCalendar.Holidays.Add(h);
+                existingCalendar.Holidays.Add(new Holiday
+                {
+                    HolidayCalendarId = id,
+                    Name = h.Name.Trim(),
+                    Date = DateTime.SpecifyKind(h.Date, DateTimeKind.Utc),
+                    OrganizationId = orgId.Value
+                });
             }
         }
 

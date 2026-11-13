@@ -18,13 +18,15 @@ public class ChatController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<ChatHub> _chatHub;
     private readonly TenantService _tenant;
+    private readonly IFileStorageService _fileStorage;
 
-    public ChatController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<ChatHub> chatHub, TenantService tenant)
+    public ChatController(AppDbContext context, UserManager<ApplicationUser> userManager, IHubContext<ChatHub> chatHub, TenantService tenant, IFileStorageService? fileStorage = null)
     {
         _context = context;
         _userManager = userManager;
         _chatHub = chatHub;
         _tenant = tenant;
+        _fileStorage = fileStorage ?? new LocalFileStorageService();
     }
 
     [HttpGet("rooms")]
@@ -182,13 +184,24 @@ public class ChatController : ControllerBase
         var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
         if (!isMember) return Forbid();
 
+        string? safeAttachmentUrl = null;
+        if (!string.IsNullOrWhiteSpace(req.AttachmentUrl))
+        {
+            safeAttachmentUrl = req.AttachmentUrl.Trim();
+            if (!safeAttachmentUrl.StartsWith("/uploads/chat/", StringComparison.OrdinalIgnoreCase)
+                || safeAttachmentUrl.Contains("..", StringComparison.Ordinal))
+            {
+                return BadRequest("Invalid attachment URL.");
+            }
+        }
+
         var message = new ChatMessage
         {
             Id = Guid.NewGuid(),
             ChatRoomId = roomId,
             SenderId = employee.Id,
             Content = req.Content ?? string.Empty,
-            AttachmentUrl = req.AttachmentUrl,
+            AttachmentUrl = safeAttachmentUrl,
             AttachmentName = req.AttachmentName,
             AttachmentSize = req.AttachmentSize,
             CreatedAt = DateTime.UtcNow,
@@ -342,7 +355,7 @@ public class ChatController : ControllerBase
         var message = await _context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.OrganizationId == orgId.Value);
         if (message == null) return NotFound("Message not found.");
 
-        if (message.SenderId != employee.Id) return Forbid("You can only unsend your own messages.");
+        if (message.SenderId != employee.Id) return this.ForbiddenMessage("You can only unsend your own messages.");
 
         var roomId = message.ChatRoomId;
         _context.ChatMessages.Remove(message);
@@ -369,33 +382,18 @@ public class ChatController : ControllerBase
         var isMember = await _context.ChatRoomMembers.AnyAsync(m => m.ChatRoomId == roomId && m.UserId == employee.Id);
         if (!isMember) return Forbid();
 
-        if (file == null || file.Length == 0)
-            return BadRequest("No file was uploaded.");
-
-        // Allow images, pdfs, docs, text files up to 25MB
-        if (file.Length > 25 * 1024 * 1024)
-            return BadRequest("File size cannot exceed 25MB.");
-
         var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".txt", ".doc", ".docx", ".xls", ".xlsx" };
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!allowedExtensions.Contains(ext))
-            return BadRequest("File type is not supported.");
-
-        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "chat");
-        Directory.CreateDirectory(uploadDir);
-
+        var ext = Path.GetExtension(file?.FileName ?? string.Empty).ToLowerInvariant();
         var safeFileName = $"chat_{roomId}_{Guid.NewGuid()}{ext}";
-        var filePath = Path.Combine(uploadDir, safeFileName);
 
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
+        var stored = await _fileStorage.ValidateAndSaveAsync(file, "chat", safeFileName, allowedExtensions, 25 * 1024 * 1024);
+        if (!stored.Success || stored.RelativeUrl == null)
+            return BadRequest(stored.ErrorMessage ?? "Invalid attachment.");
 
         return Ok(new
         {
-            AttachmentUrl = $"/uploads/chat/{safeFileName}",
-            AttachmentName = Path.GetFileName(file.FileName),
+            AttachmentUrl = stored.RelativeUrl,
+            AttachmentName = Path.GetFileName(file!.FileName),
             AttachmentSize = file.Length
         });
     }
@@ -511,11 +509,23 @@ public class ChatController : ControllerBase
             return BadRequest("Not enough valid active organization members to create group chat.");
         }
 
+        string? safePictureUrl = null;
+        if (!string.IsNullOrWhiteSpace(req.PictureUrl))
+        {
+            var trimmedPic = req.PictureUrl.Trim();
+            if (!trimmedPic.StartsWith("/uploads/chat/", StringComparison.OrdinalIgnoreCase)
+                || trimmedPic.Contains("..", StringComparison.Ordinal))
+            {
+                return BadRequest("Invalid group picture URL.");
+            }
+            safePictureUrl = trimmedPic;
+        }
+
         var newRoom = new ChatRoom
         {
             Id = Guid.NewGuid(),
             Name = trimmedName,
-            PictureUrl = !string.IsNullOrWhiteSpace(req.PictureUrl) ? req.PictureUrl.Trim() : null,
+            PictureUrl = safePictureUrl,
             Type = ChatRoomType.Group,
             CreatedAt = DateTime.UtcNow,
             OrganizationId = orgId.Value
@@ -565,7 +575,7 @@ public class ChatController : ControllerBase
         if (room == null) return NotFound("Group chat not found.");
 
         if (!room.Members.Any(m => m.UserId == employee.Id))
-            return Forbid("You are not a member of this group.");
+            return this.ForbiddenMessage("You are not a member of this group.");
 
         var existingIds = room.Members.Select(m => m.UserId).ToHashSet();
         var candidateIds = (req.MemberIds ?? new List<string>())
@@ -662,7 +672,7 @@ public class ChatController : ControllerBase
         if (room == null) return NotFound("Group chat not found.");
 
         if (!room.Members.Any(m => m.UserId == employee.Id))
-            return Forbid("You are not a member of this group.");
+            return this.ForbiddenMessage("You are not a member of this group.");
 
         room.Name = req.Name.Trim();
         await _context.SaveChangesAsync();
@@ -691,31 +701,17 @@ public class ChatController : ControllerBase
         if (room == null) return NotFound("Group chat not found.");
 
         if (!room.Members.Any(m => m.UserId == employee.Id))
-            return Forbid("You are not a member of this group.");
-
-        if (file == null || file.Length == 0)
-            return BadRequest("File is empty.");
+            return this.ForbiddenMessage("You are not a member of this group.");
 
         var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!allowedExtensions.Contains(ext))
-            return BadRequest("Invalid image format. Allowed formats: JPG, PNG, WEBP, GIF.");
-
-        if (file.Length > 5 * 1024 * 1024)
-            return BadRequest("Image file size must be less than 5MB.");
-
-        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "chat");
-        Directory.CreateDirectory(uploadDir);
-
+        var ext = Path.GetExtension(file?.FileName ?? string.Empty).ToLowerInvariant();
         var fileName = $"group_{room.Id}_{Guid.NewGuid()}{ext}";
-        var filePath = Path.Combine(uploadDir, fileName);
 
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
+        var stored = await _fileStorage.ValidateAndSaveAsync(file, "chat", fileName, allowedExtensions, 5 * 1024 * 1024);
+        if (!stored.Success || stored.RelativeUrl == null)
+            return BadRequest(stored.ErrorMessage ?? "Invalid group picture.");
 
-        room.PictureUrl = $"/uploads/chat/{fileName}";
+        room.PictureUrl = stored.RelativeUrl;
         await _context.SaveChangesAsync();
 
         foreach (var member in room.Members)
@@ -743,7 +739,7 @@ public class ChatController : ControllerBase
         if (room == null) return NotFound("Group chat not found.");
 
         if (!room.Members.Any(m => m.UserId == employee.Id))
-            return Forbid("You are not a member of this group.");
+            return this.ForbiddenMessage("You are not a member of this group.");
 
         room.PictureUrl = null;
         await _context.SaveChangesAsync();

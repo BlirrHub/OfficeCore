@@ -162,7 +162,7 @@ public class UserController : ControllerBase
             return BadRequest(new { message = "One or more selected roles do not exist in this workspace." });
 
         if (request.Roles is { Count: > 0 } && !CallerCanAssignRoles(rolesToAssign, isCurrentUserOwner))
-            return Forbid("You do not have permission to assign the requested roles.");
+            return this.ForbiddenMessage("You do not have permission to assign the requested roles.");
 
         var user = new ApplicationUser
         {
@@ -175,7 +175,8 @@ public class UserController : ControllerBase
             MustChangePassword = true
         };
 
-        var result = await _userManager.CreateAsync(user, "password");
+        var temporaryPassword = GenerateTemporaryPassword();
+        var result = await _userManager.CreateAsync(user, temporaryPassword);
         if (!result.Succeeded)
             return BadRequest(result.Errors);
 
@@ -235,7 +236,14 @@ public class UserController : ControllerBase
         }
         catch { }
 
-        return Ok(new { message = "User created successfully", userId = user.Id });
+        return Ok(new { message = "User created successfully", userId = user.Id, temporaryPassword });
+    }
+
+    private static string GenerateTemporaryPassword()
+    {
+        Span<byte> bytes = stackalloc byte[8];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+        return $"Oc{Convert.ToHexString(bytes).ToLowerInvariant()}!9";
     }
 
     [HttpPut("{id}")]
@@ -264,7 +272,7 @@ public class UserController : ControllerBase
 
         bool canAssignRoles = request.Roles != null && CallerCanAssignRoles(rolesToAssign, isCurrentUserOwner);
         if (request.Roles != null && !canAssignRoles)
-            return Forbid("You do not have permission to assign the requested roles.");
+            return this.ForbiddenMessage("You do not have permission to assign the requested roles.");
 
         var org = await _context.Organizations.FindAsync(orgId);
         var createdByUserId = org?.CreatedByUserId;

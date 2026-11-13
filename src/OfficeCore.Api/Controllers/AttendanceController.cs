@@ -618,7 +618,8 @@ public class AttendanceController : ControllerBase
 
     // Hardware Scanner scan callback endpoint
     [HttpPost("scan-event")]
-    [Authorize]
+    [Authorize(Policy = "RequireAttendance")]
+    [Authorize(Policy = "Permission:attendance.adjust")]
     public async Task<IActionResult> LogScanEvent([FromBody] ScanEventDto dto)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
@@ -695,7 +696,7 @@ public class AttendanceController : ControllerBase
         }
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (ext != ".xls" && ext != ".xlsx" && ext != ".csv")
+        if (ext != ".xls" && ext != ".xlsx")
         {
             return BadRequest("Unsupported file type. Please upload an Excel biometric report (.xls or .xlsx).");
         }

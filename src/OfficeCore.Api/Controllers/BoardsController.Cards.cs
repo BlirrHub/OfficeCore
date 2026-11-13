@@ -498,28 +498,13 @@ public partial class BoardsController
         if (member == null || member.Role == BoardRole.Viewer)
             return Forbid();
 
-        if (file == null || file.Length == 0) return BadRequest("File is empty.");
-
-        // Limit file size to 25MB
-        if (file.Length > 25 * 1024 * 1024)
-            return BadRequest("File size exceeds the 25MB limit.");
-
-        var webRoot = !string.IsNullOrEmpty(_env.WebRootPath) ? _env.WebRootPath : Path.Combine(_env.ContentRootPath, "wwwroot");
-        var uploadDir = Path.Combine(webRoot, "uploads", "boards");
-        Directory.CreateDirectory(uploadDir);
-
-        var sanitizedFileName = Path.GetFileName(file.FileName);
+        var sanitizedFileName = Path.GetFileName(file?.FileName ?? string.Empty);
         var allowedBoardExts = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip", ".rar", ".7z", ".mp4", ".mp3", ".wav" };
-        var boardExt = Path.GetExtension(sanitizedFileName)?.ToLowerInvariant() ?? string.Empty;
-        if (!allowedBoardExts.Contains(boardExt))
-            return BadRequest("File type is not permitted.");
         var uniqueFileName = $"{Guid.NewGuid()}_{sanitizedFileName}";
-        var filePath = Path.Combine(uploadDir, uniqueFileName);
 
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
+        var stored = await _fileStorage.ValidateAndSaveAsync(file, "boards", uniqueFileName, allowedBoardExts, 25 * 1024 * 1024);
+        if (!stored.Success || stored.RelativeUrl == null)
+            return BadRequest(stored.ErrorMessage ?? "File type is not permitted.");
 
         var attachment = new BoardCardAttachment
         {
@@ -527,8 +512,8 @@ public partial class BoardsController
             CardId = cardId,
             UserId = employee.Id,
             FileName = sanitizedFileName,
-            FilePath = $"/uploads/boards/{uniqueFileName}",
-            FileSize = file.Length,
+            FilePath = stored.RelativeUrl,
+            FileSize = file!.Length,
             UploadedAt = DateTime.UtcNow,
             OrganizationId = orgId.Value
         };

@@ -135,7 +135,8 @@ public class RbacAuthorizationTests
         // Wrong user attempts to accept targeted invite -> Forbid
         http.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, wrongUser.Id) }, "Test"));
         var wrongResult = await controller.Join(new JoinRequest { Token = "INVITE123" });
-        Assert.IsType<ForbidResult>(wrongResult);
+        var wrongForbidden = Assert.IsType<ObjectResult>(wrongResult);
+        Assert.Equal(403, wrongForbidden.StatusCode);
 
         // Matching user accepts targeted invite -> Ok
         http.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, invitedUser.Id) }, "Test"));

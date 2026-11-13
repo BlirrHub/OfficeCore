@@ -13,7 +13,9 @@ namespace OfficeCore.Api.Hubs;
 /// <summary>
 /// Hub for real-time org-scoped and user-targeted notifications:
 /// - "org_{orgId}": Workspace-wide broadcasts (data sync, room updates)
-/// - "org_{orgId}_admins": Workspace admins and approvers (new leave/loan submissions)
+/// - "org_{orgId}_admins_leaves": Leave approval managers and workspace owners
+/// - "org_{orgId}_admins_ledger": Ledger/advance approval managers and workspace owners
+/// - "org_{orgId}_admins_overtime": Overtime approval managers and workspace owners
 /// - "user_{userId}": Targeted user notifications (approval/rejection outcomes, task assignments, due dates)
 /// </summary>
 [Authorize]
@@ -66,36 +68,41 @@ public class NotificationHub : Hub
             await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId.Value}");
             Console.WriteLine($"[SignalR] Added to group org_{orgId.Value}");
 
-            // Check if this user is an admin or approver in this organization
+            // Subscribe user only to the admin notification groups their workspace role actually authorizes
             if (!string.IsNullOrEmpty(userId))
             {
-                var isWorkspaceAdmin = false;
                 var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orgId.Value);
-                if (org != null && org.CreatedByUserId == userId)
+                bool isOwner = org != null && org.CreatedByUserId == userId;
+
+                bool canLeaveApprovals = isOwner;
+                bool canLedger = isOwner;
+                bool canOvertimeApprovals = isOwner;
+
+                if (!isOwner)
                 {
-                    isWorkspaceAdmin = true;
-                }
-                else
-                {
-                    isWorkspaceAdmin = await _context.EmployeeRoles
+                    var roleClaims = await _context.EmployeeRoles
                         .AsNoTracking()
-                        .AnyAsync(er => er.Employee != null && er.Employee.UserId == userId && er.Employee.OrganizationId == orgId.Value &&
-                                        er.Role != null && er.Role.Claims.Any(c =>
-                                            (c.ClaimType == PermissionCatalog.ClaimType &&
-                                             (c.ClaimValue == AccessPermissions.LeaveApprovalsManage ||
-                                              c.ClaimValue == AccessPermissions.LedgerManage ||
-                                              c.ClaimValue == AccessPermissions.OvertimeApprovalsManage)) ||
-                                            (c.ClaimType == "ModuleAccess" &&
-                                             (c.ClaimValue == AccessModules.LeaveApprovals ||
-                                              c.ClaimValue == AccessModules.Ledger ||
-                                              c.ClaimValue == AccessModules.OvertimeApprovals))));
+                        .Where(er => er.Employee != null && er.Employee.UserId == userId && er.Employee.OrganizationId == orgId.Value && er.Role != null)
+                        .SelectMany(er => er.Role!.Claims.Select(c => new { c.ClaimType, c.ClaimValue }))
+                        .ToListAsync();
+
+                    canLeaveApprovals = roleClaims.Any(c =>
+                        (c.ClaimType == PermissionCatalog.ClaimType && c.ClaimValue == AccessPermissions.LeaveApprovalsManage) ||
+                        (c.ClaimType == "ModuleAccess" && c.ClaimValue == AccessModules.LeaveApprovals));
+                    canLedger = roleClaims.Any(c =>
+                        (c.ClaimType == PermissionCatalog.ClaimType && c.ClaimValue == AccessPermissions.LedgerManage) ||
+                        (c.ClaimType == "ModuleAccess" && c.ClaimValue == AccessModules.Ledger));
+                    canOvertimeApprovals = roleClaims.Any(c =>
+                        (c.ClaimType == PermissionCatalog.ClaimType && c.ClaimValue == AccessPermissions.OvertimeApprovalsManage) ||
+                        (c.ClaimType == "ModuleAccess" && c.ClaimValue == AccessModules.OvertimeApprovals));
                 }
 
-                if (isWorkspaceAdmin)
-                {
-                    await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId.Value}_admins");
-                    Console.WriteLine($"[SignalR] Added to group org_{orgId.Value}_admins");
-                }
+                if (canLeaveApprovals)
+                    await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId.Value}_admins_leaves");
+                if (canLedger)
+                    await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId.Value}_admins_ledger");
+                if (canOvertimeApprovals)
+                    await Groups.AddToGroupAsync(Context.ConnectionId, $"org_{orgId.Value}_admins_overtime");
             }
         }
         else

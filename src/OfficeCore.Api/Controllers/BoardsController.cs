@@ -23,6 +23,7 @@ public partial class BoardsController : ControllerBase
     private readonly IHubContext<NotificationHub> _notificationHub;
     private readonly TenantService _tenant;
     private readonly IWebHostEnvironment _env;
+    private readonly IFileStorageService _fileStorage;
 
     public BoardsController(
         AppDbContext context, 
@@ -30,7 +31,8 @@ public partial class BoardsController : ControllerBase
         IHubContext<BoardHub> hubContext, 
         IHubContext<NotificationHub> notificationHub,
         TenantService tenant,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        IFileStorageService? fileStorage = null)
     {
         _context = context;
         _userManager = userManager;
@@ -38,6 +40,7 @@ public partial class BoardsController : ControllerBase
         _notificationHub = notificationHub;
         _tenant = tenant;
         _env = env;
+        _fileStorage = fileStorage ?? new LocalFileStorageService();
     }
 
     [HttpDelete("{id}")]

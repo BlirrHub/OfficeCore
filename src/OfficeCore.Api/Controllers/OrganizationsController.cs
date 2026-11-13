@@ -20,17 +20,20 @@ public class OrganizationsController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<ChatHub> _chatHub;
     private readonly TenantService _tenant;
+    private readonly IFileStorageService _fileStorage;
 
     public OrganizationsController(
         AppDbContext context, 
         UserManager<ApplicationUser> userManager,
         IHubContext<ChatHub> chatHub,
-        TenantService tenant)
+        TenantService tenant,
+        IFileStorageService? fileStorage = null)
     {
         _context = context;
         _userManager = userManager;
         _chatHub = chatHub;
         _tenant = tenant;
+        _fileStorage = fileStorage ?? new LocalFileStorageService();
     }
 
     [HttpGet("my")]
@@ -136,13 +139,14 @@ public class OrganizationsController : ControllerBase
             .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == id && e.IsActive);
 
         if (employee == null)
-            return Forbid("You are not a member of this organization.");
+            return this.ForbiddenMessage("You are not a member of this organization.");
 
         // Instead of issuing a whole new JWT right away, let's store it in a secure cookie
         // so that subsequent requests from the browser will have the active organization ID.
         Response.Cookies.Append("ActiveOrganizationId", id.ToString(), new CookieOptions
         {
             HttpOnly = true,
+            Secure = Request.IsHttps,
             SameSite = SameSiteMode.Lax,
             IsEssential = true,
             Expires = DateTimeOffset.UtcNow.AddDays(30)
@@ -162,7 +166,7 @@ public class OrganizationsController : ControllerBase
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
         if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OrganizationManage) && !User.HasClaim("ModuleAccess", "Organization"))
-            return Forbid("Workspace ownership or Organization access is required.");
+            return this.ForbiddenMessage("Workspace ownership or Organization access is required.");
 
         var org = await _context.Organizations
             .Include(o => o.Phones)
@@ -202,29 +206,20 @@ public class OrganizationsController : ControllerBase
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
         if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OrganizationManage) && !User.HasClaim("ModuleAccess", "Organization"))
-            return Forbid("Workspace ownership or Organization access is required.");
+            return this.ForbiddenMessage("Workspace ownership or Organization access is required.");
 
         var org = await _context.Organizations.FindAsync(id);
         if (org == null) return NotFound();
 
-        if (file == null || file.Length == 0) return BadRequest("File is empty");
-        if (file.Length > 10 * 1024 * 1024) return BadRequest("Logo file exceeds the 10MB limit.");
         var allowedLogoExts = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
-        var logoExt = Path.GetExtension(file.FileName)?.ToLowerInvariant() ?? string.Empty;
-        if (!allowedLogoExts.Contains(logoExt)) return BadRequest("Only .jpg, .jpeg, .png, .gif, and .webp image files are allowed.");
+        var logoExt = Path.GetExtension(file?.FileName ?? string.Empty).ToLowerInvariant();
+        var fileName = $"{org.Id}_{Guid.NewGuid()}{logoExt}";
 
-        var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "organizations");
-        Directory.CreateDirectory(uploadDir);
+        var stored = await _fileStorage.ValidateAndSaveAsync(file, "organizations", fileName, allowedLogoExts, 10 * 1024 * 1024);
+        if (!stored.Success || stored.RelativeUrl == null)
+            return BadRequest(stored.ErrorMessage ?? "Invalid logo file.");
 
-        var fileName = $"{org.Id}_{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-        var filePath = Path.Combine(uploadDir, fileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        org.LogoUrl = $"/uploads/organizations/{fileName}";
+        org.LogoUrl = stored.RelativeUrl;
         await _context.SaveChangesAsync();
 
         return Ok(new { logoUrl = org.LogoUrl });
@@ -243,7 +238,7 @@ public class OrganizationsController : ControllerBase
 
         var activeOrgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (activeOrgId != id || !await _tenant.IsCurrentUserWorkspaceOwnerAsync(id))
-            return Forbid("Only the workspace owner can delete the workspace.");
+            return this.ForbiddenMessage("Only the workspace owner can delete the workspace.");
 
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null) return Unauthorized();
@@ -304,7 +299,7 @@ public class OrganizationsController : ControllerBase
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
         if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersManage) && !User.HasClaim("ModuleAccess", "Users"))
-            return Forbid("Workspace ownership or Users access is required.");
+            return this.ForbiddenMessage("Workspace ownership or Users access is required.");
 
         string? email = request.Email?.Trim();
 
@@ -378,7 +373,7 @@ public class OrganizationsController : ControllerBase
         {
             var joiningUser = await _userManager.FindByIdAsync(userId);
             if (joiningUser == null || !string.Equals(joiningUser.Email?.Trim(), invitation.Email.Trim(), StringComparison.OrdinalIgnoreCase))
-                return Forbid("This invitation was issued for a different email address.");
+                return this.ForbiddenMessage("This invitation was issued for a different email address.");
             if (invitation.IsAccepted)
                 return BadRequest("This email invitation has already been accepted.");
                 

@@ -67,17 +67,38 @@ public class PayrollController : ControllerBase
         return Ok();
     }
 
+    public sealed class CreatePayrollPeriodRequest
+    {
+        public DateOnly StartDate { get; set; }
+        public DateOnly EndDate { get; set; }
+        [System.ComponentModel.DataAnnotations.MaxLength(500)]
+        public string? Remarks { get; set; }
+        [System.ComponentModel.DataAnnotations.Range(0, 10)]
+        public decimal DeductionMultiplier { get; set; } = 1.0m;
+    }
+
     [HttpPost("periods")]
     [Authorize(Policy = "Permission:payroll.calculate")]
-    public async Task<IActionResult> CreatePayrollPeriod(PayrollPeriod period)
+    public async Task<IActionResult> CreatePayrollPeriod([FromBody] CreatePayrollPeriodRequest request)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
-        period.Id = Guid.NewGuid();
-        period.Status = PayrollStatus.Draft;
-        period.CreatedAt = DateTime.UtcNow;
-        period.OrganizationId = orgId.Value;
+        if (request.EndDate < request.StartDate)
+            return BadRequest(new { message = "End date cannot be earlier than start date." });
+
+        var period = new PayrollPeriod
+        {
+            Id = Guid.NewGuid(),
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Remarks = request.Remarks,
+            DeductionMultiplier = request.DeductionMultiplier,
+            Status = PayrollStatus.Draft,
+            IsArchived = false,
+            CreatedAt = DateTime.UtcNow,
+            OrganizationId = orgId.Value
+        };
 
         _context.PayrollPeriods.Add(period);
         await _context.SaveChangesAsync();

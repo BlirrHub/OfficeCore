@@ -22,6 +22,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 
 | Priority | Feature / Task | Target Area | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| **P0** | **Priority 0 Security, Upload & Runtime Hardening** | API Security, Files, Auth & UI | ✅ Completed | Fixed 21 `Forbid("...")` 500s, moved uploads out of `wwwroot` behind tenant-ACL `FilesController` with magic-byte checks, enforced `MustChangePasswordFilter` + `/change-password`, split notification/dashboard groups by module permission, added per-IP login rate limiting, fail-closed non-dev OTP, stricter DTO validation, and removed dead Google/Forgot links & FontAwesome icons |
 | **P1** | **Payroll & Notification Regression Suite** | QA, Payroll & Tenant Isolation | ✅ Completed | 26 isolated API service/component tests plus 14 existing checks; repaired payroll calendar boundaries and active-member notification subscription |
 | **P1** | **PostgreSQL & Browser Workflow Integration Tests** | QA & Release Confidence | 🟢 Ready for Implementation | Disposable database and browser flows for login, attendance, approvals and payroll; service/component tests do not cover SQL, migrations, transactions, hardware or recovery |
 | **P1** | **Patch Vulnerable ASP.NET Core WASM Server Dependency** | Dependencies & Release Security | ✅ Completed | Upgraded ASP.NET Core 9.0.0 WebAssembly/SignalR/Http packages to 9.0.22; verified zero vulnerable transitive packages (`NU1903` resolved) |
@@ -79,6 +80,7 @@ These features form the **Office Test-Run Foundation** to safely operate OfficeC
 ### 💰 Payroll & Compensation
 - [x] **Printable & PDF Payslip Generation:** One-click bulk and individual PDF payslip generator with company logo and signature lines.
 - [x] **Payroll & Attendance Summary Exporter:** Comprehensive summary export (Excel/CSV) for payroll cutoffs, employee earnings, deductions, and attendance punch logs.
+- [ ] **13th-Month Pay Generator:** Admin calculator and batch generator for Philippine mandatory 13th-month pay (`Total Basic Salary Earned / 12`), pro-rata handling for partial-year employees, exclusion of overtime/allowances/leaves per DOLE guidelines, and printable payout summary.
 - [ ] **Configurable Tax & Statutory Deductions:** Support for regional tax tiers, social security, health insurance, and provident fund formulas.
 - [ ] **Automated Payslip Distribution:** Send encrypted PDF payslips to employee email addresses upon payroll finalization.
 - [ ] **Bank Disbursement Batch Export:** Export payroll totals into standardized CSV/Excel formats accepted by commercial banks.
