@@ -69,6 +69,7 @@ public class TimeOffPoliciesController : ControllerBase
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
+        if (!Enum.IsDefined(typeof(LeaveType), request.LeaveType)) return BadRequest("Invalid leave type.");
         var policy = new TimeOffPolicy
         {
             Id = Guid.NewGuid(),
@@ -95,6 +96,7 @@ public class TimeOffPoliciesController : ControllerBase
     {
         var orgId = await _tenantService.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
+        if (!Enum.IsDefined(typeof(LeaveType), updated.LeaveType)) return BadRequest("Invalid leave type.");
         var existing = await _context.TimeOffPolicies
             .FirstOrDefaultAsync(p => p.Id == id && p.OrganizationId == orgId);
 

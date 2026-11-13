@@ -24,8 +24,11 @@ public class LeaveRequest : ITenantEntity{
 
 public enum LeaveType
 {
-    Sick,
-    Vacation
+    Sick = 0,
+    Vacation = 1,
+    Emergency = 2,
+    Maternity = 3,
+    Other = 4
 }
 
 public enum LeaveRequestStatus

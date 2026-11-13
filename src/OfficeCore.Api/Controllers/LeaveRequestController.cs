@@ -105,6 +105,7 @@ public class LeaveRequestController : ControllerBase
         var employee = await _tenant.GetCurrentEmployeeAsync();
         if (employee == null) return Unauthorized();
 
+        if (!Enum.IsDefined(typeof(LeaveType), request.Type)) return BadRequest("Invalid leave type.");
         if (request.EndDate.Date < request.StartDate.Date) return BadRequest("End date cannot be earlier than start date.");
         string? attachmentPath = null;
 
@@ -235,6 +236,7 @@ public class LeaveRequestController : ControllerBase
             .FirstOrDefaultAsync(e => (e.UserId == request.EmployeeId || e.Id == request.EmployeeId) && e.OrganizationId == orgId.Value);
 
         if (employee == null) return BadRequest("Employee not found");
+        if (!Enum.IsDefined(typeof(LeaveType), request.Type)) return BadRequest("Invalid leave type.");
         if (request.EndDate.Date < request.StartDate.Date) return BadRequest("End date cannot be earlier than start date.");
 
         var leaveRequest = new LeaveRequest

@@ -34,7 +34,7 @@
                 <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between shrink-0">
                     <div>
                         <h3 class="text-lg font-bold text-white tracking-wide uppercase">Request Leave</h3>
-                        <p class="text-xs text-zinc-500 mt-1">Submit a sick or vacation leave application for approval.</p>
+                        <p class="text-xs text-zinc-500 mt-1">Submit a leave application for approval.</p>
                     </div>
                     <button type="button" @onclick="() => _isCreating = false" class="text-zinc-500 hover:text-white transition-colors self-start">
                         <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -45,8 +45,10 @@
                         <div>
                             <label class="block text-sm font-medium text-zinc-400 mb-1">Leave Type</label>
                             <select @bind="_newRequest.Type" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none">
-                                <option value="Vacation">Vacation Leave</option>
-                                <option value="Sick">Sick Leave</option>
+                                @foreach (var lt in LeaveTypeCatalog.All)
+                                {
+                                    <option value="@lt.Value">@lt.Label</option>
+                                }
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
@@ -64,10 +66,15 @@
                             <textarea @bind="_newRequest.Reason" rows="3" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-fuchsia-500 focus:outline-none placeholder-zinc-600" placeholder="Please provide details..."></textarea>
                         </div>
                         
-                        @if (_newRequest.Type == "Sick")
+                        @{
+                            var selectedLeaveType = LeaveTypeCatalog.Get(_newRequest.Type);
+                        }
+                        @if (selectedLeaveType.SupportsAttachment)
                         {
                             <div>
-                                <label class="block text-sm font-medium text-zinc-400 mb-1">Medical Certificate / Attachment (Image)</label>
+                                <label class="block text-sm font-medium text-zinc-400 mb-1">
+                                    @(selectedLeaveType.RequiresAttachment ? "Medical Certificate / Attachment (Image)" : "Supporting Document / Attachment (Optional)")
+                                </label>
                                 <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-800 border-dashed rounded-xl bg-zinc-950 hover:bg-zinc-900/50 transition-colors">
                                     <div class="space-y-1 text-center">
                                         <svg class="mx-auto h-12 w-12 text-zinc-500" stroke="currentColor" fill="none" viewBox="0 0 48 48">
@@ -160,19 +167,13 @@
                         }
                         @foreach (var request in pagedRequests)
                         {
+                            var lt = LeaveTypeCatalog.Get(request.Type);
+                            var attachmentTitle = lt.RequiresAttachment ? "Medical Certificate" : "Leave Attachment";
                             <tr class="hover:bg-zinc-800/30 transition-colors">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-2">
-                                        @if (request.Type == 0) // Sick
-                                        {
-                                            <span class="w-2 h-2 rounded-full bg-red-400"></span>
-                                            <span class="text-white font-medium">Sick Leave</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-                                            <span class="text-white font-medium">Vacation Leave</span>
-                                        }
+                                        <span class="w-2 h-2 rounded-full @lt.DotClass"></span>
+                                        <span class="text-white font-medium">@lt.Label</span>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-zinc-300">
@@ -186,7 +187,7 @@
                                 <td class="px-6 py-4">
                                     @if (!string.IsNullOrEmpty(request.AttachmentPath))
                                     {
-                                        <button type="button" @onclick='() => OpenViewer(request.AttachmentPath, "Medical Certificate")' class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-fuchsia-400 hover:text-fuchsia-300 text-xs font-medium border border-zinc-700/60 transition-colors cursor-pointer">
+                                        <button type="button" @onclick="() => OpenViewer(request.AttachmentPath, attachmentTitle)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-fuchsia-400 hover:text-fuchsia-300 text-xs font-medium border border-zinc-700/60 transition-colors cursor-pointer">
                                             <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                             <span>View Photo</span>
                                         </button>
@@ -407,7 +408,8 @@
             return;
         }
 
-        if (_newRequest.Type == "Sick" && _selectedFile == null)
+        var selectedLeaveType = LeaveTypeCatalog.Get(_newRequest.Type);
+        if (selectedLeaveType.RequiresAttachment && _selectedFile == null)
         {
             _modalError = "A medical certificate or attachment is required for Sick Leave.";
             return;
@@ -419,12 +421,12 @@
         try
         {
             using var content = new MultipartFormDataContent();
-            content.Add(new StringContent(_newRequest.Type == "Sick" ? "0" : "1"), "Type");
+            content.Add(new StringContent(_newRequest.Type.ToString()), "Type");
             content.Add(new StringContent(_newRequest.StartDate.ToString("o")), "StartDate");
             content.Add(new StringContent(_newRequest.EndDate.ToString("o")), "EndDate");
             content.Add(new StringContent(_newRequest.Reason), "Reason");
 
-            if (_newRequest.Type == "Sick" && _selectedFile != null)
+            if (selectedLeaveType.SupportsAttachment && _selectedFile != null)
             {
                 var fileContent = new StreamContent(_selectedFile.OpenReadStream(maxAllowedSize: 10485760)); // 10MB max
                 fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_selectedFile.ContentType);
@@ -457,7 +459,7 @@
 
     private class CreateForm
     {
-        public string Type { get; set; } = "Vacation";
+        public int Type { get; set; } = LeaveTypeCatalog.Vacation;
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public string Reason { get; set; } = string.Empty;
