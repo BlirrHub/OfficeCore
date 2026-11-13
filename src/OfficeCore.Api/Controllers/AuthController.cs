@@ -21,6 +21,7 @@ public class AuthController : ControllerBase
     private readonly Services.ISmsOtpService _smsOtpService;
     private readonly Services.IEmailOtpService _emailOtpService;
     private readonly IFileStorageService _fileStorage;
+    private readonly IWorkspaceAuthorizationService _workspaceAuth;
 
     public AuthController(
         SignInManager<ApplicationUser> signInManager,
@@ -30,7 +31,8 @@ public class AuthController : ControllerBase
         Services.TenantService tenant,
         Services.ISmsOtpService smsOtpService,
         Services.IEmailOtpService emailOtpService,
-        IFileStorageService? fileStorage = null)
+        IFileStorageService? fileStorage = null,
+        IWorkspaceAuthorizationService? workspaceAuth = null)
     {
         _signInManager = signInManager;
         _userManager = userManager;
@@ -40,6 +42,7 @@ public class AuthController : ControllerBase
         _smsOtpService = smsOtpService;
         _emailOtpService = emailOtpService;
         _fileStorage = fileStorage ?? new LocalFileStorageService();
+        _workspaceAuth = workspaceAuth ?? new WorkspaceAuthorizationService(context);
     }
 
     [HttpPost("login")]
@@ -181,66 +184,16 @@ public class AuthController : ControllerBase
         if (user == null)
             return Unauthorized();
 
-        // Gather role claims (module access) and find TitleRoles from Organization roles
-        var moduleClaims = ModuleCatalog.DefaultKeys.ToList();
-        var permissionClaims = new List<string>();
-        var titleRoles = new List<string>();
-        var roles = new List<string>();
-        bool isOwner = false;
+        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
+        var access = orgId.HasValue
+            ? await _workspaceAuth.GetAccessAsync(user.Id, orgId.Value)
+            : WorkspaceAccessContext.Empty;
 
-        var orgId = _tenant.GetActiveOrganizationId();
-
-        if (orgId.HasValue)
-        {
-            // Check if workspace owner — grant all modules
-            var org = await _context.Organizations.FindAsync(orgId.Value);
-            isOwner = org != null && org.CreatedByUserId == user.Id;
-            if (isOwner)
-            {
-                moduleClaims = ModuleCatalog.AllKeys.ToList();
-                permissionClaims = PermissionCatalog.AllKeys.ToList();
-            }
-
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.UserId == user.Id && e.OrganizationId == orgId.Value && e.IsActive);
-
-            if (employee != null)
-            {
-                var employeeRoles = await _context.EmployeeRoles
-                    .Include(er => er.Role)
-                        .ThenInclude(r => r!.Claims)
-                    .Where(er => er.EmployeeId == employee.Id)
-                    .ToListAsync();
-
-                foreach (var er in employeeRoles)
-                {
-                    if (er.Role == null) continue;
-                    
-                    roles.Add(er.Role.Name);
-
-                    if (er.Role.ShowAsTitle && !string.IsNullOrEmpty(er.Role.Name))
-                    {
-                        titleRoles.Add(er.Role.Name);
-                    }
-
-                    moduleClaims.AddRange(er.Role.Claims
-                        .Where(c => c.ClaimType == "ModuleAccess")
-                        .Select(c => c.ClaimValue));
-                    var explicitPermissions = er.Role.Claims
-                        .Where(c => c.ClaimType == PermissionCatalog.ClaimType)
-                        .Select(c => c.ClaimValue)
-                        .ToArray();
-                    permissionClaims.AddRange(explicitPermissions.Length > 0
-                        ? explicitPermissions
-                        : PermissionCatalog.ExpandModules(er.Role.Claims
-                            .Where(c => c.ClaimType == "ModuleAccess")
-                            .Select(c => c.ClaimValue)));
-                }
-            }
-        }
-
-        var defaultTitle = isOwner ? "Owner" : "Employee";
-        var titleRole = titleRoles.Any() ? string.Join(" / ", titleRoles) : defaultTitle;
+        var moduleClaims = access.IsActiveMember
+            ? access.Modules
+            : ModuleCatalog.DefaultKeys;
+        var defaultTitle = access.IsOwner ? "Owner" : "Employee";
+        var titleRole = access.TitleRoles.Any() ? string.Join(" / ", access.TitleRoles) : defaultTitle;
 
         return Ok(new
         {
@@ -250,10 +203,10 @@ public class AuthController : ControllerBase
             lastName = user.LastName,
             profilePictureUrl = user.ProfilePictureUrl,
             mustChangePassword = user.MustChangePassword,
-            roles = roles,
+            roles = access.Roles,
             titleRole = titleRole,
-            modules = moduleClaims.Distinct(),
-            permissions = permissionClaims.Distinct()
+            modules = moduleClaims,
+            permissions = access.Permissions
         });
     }
 

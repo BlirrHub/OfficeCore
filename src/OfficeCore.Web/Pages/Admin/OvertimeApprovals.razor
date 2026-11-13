@@ -18,10 +18,12 @@
                 <button @onclick="RefreshData" disabled="@_isLoading" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors cursor-pointer" title="Refresh">
                     <svg class="size-4 @(_isLoading ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                 </button>
-                <AppButton OnClick="OpenCreateModal">
-                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    Log Overtime
-                </AppButton>
+                <AuthorizeView Policy="Permission:overtime-approvals.manage">
+                    <AppButton OnClick="OpenCreateModal">
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        Log Overtime
+                    </AppButton>
+                </AuthorizeView>
             </div>
         </Actions>
     </PageHeader>
@@ -215,14 +217,21 @@
                                     <td class="px-6 py-4 text-right">
                                         @if (req.Status == 0)
                                         {
-                                            <div class="flex items-center justify-end gap-2">
-                                                <button @onclick="() => OpenApproveModal(req)" class="px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:text-white bg-emerald-950/40 hover:bg-emerald-600 rounded-lg border border-emerald-800/40 transition-colors cursor-pointer" title="Approve Overtime">
-                                                    Approve
-                                                </button>
-                                                <button @onclick="() => OpenRejectModal(req)" class="px-2.5 py-1 text-xs font-semibold text-red-400 hover:text-white bg-red-950/40 hover:bg-red-600 rounded-lg border border-red-800/40 transition-colors cursor-pointer" title="Reject Overtime (Clamps down to shift end)">
-                                                    Reject
-                                                </button>
-                                            </div>
+                                            <AuthorizeView Policy="Permission:overtime-approvals.manage">
+                                                <Authorized>
+                                                    <div class="flex items-center justify-end gap-2">
+                                                        <button @onclick="() => OpenApproveModal(req)" class="px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:text-white bg-emerald-950/40 hover:bg-emerald-600 rounded-lg border border-emerald-800/40 transition-colors cursor-pointer" title="Approve Overtime">
+                                                            Approve
+                                                        </button>
+                                                        <button @onclick="() => OpenRejectModal(req)" class="px-2.5 py-1 text-xs font-semibold text-red-400 hover:text-white bg-red-950/40 hover:bg-red-600 rounded-lg border border-red-800/40 transition-colors cursor-pointer" title="Reject Overtime (Clamps down to shift end)">
+                                                            Reject
+                                                        </button>
+                                                    </div>
+                                                </Authorized>
+                                                <NotAuthorized>
+                                                    <span class="text-zinc-600 text-xs">—</span>
+                                                </NotAuthorized>
+                                            </AuthorizeView>
                                         }
                                         else
                                         {

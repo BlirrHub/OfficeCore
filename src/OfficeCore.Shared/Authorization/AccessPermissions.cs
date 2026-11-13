@@ -93,6 +93,28 @@ public static class PermissionCatalog
     public static IReadOnlyList<PermissionDefinition> ForModule(string module) =>
         All.Where(p => string.Equals(p.Module, module, StringComparison.OrdinalIgnoreCase)).ToArray();
 
+    public static IReadOnlyList<string> KeysForModule(string module) =>
+        All.Where(p => string.Equals(p.Module, module, StringComparison.OrdinalIgnoreCase))
+           .Select(p => p.Key)
+           .ToArray();
+
+    public static IReadOnlyList<string> DeriveModules(IEnumerable<string>? permissions)
+    {
+        var permSet = (permissions ?? [])
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (permSet.Count == 0)
+            return [];
+
+        return All
+            .Where(p => permSet.Contains(p.Key))
+            .Select(p => p.Module)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(m => m, StringComparer.Ordinal)
+            .ToArray();
+    }
+
     public static IReadOnlyList<string> ExpandModules(IEnumerable<string> modules)
     {
         var moduleSet = modules.ToHashSet(StringComparer.OrdinalIgnoreCase);

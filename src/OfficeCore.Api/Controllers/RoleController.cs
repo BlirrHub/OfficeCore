@@ -15,34 +15,28 @@ public class RoleController : ControllerBase
     private readonly AppDbContext _context;
     private readonly TenantService _tenant;
     private readonly IAuditService _audit;
+    private readonly IWorkspaceAuthorizationService _workspaceAuth;
 
-    public RoleController(AppDbContext context, TenantService tenant, IAuditService audit)
+    public RoleController(
+        AppDbContext context,
+        TenantService tenant,
+        IAuditService audit,
+        IWorkspaceAuthorizationService? workspaceAuth = null)
     {
         _context = context;
         _tenant = tenant;
         _audit = audit;
+        _workspaceAuth = workspaceAuth ?? new WorkspaceAuthorizationService(context);
     }
 
-    private HashSet<string> GetCallerEffectivePermissions()
-    {
-        var explicitPermissions = User.FindAll(PermissionCatalog.ClaimType).Select(c => c.Value).ToList();
-        if (explicitPermissions.Count > 0)
-            return new HashSet<string>(explicitPermissions, StringComparer.OrdinalIgnoreCase);
-        var moduleExpanded = PermissionCatalog.ExpandModules(User.FindAll("ModuleAccess").Select(c => c.Value));
-        return new HashSet<string>(moduleExpanded, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private bool HasCallerPermission(string permission, bool isOwner)
-    {
-        if (isOwner) return true;
-        return GetCallerEffectivePermissions().Contains(permission);
-    }
+    private bool HasCallerPermission(string permission, bool isOwner) =>
+        isOwner || User.HasPermission(permission);
 
     private bool CallerCanGrant(IEnumerable<string> modules, IEnumerable<string> permissions, bool isOwner)
     {
         if (isOwner) return true;
-        var callerModules = new HashSet<string>(User.FindAll("ModuleAccess").Select(c => c.Value), StringComparer.OrdinalIgnoreCase);
-        var callerPermissions = GetCallerEffectivePermissions();
+        var callerModules = User.GetEffectiveModules();
+        var callerPermissions = User.GetEffectivePermissions();
 
         foreach (var module in modules)
         {
@@ -66,7 +60,8 @@ public class RoleController : ControllerBase
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Forbid();
 
-        var roles = await _context.OrganizationRoles
+        var rawRoles = await _context.OrganizationRoles
+            .AsNoTracking()
             .Where(r => r.OrganizationId == orgId)
             .Select(r => new
             {
@@ -74,16 +69,38 @@ public class RoleController : ControllerBase
                 r.Name,
                 r.Description,
                 r.ShowAsTitle,
-                Modules = r.Claims
-                    .Where(c => c.ClaimType == "ModuleAccess")
-                    .Select(c => c.ClaimValue)
-                    .ToList(),
-                Permissions = r.Claims
-                    .Where(c => c.ClaimType == PermissionCatalog.ClaimType)
-                    .Select(c => c.ClaimValue)
-                    .ToList()
+                Claims = r.Claims.Select(c => new { c.ClaimType, c.ClaimValue }).ToList()
             })
             .ToListAsync();
+
+        var roles = rawRoles.Select(r =>
+        {
+            var legacyModules = r.Claims
+                .Where(c => c.ClaimType == "ModuleAccess")
+                .Select(c => c.ClaimValue)
+                .ToList();
+            var explicitPermissions = r.Claims
+                .Where(c => c.ClaimType == PermissionCatalog.ClaimType)
+                .Select(c => c.ClaimValue)
+                .ToList();
+            var effectivePermissions = explicitPermissions.Count > 0
+                ? explicitPermissions
+                : PermissionCatalog.ExpandModules(legacyModules).ToList();
+            var derivedModules = PermissionCatalog.DeriveModules(effectivePermissions)
+                .Union(legacyModules, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(m => m, StringComparer.Ordinal)
+                .ToList();
+
+            return new
+            {
+                r.Id,
+                r.Name,
+                r.Description,
+                r.ShowAsTitle,
+                Modules = derivedModules,
+                Permissions = effectivePermissions
+            };
+        }).ToList();
 
         return Ok(roles);
     }
@@ -121,28 +138,21 @@ public class RoleController : ControllerBase
             ShowAsTitle = request.ShowAsTitle
         };
 
-        foreach (var module in modules)
+        foreach (var permission in permissions)
         {
             role.Claims.Add(new OrganizationRoleClaim
             {
                 Id = Guid.NewGuid(),
                 OrganizationRoleId = role.Id,
-                ClaimType = "ModuleAccess",
-                ClaimValue = module
-            });
-        }
-        foreach (var permission in permissions)
-        {
-            role.Claims.Add(new OrganizationRoleClaim
-            {
-                Id = Guid.NewGuid(), OrganizationRoleId = role.Id,
-                ClaimType = PermissionCatalog.ClaimType, ClaimValue = permission
+                ClaimType = PermissionCatalog.ClaimType,
+                ClaimValue = permission
             });
         }
 
         _context.OrganizationRoles.Add(role);
         await _context.SaveChangesAsync();
-        await _audit.LogSecurityAsync(AuditActions.Create, $"Created role '{role.Name}'.", role.Id.ToString(), new { modules, permissions });
+        _workspaceAuth.InvalidateWorkspace(orgId.Value);
+        await _audit.LogSecurityAsync(AuditActions.Create, $"Created role '{role.Name}'.", role.Id.ToString(), new { modules = PermissionCatalog.DeriveModules(permissions), permissions });
 
         return Ok(new { message = "Role created successfully", roleId = role.Id });
     }
@@ -176,6 +186,7 @@ public class RoleController : ControllerBase
         role.ShowAsTitle = request.ShowAsTitle;
 
         await _context.SaveChangesAsync();
+        _workspaceAuth.InvalidateWorkspace(orgId.Value);
 
         return Ok(new { message = "Role updated successfully" });
     }
@@ -221,23 +232,18 @@ public class RoleController : ControllerBase
                         (c.ClaimType == "ModuleAccess" || c.ClaimType == PermissionCatalog.ClaimType))
             .ExecuteDeleteAsync();
 
-        var newClaims = modules.Select(module => new OrganizationRoleClaim
+        _context.OrganizationRoleClaims.AddRange(permissions.Select(permission => new OrganizationRoleClaim
         {
             Id = Guid.NewGuid(),
             OrganizationRoleId = role.Id,
-            ClaimType = "ModuleAccess",
-            ClaimValue = module
-        });
-        _context.OrganizationRoleClaims.AddRange(newClaims);
-        _context.OrganizationRoleClaims.AddRange(permissions.Select(permission => new OrganizationRoleClaim
-        {
-            Id = Guid.NewGuid(), OrganizationRoleId = role.Id,
-            ClaimType = PermissionCatalog.ClaimType, ClaimValue = permission
+            ClaimType = PermissionCatalog.ClaimType,
+            ClaimValue = permission
         }));
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
-        await _audit.LogSecurityAsync(AuditActions.Update, $"Updated role '{role.Name}'.", role.Id.ToString(), new { modules, permissions });
+        _workspaceAuth.InvalidateWorkspace(orgId.Value);
+        await _audit.LogSecurityAsync(AuditActions.Update, $"Updated role '{role.Name}'.", role.Id.ToString(), new { modules = PermissionCatalog.DeriveModules(permissions), permissions });
         return Ok(new { message = "Role updated successfully" });
     }
 
@@ -310,6 +316,7 @@ public class RoleController : ControllerBase
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
+        _workspaceAuth.InvalidateWorkspace(orgId.Value);
         await _audit.LogSecurityAsync(AuditActions.Update, $"Updated module access for role '{role.Name}'.", role.Id.ToString(), new { modules = normalizedModules });
 
         return Ok(new { message = "Role modules updated successfully" });
@@ -342,6 +349,7 @@ public class RoleController : ControllerBase
         _context.OrganizationRoles.Remove(role);
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
+        _workspaceAuth.InvalidateWorkspace(orgId.Value);
         await _audit.LogSecurityAsync(AuditActions.Delete, $"Deleted role '{role.Name}' and removed {removedAssignments} assignment(s).", role.Id.ToString());
 
         return Ok(new
