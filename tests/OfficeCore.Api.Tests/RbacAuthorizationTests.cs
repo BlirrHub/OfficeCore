@@ -284,4 +284,51 @@ public class RbacAuthorizationTests
         Assert.True(transformed.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.BoardsView));
     }
 
+    [Fact]
+    public async Task BoardAdmin_cannot_grant_BoardRole_Owner()
+    {
+        var services = new ServiceCollection();
+        var dbName = $"rbac-board-{Guid.NewGuid():N}";
+        services.AddLogging();
+        services.AddDbContext<AppDbContext>(o =>
+            o.UseInMemoryDatabase(dbName).ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
+        services.AddIdentityCore<ApplicationUser>()
+            .AddEntityFrameworkStores<AppDbContext>();
+
+        var http = new DefaultHttpContext();
+        services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = http });
+        services.AddScoped<TenantService>();
+
+        await using var provider = services.BuildServiceProvider();
+        var db = provider.GetRequiredService<AppDbContext>();
+        var tenant = provider.GetRequiredService<TenantService>();
+        var userManager = provider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var ownerId = Guid.NewGuid().ToString();
+        var boardAdminUserId = Guid.NewGuid().ToString();
+        var targetUserId = Guid.NewGuid().ToString();
+        var org = new Organization { Id = Guid.NewGuid(), Name = "Org", CreatedByUserId = ownerId };
+        var boardAdminEmp = new Employee { Id = Guid.NewGuid().ToString(), UserId = boardAdminUserId, OrganizationId = org.Id, IsActive = true };
+        var targetEmp = new Employee { Id = Guid.NewGuid().ToString(), UserId = targetUserId, OrganizationId = org.Id, IsActive = true };
+        var board = new Board { Id = Guid.NewGuid(), Name = "Test Board", OrganizationId = org.Id, CreatedById = boardAdminEmp.Id };
+        board.Members.Add(new BoardMember { Id = Guid.NewGuid(), BoardId = board.Id, UserId = boardAdminEmp.Id, Role = BoardRole.Admin, OrganizationId = org.Id });
+        db.AddRange(org, boardAdminEmp, targetEmp, board);
+        await db.SaveChangesAsync();
+
+        http.Request.Headers.Cookie = $"ActiveOrganizationId={org.Id}";
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, boardAdminUserId) }, "Test"));
+
+        var controller = new BoardsController(db, userManager, null!, null!, tenant, null!)
+        {
+            ControllerContext = new ControllerContext { HttpContext = http }
+        };
+
+        var result = await controller.ManageMember(board.Id, new BoardsController.ManageMemberRequest
+        {
+            UserId = targetEmp.Id,
+            Role = BoardRole.Owner
+        });
+        Assert.IsType<ForbidResult>(result);
+    }
+
 }

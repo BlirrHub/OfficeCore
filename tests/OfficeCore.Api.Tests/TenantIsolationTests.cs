@@ -179,6 +179,27 @@ public class TenantIsolationTests
         Assert.IsType<NotFoundObjectResult>(await attendanceController.StartEnrollment(fixture.OtherEmployee.Id));
     }
 
+    [Fact]
+    public async Task AuditService_ignores_unvalidated_organization_cookie()
+    {
+        await using var fixture = new TenantTestFixture();
+        // Spoof OtherOrganization cookie while authenticated as Employee (only belongs to Organization)
+        fixture.SelectWorkspace(fixture.OtherOrganization.Id);
+
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<AuditService>.Instance;
+        var httpAccessor = new HttpContextAccessor { HttpContext = fixture.ControllerContext.HttpContext };
+        var auditService = new AuditService(fixture.Db, httpAccessor, fixture.Tenant, logger);
+
+        await auditService.LogAsync("Spoof", "Board", "1", "Should not be written to OtherOrganization");
+        Assert.Empty(await fixture.Db.AuditLogs.ToListAsync());
+
+        // Valid org selected -> audit row is persisted cleanly
+        fixture.SelectWorkspace(fixture.Organization.Id);
+        await auditService.LogAsync("Valid", "Board", "1", "Belongs to active workspace");
+        var log = Assert.Single(await fixture.Db.AuditLogs.ToListAsync());
+        Assert.Equal(fixture.Organization.Id, log.OrganizationId);
+    }
+
     private sealed class TenantTestFixture : IAsyncDisposable
     {
         private readonly ServiceProvider _provider;

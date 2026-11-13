@@ -43,6 +43,10 @@ export async function initSerial(dotNetReference) {
     console.log("Web Serial API initialized.");
 }
 
+export function clearDotNetRef() {
+    dotNetRef = null;
+}
+
 export async function connectSerial() {
     if (!('serial' in navigator)) {
         throw new Error("Web Serial API not supported in this browser.");
@@ -197,7 +201,9 @@ function processLine(line) {
     else if (line.startsWith("ENROLL_SUCCESS:")) {
         let fingerprintId = parseInt(line.split(":")[1]);
         if (!isNaN(fingerprintId) && targetEnrollEmployeeId) {
-            dotNetRef.invokeMethodAsync('OnSerialEnrollSuccess', targetEnrollEmployeeId, fingerprintId);
+            if (dotNetRef) {
+                dotNetRef.invokeMethodAsync('OnSerialEnrollSuccess', targetEnrollEmployeeId, fingerprintId).catch(()=>{});
+            }
             targetEnrollEmployeeId = null;
         }
     }

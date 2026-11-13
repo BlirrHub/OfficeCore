@@ -723,13 +723,13 @@
         {
             await _hubConnection.DisposeAsync();
         }
-        // Note: we intentionally do NOT dispose _dotNetRef here.
-        // The JS serial module holds a reference to it for ongoing attendance callbacks.
-        // It will be replaced with a new reference on the next component mount via initSerial.
+        // Release JS callback target before disposing the interop module and reference.
         if (_serialModule != null)
         {
+            try { await _serialModule.InvokeVoidAsync("clearDotNetRef"); } catch (JSDisconnectedException) { }
             await _serialModule.DisposeAsync();
         }
+        _dotNetRef?.Dispose();
     }
 
     private class DeviceDto

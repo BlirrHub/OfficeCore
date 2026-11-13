@@ -106,8 +106,8 @@ else
                          @ondrop="() => HandleDropOnList(list.Id)">
                         
                         <!-- List Header -->
-                        <div class="p-3.5 border-b flex items-center justify-between shrink-0 @(_isViewer ? "" : "cursor-grab active:cursor-grabbing") rounded-t-2xl transition-colors"
-                             style="background-color: @(string.IsNullOrEmpty(list.ColorHex) ? "rgba(24, 24, 27, 0.8)" : list.ColorHex); border-color: @(string.IsNullOrEmpty(list.ColorHex) ? "rgba(39, 39, 42, 0.5)" : list.ColorHex);">
+                        <div class="p-3.5 border-b flex items-center justify-between shrink-0 @(_isViewer ? "" : "cursor-grab active:cursor-grabbing") rounded-t-2xl transition-colors @(string.IsNullOrEmpty(list.ColorHex) ? "bg-zinc-900/80 border-zinc-800/50" : "")"
+                             style="@(string.IsNullOrEmpty(list.ColorHex) ? "" : $"background-color: {list.ColorHex}; border-color: {list.ColorHex};")">
                             @if (_editingListId == list.Id)
                             {
                                 <div class="w-full flex flex-col gap-2.5" @onclick:stopPropagation="true">
