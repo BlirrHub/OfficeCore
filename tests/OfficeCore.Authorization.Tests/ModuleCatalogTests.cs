@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using OfficeCore.Shared.Authorization;
 using Xunit;
 
@@ -70,5 +71,43 @@ public class ModuleCatalogTests
         Assert.False(valid);
         Assert.Equal([AccessPermissions.AuditView], normalized);
         Assert.Equal(["system.root"], invalid);
+    }
+
+    [Fact]
+    public void Keys_for_module_and_derive_modules_map_permissions_back_to_modules()
+    {
+        var payrollKeys = PermissionCatalog.KeysForModule(AccessModules.Payroll);
+
+        Assert.Contains(AccessPermissions.PayrollView, payrollKeys);
+        Assert.Contains(AccessPermissions.PayrollFinalize, payrollKeys);
+        Assert.DoesNotContain(AccessPermissions.ClientsView, payrollKeys);
+
+        var derived = PermissionCatalog.DeriveModules([AccessPermissions.PayrollView, AccessPermissions.AuditExport]);
+
+        Assert.Contains(AccessModules.Payroll, derived);
+        Assert.Contains(AccessModules.AuditLogs, derived);
+        Assert.DoesNotContain(AccessModules.Users, derived);
+    }
+
+    [Fact]
+    public void Claims_principal_derives_module_access_from_permission_claims_without_module_claims()
+    {
+        var identity = new ClaimsIdentity(
+        [
+            new Claim(ClaimTypes.NameIdentifier, "user-1"),
+            new Claim(PermissionCatalog.ClaimType, AccessPermissions.ClientsView)
+        ], "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+
+        Assert.True(principal.HasPermission(AccessPermissions.ClientsView));
+        Assert.False(principal.HasPermission(AccessPermissions.ClientsManage));
+        Assert.True(principal.HasModuleAccess(AccessModules.Clients));
+        Assert.False(principal.HasModuleAccess(AccessModules.Payroll));
+        Assert.Contains(AccessModules.Clients, principal.GetEffectiveModules());
+
+        // Unauthenticated principal gets neither permissions nor modules
+        var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
+        Assert.False(anonymous.HasModuleAccess(AccessModules.Clients));
+        Assert.False(anonymous.HasModuleAccess(AccessModules.Dashboard));
     }
 }

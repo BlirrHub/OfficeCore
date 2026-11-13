@@ -21,19 +21,22 @@ public class OrganizationsController : ControllerBase
     private readonly IHubContext<ChatHub> _chatHub;
     private readonly TenantService _tenant;
     private readonly IFileStorageService _fileStorage;
+    private readonly IWorkspaceAuthorizationService _workspaceAuth;
 
     public OrganizationsController(
         AppDbContext context, 
         UserManager<ApplicationUser> userManager,
         IHubContext<ChatHub> chatHub,
         TenantService tenant,
-        IFileStorageService? fileStorage = null)
+        IFileStorageService? fileStorage = null,
+        IWorkspaceAuthorizationService? workspaceAuth = null)
     {
         _context = context;
         _userManager = userManager;
         _chatHub = chatHub;
         _tenant = tenant;
         _fileStorage = fileStorage ?? new LocalFileStorageService();
+        _workspaceAuth = workspaceAuth ?? new WorkspaceAuthorizationService(context);
     }
 
     [HttpGet("my")]
@@ -119,6 +122,7 @@ public class OrganizationsController : ControllerBase
         // They can create and assign custom roles for employees via Role Management.
 
         await _context.SaveChangesAsync();
+        _workspaceAuth.InvalidateUser(org.Id, userId);
 
         return Ok(new
         {
@@ -165,8 +169,8 @@ public class OrganizationsController : ControllerBase
         if (activeOrgId != id) return Forbid();
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
-        if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OrganizationManage) && !User.HasClaim("ModuleAccess", "Organization"))
-            return this.ForbiddenMessage("Workspace ownership or Organization access is required.");
+        if (!isOwner && !User.HasPermission(AccessPermissions.OrganizationManage))
+            return this.ForbiddenMessage("Workspace ownership or Organization manage permission is required.");
 
         var org = await _context.Organizations
             .Include(o => o.Phones)
@@ -205,8 +209,8 @@ public class OrganizationsController : ControllerBase
         if (activeOrgId != id) return Forbid();
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
-        if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OrganizationManage) && !User.HasClaim("ModuleAccess", "Organization"))
-            return this.ForbiddenMessage("Workspace ownership or Organization access is required.");
+        if (!isOwner && !User.HasPermission(AccessPermissions.OrganizationManage))
+            return this.ForbiddenMessage("Workspace ownership or Organization manage permission is required.");
 
         var org = await _context.Organizations.FindAsync(id);
         if (org == null) return NotFound();
@@ -276,6 +280,7 @@ public class OrganizationsController : ControllerBase
             await _context.SaveChangesAsync();
 
             await transaction.CommitAsync();
+            _workspaceAuth.InvalidateWorkspace(id);
         }
         catch
         {
@@ -298,8 +303,8 @@ public class OrganizationsController : ControllerBase
         if (activeOrgId != id) return Forbid();
 
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(id);
-        if (!isOwner && !User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersManage) && !User.HasClaim("ModuleAccess", "Users"))
-            return this.ForbiddenMessage("Workspace ownership or Users access is required.");
+        if (!isOwner && !User.HasPermission(AccessPermissions.UsersManage))
+            return this.ForbiddenMessage("Workspace ownership or Users manage permission is required.");
 
         string? email = request.Email?.Trim();
 
@@ -406,6 +411,7 @@ public class OrganizationsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+        _workspaceAuth.InvalidateUser(invitation.OrganizationId, userId);
 
         try
         {

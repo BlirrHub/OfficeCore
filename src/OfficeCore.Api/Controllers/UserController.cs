@@ -20,53 +20,49 @@ public class UserController : ControllerBase
     private readonly TenantService _tenant;
     private readonly IAuditService _audit;
     private readonly IHubContext<ChatHub> _chatHub;
+    private readonly IWorkspaceAuthorizationService _workspaceAuth;
 
     public UserController(
         UserManager<ApplicationUser> userManager,
         AppDbContext context,
         TenantService tenant,
         IAuditService audit,
-        IHubContext<ChatHub> chatHub)
+        IHubContext<ChatHub> chatHub,
+        IWorkspaceAuthorizationService? workspaceAuth = null)
     {
         _userManager = userManager;
         _context = context;
         _tenant = tenant;
         _audit = audit;
         _chatHub = chatHub;
-    }
-
-    private HashSet<string> GetCallerEffectivePermissions()
-    {
-        var explicitPermissions = User.FindAll(PermissionCatalog.ClaimType).Select(c => c.Value).ToList();
-        var moduleClaims = User.FindAll("ModuleAccess").Select(c => c.Value).ToList();
-        if (explicitPermissions.Count > 0)
-            return new HashSet<string>(explicitPermissions, StringComparer.OrdinalIgnoreCase);
-
-        return new HashSet<string>(PermissionCatalog.ExpandModules(moduleClaims), StringComparer.OrdinalIgnoreCase);
+        _workspaceAuth = workspaceAuth ?? new WorkspaceAuthorizationService(context);
     }
 
     private bool CallerCanAssignRoles(List<OrganizationRole> rolesToAssign, bool isCurrentUserOwner)
     {
         if (isCurrentUserOwner) return true;
-        var callerPermissions = GetCallerEffectivePermissions();
+        var callerPermissions = User.GetEffectivePermissions();
         if (!callerPermissions.Contains(AccessPermissions.EmployeeRolesAssign))
             return false;
 
-        var callerModules = new HashSet<string>(User.FindAll("ModuleAccess").Select(c => c.Value), StringComparer.OrdinalIgnoreCase);
+        var callerModules = User.GetEffectiveModules();
 
         foreach (var role in rolesToAssign)
         {
             if (string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            var roleModules = role.Claims.Where(c => c.ClaimType == "ModuleAccess").Select(c => c.ClaimValue);
+            var roleModules = role.Claims.Where(c => c.ClaimType == "ModuleAccess").Select(c => c.ClaimValue).ToArray();
             foreach (var mod in roleModules)
             {
                 if (!ModuleCatalog.DefaultKeys.Contains(mod, StringComparer.OrdinalIgnoreCase) && !callerModules.Contains(mod))
                     return false;
             }
 
-            var rolePerms = role.Claims.Where(c => c.ClaimType == PermissionCatalog.ClaimType).Select(c => c.ClaimValue);
+            var explicitPerms = role.Claims.Where(c => c.ClaimType == PermissionCatalog.ClaimType).Select(c => c.ClaimValue).ToArray();
+            var rolePerms = explicitPerms.Length > 0
+                ? explicitPerms
+                : PermissionCatalog.ExpandModules(roleModules);
             foreach (var perm in rolePerms)
             {
                 if (!callerPermissions.Contains(perm))
@@ -212,6 +208,8 @@ public class UserController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        _workspaceAuth.InvalidateUser(orgId.Value, employee.UserId);
+
         if (rolesToAssign.Count > 0)
         {
             foreach (var r in rolesToAssign)
@@ -225,10 +223,14 @@ public class UserController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        _workspaceAuth.InvalidateUser(orgId.Value, employee.UserId);
+
         await _audit.LogEmployeeAsync(
             AuditActions.Create,
             $"Created new employee profile for {request.FirstName} {request.LastName} ({request.Email}, ID: {request.EmployeeId}, Daily Rate: ₱{request.DailyRate:N2})",
             employee.Id);
+
+        _workspaceAuth.InvalidateUser(orgId.Value, user.Id);
 
         try
         {
@@ -358,6 +360,8 @@ public class UserController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        _workspaceAuth.InvalidateUser(orgId.Value, employee.UserId);
+
         var newState = new
         {
             employee.EmployeeId,
@@ -415,6 +419,7 @@ public class UserController : ControllerBase
 
         _context.Employees.Update(employee);
         await _context.SaveChangesAsync();
+        _workspaceAuth.InvalidateUser(orgId.Value, employee.UserId);
 
         var name = $"{employee.User?.FirstName} {employee.User?.LastName}".Trim();
         await _audit.LogEmployeeAsync(
@@ -505,6 +510,7 @@ public class UserController : ControllerBase
         // Remove the employee from this organization
         _context.Employees.Remove(employee);
         await _context.SaveChangesAsync();
+        _workspaceAuth.InvalidateUser(orgId.Value, employee.UserId);
 
         await _audit.LogEmployeeAsync(
             AuditActions.Delete,

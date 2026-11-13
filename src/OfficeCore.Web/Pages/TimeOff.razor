@@ -44,10 +44,12 @@
                     <h2 class="text-lg font-semibold text-white">Leave &amp; Time Off Policies</h2>
                     <p class="text-xs text-zinc-400">Define employee leave types, standard yearly allowances, and paid leave settings.</p>
                 </div>
-                <button @onclick="OpenCreatePolicyModal" class="px-3.5 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-lg shadow-fuchsia-600/20">
-                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    New Policy
-                </button>
+                <AuthorizeView Policy="Permission:time-off.manage">
+                    <button @onclick="OpenCreatePolicyModal" class="px-3.5 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-lg shadow-fuchsia-600/20">
+                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        New Policy
+                    </button>
+                </AuthorizeView>
             </div>
 
             @if (_isLoadingPolicies)
@@ -59,17 +61,32 @@
             else if (_policies.Count == 0)
             {
                 <div class="flex-1 flex flex-col items-center justify-center p-8">
-                    <EmptyState Card="false"
-                                Title="No Leave Policies Defined"
-                                Description="Create your company's standard leave rules (e.g. 15-day Vacation Leave, 10-day Sick Leave)."
-                                ActionText="Add First Policy"
-                                OnAction="OpenCreatePolicyModal">
-                        <Icon>
-                            <svg class="size-10 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </Icon>
-                    </EmptyState>
+                    <AuthorizeView Policy="Permission:time-off.manage">
+                        <Authorized>
+                            <EmptyState Card="false"
+                                        Title="No Leave Policies Defined"
+                                        Description="Create your company's standard leave rules (e.g. 15-day Vacation Leave, 10-day Sick Leave)."
+                                        ActionText="Add First Policy"
+                                        OnAction="OpenCreatePolicyModal">
+                                <Icon>
+                                    <svg class="size-10 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </Icon>
+                            </EmptyState>
+                        </Authorized>
+                        <NotAuthorized>
+                            <EmptyState Card="false"
+                                        Title="No Leave Policies Defined"
+                                        Description="No leave policies have been configured yet.">
+                                <Icon>
+                                    <svg class="size-10 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </Icon>
+                            </EmptyState>
+                        </NotAuthorized>
+                    </AuthorizeView>
                 </div>
             }
             else
@@ -101,14 +118,16 @@
                                 </div>
                             </div>
 
-                            <div class="pt-4 mt-4 border-t border-zinc-800/80 flex items-center justify-end gap-2">
-                                <button @onclick="() => EditPolicy(policy)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-xs font-medium">
-                                    Edit
-                                </button>
-                                <button @onclick="() => DeletePolicy(policy.Id)" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-lg transition-colors text-xs font-medium">
-                                    Delete
-                                </button>
-                            </div>
+                            <AuthorizeView Policy="Permission:time-off.manage">
+                                <div class="pt-4 mt-4 border-t border-zinc-800/80 flex items-center justify-end gap-2">
+                                    <button @onclick="() => EditPolicy(policy)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-xs font-medium">
+                                        Edit
+                                    </button>
+                                    <button @onclick="() => DeletePolicy(policy.Id)" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-lg transition-colors text-xs font-medium">
+                                        Delete
+                                    </button>
+                                </div>
+                            </AuthorizeView>
                         </div>
                     }
                 </div>
@@ -128,10 +147,12 @@
                         <input type="text" placeholder="Search calendars" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 focus:outline-none" />
                     </div>
                     
-                    <button @onclick="CreateNewCalendar" class="flex items-center gap-2 text-fuchsia-400 text-sm font-medium hover:text-fuchsia-300 transition-colors w-full">
-                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                        Add new calendar
-                    </button>
+                    <AuthorizeView Policy="Permission:time-off.manage">
+                        <button @onclick="CreateNewCalendar" class="flex items-center gap-2 text-fuchsia-400 text-sm font-medium hover:text-fuchsia-300 transition-colors w-full">
+                            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                            Add new calendar
+                        </button>
+                    </AuthorizeView>
                 </div>
                 
                 <div class="flex-1 overflow-y-auto p-4 space-y-2">
@@ -253,14 +274,16 @@
                                     <span class="text-[10px] font-bold text-fuchsia-400 bg-fuchsia-900/20 px-2 py-1 rounded uppercase tracking-wider">Default</span>
                                 }
                             </h2>
-                            <div class="flex gap-2">
-                                <button @onclick="PromptDeleteCalendar" class="p-2 text-zinc-500 hover:text-red-400 bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors" title="Delete Calendar">
-                                    <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                                <button @onclick="() => _isEditing = !_isEditing" class="p-2 text-zinc-500 hover:text-fuchsia-400 bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors" title="Edit Calendar Settings">
-                                    <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.89 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.89l10.685-10.686z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 7.125L16.875 4.5" /></svg>
-                                </button>
-                            </div>
+                            <AuthorizeView Policy="Permission:time-off.manage">
+                                <div class="flex gap-2">
+                                    <button @onclick="PromptDeleteCalendar" class="p-2 text-zinc-500 hover:text-red-400 bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors" title="Delete Calendar">
+                                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                    <button @onclick="() => _isEditing = !_isEditing" class="p-2 text-zinc-500 hover:text-fuchsia-400 bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors" title="Edit Calendar Settings">
+                                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.89 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.89l10.685-10.686z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 7.125L16.875 4.5" /></svg>
+                                    </button>
+                                </div>
+                            </AuthorizeView>
                         </div>
 
                         <!-- Edit Settings Dropdown -->
@@ -299,10 +322,12 @@
                                     }
                                 </div>
                                 
-                                <button @onclick="() => { _isAddingHoliday = true; _editingHoliday = false; _newHoliday = new HolidayDto { Date = DateTime.Now }; }" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
-                                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                    Add Holiday
-                                </button>
+                                <AuthorizeView Policy="Permission:time-off.manage">
+                                    <button @onclick="() => { _isAddingHoliday = true; _editingHoliday = false; _newHoliday = new HolidayDto { Date = DateTime.Now }; }" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
+                                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                        Add Holiday
+                                    </button>
+                                </AuthorizeView>
                             </div>
 
                             @if (_isAddingHoliday)
@@ -375,7 +400,9 @@
                                                 <td class="px-6 py-4 text-zinc-300">@h.Date.ToString("MMM dd, yyyy")</td>
                                                 <td class="px-6 py-4 text-zinc-500">@h.Date.ToString("dddd")</td>
                                                 <td class="px-6 py-4 text-right">
-                                                    <button @onclick="() => PromptDeleteHoliday(h)" class="text-xs font-medium text-zinc-500 hover:text-red-400">Delete</button>
+                                                    <AuthorizeView Policy="Permission:time-off.manage">
+                                                        <button @onclick="() => PromptDeleteHoliday(h)" class="text-xs font-medium text-zinc-500 hover:text-red-400">Delete</button>
+                                                    </AuthorizeView>
                                                 </td>
                                             </tr>
                                         }
@@ -389,17 +416,32 @@
                 else
                 {
                     <div class="absolute inset-0 flex flex-col items-center justify-center p-8">
-                        <EmptyState Card="false"
-                                    Title="No calendar selected"
-                                    Description="Select a calendar from the sidebar or create a new one to manage company holidays."
-                                    ActionText="Add New Calendar"
-                                    OnAction="CreateNewCalendar">
-                            <Icon>
-                                <svg class="size-10 text-zinc-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                                </svg>
-                            </Icon>
-                        </EmptyState>
+                        <AuthorizeView Policy="Permission:time-off.manage">
+                            <Authorized>
+                                <EmptyState Card="false"
+                                            Title="No calendar selected"
+                                            Description="Select a calendar from the sidebar or create a new one to manage company holidays."
+                                            ActionText="Add New Calendar"
+                                            OnAction="CreateNewCalendar">
+                                    <Icon>
+                                        <svg class="size-10 text-zinc-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                        </svg>
+                                    </Icon>
+                                </EmptyState>
+                            </Authorized>
+                            <NotAuthorized>
+                                <EmptyState Card="false"
+                                            Title="No calendar selected"
+                                            Description="Select a calendar from the sidebar to view company holidays.">
+                                    <Icon>
+                                        <svg class="size-10 text-zinc-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                        </svg>
+                                    </Icon>
+                                </EmptyState>
+                            </NotAuthorized>
+                        </AuthorizeView>
                     </div>
                 }
             </div>

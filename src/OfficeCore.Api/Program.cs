@@ -161,17 +161,19 @@ builder.Services.AddAuthorization(options =>
 {
     foreach (var module in ModuleCatalog.AllKeys)
     {
-        options.AddPolicy($"Require{module}", policy => policy.RequireClaim("ModuleAccess", module));
+        options.AddPolicy($"Require{module}", policy =>
+            policy.RequireAuthenticatedUser().RequireAssertion(ctx => ctx.User.HasModuleAccess(module)));
     }
     foreach (var permission in PermissionCatalog.AllKeys)
     {
         options.AddPolicy(PermissionPolicies.For(permission), policy =>
-            policy.RequireClaim(PermissionCatalog.ClaimType, permission));
+            policy.RequireAuthenticatedUser().RequireAssertion(ctx => ctx.User.HasPermission(permission)));
     }
 });
 
 // ─── Services ─────────────────────────────────────────────────────────────────
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddMemoryCache();
 builder.Services.AddOpenApi();
 builder.Services.AddControllers(options =>
 {
@@ -192,6 +194,7 @@ builder.Services.AddHostedService<OfficeCore.Api.Services.BackupHostedService>()
 // Register Application Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<OfficeCore.Api.Services.TenantService>();
+builder.Services.AddScoped<OfficeCore.Api.Services.IWorkspaceAuthorizationService, OfficeCore.Api.Services.WorkspaceAuthorizationService>();
 builder.Services.AddScoped<OfficeCore.Api.Services.IPayrollComputationService, OfficeCore.Api.Services.PayrollComputationService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, OfficeCore.Api.Services.OrganizationClaimsTransformation>();
 builder.Services.AddScoped<OfficeCore.Api.Services.IAuditService, OfficeCore.Api.Services.AuditService>();

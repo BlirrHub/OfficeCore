@@ -60,10 +60,12 @@
                 <button @onclick="RefreshData" disabled="@_isLoading" class="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-lg transition-colors" title="Refresh">
                     <svg class="size-4 @(_isLoading ? "animate-spin text-fuchsia-400" : "")" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                 </button>
-                <button @onclick="() => _isCreatingLeave = true" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
-                    <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    Create Leave
-                </button>
+                <AuthorizeView Policy="Permission:leave-approvals.manage">
+                    <button @onclick="() => _isCreatingLeave = true" class="px-4 py-2 text-sm font-medium text-white bg-fuchsia-600 rounded-lg hover:bg-fuchsia-500 transition-colors shadow-lg shadow-fuchsia-900/30 flex items-center gap-2">
+                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        Create Leave
+                    </button>
+                </AuthorizeView>
             </div>
         </div>
 
@@ -182,9 +184,11 @@
                                             </button>
                                             @if (request.Status == 0 || request.Status == 1)
                                             {
-                                                <button @onclick:stopPropagation="true" @onclick="() => ConfirmCancel(request)" class="text-zinc-400 hover:text-amber-400 font-medium text-xs transition-colors">
-                                                    Cancel
-                                                </button>
+                                                <AuthorizeView Policy="Permission:leave-approvals.manage">
+                                                    <button @onclick:stopPropagation="true" @onclick="() => ConfirmCancel(request)" class="text-zinc-400 hover:text-amber-400 font-medium text-xs transition-colors">
+                                                        Cancel
+                                                    </button>
+                                                </AuthorizeView>
                                             }
                                         </div>
                                     </td>
@@ -311,21 +315,32 @@
             <div class="p-6 border-t border-zinc-800 bg-zinc-900 flex justify-end gap-3">
                 @if (_selectedRequest.Status == 0)
                 {
-                    <button @onclick="() => UpdateStatus(_selectedRequest, 2)" disabled="@_isUpdating" class="px-5 py-2.5 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/20 text-sm font-semibold rounded-lg transition-colors">
-                        Reject Request
-                    </button>
-                    <button @onclick="() => ConfirmCancel(_selectedRequest)" disabled="@_isUpdating" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700/60 text-sm font-semibold rounded-lg transition-colors">
-                        Cancel Request
-                    </button>
-                    <button @onclick="() => UpdateStatus(_selectedRequest, 1)" disabled="@_isUpdating" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-emerald-900/20 transition-colors">
-                        Approve Request
-                    </button>
+                    <AuthorizeView Policy="Permission:leave-approvals.manage">
+                        <Authorized>
+                            <button @onclick="() => UpdateStatus(_selectedRequest, 2)" disabled="@_isUpdating" class="px-5 py-2.5 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/20 text-sm font-semibold rounded-lg transition-colors">
+                                Reject Request
+                            </button>
+                            <button @onclick="() => ConfirmCancel(_selectedRequest)" disabled="@_isUpdating" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700/60 text-sm font-semibold rounded-lg transition-colors">
+                                Cancel Request
+                            </button>
+                            <button @onclick="() => UpdateStatus(_selectedRequest, 1)" disabled="@_isUpdating" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-emerald-900/20 transition-colors">
+                                Approve Request
+                            </button>
+                        </Authorized>
+                        <NotAuthorized>
+                            <button @onclick="() => _selectedRequest = null" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                                Close
+                            </button>
+                        </NotAuthorized>
+                    </AuthorizeView>
                 }
                 else if (_selectedRequest.Status == 1)
                 {
-                    <button @onclick="() => ConfirmCancel(_selectedRequest)" disabled="@_isUpdating" class="px-5 py-2.5 bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/20 text-sm font-semibold rounded-lg transition-colors">
-                        Cancel Leave
-                    </button>
+                    <AuthorizeView Policy="Permission:leave-approvals.manage">
+                        <button @onclick="() => ConfirmCancel(_selectedRequest)" disabled="@_isUpdating" class="px-5 py-2.5 bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/20 text-sm font-semibold rounded-lg transition-colors">
+                            Cancel Leave
+                        </button>
+                    </AuthorizeView>
                     <button @onclick="() => _selectedRequest = null" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold rounded-lg transition-colors">
                         Close
                     </button>
