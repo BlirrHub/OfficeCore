@@ -109,21 +109,24 @@ public class DashboardController : ControllerBase
             .FirstOrDefaultAsync(e => e.OrganizationId == orgId && e.UserId == userId && e.IsActive);
         if (employee == null) return Forbid();
 
-        var roleName = employee?.EmployeeRoles.Select(r => r.Role?.Name).FirstOrDefault(r => !string.IsNullOrEmpty(r)) ?? "Employee";
+        var roleName = employee.EmployeeRoles.Select(r => r.Role?.Name).FirstOrDefault(r => !string.IsNullOrEmpty(r)) ?? "Employee";
 
-        // Check module claims for this user
+        bool HasCapability(string module, params string[] permissions) =>
+            User.HasClaim("ModuleAccess", module) || permissions.Any(p => User.HasClaim(PermissionCatalog.ClaimType, p));
+
+        // Check module/permission claims for this user
         var perms = new DashboardPermissionsDto
         {
-            CanManageLeaves = User.HasClaim("ModuleAccess", "LeaveApprovals") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LeaveApprovalsView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LeaveApprovalsManage),
-            CanManageOvertime = User.HasClaim("ModuleAccess", "OvertimeApprovals") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OvertimeApprovalsView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.OvertimeApprovalsManage),
-            CanManageAttendance = User.HasClaim("ModuleAccess", "Attendance") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.AttendanceView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.AttendanceAdjust),
-            CanManageUsers = User.HasClaim("ModuleAccess", "Users") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.UsersManage),
-            CanManageAdvances = User.HasClaim("ModuleAccess", "Ledger") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LedgerView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LedgerManage),
-            CanManagePayroll = User.HasClaim("ModuleAccess", "Payroll") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.PayrollView) || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.PayrollCalculate),
-            CanViewBoards = User.HasClaim("ModuleAccess", "Boards") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.BoardsView),
-            CanViewLocations = User.HasClaim("ModuleAccess", "Locations") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.LocationsView),
-            CanViewClients = User.HasClaim("ModuleAccess", "Clients") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.ClientsView),
-            CanViewInvoices = User.HasClaim("ModuleAccess", "Invoices") || User.HasClaim(PermissionCatalog.ClaimType, AccessPermissions.InvoicesView)
+            CanManageLeaves = HasCapability("LeaveApprovals", AccessPermissions.LeaveApprovalsView, AccessPermissions.LeaveApprovalsManage),
+            CanManageOvertime = HasCapability("OvertimeApprovals", AccessPermissions.OvertimeApprovalsView, AccessPermissions.OvertimeApprovalsManage),
+            CanManageAttendance = HasCapability("Attendance", AccessPermissions.AttendanceView, AccessPermissions.AttendanceAdjust),
+            CanManageUsers = HasCapability("Users", AccessPermissions.UsersView, AccessPermissions.UsersManage),
+            CanManageAdvances = HasCapability("Ledger", AccessPermissions.LedgerView, AccessPermissions.LedgerManage),
+            CanManagePayroll = HasCapability("Payroll", AccessPermissions.PayrollView, AccessPermissions.PayrollCalculate),
+            CanViewBoards = HasCapability("Boards", AccessPermissions.BoardsView),
+            CanViewLocations = HasCapability("Locations", AccessPermissions.LocationsView),
+            CanViewClients = HasCapability("Clients", AccessPermissions.ClientsView),
+            CanViewInvoices = HasCapability("Invoices", AccessPermissions.InvoicesView)
         };
 
         // Determine if user has any managerial/admin capabilities
@@ -140,7 +143,7 @@ public class DashboardController : ControllerBase
 
         // Determine primary board for workspace
         var primaryBoardId = await _context.BoardMembers
-            .Where(bm => bm.OrganizationId == orgId && (employee == null || bm.UserId == employee.Id))
+            .Where(bm => bm.OrganizationId == orgId && bm.UserId == employee.Id)
             .OrderByDescending(bm => bm.IsStarred)
             .Select(bm => bm.BoardId)
             .FirstOrDefaultAsync();
@@ -156,11 +159,11 @@ public class DashboardController : ControllerBase
 
         dto.PrimaryBoardId = primaryBoardId != Guid.Empty ? primaryBoardId : null;
 
-        var phtNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8));
-        var todayStartUtc = new DateTimeOffset(phtNow.Date, TimeSpan.FromHours(8)).ToUniversalTime();
+        var phtOffset = TimeSpan.FromHours(8);
+        var phtNow = DateTimeOffset.UtcNow.ToOffset(phtOffset);
+        var todayStartUtc = new DateTimeOffset(phtNow.Date, phtOffset).ToUniversalTime();
 
         // ── 1. Calculate Personal ESS Data for the caller ──
-        if (employee != null)
         {
             // Personal attendance today
             var myTodayRecords = await _context.AttendanceRecords
@@ -248,7 +251,7 @@ public class DashboardController : ControllerBase
                 {
                     Id = a.Id.ToString(),
                     Title = $"You clocked {(a.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
-                    Description = $"At {a.Timestamp.ToLocalTime():h:mm tt} via {a.Source}",
+                    Description = $"At {a.Timestamp.ToOffset(phtOffset):h:mm tt} via {a.Source}",
                     Category = "Attendance",
                     Icon = "attendance",
                     BadgeColor = a.Type == AttendanceType.ClockIn ? "emerald" : "zinc",
@@ -392,7 +395,7 @@ public class DashboardController : ControllerBase
                     {
                         Id = att.Id.ToString(),
                         Title = $"{name} clocked {(att.Type == AttendanceType.ClockIn ? "IN" : "OUT")}",
-                        Description = $"Via {att.Source} at {att.Timestamp.ToLocalTime():h:mm tt}",
+                        Description = $"Via {att.Source} at {att.Timestamp.ToOffset(phtOffset):h:mm tt}",
                         Category = "Attendance",
                         Icon = "attendance",
                         BadgeColor = att.Type == AttendanceType.ClockIn ? "emerald" : "zinc",

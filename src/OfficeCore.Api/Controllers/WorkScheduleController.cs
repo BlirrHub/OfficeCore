@@ -226,7 +226,8 @@ public class WorkScheduleController : ControllerBase
     public async Task<IActionResult> DeleteWorkSchedule(Guid id)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        var schedule = await _context.WorkSchedules.FirstOrDefaultAsync(ws => ws.Id == id && ws.OrganizationId == orgId);
+        if (orgId == null) return Forbid();
+        var schedule = await _context.WorkSchedules.FirstOrDefaultAsync(ws => ws.Id == id && ws.OrganizationId == orgId.Value);
         if (schedule == null)
             return NotFound();
 

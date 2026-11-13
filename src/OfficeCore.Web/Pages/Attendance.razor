@@ -432,7 +432,7 @@
     private async Task ExportCsv()
     {
         var url = $"/api/attendance/export?t={DateTime.UtcNow.Ticks}";
-        if (!string.IsNullOrWhiteSpace(_filterEmployee)) url += $"&employeeId={_filterEmployee}";
+        if (!string.IsNullOrWhiteSpace(_filterEmployee)) url += $"&search={Uri.EscapeDataString(_filterEmployee.Trim())}";
         if (_filterStartDate.HasValue) url += $"&startDate={_filterStartDate.Value:yyyy-MM-dd}";
         if (_filterEndDate.HasValue) url += $"&endDate={_filterEndDate.Value:yyyy-MM-dd}";
         

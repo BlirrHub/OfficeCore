@@ -157,40 +157,6 @@ public class RoleController : ControllerBase
         return Ok(new { message = "Role created successfully", roleId = role.Id });
     }
 
-    [HttpPut("{id}/details")]
-    [Authorize(Policy = "Permission:roles.edit")]
-    public async Task<IActionResult> UpdateRoleDetails(Guid id, [FromBody] UpdateRoleRequest request)
-    {
-        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null) return Forbid();
-        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
-        if (!HasCallerPermission(AccessPermissions.RolesEdit, isOwner)) return Forbid();
-
-        var role = await _context.OrganizationRoles
-            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
-
-        if (role == null) return NotFound();
-        if (!isOwner && string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
-            return Forbid();
-
-        if (!string.IsNullOrWhiteSpace(request.Name))
-        {
-            var name = request.Name.Trim();
-            if (!isOwner && string.Equals(name, "Admin", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-            if (await _context.OrganizationRoles.AnyAsync(r => r.OrganizationId == orgId && r.Id != id && r.Name.ToLower() == name.ToLower()))
-                return Conflict(new { message = "A role with this name already exists." });
-            role.Name = name;
-        }
-        role.Description = request.Description;
-        role.ShowAsTitle = request.ShowAsTitle;
-
-        await _context.SaveChangesAsync();
-        _workspaceAuth.InvalidateWorkspace(orgId.Value);
-
-        return Ok(new { message = "Role updated successfully" });
-    }
-
     [HttpPut("{id}")]
     [Authorize(Policy = "Permission:roles.edit")]
     public async Task<IActionResult> UpdateRole(Guid id, [FromBody] SaveRoleRequest request)
@@ -247,81 +213,6 @@ public class RoleController : ControllerBase
         return Ok(new { message = "Role updated successfully" });
     }
 
-    [HttpGet("{id}/modules")]
-    [Authorize(Policy = "Permission:roles.view")]
-    public async Task<IActionResult> GetRoleModules(Guid id)
-    {
-        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null) return Forbid();
-
-        var modules = await _context.OrganizationRoles
-            .Where(r => r.Id == id && r.OrganizationId == orgId)
-            .Select(r => r.Claims
-                .Where(c => c.ClaimType == "ModuleAccess")
-                .Select(c => c.ClaimValue)
-                .ToList())
-            .FirstOrDefaultAsync();
-
-        if (modules == null) return NotFound();
-        
-        return Ok(modules);
-    }
-
-    [HttpPut("{id}/modules")]
-    [Authorize(Policy = "Permission:roles.edit")]
-    public async Task<IActionResult> UpdateRoleModules(Guid id, [FromBody] List<string> modules)
-    {
-        var orgId = await _tenant.GetValidatedOrganizationIdAsync();
-        if (orgId == null) return Forbid();
-        var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
-        if (!HasCallerPermission(AccessPermissions.RolesEdit, isOwner)) return Forbid();
-
-        if (!ModuleCatalog.TryNormalizeMany(modules, out var normalizedModules, out var invalid))
-            return BadRequest(new { message = "Unknown modules were supplied.", invalidModules = invalid });
-        var expandedPermissions = PermissionCatalog.ExpandModules(normalizedModules);
-        if (!CallerCanGrant(normalizedModules, expandedPermissions, isOwner))
-            return Forbid();
-
-        var role = await _context.OrganizationRoles
-            .Include(r => r.Claims)
-            .FirstOrDefaultAsync(r => r.Id == id && r.OrganizationId == orgId);
-
-        if (role == null) return NotFound();
-        if (!isOwner && string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
-            return Forbid();
-
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-
-        await _context.OrganizationRoleClaims
-            .Where(c => c.OrganizationRoleId == role.Id &&
-                        (c.ClaimType == "ModuleAccess" || c.ClaimType == PermissionCatalog.ClaimType))
-            .ExecuteDeleteAsync();
-
-        // Add new module claims
-        var newClaims = normalizedModules.Select(module => new OrganizationRoleClaim
-        {
-            Id = Guid.NewGuid(),
-            OrganizationRoleId = role.Id,
-            ClaimType = "ModuleAccess",
-            ClaimValue = module
-        }).ToList();
-        
-        _context.OrganizationRoleClaims.AddRange(newClaims);
-        _context.OrganizationRoleClaims.AddRange(expandedPermissions
-            .Select(permission => new OrganizationRoleClaim
-            {
-                Id = Guid.NewGuid(), OrganizationRoleId = role.Id,
-                ClaimType = PermissionCatalog.ClaimType, ClaimValue = permission
-            }));
-
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
-        _workspaceAuth.InvalidateWorkspace(orgId.Value);
-        await _audit.LogSecurityAsync(AuditActions.Update, $"Updated module access for role '{role.Name}'.", role.Id.ToString(), new { modules = normalizedModules });
-
-        return Ok(new { message = "Role modules updated successfully" });
-    }
-
     [HttpDelete("{id}")]
     [Authorize(Policy = "Permission:roles.delete")]
     public async Task<IActionResult> DeleteRole(Guid id)
@@ -369,12 +260,7 @@ public class CreateRoleRequest
     public List<string>? Permissions { get; set; }
 }
 
-public class UpdateRoleRequest
-{
-    public string? Name { get; set; }
-    public string? Description { get; set; }
-    public bool ShowAsTitle { get; set; }
-}
+
 
 public class SaveRoleRequest
 {

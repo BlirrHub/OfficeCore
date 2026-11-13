@@ -56,6 +56,7 @@ public class ClientController : ControllerBase
 
     public sealed class BusinessRequest
     {
+        public Guid Id { get; set; }
         [System.ComponentModel.DataAnnotations.Required]
         [System.ComponentModel.DataAnnotations.MaxLength(200)]
         public string Name { get; set; } = string.Empty;
@@ -158,15 +159,39 @@ public class ClientController : ControllerBase
         client.IsActive = clientUpdate.IsActive;
         client.OrganizationId = orgId.Value;
 
-        _context.Businesses.RemoveRange(client.Businesses);
+        var incomingBusinesses = clientUpdate.Businesses ?? new List<BusinessRequest>();
+        var incomingIds = incomingBusinesses
+            .Where(b => b.Id != Guid.Empty)
+            .Select(b => b.Id)
+            .ToHashSet();
 
-        if (clientUpdate.Businesses != null)
+        var toRemove = client.Businesses
+            .Where(existing => !incomingIds.Contains(existing.Id))
+            .ToList();
+        if (toRemove.Count > 0)
         {
-            foreach (var b in clientUpdate.Businesses)
+            _context.Businesses.RemoveRange(toRemove);
+        }
+
+        var existingById = client.Businesses.ToDictionary(b => b.Id);
+        foreach (var b in incomingBusinesses)
+        {
+            if (b.Id != Guid.Empty && existingById.TryGetValue(b.Id, out var existing))
+            {
+                existing.Name = b.Name.Trim();
+                existing.Address = b.Address;
+                existing.PhoneNumber = b.PhoneNumber;
+                existing.TinId = b.TinId;
+                existing.BusinessType = b.BusinessType;
+                existing.IsVatRegistered = b.IsVatRegistered;
+                existing.IsActive = b.IsActive;
+                existing.OrganizationId = orgId.Value;
+            }
+            else
             {
                 _context.Businesses.Add(new Business
                 {
-                    Id = Guid.NewGuid(),
+                    Id = b.Id != Guid.Empty ? b.Id : Guid.NewGuid(),
                     ClientId = client.Id,
                     Name = b.Name.Trim(),
                     Address = b.Address,

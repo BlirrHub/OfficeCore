@@ -12,6 +12,8 @@ namespace OfficeCore.Api.Controllers;
 [Authorize]
 public class AttendanceController : ControllerBase
 {
+    private static readonly TimeSpan PhtOffset = TimeSpan.FromHours(8);
+
     private readonly AppDbContext _context;
     private readonly FingerprintDeviceService _deviceService;
     private readonly IHubContext<OfficeCore.Api.Hubs.AttendanceHub> _hubContext;
@@ -107,7 +109,7 @@ public class AttendanceController : ControllerBase
         }
 
         // Scheduled shift for today
-        var localNow = DateTime.Now;
+        var localNow = phtNow.DateTime;
         var dayOfWeek = localNow.DayOfWeek;
         string scheduledShiftText = "Flexible Schedule";
         TimeSpan? scheduledStartTime = null;
@@ -128,7 +130,7 @@ public class AttendanceController : ControllerBase
                     scheduledEndTime = todaySched.EndTime;
                     if (todaySched.StartTime.HasValue && todaySched.EndTime.HasValue)
                     {
-                        scheduledShiftText = $"{DateTime.Today.Add(todaySched.StartTime.Value):hh:mm tt} - {DateTime.Today.Add(todaySched.EndTime.Value):hh:mm tt}";
+                        scheduledShiftText = $"{localNow.Date.Add(todaySched.StartTime.Value):hh:mm tt} - {localNow.Date.Add(todaySched.EndTime.Value):hh:mm tt}";
                     }
                     else
                     {
@@ -138,14 +140,14 @@ public class AttendanceController : ControllerBase
             }
         }
 
-        // Month-to-date stats
-        var startOfMonth = new DateTime(localNow.Year, localNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        // Month-to-date stats in PHT
+        var startOfMonth = new DateTimeOffset(localNow.Year, localNow.Month, 1, 0, 0, 0, PhtOffset).ToUniversalTime();
         var monthRecords = records
-            .Where(a => a.Timestamp.UtcDateTime >= startOfMonth)
+            .Where(a => a.Timestamp >= startOfMonth)
             .OrderBy(a => a.Timestamp)
             .ToList();
 
-        int daysPresent = monthRecords.Select(r => r.Timestamp.ToLocalTime().Date).Distinct().Count();
+        int daysPresent = monthRecords.Select(r => r.Timestamp.ToOffset(PhtOffset).Date).Distinct().Count();
 
         double monthTotalHours = 0;
         DateTimeOffset? monthClockIn = null;
@@ -236,7 +238,7 @@ public class AttendanceController : ControllerBase
         var actionText = type == AttendanceType.ClockIn ? "Clocked In" : "Clocked Out";
         return Ok(new
         {
-            message = $"Successfully {actionText} at {record.Timestamp.ToLocalTime():hh:mm tt}.",
+            message = $"Successfully {actionText} at {record.Timestamp.ToOffset(PhtOffset):hh:mm tt}.",
             type = type.ToString(),
             timestamp = record.Timestamp
         });
@@ -253,7 +255,7 @@ public class AttendanceController : ControllerBase
 
             if (empWithSched?.WorkSchedule?.Days == null) return;
 
-            var localTime = punchTimestamp.ToLocalTime();
+            var localTime = punchTimestamp.ToOffset(PhtOffset);
             var schedDay = empWithSched.WorkSchedule.Days.FirstOrDefault(d => d.DayOfWeek == localTime.DayOfWeek);
 
             if (schedDay == null || schedDay.IsRestDay || !schedDay.EndTime.HasValue) return;
@@ -326,6 +328,41 @@ public class AttendanceController : ControllerBase
     // MANAGEMENT SELF-SERVICE (MSS) ENDPOINTS — Policy: RequireAttendance
     // =========================================================================
 
+    private static IQueryable<AttendanceRecord> ApplyAttendanceFilters(
+        IQueryable<AttendanceRecord> query,
+        string? employeeId,
+        string? search,
+        DateTime? startDate,
+        DateTime? endDate)
+    {
+        if (!string.IsNullOrWhiteSpace(employeeId))
+        {
+            query = query.Where(a => a.EmployeeId == employeeId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(a =>
+                a.Employee != null && a.Employee.User != null &&
+                ((a.Employee.User.FirstName + " " + a.Employee.User.LastName).ToLower().Contains(term)));
+        }
+
+        if (startDate.HasValue)
+        {
+            var startUtc = new DateTimeOffset(startDate.Value.Date, PhtOffset).ToUniversalTime();
+            query = query.Where(a => a.Timestamp >= startUtc);
+        }
+
+        if (endDate.HasValue)
+        {
+            var endUtc = new DateTimeOffset(endDate.Value.Date.AddDays(1), PhtOffset).ToUniversalTime();
+            query = query.Where(a => a.Timestamp < endUtc);
+        }
+
+        return query;
+    }
+
     [HttpGet]
     [Authorize(Policy = "RequireAttendance")]
     [Authorize(Policy = "Permission:attendance.view")]
@@ -342,22 +379,7 @@ public class AttendanceController : ControllerBase
                     .ThenInclude(ws => ws!.Days)
             .Where(a => a.OrganizationId == orgId.Value);
 
-        if (!string.IsNullOrWhiteSpace(employeeId))
-        {
-            query = query.Where(a => a.EmployeeId == employeeId);
-        }
-
-        if (startDate.HasValue)
-        {
-            var startUtc = DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc);
-            query = query.Where(a => a.Timestamp >= startUtc);
-        }
-
-        if (endDate.HasValue)
-        {
-            var endUtc = DateTime.SpecifyKind(endDate.Value.Date.AddDays(1), DateTimeKind.Utc);
-            query = query.Where(a => a.Timestamp < endUtc);
-        }
+        query = ApplyAttendanceFilters(query, employeeId, search: null, startDate, endDate);
 
         var records = await query
             .OrderByDescending(a => a.Timestamp)
@@ -365,7 +387,7 @@ public class AttendanceController : ControllerBase
             .ToListAsync();
 
         var dtos = records.Select(a => {
-            var localTime = a.Timestamp.ToLocalTime();
+            var localTime = a.Timestamp.ToOffset(PhtOffset);
             var dayOfWeek = localTime.DayOfWeek;
             
             bool includeTimeTracked = false;
@@ -400,7 +422,7 @@ public class AttendanceController : ControllerBase
     [HttpGet("export")]
     [Authorize(Policy = "RequireAttendance")]
     [Authorize(Policy = "Permission:attendance.view")]
-    public async Task<IActionResult> ExportAttendance([FromQuery] string? employeeId = null, [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
+    public async Task<IActionResult> ExportAttendance([FromQuery] string? employeeId = null, [FromQuery] string? search = null, [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
     {
         var orgId = await _tenant.GetValidatedOrganizationIdAsync();
         if (orgId == null) return Unauthorized("No active workspace selected.");
@@ -410,22 +432,7 @@ public class AttendanceController : ControllerBase
                 .ThenInclude(e => e!.User)
             .Where(a => a.OrganizationId == orgId.Value);
 
-        if (!string.IsNullOrWhiteSpace(employeeId))
-        {
-            query = query.Where(a => a.EmployeeId == employeeId);
-        }
-
-        if (startDate.HasValue)
-        {
-            var startUtc = DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc);
-            query = query.Where(a => a.Timestamp >= startUtc);
-        }
-
-        if (endDate.HasValue)
-        {
-            var endUtc = DateTime.SpecifyKind(endDate.Value.Date.AddDays(1), DateTimeKind.Utc);
-            query = query.Where(a => a.Timestamp < endUtc);
-        }
+        query = ApplyAttendanceFilters(query, employeeId, search, startDate, endDate);
 
         var records = await query
             .OrderBy(a => a.Timestamp)
@@ -438,11 +445,11 @@ public class AttendanceController : ControllerBase
         {
             var empName = r.Employee?.User != null ? $"{r.Employee.User.FirstName} {r.Employee.User.LastName}".Trim() : "Unknown";
             empName = empName.Replace("\"", "\"\"");
-            var localTime = r.Timestamp.ToLocalTime().ToString("yyyy-MM-dd hh:mm tt");
+            var localTime = r.Timestamp.ToOffset(PhtOffset).ToString("yyyy-MM-dd hh:mm tt");
             sb.AppendLine($"\"{empName}\",{localTime},{r.Type},{r.Source}");
         }
 
-        var fileName = $"AttendanceExport_{DateTime.Now:yyyyMMddHHmmss}.csv";
+        var fileName = $"AttendanceExport_{DateTimeOffset.UtcNow.ToOffset(PhtOffset):yyyyMMddHHmmss}.csv";
         return File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", fileName);
     }
 

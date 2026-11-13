@@ -236,8 +236,10 @@
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var mustChangeClaim = authState.User.FindFirst("MustChangePassword")?.Value;
-        
-        if (mustChangeClaim == "true" && !Nav.Uri.EndsWith("/change-password"))
+        var currentPath = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/');
+
+        if (string.Equals(mustChangeClaim, "true", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(currentPath, "/change-password", StringComparison.OrdinalIgnoreCase))
         {
             Nav.NavigateTo("/change-password");
         }

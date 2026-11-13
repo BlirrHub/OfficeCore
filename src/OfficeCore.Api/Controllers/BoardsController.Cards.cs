@@ -254,7 +254,7 @@ public partial class BoardsController
 
             // Insert into new list
             var newListCards = targetList.Cards.Where(c => c.Id != card.Id).OrderBy(c => c.OrderIndex).ToList();
-            newListCards.Insert(Math.Min(req.NewOrderIndex, newListCards.Count), card);
+            newListCards.Insert(Math.Clamp(req.NewOrderIndex, 0, newListCards.Count), card);
             
             for (int i = 0; i < newListCards.Count; i++)
             {
@@ -263,7 +263,7 @@ public partial class BoardsController
         }
         else // Moving within same list
         {
-            oldListCards.Insert(Math.Min(req.NewOrderIndex, oldListCards.Count), card);
+            oldListCards.Insert(Math.Clamp(req.NewOrderIndex, 0, oldListCards.Count), card);
             for (int i = 0; i < oldListCards.Count; i++)
             {
                 oldListCards[i].OrderIndex = i;
@@ -324,7 +324,6 @@ public partial class BoardsController
         var isOwner = await _tenant.IsCurrentUserWorkspaceOwnerAsync(orgId);
         var commentMember = card.List?.Board?.Members.FirstOrDefault(m => m.UserId == userId);
         if (!isOwner && (commentMember == null || commentMember.Role == BoardRole.Viewer)) return Forbid();
-        if (card == null) return NotFound();
 
         var comment = new BoardCardComment
         {
@@ -559,19 +558,8 @@ public partial class BoardsController
         if (!isUploader && !isBoardAdminOrOwner)
             return Forbid();
 
-        var webRoot = !string.IsNullOrEmpty(_env.WebRootPath) ? _env.WebRootPath : Path.Combine(_env.ContentRootPath, "wwwroot");
-        var physicalPath = Path.Combine(webRoot, attachment.FilePath.TrimStart('/'));
-        if (System.IO.File.Exists(physicalPath))
-        {
-            try
-            {
-                System.IO.File.Delete(physicalPath);
-            }
-            catch (Exception)
-            {
-                // File deletion failure shouldn't block database record removal
-            }
-        }
+        // Delete physical file from configured file storage without blocking DB cleanup on failure
+        _fileStorage.DeleteFile(attachment.FilePath);
 
         var boardId = attachment.Card.List.BoardId;
         _context.BoardCardAttachments.Remove(attachment);

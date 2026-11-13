@@ -26,7 +26,7 @@
         </div>
         <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
             <h3 class="text-zinc-400 text-sm font-medium">Approved Today</h3>
-            <p class="text-3xl font-bold text-emerald-400 mt-2">@_requests?.Count(r => r.Status == 1 && r.CreatedAt.Date == DateTime.Today)</p>
+            <p class="text-3xl font-bold text-emerald-400 mt-2">@_requests?.Count(r => r.Status == 1 && (r.ActionTakenAt ?? r.CreatedAt).ToLocalTime().Date == DateTime.Today)</p>
         </div>
         <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
             <h3 class="text-zinc-400 text-sm font-medium">Total Sick Leaves</h3>
@@ -113,7 +113,7 @@
                                     <td class="px-6 py-4">
                                         <div class="flex items-center gap-3">
                                             <div class="size-8 rounded-full bg-fuchsia-900/50 text-fuchsia-400 flex items-center justify-center font-bold text-xs border border-fuchsia-800">
-                                                @request.EmployeeName[0]
+                                                @GetInitial(request.EmployeeName)
                                             </div>
                                             <div>
                                                 <div class="text-white font-medium">@request.EmployeeName</div>
@@ -237,7 +237,7 @@
                 <!-- User Info Row -->
                 <div class="flex items-center gap-4 p-4 bg-zinc-950 rounded-xl border border-zinc-800/50">
                     <div class="size-12 rounded-full bg-fuchsia-900/50 text-fuchsia-400 flex items-center justify-center font-bold text-lg border border-fuchsia-800">
-                        @_selectedRequest.EmployeeName[0]
+                        @GetInitial(_selectedRequest.EmployeeName)
                     </div>
                     <div>
                         <div class="text-white font-medium text-lg">@_selectedRequest.EmployeeName</div>
@@ -638,6 +638,9 @@
         public DateTime? ActionTakenAt { get; set; }
     }
     
+    private static string GetInitial(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? "?" : name.Trim()[0].ToString().ToUpperInvariant();
+
     public class AdminCreateLeaveRequestDto
     {
         [System.ComponentModel.DataAnnotations.Required]

@@ -199,35 +199,81 @@ public class HolidayCalendarController : ControllerBase
     [HttpGet("import/{countryCode}")]
     public IActionResult GetHolidaysForCountry(string countryCode, int year)
     {
-        // Mock data for prototype
+        if (year < 1900 || year > 2100)
+        {
+            return BadRequest("Year must be between 1900 and 2100.");
+        }
+
+        var code = (countryCode ?? string.Empty).Trim().ToUpperInvariant();
         var holidays = new List<Holiday>();
-        
-        if (countryCode == "PH")
+
+        if (code == "PH")
         {
-            holidays.Add(new Holiday { Name = "New Year's Day", Date = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Maundy Thursday", Date = new DateTime(year, 4, 2, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Good Friday", Date = new DateTime(year, 4, 3, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "The Day of Valor", Date = new DateTime(year, 4, 9, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Labor Day", Date = new DateTime(year, 5, 1, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Independence Day", Date = new DateTime(year, 6, 12, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "National Heroes Day", Date = new DateTime(year, 8, 31, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Bonifacio Day", Date = new DateTime(year, 11, 30, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Christmas Day", Date = new DateTime(year, 12, 25, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Rizal Day", Date = new DateTime(year, 12, 30, 0, 0, 0, DateTimeKind.Utc) });
+            var easter = GetEasterSunday(year);
+            holidays.Add(new Holiday { Name = "New Year's Day", Date = UtcDate(year, 1, 1) });
+            holidays.Add(new Holiday { Name = "Maundy Thursday", Date = UtcDate(easter.AddDays(-3)) });
+            holidays.Add(new Holiday { Name = "Good Friday", Date = UtcDate(easter.AddDays(-2)) });
+            holidays.Add(new Holiday { Name = "The Day of Valor", Date = UtcDate(year, 4, 9) });
+            holidays.Add(new Holiday { Name = "Labor Day", Date = UtcDate(year, 5, 1) });
+            holidays.Add(new Holiday { Name = "Independence Day", Date = UtcDate(year, 6, 12) });
+            holidays.Add(new Holiday { Name = "National Heroes Day", Date = UtcDate(GetLastDayOfWeekInMonth(year, 8, DayOfWeek.Monday)) });
+            holidays.Add(new Holiday { Name = "Bonifacio Day", Date = UtcDate(year, 11, 30) });
+            holidays.Add(new Holiday { Name = "Christmas Day", Date = UtcDate(year, 12, 25) });
+            holidays.Add(new Holiday { Name = "Rizal Day", Date = UtcDate(year, 12, 30) });
         }
-        else if (countryCode == "US")
+        else if (code == "US")
         {
-            holidays.Add(new Holiday { Name = "New Year's Day", Date = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Martin Luther King Jr. Day", Date = new DateTime(year, 1, 19, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Memorial Day", Date = new DateTime(year, 5, 25, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Juneteenth", Date = new DateTime(year, 6, 19, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Independence Day", Date = new DateTime(year, 7, 4, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Labor Day", Date = new DateTime(year, 9, 7, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Veterans Day", Date = new DateTime(year, 11, 11, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Thanksgiving Day", Date = new DateTime(year, 11, 26, 0, 0, 0, DateTimeKind.Utc) });
-            holidays.Add(new Holiday { Name = "Christmas Day", Date = new DateTime(year, 12, 25, 0, 0, 0, DateTimeKind.Utc) });
+            holidays.Add(new Holiday { Name = "New Year's Day", Date = UtcDate(year, 1, 1) });
+            holidays.Add(new Holiday { Name = "Martin Luther King Jr. Day", Date = UtcDate(GetNthDayOfWeekInMonth(year, 1, DayOfWeek.Monday, 3)) });
+            holidays.Add(new Holiday { Name = "Memorial Day", Date = UtcDate(GetLastDayOfWeekInMonth(year, 5, DayOfWeek.Monday)) });
+            holidays.Add(new Holiday { Name = "Juneteenth", Date = UtcDate(year, 6, 19) });
+            holidays.Add(new Holiday { Name = "Independence Day", Date = UtcDate(year, 7, 4) });
+            holidays.Add(new Holiday { Name = "Labor Day", Date = UtcDate(GetNthDayOfWeekInMonth(year, 9, DayOfWeek.Monday, 1)) });
+            holidays.Add(new Holiday { Name = "Veterans Day", Date = UtcDate(year, 11, 11) });
+            holidays.Add(new Holiday { Name = "Thanksgiving Day", Date = UtcDate(GetNthDayOfWeekInMonth(year, 11, DayOfWeek.Thursday, 4)) });
+            holidays.Add(new Holiday { Name = "Christmas Day", Date = UtcDate(year, 12, 25) });
         }
-        
+
         return Ok(holidays);
+    }
+
+    private static DateTime UtcDate(int year, int month, int day) =>
+        new(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+
+    private static DateTime UtcDate(DateTime date) =>
+        DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
+
+    // Anonymous Gregorian computus for Easter Sunday
+    private static DateTime GetEasterSunday(int year)
+    {
+        int a = year % 19;
+        int b = year / 100;
+        int c = year % 100;
+        int d = b / 4;
+        int e = b % 4;
+        int f = (b + 8) / 25;
+        int g = (b - f + 1) / 3;
+        int h = (19 * a + b - d - g + 15) % 30;
+        int i = c / 4;
+        int k = c % 4;
+        int l = (32 + 2 * e + 2 * i - h - k) % 7;
+        int m = (a + 11 * h + 22 * l) / 451;
+        int month = (h + l - 7 * m + 114) / 31;
+        int day = ((h + l - 7 * m + 114) % 31) + 1;
+        return new DateTime(year, month, day);
+    }
+
+    private static DateTime GetNthDayOfWeekInMonth(int year, int month, DayOfWeek targetDay, int nth)
+    {
+        var first = new DateTime(year, month, 1);
+        int offset = ((int)targetDay - (int)first.DayOfWeek + 7) % 7;
+        return first.AddDays(offset + (nth - 1) * 7);
+    }
+
+    private static DateTime GetLastDayOfWeekInMonth(int year, int month, DayOfWeek targetDay)
+    {
+        var last = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+        int offset = ((int)last.DayOfWeek - (int)targetDay + 7) % 7;
+        return last.AddDays(-offset);
     }
 }

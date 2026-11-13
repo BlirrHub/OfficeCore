@@ -242,10 +242,13 @@ else
         }
     }
 
+    private bool _hasPrinted = false;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender && !isLoading && payslips != null && payslips.Any())
+        if (!firstRender && !_hasPrinted && !isLoading && payslips != null && payslips.Any())
         {
+            _hasPrinted = true;
             // Small delay to ensure CSS applies
             await Task.Delay(500);
             await JSRuntime.InvokeVoidAsync("window.print");

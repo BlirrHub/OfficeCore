@@ -571,7 +571,7 @@ public partial class MainWindow : Window
 
     private void OnServerStatusChanged(ServerStatus status)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             UpdateTrayStatus(status);
             switch (status)
@@ -636,7 +636,7 @@ public partial class MainWindow : Window
 
     private void OnServerLogReceived(string line)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             const int maxLogChars = 100_000;
             if (ConsoleLogBox.Text.Length > maxLogChars)

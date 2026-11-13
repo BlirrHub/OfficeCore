@@ -317,6 +317,7 @@ public class ServerProcessManager : IDisposable
         }
         finally
         {
+            _serverProcess?.Dispose();
             _serverProcess = null;
             SetStatus(ServerStatus.Stopped);
             LogReceived?.Invoke("[DesktopHost] Server stopped.");
