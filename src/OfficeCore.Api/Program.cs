@@ -234,8 +234,8 @@ app.UseRateLimiter();
 
 // ─── Workstation / Desktop Only Enforcer ───────────────────────────────────────
 // Blocks direct web browser access (e.g. Chrome, Edge) unless requested by the
-// official OfficeCore desktop workstation client or mobile application.
-
+// official OfficeCore desktop workstation client.
+app.Use(OfficeCore.Api.Services.WorkstationAccessGuard.EnforceAsync);
 
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
