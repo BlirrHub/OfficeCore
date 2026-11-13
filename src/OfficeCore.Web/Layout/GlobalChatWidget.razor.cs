@@ -155,13 +155,20 @@ public partial class GlobalChatWidget
     private string GetPreviewText(string content)
     {
         if (string.IsNullOrEmpty(content)) return content;
+        var text = content;
+        // Strip leading reply quote block when generating previews
+        if (text.StartsWith("> Replying to "))
+        {
+            var parts = text.Split(new[] { "\n\n", "\r\n\r\n" }, 2, StringSplitOptions.None);
+            if (parts.Length == 2) text = parts[1];
+        }
         // Strip out user mention markdown into clean @Name
-        var text = System.Text.RegularExpressions.Regex.Replace(content, @"\[([^\]]+)\]\(@user-[a-zA-Z0-9\-_]+\)", "@$1");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\[([^\]]+)\]\(@user-[a-zA-Z0-9\-_]+\)", "@$1");
         // Strip out the (#id) part from markdown links but keep the display text
         text = System.Text.RegularExpressions.Regex.Replace(text, @"\[([^\]]+)\]\(#(board|task)-.*?\)", "$1");
         // Also strip any raw @user-id into @user if any exists
         text = System.Text.RegularExpressions.Regex.Replace(text, @"@user-[a-zA-Z0-9\-_]+", "@user");
-        return text;
+        return System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
     }
 
     private MarkupString FormatMessageContent(string content, bool isMine)
@@ -991,6 +998,7 @@ public partial class GlobalChatWidget
             var sender = _replyingToMessage.SenderId == _currentEmployeeId ? "yourself" : _replyingToMessage.SenderName;
             var preview = GetPreviewText(_replyingToMessage.Content);
             if (string.IsNullOrEmpty(preview) && !string.IsNullOrEmpty(_replyingToMessage.AttachmentName)) preview = _replyingToMessage.AttachmentName;
+            if (!string.IsNullOrEmpty(preview) && preview.Length > 100) preview = preview[..97] + "...";
             content = $"> Replying to {sender}: \"{preview}\"\n\n{content}";
             _replyingToMessage = null;
         }

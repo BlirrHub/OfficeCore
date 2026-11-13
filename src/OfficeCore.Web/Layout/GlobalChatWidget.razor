@@ -786,7 +786,7 @@
                         </div>
                     }
 
-                    <div class="space-y-1 flex flex-col">
+                    <div class="space-y-1 flex flex-col min-w-0 w-full">
                         @{
                             var displayMessages = string.IsNullOrWhiteSpace(_chatSearchQuery) 
                                 ? _messages 
@@ -882,7 +882,7 @@
                                         </div>
                                     }
                                     
-                                    <div class="chat-msg-bubble-wrap relative flex flex-col @(isMine ? "items-end" : "items-start") min-w-0 max-w-[calc(100%-80px)] sm:max-w-[230px]">
+                                    <div class="chat-msg-bubble-wrap relative flex flex-col @(isMine ? "items-end" : "items-start") min-w-0 max-w-[78%] sm:max-w-[230px]">
                                         <!-- Floating Emoji Reaction Picker directly on top of chat bubble -->
                                         @if (_activeReactionMenuId == msg.Id)
                                         {
@@ -915,7 +915,7 @@
                                             </span>
                                         }
 
-                                        <div class="flex flex-col gap-1.5 max-w-full @(isMine ? "items-end" : "items-start")">
+                                        <div class="flex flex-col gap-1.5 min-w-0 max-w-full @(isMine ? "items-end" : "items-start")">
                                             @if (hasAttachment)
                                             {
                                                 <div class="rounded-2xl overflow-hidden border transition-all cursor-pointer max-w-full @(isMine ? "bg-fuchsia-700/80 border-fuchsia-500/50 hover:border-fuchsia-400 shadow-md shadow-fuchsia-950/40" : "bg-zinc-800/90 border-zinc-700/70 hover:border-zinc-500 shadow-sm")"
@@ -977,7 +977,7 @@
 
                                             @if (!string.IsNullOrWhiteSpace(msg.Content))
                                             {
-                                                <div class="px-3 py-2 text-xs rounded-2xl break-words whitespace-pre-wrap select-text cursor-default chat-msg-bubble @(isMine ? "bg-fuchsia-600 text-white rounded-br-xs shadow-md shadow-fuchsia-950/40" : "bg-zinc-800 text-zinc-100 rounded-bl-xs")">
+                                                <div class="px-3 py-2 text-xs rounded-2xl max-w-full break-words whitespace-pre-wrap select-text cursor-default chat-msg-bubble @(isMine ? "bg-fuchsia-600 text-white rounded-br-xs shadow-md shadow-fuchsia-950/40" : "bg-zinc-800 text-zinc-100 rounded-bl-xs")">
                                                     @FormatMessageContent(msg.Content, isMine)
                                                 </div>
                                             }
@@ -1112,14 +1112,14 @@
                     <!-- Replying to preview banner -->
                     @if (_replyingToMessage != null)
                     {
-                        <div class="flex items-center justify-between p-2 rounded-xl bg-zinc-950 border border-zinc-800 shadow-sm animate-fade-in mb-2 text-xs">
-                            <div class="flex items-center gap-2 min-w-0">
+                        <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-zinc-950 border border-zinc-800 shadow-sm animate-fade-in mb-2 text-xs min-w-0 overflow-hidden">
+                            <div class="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
                                 <svg class="size-3.5 text-fuchsia-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                                 </svg>
-                                <div class="min-w-0 text-[11px]">
-                                    <span class="text-zinc-400">Replying to <span class="text-fuchsia-300 font-medium">@(_replyingToMessage.SenderId == _currentEmployeeId ? "yourself" : _replyingToMessage.SenderName)</span>: </span>
-                                    <span class="text-zinc-200 truncate font-normal">@(!string.IsNullOrEmpty(_replyingToMessage.Content) ? GetPreviewText(_replyingToMessage.Content) : _replyingToMessage.AttachmentName ?? "Attachment")</span>
+                                <div class="flex-1 min-w-0 text-[11px] overflow-hidden">
+                                    <p class="text-zinc-400 truncate">Replying to <span class="text-fuchsia-300 font-medium">@(_replyingToMessage.SenderId == _currentEmployeeId ? "yourself" : _replyingToMessage.SenderName)</span>:</p>
+                                    <p class="text-zinc-200 truncate font-normal">@(!string.IsNullOrEmpty(_replyingToMessage.Content) ? GetPreviewText(_replyingToMessage.Content) : _replyingToMessage.AttachmentName ?? "Attachment")</p>
                                 </div>
                             </div>
                             <button type="button" @onclick="CancelReply" class="size-5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors shrink-0" title="Cancel reply">
@@ -1400,6 +1400,9 @@
 
     .chat-msg-bubble {
         cursor: default !important;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 </style>
 
